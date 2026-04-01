@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { localizePurpose, localizeHighlight, localizeDisbursement, localizeMonthsField, localizeLoanAmount } from "@/lib/localize";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -53,7 +54,8 @@ const writeRoles = ["superadmin", "head_office_admin", "editor"];
 const adminRoles = ["superadmin", "head_office_admin"];
 
 export default function CreditProducts({ user }: { user?: any }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -250,7 +252,7 @@ export default function CreditProducts({ user }: { user?: any }) {
                       </TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">{item.sapCode || "-"}</TableCell>
                       <TableCell>{item.segment ? getSegmentBadge(item.segment) : "-"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{item.loanAmount || "-"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{localizeLoanAmount(item.loanAmount, lang) || "-"}</TableCell>
                       <TableCell className="text-sm font-medium text-primary">{item.rateUZS || "-"}</TableCell>
                       {canWrite && (
                         <TableCell className="text-right">
@@ -272,15 +274,15 @@ export default function CreditProducts({ user }: { user?: any }) {
                       <TableRow key={`${item.id}-detail`}>
                         <TableCell colSpan={7} className="bg-muted/30 p-4">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.disbursementForm")}:</span> <span className="ml-1">{item.disbursementForm || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termWorkingCapital")}:</span> <span className="ml-1">{item.termWorkingCapital || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termFixedAssets")}:</span> <span className="ml-1">{item.termFixedAssets || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termUntargeted")}:</span> <span className="ml-1">{item.termUntargeted || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.disbursementForm")}:</span> <span className="ml-1">{localizeDisbursement(item.disbursementForm, lang) || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termWorkingCapital")}:</span> <span className="ml-1">{localizeMonthsField(item.termWorkingCapital, lang) || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termFixedAssets")}:</span> <span className="ml-1">{localizeMonthsField(item.termFixedAssets, lang) || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.termUntargeted")}:</span> <span className="ml-1">{localizeMonthsField(item.termUntargeted, lang) || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateUSD")}:</span> <span className="ml-1">{item.rateUSD || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateEUR")}:</span> <span className="ml-1">{item.rateEUR || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.gracePeriod")}:</span> <span className="ml-1">{item.gracePeriod || "-"}</span></div>
-                            <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.purpose")}:</span> <span className="ml-1">{item.purpose || "-"}</span></div>
-                            {item.highlight && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.highlight")}:</span> <span className="ml-1">{item.highlight}</span></div>}
+                            <div><span className="font-medium text-muted-foreground">{t("creditProducts.gracePeriod")}:</span> <span className="ml-1">{localizeMonthsField(item.gracePeriod, lang) || "-"}</span></div>
+                            <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.purpose")}:</span> <span className="ml-1">{localizePurpose(item.purpose, lang) || "-"}</span></div>
+                            {item.highlight && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.highlight")}:</span> <span className="ml-1">{localizeHighlight(item.highlight, lang)}</span></div>}
                           </div>
                         </TableCell>
                       </TableRow>

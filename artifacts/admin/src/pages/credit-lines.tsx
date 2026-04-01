@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { localizeSection, localizeDepartment, localizeSpecialConditions, localizeNotes } from "@/lib/localize";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -65,7 +66,8 @@ function fmtNum(value: string | number | null | undefined): string {
 }
 
 export default function CreditLines({ user }: { user?: any }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -280,14 +282,14 @@ export default function CreditLines({ user }: { user?: any }) {
                       <TableRow key={`${item.id}-detail`}>
                         <TableCell colSpan={7} className="bg-muted/30 p-4">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{item.department || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{localizeDepartment(item.department, lang) || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{item.agreementDate || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1 tabular-nums">{fmtNum(item.receivedAmount)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{item.interestRate || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.projectCount")}:</span> <span className="ml-1">{item.projectCount || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.section")}:</span> <span className="ml-1">{item.section || "-"}</span></div>
-                            {item.specialConditions && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.specialConditions")}:</span> <span className="ml-1">{item.specialConditions}</span></div>}
-                            {item.notes && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.notes")}:</span> <span className="ml-1">{item.notes}</span></div>}
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.section")}:</span> <span className="ml-1">{localizeSection(item.section, lang) || "-"}</span></div>
+                            {item.specialConditions && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.specialConditions")}:</span> <span className="ml-1">{localizeSpecialConditions(item.specialConditions, lang)}</span></div>}
+                            {item.notes && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.notes")}:</span> <span className="ml-1">{localizeNotes(item.notes, lang)}</span></div>}
                           </div>
                         </TableCell>
                       </TableRow>
