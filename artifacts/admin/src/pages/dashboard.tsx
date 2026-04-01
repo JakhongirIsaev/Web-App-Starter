@@ -39,7 +39,7 @@ export default function Dashboard() {
     recommendation: "hsl(43 100% 50%)",
     basket: "hsl(270 100% 60%)",
     pdf_generated: "hsl(240 100% 60%)",
-    completed: "hsl(142 71% 45%)",
+    completed: "hsl(217 91% 60%)",
     rejected: "hsl(0 84% 60%)",
   };
 
@@ -136,7 +136,7 @@ export default function Dashboard() {
                     />
                     <Legend />
                     <Bar dataKey="totalClients" name={t("dashboard.totalClients")} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="completedClients" name={t("dashboard.completed")} fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="completedClients" name={t("dashboard.completed")} fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
