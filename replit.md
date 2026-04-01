@@ -184,6 +184,16 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 
 Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 
+## Telegram Bot Integration
+
+- **Bot**: `@minerva_1_bot` (grammy framework, long-polling)
+- **Bot code**: `artifacts/api-server/src/bot.ts`
+- **Secret**: `TELEGRAM_BOT_TOKEN` (stored in Replit Secrets)
+- **Commands**: `/start` (opens Mini App via WebApp button), `/help` (shows help text)
+- **Auto-login**: When opened inside Telegram, the Mini App detects `window.Telegram.WebApp.initData`, sends it to `POST /api/auth/telegram` for HMAC-SHA256 validation, and auto-authenticates the user if their Telegram ID is registered
+- **Fallback**: If Telegram auth fails (unregistered user), shows manual login form with error message
+- **Telegram WebApp SDK**: Loaded via `<script>` in `artifacts/mini-app/index.html`
+
 ## Auto-Seeding
 
 `artifacts/api-server/src/seed.ts` runs on startup — seeds demo data if `users` table is empty. This ensures the published/production version also gets demo data on first deploy.
