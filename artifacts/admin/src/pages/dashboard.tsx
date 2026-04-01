@@ -34,13 +34,13 @@ export default function Dashboard() {
   );
 
   const STATUS_COLORS: Record<string, string> = {
-    draft: "hsl(215 16% 47%)",
-    questionnaire: "hsl(215 100% 50%)",
-    recommendation: "hsl(43 100% 50%)",
-    basket: "hsl(270 100% 60%)",
-    pdf_generated: "hsl(240 100% 60%)",
-    completed: "hsl(217 91% 60%)",
-    rejected: "hsl(0 84% 60%)",
+    draft:          "hsl(215 16% 52%)",   // slate-gray
+    questionnaire:  "hsl(215 90% 52%)",   // blue
+    recommendation: "hsl(38 95% 52%)",    // amber
+    basket:         "hsl(270 80% 58%)",   // purple
+    pdf_generated:  "hsl(174 72% 40%)",   // teal
+    completed:      "hsl(142 65% 42%)",   // green
+    rejected:       "hsl(0 80% 58%)",     // red
   };
 
   return (
