@@ -1,0 +1,135 @@
+import { Router, type IRouter } from "express";
+import { db } from "@workspace/db";
+import { usersTable, branchesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { LoginBody } from "@workspace/api-zod";
+
+const router: IRouter = Router();
+
+router.get("/auth/me", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const userId = req.app.locals.sessions?.get(token);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const users = await db
+    .select({
+      id: usersTable.id,
+      telegramId: usersTable.telegramId,
+      name: usersTable.name,
+      role: usersTable.role,
+      branchId: usersTable.branchId,
+      isActive: usersTable.isActive,
+      createdAt: usersTable.createdAt,
+      updatedAt: usersTable.updatedAt,
+      branchName: branchesTable.name,
+      branchCity: branchesTable.city,
+      branchIsActive: branchesTable.isActive,
+    })
+    .from(usersTable)
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+
+  if (!users.length || !users[0].isActive) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const u = users[0];
+  const branch = u.branchId ? {
+    id: u.branchId,
+    name: u.branchName!,
+    city: u.branchCity!,
+    isActive: u.branchIsActive!,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } : null;
+
+  res.json({
+    id: u.id,
+    telegramId: u.telegramId,
+    name: u.name,
+    role: u.role,
+    branchId: u.branchId ?? null,
+    branch,
+    isActive: u.isActive,
+    createdAt: u.createdAt,
+    updatedAt: u.updatedAt,
+  });
+});
+
+router.post("/auth/login", async (req, res) => {
+  const parsed = LoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+
+  const { telegramId, password } = parsed.data;
+
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .limit(1);
+
+  if (!users.length || !users[0].isActive) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const user = users[0];
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  if (!req.app.locals.sessions) {
+    req.app.locals.sessions = new Map<string, number>();
+  }
+  req.app.locals.sessions.set(token, user.id);
+
+  let branch = null;
+  if (user.branchId) {
+    const branches = await db.select().from(branchesTable).where(eq(branchesTable.id, user.branchId)).limit(1);
+    if (branches.length) {
+      branch = branches[0];
+    }
+  }
+
+  res.json({
+    user: {
+      id: user.id,
+      telegramId: user.telegramId,
+      name: user.name,
+      role: user.role,
+      branchId: user.branchId ?? null,
+      branch,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    },
+    token,
+  });
+});
+
+router.post("/auth/logout", (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (token && req.app.locals.sessions) {
+    req.app.locals.sessions.delete(token);
+  }
+  res.json({ success: true });
+});
+
+export default router;

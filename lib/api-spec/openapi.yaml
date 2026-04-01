@@ -1,22 +1,35 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Minerva Credit Hunter API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: branches
+    description: Branch management
+  - name: users
+    description: User management
+  - name: clients
+    description: Client management
+  - name: products
+    description: Product management
+  - name: articles
+    description: Knowledge base articles
+  - name: dashboard
+    description: Dashboard and analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,685 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with Telegram ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logout successful
+
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [branches]
+      summary: List all branches
+      responses:
+        "200":
+          description: List of branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+    post:
+      operationId: createBranch
+      tags: [branches]
+      summary: Create a branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBranchBody"
+      responses:
+        "201":
+          description: Branch created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+
+  /branches/{id}:
+    get:
+      operationId: getBranch
+      tags: [branches]
+      summary: Get branch by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+    put:
+      operationId: updateBranch
+      tags: [branches]
+      summary: Update branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBranchBody"
+      responses:
+        "200":
+          description: Branch updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+    delete:
+      operationId: deleteBranch
+      tags: [branches]
+      summary: Delete branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /users/{id}/deactivate:
+    post:
+      operationId: deactivateUser
+      tags: [users]
+      summary: Deactivate user (revokes Mini App access instantly)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}/activate:
+    post:
+      operationId: activateUser
+      tags: [users]
+      summary: Activate user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List clients
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: assignedTo
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated clients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientListResponse"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientBody"
+      responses:
+        "201":
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get client by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+    put:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientBody"
+      responses:
+        "200":
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List products
+      parameters:
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductBody"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    put:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductBody"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /product-categories:
+    get:
+      operationId: listProductCategories
+      tags: [products]
+      summary: List product categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductCategory"
+    post:
+      operationId: createProductCategory
+      tags: [products]
+      summary: Create product category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductCategoryBody"
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductCategory"
+
+  /articles:
+    get:
+      operationId: listArticles
+      tags: [articles]
+      summary: List articles
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: isPublished
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+    post:
+      operationId: createArticle
+      tags: [articles]
+      summary: Create article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateArticleBody"
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+
+  /articles/{id}:
+    get:
+      operationId: getArticle
+      tags: [articles]
+      summary: Get article by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+    put:
+      operationId: updateArticle
+      tags: [articles]
+      summary: Update article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateArticleBody"
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+    delete:
+      operationId: deleteArticle
+      tags: [articles]
+      summary: Delete article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get operational dashboard metrics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/branch-stats:
+    get:
+      operationId: getBranchStats
+      tags: [dashboard]
+      summary: Get per-branch statistics
+      responses:
+        "200":
+          description: Branch statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BranchStat"
+
+  /dashboard/client-status:
+    get:
+      operationId: getClientStatusBreakdown
+      tags: [dashboard]
+      summary: Get client status breakdown counts
+      responses:
+        "200":
+          description: Client status breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatusCount"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +723,457 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    LoginBody:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        password:
+          type: string
+      required: [telegramId, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required: [user, token]
+
+    Branch:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        city:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, city, isActive, createdAt, updatedAt]
+
+    CreateBranchBody:
+      type: object
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+        isActive:
+          type: boolean
+      required: [name, city]
+
+    UpdateBranchBody:
+      type: object
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+        isActive:
+          type: boolean
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        telegramId:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [superadmin, head_office_admin, editor, branch_head, hunter]
+        branchId:
+          type: integer
+          nullable: true
+        branch:
+          $ref: "#/components/schemas/Branch"
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, telegramId, name, role, isActive, createdAt, updatedAt]
+
+    CreateUserBody:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [superadmin, head_office_admin, editor, branch_head, hunter]
+        branchId:
+          type: integer
+          nullable: true
+        password:
+          type: string
+      required: [telegramId, name, role, password]
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [superadmin, head_office_admin, editor, branch_head, hunter]
+        branchId:
+          type: integer
+          nullable: true
+        isActive:
+          type: boolean
+        password:
+          type: string
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: string
+        fullName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, questionnaire, recommendation, basket, pdf_generated, completed, rejected]
+        branchId:
+          type: integer
+        branch:
+          $ref: "#/components/schemas/Branch"
+          nullable: true
+        assignedToId:
+          type: integer
+          nullable: true
+        assignedTo:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, sessionId, status, branchId, createdAt, updatedAt]
+
+    ClientListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Client"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required: [data, total, page, pageSize]
+
+    CreateClientBody:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        branchId:
+          type: integer
+        assignedToId:
+          type: integer
+      required: [branchId]
+
+    UpdateClientBody:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+          enum: [draft, questionnaire, recommendation, basket, pdf_generated, completed, rejected]
+        assignedToId:
+          type: integer
+
+    ProductCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+
+    CreateProductCategoryBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+      required: [name]
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [credit, non_credit]
+        categoryId:
+          type: integer
+          nullable: true
+        category:
+          $ref: "#/components/schemas/ProductCategory"
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        minAmount:
+          type: number
+          nullable: true
+        maxAmount:
+          type: number
+          nullable: true
+        minTermMonths:
+          type: integer
+          nullable: true
+        maxTermMonths:
+          type: integer
+          nullable: true
+        interestRate:
+          type: number
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, type, isActive, createdAt, updatedAt]
+
+    CreateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [credit, non_credit]
+        categoryId:
+          type: integer
+        description:
+          type: string
+        minAmount:
+          type: number
+        maxAmount:
+          type: number
+        minTermMonths:
+          type: integer
+        maxTermMonths:
+          type: integer
+        interestRate:
+          type: number
+        isActive:
+          type: boolean
+      required: [name, type]
+
+    UpdateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [credit, non_credit]
+        categoryId:
+          type: integer
+        description:
+          type: string
+        minAmount:
+          type: number
+        maxAmount:
+          type: number
+        minTermMonths:
+          type: integer
+        maxTermMonths:
+          type: integer
+        interestRate:
+          type: number
+        isActive:
+          type: boolean
+
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        targetAllBranches:
+          type: boolean
+        branchIds:
+          type: array
+          items:
+            type: integer
+        authorId:
+          type: integer
+          nullable: true
+        author:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, content, isPublished, targetAllBranches, branchIds, createdAt, updatedAt]
+
+    CreateArticleBody:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        targetAllBranches:
+          type: boolean
+        branchIds:
+          type: array
+          items:
+            type: integer
+      required: [title, content]
+
+    UpdateArticleBody:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        targetAllBranches:
+          type: boolean
+        branchIds:
+          type: array
+          items:
+            type: integer
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalClients:
+          type: integer
+        totalActiveClients:
+          type: integer
+        totalCompletedToday:
+          type: integer
+        totalBranches:
+          type: integer
+        totalHunters:
+          type: integer
+        totalProducts:
+          type: integer
+        completedThisMonth:
+          type: integer
+        rejectedThisMonth:
+          type: integer
+      required:
+        [totalClients, totalActiveClients, totalCompletedToday, totalBranches, totalHunters, totalProducts, completedThisMonth, rejectedThisMonth]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+        entityType:
+          type: string
+          nullable: true
+        userId:
+          type: integer
+          nullable: true
+        userName:
+          type: string
+          nullable: true
+        branchName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, description, createdAt]
+
+    BranchStat:
+      type: object
+      properties:
+        branchId:
+          type: integer
+        branchName:
+          type: string
+        totalClients:
+          type: integer
+        completedClients:
+          type: integer
+        activeHunters:
+          type: integer
+      required: [branchId, branchName, totalClients, completedClients, activeHunters]
+
+    StatusCount:
+      type: object
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+      required: [status, count]
