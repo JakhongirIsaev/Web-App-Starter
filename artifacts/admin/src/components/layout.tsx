@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,7 @@ export function getRoleColor(role: string) {
   switch (role) {
     case "superadmin": return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
     case "head_office_admin": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
-    case "editor": return "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20";
+    case "editor": return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
     case "branch_head": return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20";
     default: return "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20";
   }
@@ -79,10 +80,7 @@ export default function Layout({ children, user }: LayoutProps) {
     <div className="min-h-screen w-full flex bg-background">
       <aside className="w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center mr-3">
-            <div className="w-4 h-4 border-2 border-primary-foreground rounded-sm" />
-          </div>
-          <span className="font-semibold text-lg text-sidebar-foreground tracking-tight">Minerva</span>
+          <Logo size={28} textColor="text-sidebar-foreground" />
         </div>
         
         <div className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto">

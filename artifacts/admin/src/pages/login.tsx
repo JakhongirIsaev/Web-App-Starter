@@ -17,6 +17,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import Logo from "@/components/logo";
+
+const STRIPES = Array.from({ length: 40 }).map((_, i) => {
+  const seed = Math.sin(i * 9301 + 49297) * 49297;
+  const r = seed - Math.floor(seed);
+  return {
+    width: `${2 + r * 3}%`,
+    marginRight: `${0.5 + (Math.sin(i * 127 + 311) * 0.5 + 0.5)}%`,
+    background: `linear-gradient(180deg, 
+      hsl(142 71% ${35 + Math.sin(i * 0.5) * 20}%) 0%, 
+      hsl(145 55% ${25 + Math.cos(i * 0.3) * 15}%) 50%,
+      hsl(140 60% ${30 + Math.sin(i * 0.7) * 15}%) 100%)`,
+  };
+});
+
+function StripeBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden opacity-[0.15]">
+      <div className="absolute inset-0 flex">
+        {STRIPES.map((s, i) => (
+          <div
+            key={i}
+            className="flex-shrink-0"
+            style={{ width: s.width, height: "100%", background: s.background, marginRight: s.marginRight }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const [_, setLocation] = useLocation();
@@ -59,34 +89,35 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-background">
-      <div className="hidden md:flex flex-col flex-1 bg-sidebar p-12 justify-between relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent pointer-events-none" />
+      <div className="hidden md:flex flex-col flex-1 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0d3d1a 0%, #155d27 40%, #1a7a32 100%)" }}>
+        <StripeBackground />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
         
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <div className="w-5 h-5 border-2 border-primary-foreground rounded-sm" />
-            </div>
-            <span className="font-bold text-2xl text-sidebar-foreground tracking-tight">{t("login.branding")}</span>
+        <div className="relative z-10 flex flex-col justify-between h-full p-12">
+          <div>
+            <Logo size={36} textColor="text-white" className="mb-16" />
+            
+            <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight max-w-lg mb-6">
+              {t("login.headline")}
+            </h1>
+            <p className="text-white/60 text-lg max-w-md">
+              {t("login.tagline")}
+            </p>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-bold text-sidebar-foreground leading-tight max-w-lg mb-6">
-            {t("login.headline")}
-          </h1>
-          <p className="text-sidebar-foreground/70 text-lg max-w-md">
-            {t("login.tagline")}
-          </p>
-        </div>
-        
-        <div className="relative z-10 flex items-center gap-2 text-sidebar-foreground/50 text-sm font-medium">
-          <ShieldCheck className="w-4 h-4" />
-          {t("login.encryption")}
+          <div className="flex items-center gap-2 text-white/40 text-sm font-medium">
+            <ShieldCheck className="w-4 h-4" />
+            {t("login.encryption")}
+          </div>
         </div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 bg-background relative">
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2 text-center md:text-left">
+            <div className="md:hidden flex justify-center mb-6">
+              <Logo size={40} textColor="text-foreground" />
+            </div>
             <h2 className="text-3xl font-bold tracking-tight text-foreground">{t("login.title")}</h2>
             <p className="text-muted-foreground">
               {t("login.subtitle")}
