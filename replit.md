@@ -2,7 +2,7 @@
 
 ## Overview
 
-Minerva is a web admin panel for credit specialists (hunters) and head office managers at SME-focused financial branches. This is a full-stack TypeScript monorepo using pnpm workspaces.
+Minerva is a full-stack platform for Ipak Yuli Bank with two products: (1) **Admin Web Panel** for head office management, and (2) **Telegram Mini App** for credit experts (field specialists). Both share the same API server and database. Full-stack TypeScript monorepo using pnpm workspaces.
 
 ## Stack
 
@@ -23,6 +23,7 @@ Minerva is a web admin panel for credit specialists (hunters) and head office ma
 artifacts-monorepo/
 ├── artifacts/
 │   ├── admin/           # Minerva Web Admin Panel (React + Vite) - served at /
+│   ├── mini-app/        # Minerva Telegram Mini App (React + Vite) - served at /mini-app/
 │   └── api-server/      # Express API server - served at /api
 ├── lib/
 │   ├── api-spec/        # OpenAPI spec + Orval codegen config
@@ -50,6 +51,15 @@ Tables:
 - `credit_products` — MSME department credit product lineup with segment, SAP code, rates, terms, grace period, purpose, highlight
 - `sap_codes` — SAP system product codes registry with status, product type, category
 - `credit_lines` — International organization credit line balances with agreement details, disbursement, remaining balance
+
+**Mini App Tables** (schema: `lib/db/src/schema/mini-app.ts`):
+- `client_notes` — Notes on clients by credit experts
+- `client_next_actions` — Scheduled follow-up actions for clients
+- `questionnaire_sessions` — Questionnaire sessions linking client to expert
+- `questionnaire_answers` — Individual answers within a questionnaire session
+- `baskets` — Product baskets for clients (selected recommended products)
+- `basket_items` — Individual items in a basket
+- `calculations` — Saved loan calculations with full payment schedules (JSON)
 
 ## Role Model
 
@@ -100,14 +110,39 @@ All routes under `/api`, all require Bearer token auth:
 - `GET/POST /api/sap-codes`, `PUT/DELETE /api/sap-codes/:id`, `POST /api/sap-codes/import` (read: all, write: admin+editor, delete/import: admin)
 - `GET/POST /api/credit-lines`, `PUT/DELETE /api/credit-lines/:id`, `POST /api/credit-lines/import` (read: all, write: admin+editor, delete/import: admin)
 
+### Mini App API Routes (all under `/api/mini-app/`)
+- `GET /api/mini-app/dashboard` — Personal stats (totalClients, clientsToday, statusBreakdown)
+- `GET /api/mini-app/todo` — Daily to-do list (pending follow-ups, overdue actions)
+- `GET/POST /api/mini-app/clients` — Hunter's client list with CRM fields
+- `GET/PUT /api/mini-app/clients/:id` — Client detail + update
+- `POST /api/mini-app/clients/:id/notes` — Add client notes
+- `POST /api/mini-app/clients/:id/next-action` — Schedule next action for client
+- `POST /api/mini-app/questionnaire/start` — Start questionnaire session for client
+- `PUT /api/mini-app/questionnaire/:sessionId/answer` — Submit answer
+- `GET /api/mini-app/questionnaire/:sessionId/result` — Get questionnaire result
+- `GET /api/mini-app/recommendation/:sessionId` — Rule-based product recommendation
+- `GET/POST /api/mini-app/basket` — Manage product basket
+- `DELETE /api/mini-app/basket/:itemId` — Remove basket item
+- `POST /api/mini-app/calculator` — Calculate loan schedule (annuity/differentiated)
+- `GET /api/mini-app/calculations` — Saved calculation history
+- `GET /api/mini-app/articles` — Knowledge base articles
+- `GET /api/mini-app/branch-summary` — Branch head summary (branch_head role only)
+
 ## i18n (Internationalization)
 
-The admin panel supports Russian (default) and Uzbek languages.
-- **Library**: i18next + react-i18next
+Both admin panel and Mini App support Russian (default) and Uzbek languages.
+
+**Admin Panel:**
 - **Config**: `artifacts/admin/src/i18n/index.ts`
 - **Translation files**: `artifacts/admin/src/i18n/ru.json`, `artifacts/admin/src/i18n/uz.json`
-- **Language switcher**: Header button toggles between RU/UZ, stored in `localStorage` as `minerva_lang`
-- All UI strings wrapped in `useTranslation()` / `t()` calls
+- **Language key**: `localStorage` as `minerva_lang`
+
+**Mini App:**
+- **Config**: `artifacts/mini-app/src/i18n/index.ts`
+- **Translation files**: `artifacts/mini-app/src/i18n/ru.json`, `artifacts/mini-app/src/i18n/uz.json`
+- **Language key**: `localStorage` as `minerva_miniapp_lang`
+
+Both use i18next + react-i18next with `useTranslation()` / `t()` calls.
 
 ## CSV Import/Export
 
@@ -131,6 +166,23 @@ All pages have full CRUD functionality with dialog modals:
 - **Credit Products** (`/credit-products`) — MSME department product lineup, expandable rows, segment filter, CSV export/import
 - **SAP Codes** (`/sap-codes`) — SAP product codes registry, status filter, CSV export/import
 - **Credit Lines** (`/credit-lines`) — International credit line balances, expandable rows, currency filter, CSV export/import
+
+## Mini App Pages
+
+Mobile-first screens for credit experts (served at `/mini-app/`):
+- **Login** — Telegram ID + password auth, green branding
+- **Home** — Greeting, quick actions (4 buttons), personal stats, today's to-do
+- **Clients** — Client list with search, add new client button
+- **New Client** — Client creation form with CRM fields
+- **Client Detail** — Client info, notes, next actions, start questionnaire
+- **Questionnaire** — 6-step questionnaire (business_type, size, need_type, purpose, amount, term)
+- **Recommendation** — Rule-based product recommendations from questionnaire results
+- **Products** — Browse credit products catalog
+- **Calculator** — Loan calculator with annuity/differentiated repayment, grace period, payment schedule
+- **Knowledge** — Articles / knowledge base
+- **Layout** — Bottom navigation with 5 tabs: Home, Clients, Products, Calculator, Knowledge
+
+Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 
 ## Auto-Seeding
 

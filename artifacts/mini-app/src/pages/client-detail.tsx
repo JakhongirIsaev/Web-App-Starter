@@ -1,0 +1,269 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useLocation, useParams } from "wouter";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator } from "lucide-react";
+import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
+
+const statusColors: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-700 border-gray-200",
+  questionnaire: "bg-blue-100 text-blue-700 border-blue-200",
+  recommendation: "bg-amber-100 text-amber-700 border-amber-200",
+  basket: "bg-purple-100 text-purple-700 border-purple-200",
+  pdf_generated: "bg-teal-100 text-teal-700 border-teal-200",
+  completed: "bg-green-100 text-green-700 border-green-200",
+  rejected: "bg-red-100 text-red-700 border-red-200",
+};
+
+const statusFlow = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed"];
+
+export default function ClientDetailPage() {
+  const { t } = useTranslation();
+  const params = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteContent, setNoteContent] = useState("");
+  const [showActionForm, setShowActionForm] = useState(false);
+  const [actionType, setActionType] = useState("follow_up");
+  const [actionDate, setActionDate] = useState("");
+  const [actionPriority, setActionPriority] = useState("medium");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["mini-client", params.id],
+    queryFn: () => api.get(`/mini-app/clients/${params.id}`),
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: () => api.post(`/mini-app/clients/${params.id}/notes`, { content: noteContent, type: "note" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      setNoteContent("");
+      setShowNoteForm(false);
+    },
+  });
+
+  const addActionMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/mini-app/clients/${params.id}/next-action`, {
+        actionType,
+        actionDate,
+        priority: actionPriority,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
+      setShowActionForm(false);
+      setActionDate("");
+    },
+  });
+
+  const completeActionMutation = useMutation({
+    mutationFn: (id: number) => api.put(`/mini-app/next-actions/${id}/complete`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
+    },
+  });
+
+  if (isLoading) return <p className="text-center py-8 text-muted-foreground">{t("common.loading")}</p>;
+  if (!data?.client) return <p className="text-center py-8">{t("common.error")}</p>;
+
+  const { client, notes, nextActions, basketItems, calculations } = data;
+  const currentIdx = statusFlow.indexOf(client.status);
+
+  const getNextAction = () => {
+    if (client.status === "draft") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
+    if (client.status === "questionnaire") return { label: t("recommendation.title"), path: `/recommendation/${client.id}` };
+    if (client.status === "recommendation") return { label: t("basket.title"), path: `/recommendation/${client.id}` };
+    return null;
+  };
+
+  const nextStep = getNextAction();
+
+  return (
+    <div className="space-y-4 pb-4">
+      <button onClick={() => navigate("/clients")} className="flex items-center gap-1 text-sm text-muted-foreground">
+        <ArrowLeft className="w-4 h-4" />
+        {t("common.back")}
+      </button>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-primary font-bold text-lg">{(client.fullName || "?")[0].toUpperCase()}</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="font-semibold">{client.fullName || t("clients.anonymous")}</h2>
+              <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
+            </div>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[client.status] || ""}`}>
+              {t(`statuses.${client.status}`)}
+            </span>
+          </div>
+
+          <div className="flex gap-1 mb-3">
+            {statusFlow.map((s, i) => (
+              <div
+                key={s}
+                className={`h-1.5 flex-1 rounded-full ${i <= currentIdx ? "bg-primary" : "bg-border"}`}
+              />
+            ))}
+          </div>
+
+          <p className="text-xs text-muted-foreground">{t("clientDetail.status")}: {fmtDate(client.createdAt)}</p>
+        </CardContent>
+      </Card>
+
+      {nextStep && (
+        <Button className="w-full" onClick={() => navigate(nextStep.path)}>
+          {nextStep.label}
+        </Button>
+      )}
+
+      {nextActions?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.nextAction")}</h3>
+          {nextActions.map((a: any) => (
+            <Card key={a.id} className="mb-2">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{a.actionType}</p>
+                  <p className="text-xs text-muted-foreground">{fmtDate(a.actionDate)} · {a.priority}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => completeActionMutation.mutate(a.id)}
+                >
+                  <Check className="w-4 h-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setShowNoteForm(!showNoteForm)}>
+          <MessageSquare className="w-4 h-4" />
+          {t("clientDetail.addNote")}
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setShowActionForm(!showActionForm)}>
+          <Calendar className="w-4 h-4" />
+          {t("clientDetail.addAction")}
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
+          <Calculator className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {showNoteForm && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <Input
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              placeholder={t("clientDetail.notePlaceholder")}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!noteContent || addNoteMutation.isPending}>
+                {t("common.save")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowNoteForm(false)}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showActionForm && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <select
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value)}
+              className="w-full p-2 border rounded-lg text-sm bg-background"
+            >
+              <option value="follow_up">{t("home.followUp")}</option>
+              <option value="meeting">{t("home.meeting")}</option>
+              <option value="proposal">{t("home.proposal")}</option>
+              <option value="documents">{t("home.documents")}</option>
+            </select>
+            <Input type="date" value={actionDate} onChange={(e) => setActionDate(e.target.value)} />
+            <select
+              value={actionPriority}
+              onChange={(e) => setActionPriority(e.target.value)}
+              className="w-full p-2 border rounded-lg text-sm bg-background"
+            >
+              <option value="high">{t("clientDetail.high")}</option>
+              <option value="medium">{t("clientDetail.medium")}</option>
+              <option value="low">{t("clientDetail.low")}</option>
+            </select>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => addActionMutation.mutate()} disabled={!actionDate || addActionMutation.isPending}>
+                {t("common.save")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowActionForm(false)}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {basketItems?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.basket")}</h3>
+          {basketItems.map((item: any) => (
+            <Card key={item.id} className="mb-1.5">
+              <CardContent className="p-3">
+                <p className="text-sm font-medium">{item.productName}</p>
+                <p className="text-xs text-muted-foreground">{item.productType}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {calculations?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.calculations")}</h3>
+          {calculations.map((c: any) => (
+            <Card key={c.id} className="mb-1.5">
+              <CardContent className="p-3">
+                <p className="text-sm font-medium">{c.productName}</p>
+                <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+                  <span>{fmtNum(c.loanAmount)} {c.currency}</span>
+                  <span>{c.termMonths} {t("calculator.month")}</span>
+                  <span>{c.interestRate}%</span>
+                </div>
+                <p className="text-sm font-semibold text-primary mt-1">{fmtNum(c.monthlyPayment)} / {t("calculator.month")}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {notes?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.history")}</h3>
+          {notes.map((n: any) => (
+            <Card key={n.id} className="mb-1.5">
+              <CardContent className="p-3">
+                <p className="text-sm">{n.content}</p>
+                <p className="text-xs text-muted-foreground mt-1">{n.userName} · {fmtDateTime(n.createdAt)}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
