@@ -47,6 +47,9 @@ Tables:
 - `articles` — knowledge base articles with branch visibility targeting
 - `article_visibility` — maps articles to specific branches
 - `activity_log` — audit log of system events
+- `credit_products` — MSME department credit product lineup with segment, SAP code, rates, terms, grace period, purpose, highlight
+- `sap_codes` — SAP system product codes registry with status, product type, category
+- `credit_lines` — International organization credit line balances with agreement details, disbursement, remaining balance
 
 ## Role Model
 
@@ -93,6 +96,9 @@ All routes under `/api`, all require Bearer token auth:
 - `GET/POST /api/product-categories` (write: admin+editor)
 - `GET/POST /api/articles`, `GET/PUT/DELETE /api/articles/:id` (write: admin+editor)
 - `GET /api/dashboard/summary|activity|branch-stats|client-status` (branch-scoped for branch_head)
+- `GET/POST /api/credit-products`, `PUT/DELETE /api/credit-products/:id`, `POST /api/credit-products/import` (read: all, write: admin+editor, delete/import: admin)
+- `GET/POST /api/sap-codes`, `PUT/DELETE /api/sap-codes/:id`, `POST /api/sap-codes/import` (read: all, write: admin+editor, delete/import: admin)
+- `GET/POST /api/credit-lines`, `PUT/DELETE /api/credit-lines/:id`, `POST /api/credit-lines/import` (read: all, write: admin+editor, delete/import: admin)
 
 ## i18n (Internationalization)
 
@@ -122,6 +128,9 @@ All pages have full CRUD functionality with dialog modals:
 - **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle (admin only), CSV export/import
 - **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters, client-side search (admin only), CSV export/import
 - **Articles** (`/articles`) — Card grid with Create/Edit/Delete, published/draft tabs, branch targeting, CSV export/import
+- **Credit Products** (`/credit-products`) — MSME department product lineup, expandable rows, segment filter, CSV export/import
+- **SAP Codes** (`/sap-codes`) — SAP product codes registry, status filter, CSV export/import
+- **Credit Lines** (`/credit-lines`) — International credit line balances, expandable rows, currency filter, CSV export/import
 
 ## Auto-Seeding
 

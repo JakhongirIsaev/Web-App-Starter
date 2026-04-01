@@ -9,6 +9,9 @@ import {
   ShieldCheck, 
   Building2, 
   LogOut,
+  CreditCard,
+  Hash,
+  Landmark,
   ChevronRight,
   Languages
 } from "lucide-react";
@@ -38,6 +41,9 @@ const navItems = [
   { href: "/articles", labelKey: "nav.knowledgeBase", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
   { href: "/users", labelKey: "nav.accessManagement", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
+  { href: "/credit-products", labelKey: "nav.creditProducts", icon: CreditCard, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/credit-lines", labelKey: "nav.creditLines", icon: Landmark, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
 ];
 
 export function getRoleColor(role: string) {

@@ -16,6 +16,9 @@ import Products from "@/pages/products";
 import Articles from "@/pages/articles";
 import Users from "@/pages/users";
 import Branches from "@/pages/branches";
+import CreditProducts from "@/pages/credit-products";
+import SapCodes from "@/pages/sap-codes";
+import CreditLines from "@/pages/credit-lines";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +95,15 @@ function Router() {
       </Route>
       <Route path="/branches">
         {(params) => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
+      </Route>
+      <Route path="/credit-products">
+        {(params) => <ProtectedRoute component={CreditProducts} />}
+      </Route>
+      <Route path="/sap-codes">
+        {(params) => <ProtectedRoute component={SapCodes} />}
+      </Route>
+      <Route path="/credit-lines">
+        {(params) => <ProtectedRoute component={CreditLines} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

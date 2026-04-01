@@ -7,6 +7,9 @@ import clientsRouter from "./clients";
 import productsRouter from "./products";
 import articlesRouter from "./articles";
 import dashboardRouter from "./dashboard";
+import creditProductsRouter from "./credit-products";
+import sapCodesRouter from "./sap-codes";
+import creditLinesRouter from "./credit-lines";
 
 const router: IRouter = Router();
 
@@ -18,5 +21,8 @@ router.use(clientsRouter);
 router.use(productsRouter);
 router.use(articlesRouter);
 router.use(dashboardRouter);
+router.use(creditProductsRouter);
+router.use(sapCodesRouter);
+router.use(creditLinesRouter);
 
 export default router;

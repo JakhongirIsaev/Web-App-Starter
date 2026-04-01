@@ -4,3 +4,6 @@ export * from "./products";
 export * from "./clients";
 export * from "./articles";
 export * from "./activity";
+export * from "./credit-products";
+export * from "./sap-codes";
+export * from "./credit-lines";
