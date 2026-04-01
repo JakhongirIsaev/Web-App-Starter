@@ -80,6 +80,21 @@ All routes under `/api`:
 - `GET /api/dashboard/branch-stats`
 - `GET /api/dashboard/client-status`
 
+## Frontend Pages
+
+All pages have full CRUD functionality with dialog modals:
+- **Dashboard** (`/`) — Metrics, activity feed, branch stats, client status chart
+- **Clients** (`/clients`) — Paginated list with filters, click to view detail
+- **Client Detail** (`/clients/:id`) — Status pipeline, assignment info, status update
+- **Products** (`/products`) — Table with Add/Edit/Delete via dialogs, filter by type/category
+- **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle
+- **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters
+- **Articles** (`/articles`) — Card grid with Create/Edit/Delete, published/draft tabs, branch targeting
+
+## Auto-Seeding
+
+`artifacts/api-server/src/seed.ts` runs on startup — seeds demo data if `users` table is empty. This ensures the published/production version also gets demo data on first deploy.
+
 ## Development
 
 ```bash

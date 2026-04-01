@@ -1,14 +1,83 @@
-import { useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { Plus, Building2, MapPin, Users } from "lucide-react";
+import { useState } from "react";
+import { useListBranches, getListBranchesQueryKey, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@workspace/api-client-react";
+import type { Branch } from "@workspace/api-client-react";
+import { Plus, Building2, MapPin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Branches() {
-  const { data: branches, isLoading } = useListBranches({
-    query: { queryKey: getListBranchesQueryKey() }
-  });
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: branches, isLoading } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editBranch, setEditBranch] = useState<Branch | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Branch | null>(null);
+
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  const createBranch = useCreateBranch();
+  const updateBranch = useUpdateBranch();
+  const deleteBranch = useDeleteBranch();
+
+  const openCreate = () => {
+    setEditBranch(null);
+    setName("");
+    setCity("");
+    setIsActive(true);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (b: Branch) => {
+    setEditBranch(b);
+    setName(b.name);
+    setCity(b.city);
+    setIsActive(b.isActive);
+    setDialogOpen(true);
+  };
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListBranchesQueryKey() });
+
+  const handleSubmit = () => {
+    if (!name.trim() || !city.trim()) return;
+    if (editBranch) {
+      updateBranch.mutate({ id: editBranch.id, data: { name, city, isActive } }, {
+        onSuccess: () => { toast({ title: "Branch updated" }); setDialogOpen(false); invalidate(); },
+        onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+      });
+    } else {
+      createBranch.mutate({ data: { name, city, isActive } }, {
+        onSuccess: () => { toast({ title: "Branch created" }); setDialogOpen(false); invalidate(); },
+        onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+      });
+    }
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteBranch.mutate({ id: deleteTarget.id }, {
+      onSuccess: () => { toast({ title: "Branch deleted" }); setDeleteTarget(null); invalidate(); },
+      onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+    });
+  };
+
+  const isPending = createBranch.isPending || updateBranch.isPending;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -17,7 +86,7 @@ export default function Branches() {
           <h2 className="text-3xl font-bold tracking-tight">Branches</h2>
           <p className="text-muted-foreground mt-1">Manage physical locations and branch operations.</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Add Branch
         </Button>
@@ -47,7 +116,7 @@ export default function Branches() {
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No branches found</h3>
             <p>Add your first branch to start operating.</p>
-            <Button className="mt-4" variant="outline">Add Branch</Button>
+            <Button className="mt-4" variant="outline" onClick={openCreate}>Add Branch</Button>
           </div>
         ) : (
           branches?.map((branch) => (
@@ -70,10 +139,12 @@ export default function Branches() {
                   <MapPin className="h-4 w-4" />
                   {branch.city}
                 </div>
-                
                 <div className="pt-4 border-t border-border/50 flex justify-between items-center">
-                  <Button variant="ghost" size="sm" className="h-8 px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/10">
+                  <Button variant="ghost" size="sm" className="h-8 px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/10" onClick={() => openEdit(branch)}>
                     Edit Details
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(branch)}>
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -81,6 +152,52 @@ export default function Branches() {
           ))
         )}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editBranch ? "Edit Branch" : "Add Branch"}</DialogTitle>
+            <DialogDescription>{editBranch ? "Update branch details." : "Create a new branch location."}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="branch-name">Branch Name</Label>
+              <Input id="branch-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Office" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch-city">City</Label>
+              <Input id="branch-city" value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Almaty" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch id="branch-active" checked={isActive} onCheckedChange={setIsActive} />
+              <Label htmlFor="branch-active">Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isPending || !name.trim() || !city.trim()}>
+              {isPending ? "Saving..." : editBranch ? "Save Changes" : "Create Branch"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Branch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteBranch.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
