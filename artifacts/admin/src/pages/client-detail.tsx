@@ -1,7 +1,9 @@
-import { useGetClient, getGetClientQueryKey, useUpdateClient } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
+import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
 import { format } from "date-fns";
-import { ArrowLeft, User, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,15 +13,25 @@ import { getStatusBadge } from "./clients";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function ClientDetail({ params }: { params: { id: string } }) {
   const clientId = parseInt(params.id, 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
   
   const { data: client, isLoading } = useGetClient(clientId, {
     query: { queryKey: getGetClientQueryKey(clientId) }
   });
+
+  const { data: allUsers } = useListUsers(
+    {},
+    { query: { queryKey: getListUsersQueryKey({}), enabled: reassignOpen } }
+  );
 
   const updateClient = useUpdateClient();
 
@@ -41,6 +53,24 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
           title: "Failed to update status",
           description: error.message || "An error occurred"
         });
+      }
+    });
+  };
+
+  const handleReassign = () => {
+    if (!selectedUserId) return;
+    updateClient.mutate({
+      id: clientId,
+      data: { assignedToId: parseInt(selectedUserId, 10) }
+    }, {
+      onSuccess: () => {
+        toast({ title: "Client reassigned" });
+        queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
+        setReassignOpen(false);
+        setSelectedUserId("");
+      },
+      onError: (error: any) => {
+        toast({ variant: "destructive", title: "Failed to reassign", description: error.message || "An error occurred" });
       }
     });
   };
@@ -73,6 +103,8 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
       </div>
     );
   }
+
+  const hunters = (allUsers || []).filter((u: any) => u.role === "hunter" && u.isActive);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">
@@ -128,7 +160,7 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
             <CardContent>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <UserIcon className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Full Name</dt>
                     <dd className="text-base text-foreground mt-1">{client.fullName || "Not provided"}</dd>
@@ -200,11 +232,14 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{client.assignedTo?.name || "Unassigned"}</p>
-                      <p className="text-xs text-muted-foreground">{client.assignedTo?.role.replace(/_/g, ' ') || ""}</p>
+                      <p className="text-xs text-muted-foreground">{client.assignedTo?.role?.replace(/_/g, ' ') || ""}</p>
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full">Reassign Client</Button>
+                <Button variant="outline" className="w-full gap-2" onClick={() => setReassignOpen(true)}>
+                  <UserPlus className="h-4 w-4" />
+                  Reassign Client
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -214,7 +249,7 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
               <CardTitle>Pipeline Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+              <div className="space-y-3">
                 {[
                   { id: 'draft', label: 'Draft' },
                   { id: 'questionnaire', label: 'Questionnaire' },
@@ -222,7 +257,7 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
                   { id: 'basket', label: 'Basket' },
                   { id: 'pdf_generated', label: 'PDF Generated' },
                   { id: 'completed', label: 'Completed' }
-                ].map((step, index, array) => {
+                ].map((step) => {
                   const statuses = ['draft', 'questionnaire', 'recommendation', 'basket', 'pdf_generated', 'completed', 'rejected'];
                   const currentIndex = statuses.indexOf(client.status);
                   const stepIndex = statuses.indexOf(step.id);
@@ -231,33 +266,62 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
                   const isCurrent = stepIndex === currentIndex && client.status !== 'rejected';
                   
                   return (
-                    <div key={step.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 bg-card shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10 
-                        {isCompleted ? 'border-primary text-primary' : 'border-muted-foreground/30 text-muted-foreground/30'}
-                        {isCurrent ? 'ring-4 ring-primary/20' : ''}"
-                        style={{
-                          borderColor: isCompleted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.3)',
-                          color: isCompleted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.3)',
-                        }}
+                    <div key={step.id} className="flex items-center gap-3">
+                      <div
+                        className={`flex items-center justify-center w-8 h-8 rounded-full border-2 shrink-0 ${
+                          isCompleted ? 'border-primary text-primary bg-primary/10' : 'border-muted-foreground/30 text-muted-foreground/30'
+                        } ${isCurrent ? 'ring-2 ring-primary/20' : ''}`}
                       >
-                        {isCompleted ? <CheckCircle className="h-5 w-5" /> : <div className="h-2.5 w-2.5 rounded-full bg-current" />}
+                        {isCompleted ? <CheckCircle className="h-4 w-4" /> : <div className="h-2 w-2 rounded-full bg-current" />}
                       </div>
-                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] px-4 py-3 rounded-lg border shadow-sm flex flex-col bg-card
-                        {isCurrent ? 'border-primary/50 bg-primary/5' : 'border-border/50'}"
-                        style={{
-                          borderColor: isCurrent ? 'hsl(var(--primary) / 0.5)' : 'hsl(var(--border) / 0.5)',
-                        }}
-                      >
-                        <h3 className="font-semibold text-sm">{step.label}</h3>
-                      </div>
+                      <span className={`text-sm ${isCurrent ? 'font-semibold text-foreground' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {step.label}
+                      </span>
                     </div>
                   );
                 })}
+                {client.status === 'rejected' && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-destructive text-destructive bg-destructive/10 ring-2 ring-destructive/20 shrink-0">
+                      <div className="h-2 w-2 rounded-full bg-current" />
+                    </div>
+                    <span className="text-sm font-semibold text-destructive">Rejected</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reassign Client</DialogTitle>
+            <DialogDescription>Select a hunter to reassign this client to.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a hunter" />
+              </SelectTrigger>
+              <SelectContent>
+                {hunters.map((u: any) => (
+                  <SelectItem key={u.id} value={String(u.id)}>
+                    {u.name} {u.branch ? `(${u.branch.name})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignOpen(false)}>Cancel</Button>
+            <Button onClick={handleReassign} disabled={!selectedUserId || updateClient.isPending}>
+              {updateClient.isPending ? "Reassigning..." : "Reassign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -7,6 +7,8 @@ import {
   UpdateProductParams, DeleteProductParams, ListProductsQueryParams,
   CreateProductCategoryBody
 } from "@workspace/api-zod";
+import { requireAuth, requireRole } from "../middleware/auth";
+import { logActivity } from "../middleware/activity";
 
 const router: IRouter = Router();
 
@@ -29,22 +31,25 @@ function buildProductResponse(p: any, cat: any) {
   };
 }
 
-router.get("/product-categories", async (_req, res) => {
+router.get("/product-categories", requireAuth, async (_req, res) => {
   const cats = await db.select().from(productCategoriesTable).orderBy(productCategoriesTable.name);
   res.json(cats);
 });
 
-router.post("/product-categories", async (req, res) => {
+router.post("/product-categories", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductCategoryBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
   const [cat] = await db.insert(productCategoriesTable).values({
     name: parsed.data.name,
     description: parsed.data.description,
   }).returning();
+
+  await logActivity({ type: "category_created", description: `Product category "${cat.name}" created`, entityId: cat.id, entityType: "product_category", user: req.user });
+
   res.status(201).json(cat);
 });
 
-router.get("/products", async (req, res) => {
+router.get("/products", requireAuth, async (req, res) => {
   const params = ListProductsQueryParams.safeParse(req.query);
   const conditions: any[] = [];
   if (params.success) {
@@ -84,7 +89,7 @@ router.get("/products", async (req, res) => {
   res.json(products);
 });
 
-router.post("/products", async (req, res) => {
+router.post("/products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
   const [product] = await db.insert(productsTable).values({
@@ -99,10 +104,13 @@ router.post("/products", async (req, res) => {
     interestRate: parsed.data.interestRate?.toString() ?? null,
     isActive: parsed.data.isActive ?? true,
   }).returning();
+
+  await logActivity({ type: "product_created", description: `Product "${product.name}" created`, entityId: product.id, entityType: "product", user: req.user });
+
   res.status(201).json(buildProductResponse(product, null));
 });
 
-router.get("/products/:id", async (req, res) => {
+router.get("/products/:id", requireAuth, async (req, res) => {
   const params = GetProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const rows = await db
@@ -134,7 +142,7 @@ router.get("/products/:id", async (req, res) => {
   res.json(buildProductResponse(p, p.catId ? { id: p.catId, name: p.catName, description: p.catDescription ?? null, createdAt: p.catCreatedAt } : null));
 });
 
-router.put("/products/:id", async (req, res) => {
+router.put("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdateProductBody.safeParse(req.body);
@@ -154,13 +162,19 @@ router.put("/products/:id", async (req, res) => {
 
   const [updated] = await db.update(productsTable).set(updateData).where(eq(productsTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  await logActivity({ type: "product_updated", description: `Product "${updated.name}" updated`, entityId: updated.id, entityType: "product", user: req.user });
+
   res.json(buildProductResponse(updated, null));
 });
 
-router.delete("/products/:id", async (req, res) => {
+router.delete("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
+
+  await logActivity({ type: "product_deleted", description: `Product deleted`, entityId: params.data.id, entityType: "product", user: req.user });
+
   res.status(204).send();
 });
 

@@ -56,9 +56,26 @@ Tables:
 - `branch_head` — View their branch only
 - `hunter` — Credit specialist (Mini App only, not admin)
 
-## Auth
+## Auth & RBAC
 
 Session-based (in-memory Map on app.locals.sessions). Login with Telegram ID + password. Token stored in `localStorage` as `auth_token` and sent as Bearer header.
+
+**Auth Middleware** (`artifacts/api-server/src/middleware/auth.ts`):
+- `requireAuth` — Validates session token, attaches `req.user`
+- `requireRole(...roles)` — Guards routes by role
+
+**Role-Based Access Control:**
+- All API routes require authentication via `requireAuth`
+- Write operations (create/update/delete) on branches, users require `superadmin` or `head_office_admin`
+- Write operations on products/articles also allow `editor`
+- `branch_head` users see only their branch's data (clients, dashboard, users)
+- Client detail/update enforces branch scope for `branch_head`
+- Frontend sidebar filters nav items by role; `/users` and `/branches` routes gated to admin roles
+- Client reassignment available via dialog on client detail page
+
+**Activity Logging** (`artifacts/api-server/src/middleware/activity.ts`):
+- All CRUD operations log to `activity_log` table with user, entity, and branch context
+- Client status changes and reassignments are logged separately
 
 **Demo credentials (password: `password`):**
 - Superadmin: Telegram ID `100000001`
@@ -67,28 +84,25 @@ Session-based (in-memory Map on app.locals.sessions). Login with Telegram ID + p
 
 ## API Routes
 
-All routes under `/api`:
+All routes under `/api`, all require Bearer token auth:
 - `GET /api/auth/me`, `POST /api/auth/login`, `POST /api/auth/logout`
-- `GET/POST /api/branches`, `GET/PUT/DELETE /api/branches/:id`
-- `GET/POST /api/users`, `GET/PUT/DELETE /api/users/:id`, `POST /api/users/:id/activate|deactivate`
-- `GET/POST /api/clients`, `GET/PUT /api/clients/:id`
-- `GET/POST /api/products`, `GET/PUT/DELETE /api/products/:id`
-- `GET/POST /api/product-categories`
-- `GET/POST /api/articles`, `GET/PUT/DELETE /api/articles/:id`
-- `GET /api/dashboard/summary`
-- `GET /api/dashboard/activity`
-- `GET /api/dashboard/branch-stats`
-- `GET /api/dashboard/client-status`
+- `GET/POST /api/branches`, `GET/PUT/DELETE /api/branches/:id` (write: admin only)
+- `GET/POST /api/users`, `GET/PUT/DELETE /api/users/:id`, `POST /api/users/:id/activate|deactivate` (read: admin+branch_head, write: admin only)
+- `GET/POST /api/clients`, `GET/PUT /api/clients/:id` (branch-scoped for branch_head)
+- `GET/POST /api/products`, `GET/PUT/DELETE /api/products/:id` (write: admin+editor)
+- `GET/POST /api/product-categories` (write: admin+editor)
+- `GET/POST /api/articles`, `GET/PUT/DELETE /api/articles/:id` (write: admin+editor)
+- `GET /api/dashboard/summary|activity|branch-stats|client-status` (branch-scoped for branch_head)
 
 ## Frontend Pages
 
 All pages have full CRUD functionality with dialog modals:
 - **Dashboard** (`/`) — Metrics, activity feed, branch stats, client status chart
 - **Clients** (`/clients`) — Paginated list with filters, click to view detail
-- **Client Detail** (`/clients/:id`) — Status pipeline, assignment info, status update
-- **Products** (`/products`) — Table with Add/Edit/Delete via dialogs, filter by type/category
-- **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle
-- **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters
+- **Client Detail** (`/clients/:id`) — Status pipeline, assignment info, status update, reassignment dialog
+- **Products** (`/products`) — Table with Add/Edit/Delete via dialogs, filter by type/category, client-side search
+- **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle (admin only)
+- **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters, client-side search (admin only)
 - **Articles** (`/articles`) — Card grid with Create/Edit/Delete, published/draft tabs, branch targeting
 
 ## Auto-Seeding

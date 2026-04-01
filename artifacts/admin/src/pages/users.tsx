@@ -37,6 +37,7 @@ export default function Users() {
   const queryClient = useQueryClient();
   const [role, setRole] = useState<string>("all");
   const [branchId, setBranchId] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -101,6 +102,7 @@ export default function Users() {
   };
 
   const isPending = createUser.isPending || updateUser.isPending;
+  const filteredUsers = (users || []).filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.telegramId.includes(search));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -119,7 +121,7 @@ export default function Users() {
         <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search users..." className="pl-9 max-w-md" />
+            <Input placeholder="Search users..." className="pl-9 max-w-md" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-4">
             <Select value={role} onValueChange={setRole}>
@@ -167,12 +169,12 @@ export default function Users() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : users?.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No users found matching your filters.</TableCell>
                 </TableRow>
               ) : (
-                users?.map((user) => (
+                filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="font-medium text-foreground">{user.name}</div>

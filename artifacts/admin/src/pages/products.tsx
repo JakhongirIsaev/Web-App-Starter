@@ -51,6 +51,7 @@ export default function Products() {
   const queryClient = useQueryClient();
   const [type, setType] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -128,6 +129,7 @@ export default function Products() {
   };
 
   const isPending = createProduct.isPending || updateProduct.isPending;
+  const filteredProducts = (products || []).filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -146,7 +148,7 @@ export default function Products() {
         <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search products..." className="pl-9 max-w-md" />
+            <Input placeholder="Search products..." className="pl-9 max-w-md" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-4">
             <Select value={type} onValueChange={setType}>
@@ -191,12 +193,12 @@ export default function Products() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : products?.length === 0 ? (
+              ) : filteredProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No products found.</TableCell>
                 </TableRow>
               ) : (
-                products?.map((product) => (
+                filteredProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>
                       <div className="font-medium text-foreground">{product.name}</div>

@@ -6,6 +6,8 @@ import {
   CreateArticleBody, UpdateArticleBody, GetArticleParams,
   UpdateArticleParams, DeleteArticleParams, ListArticlesQueryParams
 } from "@workspace/api-zod";
+import { requireAuth, requireRole } from "../middleware/auth";
+import { logActivity } from "../middleware/activity";
 
 const router: IRouter = Router();
 
@@ -48,7 +50,7 @@ async function getArticleWithBranchIds(id: number) {
   };
 }
 
-router.get("/articles", async (req, res) => {
+router.get("/articles", requireAuth, async (req, res) => {
   const params = ListArticlesQueryParams.safeParse(req.query);
   const conditions: any[] = [];
   if (params.success) {
@@ -97,7 +99,7 @@ router.get("/articles", async (req, res) => {
   res.json(articles);
 });
 
-router.post("/articles", async (req, res) => {
+router.post("/articles", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateArticleBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
 
@@ -106,6 +108,7 @@ router.post("/articles", async (req, res) => {
     content: parsed.data.content,
     isPublished: parsed.data.isPublished ?? false,
     targetAllBranches: parsed.data.targetAllBranches ?? true,
+    authorId: req.user?.id,
   }).returning();
 
   if (parsed.data.branchIds && parsed.data.branchIds.length > 0) {
@@ -114,11 +117,13 @@ router.post("/articles", async (req, res) => {
     );
   }
 
+  await logActivity({ type: "article_created", description: `Article "${article.title}" created`, entityId: article.id, entityType: "article", user: req.user });
+
   const full = await getArticleWithBranchIds(article.id);
   res.status(201).json(full);
 });
 
-router.get("/articles/:id", async (req, res) => {
+router.get("/articles/:id", requireAuth, async (req, res) => {
   const params = GetArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const article = await getArticleWithBranchIds(params.data.id);
@@ -126,7 +131,7 @@ router.get("/articles/:id", async (req, res) => {
   res.json(article);
 });
 
-router.put("/articles/:id", async (req, res) => {
+router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdateArticleBody.safeParse(req.body);
@@ -150,15 +155,20 @@ router.put("/articles/:id", async (req, res) => {
     }
   }
 
+  await logActivity({ type: "article_updated", description: `Article "${updated.title}" updated`, entityId: updated.id, entityType: "article", user: req.user });
+
   const full = await getArticleWithBranchIds(params.data.id);
   res.json(full);
 });
 
-router.delete("/articles/:id", async (req, res) => {
+router.delete("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
   await db.delete(articlesTable).where(eq(articlesTable.id, params.data.id));
+
+  await logActivity({ type: "article_deleted", description: `Article deleted`, entityId: params.data.id, entityType: "article", user: req.user });
+
   res.status(204).send();
 });
 

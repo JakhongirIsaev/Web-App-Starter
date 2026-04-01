@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
 import Login from "@/pages/login";
@@ -18,7 +18,9 @@ import Branches from "@/pages/branches";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ component: Component, params, ...rest }: any) {
+const adminRoles = ["superadmin", "head_office_admin"];
+
+function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: any) {
   const [location, setLocation] = useLocation();
   const { data: user, isLoading, error } = useGetMe({
     query: {
@@ -46,9 +48,20 @@ function ProtectedRoute({ component: Component, params, ...rest }: any) {
 
   if (error || !user) return null;
 
+  if (requiredRoles && !requiredRoles.includes(user.role)) {
+    return (
+      <Layout user={user}>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <h2 className="text-2xl font-bold text-foreground">Access Denied</h2>
+          <p className="text-muted-foreground">You do not have permission to view this page.</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout user={user}>
-      <Component params={params} {...rest} />
+      <Component params={params} user={user} {...rest} />
     </Layout>
   );
 }
@@ -73,10 +86,10 @@ function Router() {
         {(params) => <ProtectedRoute component={Articles} />}
       </Route>
       <Route path="/users">
-        {(params) => <ProtectedRoute component={Users} />}
+        {(params) => <ProtectedRoute component={Users} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/branches">
-        {(params) => <ProtectedRoute component={Branches} />}
+        {(params) => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

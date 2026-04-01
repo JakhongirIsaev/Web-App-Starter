@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import {
   CreateUserBody, UpdateUserBody, GetUserParams, UpdateUserParams,
   DeleteUserParams, DeactivateUserParams, ActivateUserParams, ListUsersQueryParams
 } from "@workspace/api-zod";
+import { requireAuth, requireRole } from "../middleware/auth";
+import { logActivity } from "../middleware/activity";
 
 const router: IRouter = Router();
 
@@ -54,12 +56,19 @@ async function getUserWithBranch(id: number) {
   };
 }
 
-router.get("/users", async (req, res) => {
+router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
+  const user = req.user!;
   const params = ListUsersQueryParams.safeParse(req.query);
-  const conditions = [];
-  if (params.success) {
-    if (params.data.branchId !== undefined) conditions.push(eq(usersTable.branchId, params.data.branchId));
-    if (params.data.isActive !== undefined) conditions.push(eq(usersTable.isActive, params.data.isActive));
+  const conditions: any[] = [];
+
+  if (user.role === "branch_head" && user.branchId) {
+    conditions.push(eq(usersTable.branchId, user.branchId));
+  } else if (params.success && params.data.branchId !== undefined) {
+    conditions.push(eq(usersTable.branchId, params.data.branchId));
+  }
+
+  if (params.success && params.data.isActive !== undefined) {
+    conditions.push(eq(usersTable.isActive, params.data.isActive));
   }
 
   const rows = await db
@@ -105,7 +114,7 @@ router.get("/users", async (req, res) => {
   res.json(users);
 });
 
-router.post("/users", async (req, res) => {
+router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
@@ -117,11 +126,14 @@ router.post("/users", async (req, res) => {
     passwordHash,
     isActive: true,
   }).returning();
+
+  await logActivity({ type: "user_created", description: `User "${user.name}" created with role ${user.role}`, entityId: user.id, entityType: "user", user: req.user });
+
   const full = await getUserWithBranch(user.id);
   res.status(201).json(full);
 });
 
-router.get("/users/:id", async (req, res) => {
+router.get("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
   const params = GetUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const user = await getUserWithBranch(params.data.id);
@@ -129,7 +141,7 @@ router.get("/users/:id", async (req, res) => {
   res.json(user);
 });
 
-router.put("/users/:id", async (req, res) => {
+router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdateUserBody.safeParse(req.body);
@@ -146,31 +158,43 @@ router.put("/users/:id", async (req, res) => {
 
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  await logActivity({ type: "user_updated", description: `User "${updated.name}" updated`, entityId: updated.id, entityType: "user", user: req.user });
+
   const full = await getUserWithBranch(updated.id);
   res.json(full);
 });
 
-router.delete("/users/:id", async (req, res) => {
+router.delete("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+
+  await logActivity({ type: "user_deleted", description: `User deleted`, entityId: params.data.id, entityType: "user", user: req.user });
+
   res.status(204).send();
 });
 
-router.post("/users/:id/deactivate", async (req, res) => {
+router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  await logActivity({ type: "user_deactivated", description: `User "${updated.name}" deactivated`, entityId: updated.id, entityType: "user", user: req.user });
+
   const full = await getUserWithBranch(updated.id);
   res.json(full);
 });
 
-router.post("/users/:id/activate", async (req, res) => {
+router.post("/users/:id/activate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = ActivateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: true, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+  await logActivity({ type: "user_activated", description: `User "${updated.name}" activated`, entityId: updated.id, entityType: "user", user: req.user });
+
   const full = await getUserWithBranch(updated.id);
   res.json(full);
 });

@@ -29,12 +29,12 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/products", label: "Products", icon: Package },
-  { href: "/articles", label: "Knowledge Base", icon: FileText },
-  { href: "/users", label: "Access Management", icon: ShieldCheck },
-  { href: "/branches", label: "Branches", icon: Building2 },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/clients", label: "Clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/products", label: "Products", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/articles", label: "Knowledge Base", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/users", label: "Access Management", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
+  { href: "/branches", label: "Branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
 ];
 
 export function getRoleColor(role: string) {
@@ -46,6 +46,10 @@ export function getRoleColor(role: string) {
     case "hunter": return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
     default: return "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20";
   }
+}
+
+export function getRoleLabel(role: string) {
+  return role.replace(/_/g, ' ').toUpperCase();
 }
 
 export default function Layout({ children, user }: LayoutProps) {
@@ -61,9 +65,10 @@ export default function Layout({ children, user }: LayoutProps) {
     });
   };
 
+  const filteredNavItems = navItems.filter(item => item.roles.includes(user.role));
+
   return (
     <div className="min-h-screen w-full flex bg-background">
-      {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center mr-3">
@@ -76,7 +81,7 @@ export default function Layout({ children, user }: LayoutProps) {
           <div className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
             Overview
           </div>
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
             return (
@@ -99,13 +104,11 @@ export default function Layout({ children, user }: LayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
           <div className="flex items-center text-sm text-muted-foreground">
             <span className="font-medium text-foreground">
-              {navItems.find(item => item.href === location)?.label || "Dashboard"}
+              {filteredNavItems.find(item => item.href === location)?.label || "Dashboard"}
             </span>
           </div>
 
@@ -134,9 +137,14 @@ export default function Layout({ children, user }: LayoutProps) {
                 <DropdownMenuSeparator />
                 <div className="p-2">
                   <Badge variant="outline" className={cn("w-full justify-center", getRoleColor(user.role))}>
-                    {user.role.replace(/_/g, ' ').toUpperCase()}
+                    {getRoleLabel(user.role)}
                   </Badge>
                 </div>
+                {user.branch && (
+                  <div className="p-2 pt-0">
+                    <p className="text-xs text-muted-foreground text-center">Branch: {user.branch.name}</p>
+                  </div>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -147,7 +155,6 @@ export default function Layout({ children, user }: LayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-auto bg-muted/30 p-8">
           {children}
         </div>
