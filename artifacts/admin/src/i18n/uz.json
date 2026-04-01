@@ -216,7 +216,16 @@
     "articleUpdated": "Maqola yangilandi",
     "articleDeleted": "Maqola o'chirildi",
     "deleteArticle": "Maqolani o'chirish",
-    "deleteArticleConfirm": "\"{{name}}\" ni o'chirishga ishonchingiz komilmi? Bu amalni qaytarib bo'lmaydi."
+    "deleteArticleConfirm": "\"{{name}}\" ni o'chirishga ishonchingiz komilmi? Bu amalni qaytarib bo'lmaydi.",
+    "categoryLabel": "Kategoriya",
+    "categories": {
+      "general": "Umumiy",
+      "onboarding": "Yangi xodimlar uchun",
+      "sap": "SAP",
+      "documents": "Hujjatlar",
+      "credit_process": "Kredit jarayoni",
+      "faq": "Ko'p beriladigan savollar"
+    }
   },
   "users": {
     "title": "Foydalanuvchilarni boshqarish",

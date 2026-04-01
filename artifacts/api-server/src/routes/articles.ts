@@ -18,6 +18,7 @@ async function getArticleWithBranchIds(id: number) {
       id: articlesTable.id,
       title: articlesTable.title,
       content: articlesTable.content,
+      category: articlesTable.category,
       isPublished: articlesTable.isPublished,
       targetAllBranches: articlesTable.targetAllBranches,
       authorId: articlesTable.authorId,
@@ -41,6 +42,7 @@ async function getArticleWithBranchIds(id: number) {
     id: a.id,
     title: a.title,
     content: a.content,
+    category: a.category,
     isPublished: a.isPublished,
     targetAllBranches: a.targetAllBranches,
     branchIds,
@@ -64,6 +66,7 @@ router.get("/articles", requireAuth, async (req, res) => {
       id: articlesTable.id,
       title: articlesTable.title,
       content: articlesTable.content,
+      category: articlesTable.category,
       isPublished: articlesTable.isPublished,
       targetAllBranches: articlesTable.targetAllBranches,
       authorId: articlesTable.authorId,
@@ -88,6 +91,7 @@ router.get("/articles", requireAuth, async (req, res) => {
     id: a.id,
     title: a.title,
     content: a.content,
+    category: a.category,
     isPublished: a.isPublished,
     targetAllBranches: a.targetAllBranches,
     branchIds: visibilityMap.get(a.id) ?? [],
@@ -107,6 +111,7 @@ router.post("/articles", requireAuth, requireRole("superadmin", "head_office_adm
   const [article] = await db.insert(articlesTable).values({
     title: parsed.data.title,
     content: parsed.data.content,
+    category: (req.body as any).category || "general",
     isPublished: parsed.data.isPublished ?? false,
     targetAllBranches: parsed.data.targetAllBranches ?? true,
     authorId: req.user?.id,
@@ -143,6 +148,7 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
   if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
   if (parsed.data.isPublished !== undefined) updateData.isPublished = parsed.data.isPublished;
   if (parsed.data.targetAllBranches !== undefined) updateData.targetAllBranches = parsed.data.targetAllBranches;
+  if ((req.body as any).category !== undefined) updateData.category = (req.body as any).category;
 
   const [updated] = await db.update(articlesTable).set(updateData).where(eq(articlesTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }

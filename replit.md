@@ -45,7 +45,7 @@ Tables:
 - `product_categories` — categories for credit products
 - `products` — credit and non-credit products with limits and interest rates
 - `clients` — client sessions with status pipeline and branch assignment
-- `articles` — knowledge base articles with branch visibility targeting
+- `articles` — knowledge base articles with category (general/onboarding/sap/documents/credit_process/faq) and branch visibility targeting
 - `article_visibility` — maps articles to specific branches
 - `activity_log` — audit log of system events
 - `credit_products` — MSME department credit product lineup with segment, SAP code, rates, terms, grace period, purpose, highlight

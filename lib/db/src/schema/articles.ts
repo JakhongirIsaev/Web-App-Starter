@@ -7,6 +7,7 @@ export const articlesTable = pgTable("articles", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   content: text("content").notNull(),
+  category: text("category").notNull().default("general"),
   isPublished: boolean("is_published").notNull().default(false),
   targetAllBranches: boolean("target_all_branches").notNull().default(true),
   authorId: integer("author_id").references(() => usersTable.id),

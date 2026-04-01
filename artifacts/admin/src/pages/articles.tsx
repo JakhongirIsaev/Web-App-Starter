@@ -29,15 +29,18 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const ARTICLE_CATEGORIES = ["general", "onboarding", "sap", "documents", "credit_process", "faq"] as const;
+
 interface ArticleForm {
   title: string;
   content: string;
+  category: string;
   isPublished: boolean;
   targetAllBranches: boolean;
   branchIds: number[];
 }
 
-const emptyForm: ArticleForm = { title: "", content: "", isPublished: false, targetAllBranches: true, branchIds: [] };
+const emptyForm: ArticleForm = { title: "", content: "", category: "general", isPublished: false, targetAllBranches: true, branchIds: [] };
 
 
 export default function Articles() {
@@ -71,13 +74,13 @@ export default function Articles() {
 
   const openEdit = (a: Article) => {
     setEditArticle(a);
-    setForm({ title: a.title, content: a.content, isPublished: a.isPublished, targetAllBranches: a.targetAllBranches, branchIds: a.branchIds || [] });
+    setForm({ title: a.title, content: a.content, category: (a as any).category || "general", isPublished: a.isPublished, targetAllBranches: a.targetAllBranches, branchIds: a.branchIds || [] });
     setDialogOpen(true);
   };
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.content.trim()) return;
-    const data: any = { title: form.title, content: form.content, isPublished: form.isPublished, targetAllBranches: form.targetAllBranches };
+    const data: any = { title: form.title, content: form.content, category: form.category, isPublished: form.isPublished, targetAllBranches: form.targetAllBranches };
     if (!form.targetAllBranches) data.branchIds = form.branchIds;
     if (editArticle) {
       updateArticle.mutate({ id: editArticle.id, data }, {
@@ -195,9 +198,14 @@ export default function Articles() {
                 <CardHeader className="pb-3 flex-1">
                   <div className="flex justify-between items-start gap-4 mb-2">
                     <CardTitle className="text-lg leading-tight group-hover:text-primary transition-colors">{article.title}</CardTitle>
-                    {article.isPublished
-                      ? <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">{t("articles.published")}</Badge>
-                      : <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20 whitespace-nowrap">{t("articles.draft")}</Badge>}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 whitespace-nowrap text-[10px]">
+                        {t(`articles.categories.${(article as any).category || "general"}`)}
+                      </Badge>
+                      {article.isPublished
+                        ? <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 whitespace-nowrap">{t("articles.published")}</Badge>
+                        : <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20 whitespace-nowrap">{t("articles.draft")}</Badge>}
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                     {article.targetAllBranches
@@ -238,6 +246,18 @@ export default function Articles() {
             <div className="space-y-2">
               <Label>{t("articles.titleLabel")}</Label>
               <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("articles.titlePlaceholder")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("articles.categoryLabel")}</Label>
+              <select
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {ARTICLE_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{t(`articles.categories.${cat}`)}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>{t("articles.contentLabel")}</Label>

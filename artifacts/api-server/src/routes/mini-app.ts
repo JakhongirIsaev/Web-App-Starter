@@ -540,6 +540,7 @@ router.get("/mini-app/articles", requireAuth, async (req, res) => {
       id: articlesTable.id,
       title: articlesTable.title,
       content: articlesTable.content,
+      category: articlesTable.category,
       isPublished: articlesTable.isPublished,
       targetAllBranches: articlesTable.targetAllBranches,
       createdAt: articlesTable.createdAt,

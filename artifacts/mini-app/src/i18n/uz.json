@@ -192,7 +192,16 @@
     "searchPlaceholder": "Maqolalarni qidirish...",
     "noArticles": "Maqolalar topilmadi",
     "by": "Muallif: {{name}}",
-    "readMore": "Batafsil"
+    "readMore": "Batafsil",
+    "allCategories": "Barchasi",
+    "categories": {
+      "general": "Umumiy",
+      "onboarding": "Yangi xodimlar uchun",
+      "sap": "SAP",
+      "documents": "Hujjatlar",
+      "credit_process": "Kredit jarayoni",
+      "faq": "Ko'p beriladigan savollar"
+    }
   },
   "statuses": {
     "draft": "Qoralama",

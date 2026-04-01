@@ -192,7 +192,16 @@
     "searchPlaceholder": "Поиск статей...",
     "noArticles": "Статьи не найдены",
     "by": "Автор: {{name}}",
-    "readMore": "Читать далее"
+    "readMore": "Читать далее",
+    "allCategories": "Все",
+    "categories": {
+      "general": "Общее",
+      "onboarding": "Для новичков",
+      "sap": "SAP",
+      "documents": "Документы",
+      "credit_process": "Кредитный процесс",
+      "faq": "Частые вопросы"
+    }
   },
   "statuses": {
     "draft": "Черновик",

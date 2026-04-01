@@ -216,7 +216,16 @@
     "articleUpdated": "Статья обновлена",
     "articleDeleted": "Статья удалена",
     "deleteArticle": "Удалить статью",
-    "deleteArticleConfirm": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие нельзя отменить."
+    "deleteArticleConfirm": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие нельзя отменить.",
+    "categoryLabel": "Категория",
+    "categories": {
+      "general": "Общее",
+      "onboarding": "Для новичков",
+      "sap": "SAP",
+      "documents": "Документы",
+      "credit_process": "Кредитный процесс",
+      "faq": "Частые вопросы"
+    }
   },
   "users": {
     "title": "Управление доступом",
