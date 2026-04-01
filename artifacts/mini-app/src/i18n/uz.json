@@ -16,7 +16,9 @@
     "telegramId": "Telegram ID",
     "password": "Parol",
     "signIn": "Kirish",
-    "authenticating": "Kirish..."
+    "authenticating": "Kirish...",
+    "telegramAuthFailed": "Telegram orqali avtomatik kirish amalga oshmadi",
+    "telegramAuthHint": "Sizning Telegram ID tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling."
   },
   "home": {
     "greeting": "Assalomu alaykum, {{name}}!",

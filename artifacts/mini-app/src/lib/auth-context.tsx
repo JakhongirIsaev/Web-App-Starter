@@ -1,5 +1,22 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { getMe, login as apiLogin, logout as apiLogout, clearToken } from "./api";
+import { getMe, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: {
+        initData?: string;
+        initDataUnsafe?: {
+          user?: { id: number; first_name: string; last_name?: string; username?: string };
+        };
+        ready?: () => void;
+        expand?: () => void;
+        close?: () => void;
+        themeParams?: Record<string, string>;
+      };
+    };
+  }
+}
 
 interface User {
   id: number;
@@ -13,6 +30,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isTelegram: boolean;
+  telegramError: string | null;
   login: (telegramId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -20,6 +39,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isTelegram: false,
+  telegramError: null,
   login: async () => {},
   logout: async () => {},
 });
@@ -27,17 +48,46 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
+
+  const isTelegram = !!(window.Telegram?.WebApp?.initData);
 
   useEffect(() => {
-    const token = localStorage.getItem("miniapp_auth_token");
-    if (!token) {
-      setLoading(false);
-      return;
+    if (window.Telegram?.WebApp?.ready) {
+      window.Telegram.WebApp.ready();
     }
-    getMe()
-      .then((data) => setUser(data.user || data))
-      .catch(() => clearToken())
-      .finally(() => setLoading(false));
+    if (window.Telegram?.WebApp?.expand) {
+      window.Telegram.WebApp.expand();
+    }
+  }, []);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem("miniapp_auth_token");
+      if (token) {
+        try {
+          const data = await getMe();
+          setUser(data.user || data);
+          setLoading(false);
+          return;
+        } catch {
+          clearToken();
+        }
+      }
+
+      if (isTelegram && window.Telegram?.WebApp?.initData) {
+        try {
+          const data = await loginWithTelegram(window.Telegram.WebApp.initData);
+          setUser(data.user);
+        } catch (err: any) {
+          setTelegramError(err.message || "Telegram auth failed");
+        }
+      }
+
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = useCallback(async (telegramId: string, password: string) => {
@@ -51,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isTelegram, telegramError, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

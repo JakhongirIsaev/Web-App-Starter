@@ -3,9 +3,42 @@ import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { LoginBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+function validateTelegramInitData(initData: string, botToken: string): { valid: boolean; user?: any } {
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash");
+    if (!hash) return { valid: false };
+
+    params.delete("hash");
+    const entries = Array.from(params.entries());
+    entries.sort(([a], [b]) => a.localeCompare(b));
+    const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join("\n");
+
+    const secretKey = crypto
+      .createHmac("sha256", "WebAppData")
+      .update(botToken)
+      .digest();
+
+    const computedHash = crypto
+      .createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest("hex");
+
+    if (computedHash !== hash) return { valid: false };
+
+    const userStr = params.get("user");
+    if (!userStr) return { valid: false };
+
+    return { valid: true, user: JSON.parse(userStr) };
+  } catch {
+    return { valid: false };
+  }
+}
 
 router.get("/auth/me", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
@@ -106,6 +139,68 @@ router.post("/auth/login", async (req, res) => {
     if (branches.length) {
       branch = branches[0];
     }
+  }
+
+  res.json({
+    user: {
+      id: user.id,
+      telegramId: user.telegramId,
+      name: user.name,
+      role: user.role,
+      branchId: user.branchId ?? null,
+      branch,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    },
+    token,
+  });
+});
+
+router.post("/auth/telegram", async (req, res) => {
+  const { initData } = req.body;
+  if (!initData) {
+    res.status(400).json({ error: "Missing initData" });
+    return;
+  }
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    res.status(500).json({ error: "Bot not configured" });
+    return;
+  }
+
+  const result = validateTelegramInitData(initData, botToken);
+  if (!result.valid || !result.user) {
+    res.status(401).json({ error: "Invalid Telegram data" });
+    return;
+  }
+
+  const tgUser = result.user;
+  const telegramId = String(tgUser.id);
+
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .limit(1);
+
+  if (!users.length || !users[0].isActive) {
+    res.status(401).json({ error: "User not registered", telegramId });
+    return;
+  }
+
+  const user = users[0];
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  if (!req.app.locals.sessions) {
+    req.app.locals.sessions = new Map<string, number>();
+  }
+  req.app.locals.sessions.set(token, user.id);
+
+  let branch = null;
+  if (user.branchId) {
+    const branches = await db.select().from(branchesTable).where(eq(branchesTable.id, user.branchId)).limit(1);
+    if (branches.length) branch = branches[0];
   }
 
   res.json({

@@ -4,10 +4,11 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
-  const { login } = useAuth();
+  const { login, isTelegram, telegramError, loading: authLoading } = useAuth();
   const [telegramId, setTelegramId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,15 @@ export default function LoginPage() {
     localStorage.setItem("minerva_miniapp_lang", next);
   };
 
+  if (isTelegram && authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+        <p className="text-sm text-muted-foreground">{t("login.authenticating")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
       <div className="absolute top-4 right-4">
@@ -48,6 +58,20 @@ export default function LoginPage() {
           <h1 className="text-xl font-bold text-foreground">{t("app.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("app.subtitle")}</p>
         </div>
+
+        {isTelegram && telegramError && (
+          <Card className="mb-4 border-destructive/50">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">{t("login.telegramAuthFailed")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("login.telegramAuthHint")}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-4">

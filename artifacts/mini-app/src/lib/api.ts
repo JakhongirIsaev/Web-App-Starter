@@ -51,6 +51,21 @@ export async function login(telegramId: string, password: string) {
   return data;
 }
 
+export async function loginWithTelegram(initData: string) {
+  const res = await fetch(`${API_BASE}/auth/telegram`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ initData }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Telegram auth failed" }));
+    throw new Error(err.error || "Telegram auth failed");
+  }
+  const data = await res.json();
+  setToken(data.token);
+  return data;
+}
+
 export async function getMe() {
   return api.get("/auth/me");
 }

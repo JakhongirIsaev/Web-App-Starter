@@ -16,7 +16,9 @@
     "telegramId": "Telegram ID",
     "password": "Пароль",
     "signIn": "Войти",
-    "authenticating": "Вход..."
+    "authenticating": "Вход...",
+    "telegramAuthFailed": "Автоматический вход через Telegram не удался",
+    "telegramAuthHint": "Ваш Telegram ID не зарегистрирован в системе. Войдите вручную или обратитесь к администратору."
   },
   "home": {
     "greeting": "Здравствуйте, {{name}}!",

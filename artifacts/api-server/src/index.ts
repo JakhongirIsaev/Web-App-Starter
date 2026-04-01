@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./seed";
+import { startBot, stopBot } from "./bot";
 
 const rawPort = process.env["PORT"];
 
@@ -27,4 +28,19 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  const domain = process.env["REPLIT_DEV_DOMAIN"] || process.env["REPLIT_DOMAINS"]?.split(",")[0];
+  const miniAppUrl = domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/";
+  startBot(miniAppUrl).catch((err) => {
+    logger.error({ err }, "Failed to start Telegram bot");
+  });
+});
+
+process.on("SIGTERM", () => {
+  stopBot();
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  stopBot();
+  process.exit(0);
 });
