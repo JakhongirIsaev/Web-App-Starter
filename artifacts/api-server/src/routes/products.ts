@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
+import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -176,6 +177,37 @@ router.delete("/products/:id", requireAuth, requireRole("superadmin", "head_offi
   await logActivity({ type: "product_deleted", description: `Product deleted`, entityId: params.data.id, entityType: "product", user: req.user });
 
   res.status(204).send();
+});
+
+router.post("/products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    const rows = parseCsvBuffer(req.file.buffer);
+    const skipped: number[] = [];
+    let imported = 0;
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.name) { skipped.push(i + 2); continue; }
+        await tx.insert(productsTable).values({
+          name: row.name,
+          type: row.type === "non_credit" ? "non_credit" : "credit",
+          description: row.description || null,
+          minAmount: row.minAmount || null,
+          maxAmount: row.maxAmount || null,
+          minTermMonths: row.minTermMonths ? Number(row.minTermMonths) : null,
+          maxTermMonths: row.maxTermMonths ? Number(row.maxTermMonths) : null,
+          interestRate: row.interestRate || null,
+          isActive: row.isActive !== "false",
+        });
+        imported++;
+      }
+    });
+    await logActivity({ type: "products_imported", description: `Imported ${imported} products from CSV`, entityType: "product", user: req.user });
+    res.json({ imported, skipped });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 export default router;

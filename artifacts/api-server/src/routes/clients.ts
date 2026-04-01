@@ -7,8 +7,9 @@ import {
   CreateClientBody, UpdateClientBody, GetClientParams,
   UpdateClientParams, ListClientsQueryParams
 } from "@workspace/api-zod";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
+import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -201,6 +202,34 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
   }
 
   res.json(updated);
+});
+
+router.post("/clients/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    const rows = parseCsvBuffer(req.file.buffer);
+    const skipped: number[] = [];
+    let imported = 0;
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.fullName) { skipped.push(i + 2); continue; }
+        await tx.insert(clientsTable).values({
+          sessionId: row.sessionId || randomUUID(),
+          fullName: row.fullName || null,
+          phone: row.phone || null,
+          status: row.status || "draft",
+          branchId: row.branchId ? Number(row.branchId) : null,
+          assignedToId: row.assignedToId ? Number(row.assignedToId) : null,
+        });
+        imported++;
+      }
+    });
+    await logActivity({ type: "clients_imported", description: `Imported ${imported} clients from CSV`, entityType: "client", user: req.user });
+    res.json({ imported, skipped });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 export default router;

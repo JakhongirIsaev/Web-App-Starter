@@ -94,16 +94,34 @@ All routes under `/api`, all require Bearer token auth:
 - `GET/POST /api/articles`, `GET/PUT/DELETE /api/articles/:id` (write: admin+editor)
 - `GET /api/dashboard/summary|activity|branch-stats|client-status` (branch-scoped for branch_head)
 
+## i18n (Internationalization)
+
+The admin panel supports Russian (default) and Uzbek languages.
+- **Library**: i18next + react-i18next
+- **Config**: `artifacts/admin/src/i18n/index.ts`
+- **Translation files**: `artifacts/admin/src/i18n/ru.json`, `artifacts/admin/src/i18n/uz.json`
+- **Language switcher**: Header button toggles between RU/UZ, stored in `localStorage` as `minerva_lang`
+- All UI strings wrapped in `useTranslation()` / `t()` calls
+
+## CSV Import/Export
+
+All data pages (Clients, Products, Articles, Users, Branches) have Export and Import buttons.
+- **Export**: Frontend-only, downloads CSV with BOM for Excel compatibility, formula injection protection (prefixes dangerous chars with `'`)
+- **Import**: File upload via `multer`, parsed with `csv-parse`, wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
+- **Shared utilities**: `artifacts/admin/src/lib/csv.ts` (frontend), `artifacts/api-server/src/lib/csv.ts` (backend)
+- **Import endpoints**: `POST /api/{resource}/import` (superadmin/head_office_admin only)
+- Users import requires `password` column (no default passwords)
+
 ## Frontend Pages
 
 All pages have full CRUD functionality with dialog modals:
 - **Dashboard** (`/`) — Metrics, activity feed, branch stats, client status chart
-- **Clients** (`/clients`) — Paginated list with filters, click to view detail
+- **Clients** (`/clients`) — Paginated list with filters, click to view detail, CSV export/import
 - **Client Detail** (`/clients/:id`) — Status pipeline, assignment info, status update, reassignment dialog
-- **Products** (`/products`) — Table with Add/Edit/Delete via dialogs, filter by type/category, client-side search
-- **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle (admin only)
-- **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters, client-side search (admin only)
-- **Articles** (`/articles`) — Card grid with Create/Edit/Delete, published/draft tabs, branch targeting
+- **Products** (`/products`) — Table with Add/Edit/Delete via dialogs, filter by type/category, client-side search, CSV export/import
+- **Branches** (`/branches`) — Card grid with Add/Edit/Delete, active/inactive toggle (admin only), CSV export/import
+- **Users** (`/users`) — Table with Add/Edit/Activate/Deactivate, role/branch filters, client-side search (admin only), CSV export/import
+- **Articles** (`/articles`) — Card grid with Create/Edit/Delete, published/draft tabs, branch targeting, CSV export/import
 
 ## Auto-Seeding
 

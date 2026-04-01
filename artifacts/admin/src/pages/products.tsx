@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   useListProducts, getListProductsQueryKey, 
   useListProductCategories, getListProductCategoriesQueryKey,
   useCreateProduct, useUpdateProduct, useDeleteProduct
 } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
-import { Plus, Pencil, Trash2, Tag, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Search, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { format } from "date-fns";
+import { downloadCsv } from "@/lib/csv";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -47,11 +50,13 @@ const emptyForm: ProductForm = {
 };
 
 export default function Products() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [type, setType] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const importRef = useRef<HTMLInputElement>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -73,11 +78,7 @@ export default function Products() {
     queryClient.invalidateQueries({ queryKey: getListProductsQueryKey({ type: type !== "all" ? type : undefined, categoryId: categoryId !== "all" ? Number(categoryId) : undefined }) });
   };
 
-  const openCreate = () => {
-    setEditProduct(null);
-    setForm(emptyForm);
-    setDialogOpen(true);
-  };
+  const openCreate = () => { setEditProduct(null); setForm(emptyForm); setDialogOpen(true); };
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
@@ -109,13 +110,13 @@ export default function Products() {
     const data = buildPayload();
     if (editProduct) {
       updateProduct.mutate({ id: editProduct.id, data }, {
-        onSuccess: () => { toast({ title: "Product updated" }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+        onSuccess: () => { toast({ title: t("products.productUpdated") }); setDialogOpen(false); invalidate(); },
+        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
       });
     } else {
       createProduct.mutate({ data }, {
-        onSuccess: () => { toast({ title: "Product created" }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+        onSuccess: () => { toast({ title: t("products.productCreated") }); setDialogOpen(false); invalidate(); },
+        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
       });
     }
   };
@@ -123,9 +124,43 @@ export default function Products() {
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteProduct.mutate({ id: deleteTarget.id }, {
-      onSuccess: () => { toast({ title: "Product deleted" }); setDeleteTarget(null); invalidate(); },
-      onError: (e: any) => toast({ variant: "destructive", title: "Error", description: e.message }),
+      onSuccess: () => { toast({ title: t("products.productDeleted") }); setDeleteTarget(null); invalidate(); },
+      onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
     });
+  };
+
+  const handleExport = () => {
+    if (!filteredProducts.length) return;
+    const rows = filteredProducts.map(p => ({
+      id: p.id, name: p.name, type: p.type, category: p.category?.name || "",
+      description: p.description || "", minAmount: p.minAmount || "", maxAmount: p.maxAmount || "",
+      minTermMonths: p.minTermMonths || "", maxTermMonths: p.maxTermMonths || "",
+      interestRate: p.interestRate || "", isActive: p.isActive,
+    }));
+    downloadCsv(rows, `products_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    toast({ title: t("common.exportSuccess") });
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.BASE_URL}api/products/import`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
+      invalidate();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
+    }
+    if (importRef.current) importRef.current.value = "";
   };
 
   const isPending = createProduct.isPending || updateProduct.isPending;
@@ -135,34 +170,45 @@ export default function Products() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Products</h2>
-          <p className="text-muted-foreground mt-1">Manage credit and non-credit product offerings.</p>
+          <h2 className="text-3xl font-bold tracking-tight">{t("products.title")}</h2>
+          <p className="text-muted-foreground mt-1">{t("products.subtitle")}</p>
         </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
+            <Upload className="h-4 w-4" />
+            {t("common.import")}
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" />
+            {t("common.export")}
+          </Button>
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            {t("products.addProduct")}
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card border border-border/50 rounded-lg shadow-sm">
         <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search products..." className="pl-9 max-w-md" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder={t("products.searchPlaceholder")} className="pl-9 max-w-md" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-4">
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Product Type" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="credit">Credit</SelectItem>
-                <SelectItem value="non_credit">Non-Credit</SelectItem>
+                <SelectItem value="all">{t("products.allTypes")}</SelectItem>
+                <SelectItem value="credit">{t("products.credit")}</SelectItem>
+                <SelectItem value="non_credit">{t("products.nonCredit")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{t("products.allCategories")}</SelectItem>
                 {categories?.map(c => (<SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>))}
               </SelectContent>
             </Select>
@@ -173,12 +219,12 @@ export default function Products() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>Product Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Terms / Limits</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("products.productName")}</TableHead>
+                <TableHead>{t("products.type")}</TableHead>
+                <TableHead>{t("products.category")}</TableHead>
+                <TableHead>{t("products.termsLimits")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,7 +241,7 @@ export default function Products() {
                 ))
               ) : filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No products found.</TableCell>
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">{t("products.noProducts")}</TableCell>
                 </TableRow>
               ) : (
                 filteredProducts.map((product) => (
@@ -206,11 +252,11 @@ export default function Products() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={product.type === 'credit' ? 'bg-primary/10 text-primary' : ''}>
-                        {product.type === 'credit' ? 'Credit' : 'Non-Credit'}
+                        {product.type === 'credit' ? t("products.credit") : t("products.nonCredit")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" />{product.category?.name || "Uncategorized"}</div>
+                      <div className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" />{product.category?.name || t("products.uncategorized")}</div>
                     </TableCell>
                     <TableCell className="text-sm">
                       {product.type === 'credit' ? (
@@ -222,8 +268,8 @@ export default function Products() {
                     </TableCell>
                     <TableCell>
                       {product.isActive
-                        ? <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Active</Badge>
-                        : <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">Inactive</Badge>}
+                        ? <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{t("common.active")}</Badge>
+                        : <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">{t("common.inactive")}</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -246,69 +292,69 @@ export default function Products() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editProduct ? "Edit Product" : "Add Product"}</DialogTitle>
-            <DialogDescription>{editProduct ? "Update product details." : "Create a new product offering."}</DialogDescription>
+            <DialogTitle>{editProduct ? t("products.editProductTitle") : t("products.addProductTitle")}</DialogTitle>
+            <DialogDescription>{editProduct ? t("products.editProductDesc") : t("products.addProductDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Product Name</Label>
-                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Business Credit" />
+                <Label>{t("products.productNameLabel")}</Label>
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("products.productNamePlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>{t("products.typeLabel")}</Label>
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="credit">Credit</SelectItem>
-                    <SelectItem value="non_credit">Non-Credit</SelectItem>
+                    <SelectItem value="credit">{t("products.credit")}</SelectItem>
+                    <SelectItem value="non_credit">{t("products.nonCredit")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>{t("products.categoryLabel")}</Label>
                 <Select value={form.categoryId || "none"} onValueChange={v => setForm(f => ({ ...f, categoryId: v === "none" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("products.selectCategory")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No Category</SelectItem>
+                    <SelectItem value="none">{t("products.noCategory")}</SelectItem>
                     {categories?.map(c => (<SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-end pb-1 gap-3">
                 <Switch id="prod-active" checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
-                <Label htmlFor="prod-active">Active</Label>
+                <Label htmlFor="prod-active">{t("common.active")}</Label>
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Product description..." rows={3} />
+              <Label>{t("products.description")}</Label>
+              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t("products.descriptionPlaceholder")} rows={3} />
             </div>
             {form.type === "credit" && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Min Amount</Label>
-                    <Input type="number" value={form.minAmount} onChange={e => setForm(f => ({ ...f, minAmount: e.target.value }))} placeholder="e.g. 500000" />
+                    <Label>{t("products.minAmount")}</Label>
+                    <Input type="number" value={form.minAmount} onChange={e => setForm(f => ({ ...f, minAmount: e.target.value }))} placeholder="500000" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Max Amount</Label>
-                    <Input type="number" value={form.maxAmount} onChange={e => setForm(f => ({ ...f, maxAmount: e.target.value }))} placeholder="e.g. 50000000" />
+                    <Label>{t("products.maxAmount")}</Label>
+                    <Input type="number" value={form.maxAmount} onChange={e => setForm(f => ({ ...f, maxAmount: e.target.value }))} placeholder="50000000" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Min Term (months)</Label>
+                    <Label>{t("products.minTerm")}</Label>
                     <Input type="number" value={form.minTermMonths} onChange={e => setForm(f => ({ ...f, minTermMonths: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Max Term (months)</Label>
+                    <Label>{t("products.maxTerm")}</Label>
                     <Input type="number" value={form.maxTermMonths} onChange={e => setForm(f => ({ ...f, maxTermMonths: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Interest Rate (%)</Label>
+                    <Label>{t("products.interestRate")}</Label>
                     <Input type="number" step="0.1" value={form.interestRate} onChange={e => setForm(f => ({ ...f, interestRate: e.target.value }))} />
                   </div>
                 </div>
@@ -316,9 +362,9 @@ export default function Products() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSubmit} disabled={isPending || !form.name.trim()}>
-              {isPending ? "Saving..." : editProduct ? "Save Changes" : "Create Product"}
+              {isPending ? t("common.saving") : editProduct ? t("common.saveChanges") : t("products.addProduct")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -327,13 +373,13 @@ export default function Products() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{t("products.deleteProduct")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("products.deleteProductConfirm", { name: deleteTarget?.name })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteProduct.isPending ? "Deleting..." : "Delete"}
+              {deleteProduct.isPending ? t("common.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

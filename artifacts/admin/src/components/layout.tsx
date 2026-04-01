@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { User, useLogout } from "@workspace/api-client-react";
+import { useTranslation } from "react-i18next";
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,7 +9,8 @@ import {
   ShieldCheck, 
   Building2, 
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Languages
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,12 +31,12 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/clients", label: "Clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/products", label: "Products", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/articles", label: "Knowledge Base", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/users", label: "Access Management", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
-  { href: "/branches", label: "Branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
+  { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
+  { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
+  { href: "/products", labelKey: "nav.products", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
+  { href: "/articles", labelKey: "nav.knowledgeBase", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
+  { href: "/users", labelKey: "nav.accessManagement", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
+  { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
 ];
 
 export function getRoleColor(role: string) {
@@ -43,7 +45,6 @@ export function getRoleColor(role: string) {
     case "head_office_admin": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
     case "editor": return "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20";
     case "branch_head": return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20";
-    case "hunter": return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
     default: return "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20";
   }
 }
@@ -54,6 +55,7 @@ export function getRoleLabel(role: string) {
 
 export default function Layout({ children, user }: LayoutProps) {
   const [location, setLocation] = useLocation();
+  const { t, i18n } = useTranslation();
   const logout = useLogout();
 
   const handleLogout = () => {
@@ -63,6 +65,12 @@ export default function Layout({ children, user }: LayoutProps) {
         setLocation("/login");
       }
     });
+  };
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === "ru" ? "uz" : "ru";
+    i18n.changeLanguage(newLang);
+    localStorage.setItem("minerva_lang", newLang);
   };
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(user.role));
@@ -79,7 +87,7 @@ export default function Layout({ children, user }: LayoutProps) {
         
         <div className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto">
           <div className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-            Overview
+            {t("nav.overview")}
           </div>
           {filteredNavItems.map((item) => {
             const isActive = location === item.href;
@@ -96,7 +104,7 @@ export default function Layout({ children, user }: LayoutProps) {
                   )}
                 >
                   <Icon className="mr-3 h-4 w-4" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Button>
               </Link>
             );
@@ -108,11 +116,18 @@ export default function Layout({ children, user }: LayoutProps) {
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
           <div className="flex items-center text-sm text-muted-foreground">
             <span className="font-medium text-foreground">
-              {filteredNavItems.find(item => item.href === location)?.label || "Dashboard"}
+              {filteredNavItems.find(item => item.href === location)
+                ? t(filteredNavItems.find(item => item.href === location)!.labelKey)
+                : t("nav.dashboard")}
             </span>
           </div>
 
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={toggleLanguage}>
+              <Languages className="h-4 w-4" />
+              {i18n.language === "ru" ? "O'z" : "Ру"}
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-9 gap-3 pl-2 pr-3 rounded-full border border-border hover:bg-accent">
@@ -137,18 +152,18 @@ export default function Layout({ children, user }: LayoutProps) {
                 <DropdownMenuSeparator />
                 <div className="p-2">
                   <Badge variant="outline" className={cn("w-full justify-center", getRoleColor(user.role))}>
-                    {getRoleLabel(user.role)}
+                    {t(`roles.${user.role}`)}
                   </Badge>
                 </div>
                 {user.branch && (
                   <div className="p-2 pt-0">
-                    <p className="text-xs text-muted-foreground text-center">Branch: {user.branch.name}</p>
+                    <p className="text-xs text-muted-foreground text-center">{t("header.branchInfo", { name: user.branch.name })}</p>
                   </div>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t("header.logOut")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

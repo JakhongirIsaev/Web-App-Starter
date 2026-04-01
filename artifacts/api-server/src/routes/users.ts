@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
+import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
 
@@ -197,6 +198,36 @@ router.post("/users/:id/activate", requireAuth, requireRole("superadmin", "head_
 
   const full = await getUserWithBranch(updated.id);
   res.json(full);
+});
+
+router.post("/users/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    const rows = parseCsvBuffer(req.file.buffer);
+    const skipped: number[] = [];
+    let imported = 0;
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.telegramId || !row.name || !row.password) { skipped.push(i + 2); continue; }
+        const passwordHash = await bcrypt.hash(row.password, 10);
+        const role = ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"].includes(row.role) ? row.role : "branch_head";
+        await tx.insert(usersTable).values({
+          telegramId: row.telegramId,
+          name: row.name,
+          role: role as any,
+          branchId: row.branchId ? Number(row.branchId) : null,
+          passwordHash,
+          isActive: row.isActive !== "false",
+        });
+        imported++;
+      }
+    });
+    await logActivity({ type: "users_imported", description: `Imported ${imported} users from CSV`, entityType: "user", user: req.user });
+    res.json({ imported, skipped });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 export default router;

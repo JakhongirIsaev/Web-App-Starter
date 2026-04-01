@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
 import Login from "@/pages/login";
@@ -22,6 +23,7 @@ const adminRoles = ["superadmin", "head_office_admin"];
 
 function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: any) {
   const [location, setLocation] = useLocation();
+  const { t } = useTranslation();
   const { data: user, isLoading, error } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
@@ -40,7 +42,7 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Authenticating...</p>
+          <p className="text-sm text-muted-foreground">{t("common.authenticating")}</p>
         </div>
       </div>
     );
@@ -52,8 +54,8 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
     return (
       <Layout user={user}>
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Access Denied</h2>
-          <p className="text-muted-foreground">You do not have permission to view this page.</p>
+          <h2 className="text-2xl font-bold text-foreground">{t("common.accessDenied")}</h2>
+          <p className="text-muted-foreground">{t("common.noPermission")}</p>
         </div>
       </Layout>
     );
