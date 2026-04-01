@@ -12,7 +12,6 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Clients from "@/pages/clients";
 import ClientDetail from "@/pages/client-detail";
-import Products from "@/pages/products";
 import Articles from "@/pages/articles";
 import Users from "@/pages/users";
 import Branches from "@/pages/branches";
@@ -83,9 +82,6 @@ function Router() {
       </Route>
       <Route path="/clients/:id">
         {(params) => <ProtectedRoute component={ClientDetail} params={params} />}
-      </Route>
-      <Route path="/products">
-        {(params) => <ProtectedRoute component={Products} />}
       </Route>
       <Route path="/articles">
         {(params) => <ProtectedRoute component={Articles} />}

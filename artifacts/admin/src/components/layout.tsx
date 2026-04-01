@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { 
   LayoutDashboard, 
   Users, 
-  Package, 
   FileText, 
   ShieldCheck, 
   Building2, 
@@ -37,8 +36,7 @@ interface LayoutProps {
 const navItems = [
   { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
   { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
-  { href: "/products", labelKey: "nav.products", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
-  { href: "/articles", labelKey: "nav.knowledgeBase", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
+  { href: "/articles", labelKey: "nav.articles", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
   { href: "/users", labelKey: "nav.accessManagement", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
   { href: "/credit-products", labelKey: "nav.creditProducts", icon: CreditCard, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
