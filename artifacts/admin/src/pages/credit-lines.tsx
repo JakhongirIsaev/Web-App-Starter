@@ -52,6 +52,18 @@ const emptyForm: CreditLineForm = {
 const writeRoles = ["superadmin", "head_office_admin", "editor"];
 const adminRoles = ["superadmin", "head_office_admin"];
 
+function fmtNum(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const str = String(value).trim();
+  const num = parseFloat(str);
+  if (isNaN(num)) return str;
+  const [intPart, decPart] = num.toFixed(
+    str.includes(".") ? Math.min((str.split(".")[1] || "").length, 2) : 0
+  ).split(".");
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+  return decPart ? `${formatted}.${decPart}` : formatted;
+}
+
 export default function CreditLines({ user }: { user?: any }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -246,9 +258,9 @@ export default function CreditLines({ user }: { user?: any }) {
                         </div>
                       </TableCell>
                       <TableCell>{item.currency ? getCurrencyBadge(item.currency) : "-"}</TableCell>
-                      <TableCell className="text-sm font-medium">{item.agreementAmount || "-"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.disbursedAmount || "-"}</TableCell>
-                      <TableCell className="text-sm font-medium text-primary">{item.remainingBalance || "-"}</TableCell>
+                      <TableCell className="text-sm font-medium tabular-nums">{fmtNum(item.agreementAmount)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground tabular-nums">{fmtNum(item.disbursedAmount)}</TableCell>
+                      <TableCell className="text-sm font-medium text-primary tabular-nums">{fmtNum(item.remainingBalance)}</TableCell>
                       {canWrite ? (
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
@@ -270,7 +282,7 @@ export default function CreditLines({ user }: { user?: any }) {
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{item.department || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{item.agreementDate || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1">{item.receivedAmount || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1 tabular-nums">{fmtNum(item.receivedAmount)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{item.interestRate || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.projectCount")}:</span> <span className="ml-1">{item.projectCount || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.section")}:</span> <span className="ml-1">{item.section || "-"}</span></div>
