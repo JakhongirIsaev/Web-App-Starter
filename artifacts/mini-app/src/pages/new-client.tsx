@@ -17,7 +17,7 @@ export default function NewClientPage() {
 
   const createMutation = useMutation({
     mutationFn: () => api.post("/mini-app/clients", { fullName: fullName || null, phone: phone || null }),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
       navigate(`/clients/${data.id}`);
     },

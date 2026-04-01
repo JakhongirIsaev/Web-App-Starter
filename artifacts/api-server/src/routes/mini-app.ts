@@ -159,13 +159,19 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
 router.post("/mini-app/clients", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const branchId = req.user!.branchId;
-  if (!branchId) {
-    res.status(400).json({ error: "User has no branch assigned" });
-    return;
-  }
 
   const { fullName, phone } = req.body;
   const sessionId = `S-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  let assignedBranchId = branchId;
+  if (!assignedBranchId) {
+    const [firstBranch] = await db.select().from(branchesTable).limit(1);
+    if (!firstBranch) {
+      res.status(400).json({ error: "No branches exist in the system" });
+      return;
+    }
+    assignedBranchId = firstBranch.id;
+  }
 
   const [client] = await db
     .insert(clientsTable)
@@ -174,7 +180,7 @@ router.post("/mini-app/clients", requireAuth, async (req, res) => {
       fullName: fullName || null,
       phone: phone || null,
       status: "draft",
-      branchId,
+      branchId: assignedBranchId,
       assignedToId: userId,
     })
     .returning();
