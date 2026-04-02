@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Download, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -250,8 +250,8 @@ export default function CreditLines({ user }: { user?: any }) {
                 </TableRow>
               ) : (
                 items.map((item: any) => (
-                  <>
-                    <TableRow key={item.id} className="cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                  <Fragment key={item.id}>
+                    <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                       <TableCell className="font-mono text-muted-foreground">{item.number}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -279,7 +279,7 @@ export default function CreditLines({ user }: { user?: any }) {
                       ) : <TableCell />}
                     </TableRow>
                     {expandedId === item.id && (
-                      <TableRow key={`${item.id}-detail`}>
+                      <TableRow>
                         <TableCell colSpan={7} className="bg-muted/30 p-4">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{localizeDepartment(item.department, lang) || "-"}</span></div>
@@ -294,7 +294,7 @@ export default function CreditLines({ user }: { user?: any }) {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 ))
               )}
             </TableBody>

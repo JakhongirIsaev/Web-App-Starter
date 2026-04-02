@@ -26,6 +26,7 @@ export async function seedDatabase() {
   ]).returning();
 
   const users = await db.insert(usersTable).values([
+    { telegramId: "399083740", name: "Owner", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000001", name: "Алибек Джаксыбеков", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000002", name: "Дана Сейтова", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
     { telegramId: "100000003", name: "Руслан Берекетов", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
@@ -52,29 +53,29 @@ export async function seedDatabase() {
   ]);
 
   await db.insert(clientsTable).values([
-    { sessionId: randomUUID(), fullName: "Бауыржан Қасымов", phone: "+7 701 234 5678", status: "completed", branchId: branches[1].id, assignedToId: users[3].id },
-    { sessionId: randomUUID(), fullName: "Гульнара Сапарова", phone: "+7 702 345 6789", status: "questionnaire", branchId: branches[1].id, assignedToId: users[3].id },
-    { sessionId: randomUUID(), fullName: "Ержан Абенов", phone: "+7 707 456 7890", status: "basket", branchId: branches[2].id, assignedToId: users[6].id },
-    { sessionId: randomUUID(), fullName: "Асель Жаксыбекова", phone: "+7 705 567 8901", status: "recommendation", branchId: branches[1].id, assignedToId: users[4].id },
-    { sessionId: randomUUID(), fullName: "Марат Дюсенов", phone: "+7 701 678 9012", status: "completed", branchId: branches[2].id, assignedToId: users[6].id },
-    { sessionId: randomUUID(), fullName: "Нургуль Ахметова", phone: "+7 702 789 0123", status: "draft", branchId: branches[1].id, assignedToId: users[4].id },
-    { sessionId: randomUUID(), fullName: "Серик Бейсенов", phone: "+7 707 890 1234", status: "rejected", branchId: branches[2].id, assignedToId: users[6].id },
-    { sessionId: randomUUID(), fullName: "Айдана Муратова", phone: "+7 705 901 2345", status: "pdf_generated", branchId: branches[1].id, assignedToId: users[3].id },
+    { sessionId: randomUUID(), fullName: "Бауыржан Қасымов", phone: "+7 701 234 5678", status: "completed", branchId: branches[1].id, assignedToId: users[4].id },
+    { sessionId: randomUUID(), fullName: "Гульнара Сапарова", phone: "+7 702 345 6789", status: "questionnaire", branchId: branches[1].id, assignedToId: users[4].id },
+    { sessionId: randomUUID(), fullName: "Ержан Абенов", phone: "+7 707 456 7890", status: "basket", branchId: branches[2].id, assignedToId: users[7].id },
+    { sessionId: randomUUID(), fullName: "Асель Жаксыбекова", phone: "+7 705 567 8901", status: "recommendation", branchId: branches[1].id, assignedToId: users[5].id },
+    { sessionId: randomUUID(), fullName: "Марат Дюсенов", phone: "+7 701 678 9012", status: "completed", branchId: branches[2].id, assignedToId: users[7].id },
+    { sessionId: randomUUID(), fullName: "Нургуль Ахметова", phone: "+7 702 789 0123", status: "draft", branchId: branches[1].id, assignedToId: users[5].id },
+    { sessionId: randomUUID(), fullName: "Серик Бейсенов", phone: "+7 707 890 1234", status: "rejected", branchId: branches[2].id, assignedToId: users[7].id },
+    { sessionId: randomUUID(), fullName: "Айдана Муратова", phone: "+7 705 901 2345", status: "pdf_generated", branchId: branches[1].id, assignedToId: users[4].id },
   ]);
 
   await db.insert(articlesTable).values([
-    { title: "Требования к кредитному досье", content: "Перечень документов для оформления кредита:\n1. Удостоверение личности\n2. Свидетельство о регистрации ИП/ТОО\n3. Финансовая отчетность за последние 2 года\n4. Справка об отсутствии задолженностей", isPublished: true, targetAllBranches: true, authorId: users[1].id },
-    { title: "Методология оценки залога", content: "Оценка залогового имущества проводится по следующим критериям:\n- Ликвидность объекта\n- Рыночная стоимость\n- Юридическая чистота\n- Физическое состояние", isPublished: true, targetAllBranches: true, authorId: users[1].id },
-    { title: "Акция: сниженные ставки в Q2 2026", content: "С 1 апреля по 30 июня 2026 года действуют специальные условия по продукту Бизнес Кредит Стандарт. Ставка снижена до 16% годовых для новых клиентов.", isPublished: true, targetAllBranches: false, authorId: users[7].id },
+    { title: "Требования к кредитному досье", content: "Перечень документов для оформления кредита:\n1. Удостоверение личности\n2. Свидетельство о регистрации ИП/ТОО\n3. Финансовая отчетность за последние 2 года\n4. Справка об отсутствии задолженностей", isPublished: true, targetAllBranches: true, authorId: users[2].id },
+    { title: "Методология оценки залога", content: "Оценка залогового имущества проводится по следующим критериям:\n- Ликвидность объекта\n- Рыночная стоимость\n- Юридическая чистота\n- Физическое состояние", isPublished: true, targetAllBranches: true, authorId: users[2].id },
+    { title: "Акция: сниженные ставки в Q2 2026", content: "С 1 апреля по 30 июня 2026 года действуют специальные условия по продукту Бизнес Кредит Стандарт. Ставка снижена до 16% годовых для новых клиентов.", isPublished: true, targetAllBranches: false, authorId: users[8].id },
   ]);
 
   await db.insert(activityLogTable).values([
-    { type: "client_completed", description: "Клиент Бауыржан Қасымов успешно завершил кредитную заявку", entityId: 1, entityType: "client", userId: users[3].id, userName: users[3].name, branchName: branches[1].name },
-    { type: "client_created", description: "Новый клиент добавлен в систему", entityId: 2, entityType: "client", userId: users[3].id, userName: users[3].name, branchName: branches[1].name },
-    { type: "user_created", description: "Новый пользователь зарегистрирован", entityId: users[6].id, entityType: "user", userId: users[1].id, userName: users[1].name, branchName: branches[0].name },
-    { type: "product_updated", description: "Продукт Экспресс Кредит обновлен", entityId: 2, entityType: "product", userId: users[1].id, userName: users[1].name, branchName: branches[0].name },
-    { type: "client_rejected", description: "Заявка клиента Серик Бейсенов отклонена", entityId: 7, entityType: "client", userId: users[6].id, userName: users[6].name, branchName: branches[2].name },
-    { type: "article_published", description: "Статья Требования к кредитному досье опубликована", entityId: 1, entityType: "article", userId: users[7].id, userName: users[7].name, branchName: branches[0].name },
+    { type: "client_completed", description: "Клиент Бауыржан Қасымов успешно завершил кредитную заявку", entityId: 1, entityType: "client", userId: users[4].id, userName: users[4].name, branchName: branches[1].name },
+    { type: "client_created", description: "Новый клиент добавлен в систему", entityId: 2, entityType: "client", userId: users[4].id, userName: users[4].name, branchName: branches[1].name },
+    { type: "user_created", description: "Новый пользователь зарегистрирован", entityId: users[7].id, entityType: "user", userId: users[2].id, userName: users[2].name, branchName: branches[0].name },
+    { type: "product_updated", description: "Продукт Экспресс Кредит обновлен", entityId: 2, entityType: "product", userId: users[2].id, userName: users[2].name, branchName: branches[0].name },
+    { type: "client_rejected", description: "Заявка клиента Серик Бейсенов отклонена", entityId: 7, entityType: "client", userId: users[7].id, userName: users[7].name, branchName: branches[2].name },
+    { type: "article_published", description: "Статья Требования к кредитному досье опубликована", entityId: 1, entityType: "article", userId: users[8].id, userName: users[8].name, branchName: branches[0].name },
   ]);
 
   logger.info("Database seeded successfully");
