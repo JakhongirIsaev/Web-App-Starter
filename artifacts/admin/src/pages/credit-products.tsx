@@ -82,7 +82,7 @@ export default function CreditProducts({ user }: { user?: any }) {
   const queryKey = ["credit-products", search, page];
   const { data, isLoading } = useQuery({
     queryKey,
-    queryFn: () => apiFetch(`/credit-products?search=${search}&segment=&page=${page}&pageSize=200`),
+    queryFn: () => apiFetch(`/credit-products?search=${search}&segment=&page=${page}&pageSize=100`),
   });
 
   const createMut = useMutation({ mutationFn: (d: any) => apiFetch("/credit-products", { method: "POST", body: JSON.stringify(d) }) });
@@ -269,9 +269,7 @@ export default function CreditProducts({ user }: { user?: any }) {
                   const isExpanded = expandedNumber === group.number;
                   const currentSeg = getSelectedSeg(group);
                   const product = group.segments[currentSeg];
-                  const allSegs = Object.keys(group.segments).filter(s => s !== "__default");
                   const availableSegs = segmentOrder.filter((s) => group.segments[s]);
-                  const hasOnlyDefault = allSegs.length === 0 && group.segments["__default"];
 
                   return (
                     <React.Fragment key={group.number}>
@@ -348,10 +346,10 @@ export default function CreditProducts({ user }: { user?: any }) {
         {data?.total != null && (
           <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
             <span>{t("common.total")}: {data.total} {t("creditProducts.records")} ({grouped.length} {t("creditProducts.products")})</span>
-            {data.total > 200 && (
+            {data.total > 100 && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("common.prev")}</Button>
-                <Button variant="outline" size="sm" disabled={items.length < 200} onClick={() => setPage(p => p + 1)}>{t("common.nextPage")}</Button>
+                <Button variant="outline" size="sm" disabled={items.length < 100} onClick={() => setPage(p => p + 1)}>{t("common.nextPage")}</Button>
               </div>
             )}
           </div>
