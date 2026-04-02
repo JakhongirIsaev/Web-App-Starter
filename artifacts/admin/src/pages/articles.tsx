@@ -31,6 +31,8 @@ import {
 
 const ARTICLE_CATEGORIES = ["general", "onboarding", "sap", "documents", "credit_process", "faq"] as const;
 
+const writeRoles = ["superadmin", "head_office_admin", "editor"];
+
 interface ArticleForm {
   title: string;
   content: string;
@@ -43,7 +45,7 @@ interface ArticleForm {
 const emptyForm: ArticleForm = { title: "", content: "", category: "general", isPublished: false, targetAllBranches: true, branchIds: [] };
 
 
-export default function Articles() {
+export default function Articles({ user }: { user?: any }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,6 +55,8 @@ export default function Articles() {
   const [deleteTarget, setDeleteTarget] = useState<Article | null>(null);
   const [form, setForm] = useState<ArticleForm>(emptyForm);
   const importRef = useRef<HTMLInputElement>(null);
+
+  const canWrite = user && writeRoles.includes(user.role);
 
   const { data: articles, isLoading } = useListArticles(
     { isPublished: tab === "published" ? true : tab === "drafts" ? false : undefined },
@@ -153,19 +157,25 @@ export default function Articles() {
           <p className="text-muted-foreground mt-1">{t("articles.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
-          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-            <Upload className="h-4 w-4" />
-            {t("common.import")}
-          </Button>
+          {canWrite && (
+            <>
+              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+              <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
+                <Upload className="h-4 w-4" />
+                {t("common.import")}
+              </Button>
+            </>
+          )}
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             {t("common.export")}
           </Button>
-          <Button className="gap-2" onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            {t("articles.createArticle")}
-          </Button>
+          {canWrite && (
+            <Button className="gap-2" onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              {t("articles.createArticle")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -190,7 +200,9 @@ export default function Articles() {
               <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium text-foreground">{t("articles.noArticles")}</h3>
               <p>{t("articles.noArticlesHint")}</p>
-              <Button className="mt-4" variant="outline" onClick={openCreate}>{t("articles.createArticle")}</Button>
+              {canWrite && (
+                <Button className="mt-4" variant="outline" onClick={openCreate}>{t("articles.createArticle")}</Button>
+              )}
             </div>
           ) : (
             articles?.map((article) => (
@@ -222,12 +234,16 @@ export default function Articles() {
                   <span>{t("articles.by", { name: article.author?.name || 'System' })}</span>
                   <div className="flex items-center gap-2">
                     <span>{format(new Date(article.updatedAt), 'MMM d, yyyy')}</span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(article)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(article)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canWrite && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(article)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(article)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardFooter>
               </Card>

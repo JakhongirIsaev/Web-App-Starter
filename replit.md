@@ -145,14 +145,16 @@ Both admin panel and Mini App support Russian (default) and Uzbek languages.
 
 Both use i18next + react-i18next with `useTranslation()` / `t()` calls.
 
-## CSV Import/Export
+## CSV/Excel Import/Export
 
 All data pages (Clients, Products, Articles, Users, Branches) have Export and Import buttons.
 - **Export**: Frontend-only, downloads CSV with BOM for Excel compatibility, formula injection protection (prefixes dangerous chars with `'`)
-- **Import**: File upload via `multer`, parsed with `csv-parse`, wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
+- **Import**: File upload via `multer`, parsed with `csv-parse` or `exceljs`, wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
 - **Shared utilities**: `artifacts/admin/src/lib/csv.ts` (frontend), `artifacts/api-server/src/lib/csv.ts` (backend)
 - **Import endpoints**: `POST /api/{resource}/import` (superadmin/head_office_admin only)
-- Users import requires `password` column (no default passwords)
+- **Users Excel Import** (`POST /api/users/import`): Accepts .xlsx/.xls/.csv files; auto-detects column headers (ФИО/Telegram ID/Роль/Филиал/Телефон); matches branch by name (case-insensitive); auto-generates 8-char random passwords; skips duplicate Telegram IDs; returns `{ imported, skipped, created }` with plaintext passwords (shown once)
+- **Users Excel Template** (`GET /api/users/import-template`): Returns pre-filled .xlsx with correct headers, example data, and role/branch reference sheet
+- **Branch_head restrictions**: Articles page is read-only for `branch_head` (create/edit/delete/import hidden); Client detail page hides status change and reassign for `branch_head`
 
 ## Frontend Pages
 
@@ -198,7 +200,7 @@ Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 
 ## Telegram Bot Integration
 
-- **Bot**: `@minerva_1_bot` (grammy framework, long-polling)
+- **Bot**: `@minerva_1_bot` (grammy framework, long-polling with 409 conflict recovery)
 - **Bot code**: `artifacts/api-server/src/bot.ts`
 - **Secret**: `TELEGRAM_BOT_TOKEN` (stored in Replit Secrets)
 - **Commands**: `/start` (opens Mini App), `/stats` (personal metrics), `/clients` (client list), `/todo` (pending tasks), `/help` (shows help text)

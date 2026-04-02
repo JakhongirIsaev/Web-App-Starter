@@ -18,13 +18,17 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 
-export default function ClientDetail({ params }: { params: { id: string } }) {
+const adminRoles = ["superadmin", "head_office_admin", "editor"];
+
+export default function ClientDetail({ params, user: currentUser }: { params: { id: string }; user?: any }) {
   const clientId = parseInt(params.id, 10);
   const { toast } = useToast();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+  const canManage = currentUser && adminRoles.includes(currentUser.role);
   
   const { data: client, isLoading } = useGetClient(clientId, {
     query: { queryKey: getGetClientQueryKey(clientId) }
@@ -132,20 +136,22 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Select value={client.status} onValueChange={handleStatusChange} disabled={updateClient.isPending}>
-            <SelectTrigger className="w-[180px] bg-card"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
-              <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
-              <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
-              <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
-              <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
-              <SelectItem value="completed">{t("statuses.completed")}</SelectItem>
-              <SelectItem value="rejected">{t("statuses.rejected")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {canManage && (
+          <div className="flex items-center gap-3">
+            <Select value={client.status} onValueChange={handleStatusChange} disabled={updateClient.isPending}>
+              <SelectTrigger className="w-[180px] bg-card"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
+                <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
+                <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
+                <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
+                <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
+                <SelectItem value="completed">{t("statuses.completed")}</SelectItem>
+                <SelectItem value="rejected">{t("statuses.rejected")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -196,10 +202,12 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
                   <CardTitle>{t("clientDetail.documents")}</CardTitle>
                   <CardDescription>{t("clientDetail.documentsDesc")}</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Upload className="h-4 w-4" />
-                  {t("clientDetail.uploadDocument")}
-                </Button>
+                {canManage && (
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    {t("clientDetail.uploadDocument")}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -234,10 +242,12 @@ export default function ClientDetail({ params }: { params: { id: string } }) {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full gap-2" onClick={() => setReassignOpen(true)}>
-                  <UserPlus className="h-4 w-4" />
-                  {t("clientDetail.reassignClient")}
-                </Button>
+                {canManage && (
+                  <Button variant="outline" className="w-full gap-2" onClick={() => setReassignOpen(true)}>
+                    <UserPlus className="h-4 w-4" />
+                    {t("clientDetail.reassignClient")}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -244,6 +244,12 @@ export async function startBot(miniAppUrl: string) {
   });
 
   bot.catch((err) => {
+    const desc = (err.error as any)?.description || "";
+    if (desc.includes("terminated by other getUpdates request")) {
+      logger.warn("Bot polling conflict detected (409) — another instance is running. Stopping this bot instance.");
+      bot?.stop();
+      return;
+    }
     logger.error({ err: err.error }, "Bot error");
   });
 
@@ -253,6 +259,13 @@ export async function startBot(miniAppUrl: string) {
     await bot.api.deleteWebhook({ drop_pending_updates: true });
     bot.start({
       onStart: () => logger.info("Telegram bot started (polling)"),
+    }).catch((err: any) => {
+      const desc = err?.description || err?.message || "";
+      if (desc.includes("terminated by other getUpdates request") || desc.includes("409")) {
+        logger.warn("Bot polling stopped due to conflict (409) — another instance is running");
+      } else {
+        logger.error({ err: desc }, "Bot polling stopped unexpectedly");
+      }
     });
   } catch (err: any) {
     logger.error({ err: err.message || err }, "Failed to start Telegram bot — check TELEGRAM_BOT_TOKEN");

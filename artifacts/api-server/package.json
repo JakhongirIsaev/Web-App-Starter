@@ -20,6 +20,7 @@
     "cors": "^2",
     "csv-parse": "^6.2.1",
     "drizzle-orm": "catalog:",
+    "exceljs": "^4.4.0",
     "express": "^5",
     "google-auth-library": "^10.6.2",
     "grammy": "^1.41.1",
