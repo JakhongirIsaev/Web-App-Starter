@@ -34,6 +34,7 @@ export default function ScanDocumentPage() {
   const queryClient = useQueryClient();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<ScanState>("capture");
   const [docType, setDocType] = useState("passport");
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -59,6 +60,28 @@ export default function ScanDocumentPage() {
     reader.readAsDataURL(file);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handlePickFromGallery = () => {
+    galleryInputRef.current?.click();
+  };
+
+  const handleGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const newPhoto: PhotoItem = { id: `${Date.now()}-${i}`, dataUrl };
+        setPhotos(prev => [...prev, newPhoto]);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   const removePhoto = (id: string) => {
@@ -233,6 +256,14 @@ export default function ScanDocumentPage() {
         onChange={handleFileChange}
         className="hidden"
       />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleGalleryChange}
+        className="hidden"
+      />
 
       {state === "capture" && (
         <>
@@ -293,20 +324,28 @@ export default function ScanDocumentPage() {
 
           <div className="flex gap-2">
             <Button
-              variant={photos.length > 0 ? "outline" : "default"}
+              variant="outline"
               className="flex-1 gap-2 h-12"
               onClick={handleCapture}
             >
-              {photos.length > 0 ? <Plus className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-              {photos.length > 0 ? t("scanDoc.addMore") : t("scanDoc.takePhoto")}
+              <Camera className="w-5 h-5" />
+              {t("scanDoc.takePhoto")}
             </Button>
-            {photos.length > 0 && (
-              <Button className="flex-1 gap-2 h-12" onClick={processAllPhotos}>
-                <Scan className="w-5 h-5" />
-                {t("scanDoc.processAll", { count: photos.length })}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 h-12"
+              onClick={handlePickFromGallery}
+            >
+              <ImageIcon className="w-5 h-5" />
+              {t("scanDoc.fromGallery")}
+            </Button>
           </div>
+          {photos.length > 0 && (
+            <Button className="w-full gap-2 h-12" onClick={processAllPhotos}>
+              <Scan className="w-5 h-5" />
+              {t("scanDoc.processAll", { count: photos.length })}
+            </Button>
+          )}
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
         </>

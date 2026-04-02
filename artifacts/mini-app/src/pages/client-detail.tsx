@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, FileDown, Send, Loader2, CheckCircle } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -32,6 +32,7 @@ export default function ClientDetailPage() {
   const [actionType, setActionType] = useState("follow_up");
   const [actionDate, setActionDate] = useState("");
   const [actionPriority, setActionPriority] = useState("medium");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["mini-client", params.id],
@@ -92,6 +93,18 @@ export default function ClientDetailPage() {
     },
   });
 
+  const exportMutation = useMutation({
+    mutationFn: async () => {
+      const blob = await api.getBlob(`/mini-app/clients/${params.id}/export`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `client_${params.id}_export.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+
   if (isLoading) return <p className="text-center py-8 text-muted-foreground">{t("common.loading")}</p>;
   if (!data?.client) return <p className="text-center py-8">{t("common.error")}</p>;
 
@@ -106,6 +119,12 @@ export default function ClientDetailPage() {
   };
 
   const nextStep = getNextAction();
+
+  const getDocImageUrl = (doc: any) => {
+    if (doc.storagePath && doc.storagePath.startsWith("http")) return doc.storagePath;
+    if (doc.storagePath) return `/api/storage/files/${encodeURIComponent(doc.storagePath)}`;
+    return null;
+  };
 
   return (
     <div className="space-y-4 pb-4">
@@ -197,43 +216,61 @@ export default function ClientDetailPage() {
       {documents.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("scanDoc.documents")} ({documents.length})</h3>
-          {documents.map((doc: any) => {
-            const docIcon = doc.docType === "passport" ? CreditCard
-              : doc.docType === "vehicle_doc" ? Car
-              : doc.docType === "certificate" ? FileCheck
-              : FileText;
-            const DocIcon = docIcon;
-            return (
-              <Card key={doc.id} className="mb-1.5">
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <DocIcon className="w-4 h-4 text-primary" />
+
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {documents.map((doc: any) => {
+              const imgUrl = getDocImageUrl(doc);
+              return (
+                <div key={doc.id} className="relative group">
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={doc.fileName}
+                      className="w-full h-24 object-cover rounded-lg border cursor-pointer"
+                      onClick={() => setPreviewImage(imgUrl)}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <div className={`${imgUrl ? "hidden" : ""} w-full h-24 rounded-lg border bg-muted/50 flex flex-col items-center justify-center`}>
+                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground mt-1">{t(`scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`)}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{t(`scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`)}</p>
-                    <p className="text-xs text-muted-foreground">{fmtDate(doc.createdAt)}</p>
-                    {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {Object.entries(doc.extractedData).slice(0, 3).map(([k, v]) => (
-                          <span key={k} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                            {t(`scanDoc.fields.${k}`, k)}: {String(v).substring(0, 20)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                  <button
                     onClick={() => deleteDocMutation.mutate(doc.id)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    <X className="w-3 h-3" />
+                  </button>
+                  {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
+                    <div className="absolute bottom-1 left-1 right-1">
+                      <div className="bg-black/60 text-white text-[8px] rounded px-1 py-0.5 truncate">
+                        {Object.values(doc.extractedData)[0] as string}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {documents.some((d: any) => d.extractedData && Object.keys(d.extractedData).length > 0) && (
+            <Card className="mb-2">
+              <CardContent className="p-3 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">{t("scanDoc.extractedFields")}</p>
+                {documents.map((doc: any) =>
+                  doc.extractedData && Object.entries(doc.extractedData).map(([k, v]) => (
+                    <div key={`${doc.id}-${k}`} className="flex items-center justify-between py-0.5 border-b border-border/30 last:border-0">
+                      <span className="text-[10px] text-muted-foreground">{t(`scanDoc.fields.${k}`, k)}</span>
+                      <span className="text-xs font-medium text-right max-w-[60%] truncate">{String(v)}</span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -303,39 +340,59 @@ export default function ClientDetailPage() {
               </CardContent>
             </Card>
           ))}
-
-          {pdfResult ? (
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="p-3 text-center space-y-2">
-                <CheckCircle className="w-8 h-8 text-green-600 mx-auto" />
-                <p className="text-sm font-medium text-green-800">{t("pdf.generated")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {pdfResult.telegramSent ? t("pdf.sentViaTelegram") : t("pdf.notSentViaTelegram")}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Button
-              className="w-full gap-2 mt-2"
-              variant={client.status === "basket" ? "default" : "outline"}
-              onClick={() => generatePdfMutation.mutate()}
-              disabled={generatePdfMutation.isPending}
-            >
-              {generatePdfMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {t("pdf.generating")}
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  {t("pdf.generate")}
-                </>
-              )}
-            </Button>
-          )}
         </div>
       )}
+
+      <div>
+        {pdfResult ? (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-3 text-center space-y-2">
+              <CheckCircle className="w-8 h-8 text-green-600 mx-auto" />
+              <p className="text-sm font-medium text-green-800">{t("pdf.generated")}</p>
+              <p className="text-xs text-muted-foreground">
+                {pdfResult.telegramSent ? t("pdf.sentViaTelegram") : t("pdf.notSentViaTelegram")}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => setPdfResult(null)}
+              >
+                {t("pdf.generateAgain")}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Button
+            className="w-full gap-2"
+            variant={client.status === "basket" || basketItems?.length > 0 ? "default" : "outline"}
+            onClick={() => generatePdfMutation.mutate()}
+            disabled={generatePdfMutation.isPending}
+          >
+            {generatePdfMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t("pdf.generating")}
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                {t("pdf.generate")}
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
+      <Button
+        variant="outline"
+        className="w-full gap-2"
+        onClick={() => exportMutation.mutate()}
+        disabled={exportMutation.isPending}
+      >
+        <Download className="w-4 h-4" />
+        {exportMutation.isPending ? t("common.loading") : t("clientDetail.exportData")}
+      </Button>
 
       {calculations?.length > 0 && (
         <div>
@@ -346,10 +403,10 @@ export default function ClientDetailPage() {
                 <p className="text-sm font-medium">{c.productName}</p>
                 <div className="flex gap-4 text-xs text-muted-foreground mt-1">
                   <span>{fmtNum(c.loanAmount)} {c.currency}</span>
-                  <span>{c.termMonths} {t("calculator.month")}</span>
+                  <span>{c.termMonths} {t("calculator.months")}</span>
                   <span>{c.interestRate}%</span>
                 </div>
-                <p className="text-sm font-semibold text-primary mt-1">{fmtNum(c.monthlyPayment)} / {t("calculator.month")}</p>
+                <p className="text-sm font-semibold text-primary mt-1">{fmtNum(c.monthlyPayment)} / {t("calculator.months")}</p>
               </CardContent>
             </Card>
           ))}
@@ -367,6 +424,18 @@ export default function ClientDetailPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button className="absolute top-4 right-4 text-white" onClick={() => setPreviewImage(null)}>
+            <X className="w-8 h-8" />
+          </button>
+          <img src={previewImage} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
         </div>
       )}
     </div>

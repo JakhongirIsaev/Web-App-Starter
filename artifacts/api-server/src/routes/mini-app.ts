@@ -841,4 +841,81 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   }
 });
 
+router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
+  const clientId = parseInt(req.params.id);
+
+  if (!(await verifyClientAccess(clientId, req.user!))) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  const docs = await db
+    .select()
+    .from(clientDocumentsTable)
+    .where(eq(clientDocumentsTable.clientId, clientId))
+    .orderBy(desc(clientDocumentsTable.createdAt));
+
+  const clientNotes = await db
+    .select()
+    .from(clientNotesTable)
+    .where(eq(clientNotesTable.clientId, clientId));
+
+  const calcs = await db
+    .select()
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId));
+
+  let text = `=== ДАННЫЕ КЛИЕНТА ===\n`;
+  text += `ФИО: ${client.fullName || "—"}\n`;
+  text += `Телефон: ${client.phone || "—"}\n`;
+  text += `Статус: ${client.status}\n`;
+  text += `Дата создания: ${client.createdAt}\n\n`;
+
+  if (docs.length > 0) {
+    text += `=== ДОКУМЕНТЫ (${docs.length}) ===\n`;
+    for (const doc of docs) {
+      text += `\n--- ${doc.docType} (${doc.fileName}) ---\n`;
+      if (doc.extractedData && typeof doc.extractedData === "object") {
+        for (const [k, v] of Object.entries(doc.extractedData as Record<string, string>)) {
+          text += `  ${k}: ${v}\n`;
+        }
+      }
+      if (doc.ocrText) {
+        text += `  OCR текст: ${doc.ocrText}\n`;
+      }
+    }
+    text += `\n`;
+  }
+
+  if (clientNotes.length > 0) {
+    text += `=== ЗАМЕТКИ (${clientNotes.length}) ===\n`;
+    for (const n of clientNotes) {
+      text += `[${n.createdAt}] ${n.content}\n`;
+    }
+    text += `\n`;
+  }
+
+  if (calcs.length > 0) {
+    text += `=== РАСЧЁТЫ (${calcs.length}) ===\n`;
+    for (const c of calcs) {
+      text += `${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} мес., ${c.interestRate}%, платёж: ${c.monthlyPayment}\n`;
+    }
+  }
+
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="client_${clientId}.txt"; filename*=UTF-8''${encodeURIComponent(`client_${clientId}_export.txt`)}`);
+  res.send(text);
+});
+
 export default router;

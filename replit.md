@@ -180,7 +180,7 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 - **Questionnaire** — 6-step questionnaire (business_type, size, need_type, purpose, amount, term)
 - **Recommendation** — Rule-based product recommendations from questionnaire results
 - **Products** — Browse credit products catalog
-- **Calculator** — Loan calculator with annuity/differentiated repayment, grace period, payment schedule
+- **Calculator** — Full loan calculator matching bank reference: credit type selector, product cost with down payment %, auto-calculated loan amount, interest rate (annual/monthly), grace period, annuity/differentiated repayment, payment schedule with actual dates (DD.MM.YYYY format)
 - **Knowledge** — Articles / knowledge base
 - **Layout** — Bottom navigation with 5 tabs: Home, Clients, Products, Calculator, Knowledge
 
@@ -201,7 +201,7 @@ Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 - **Bot**: `@minerva_1_bot` (grammy framework, long-polling)
 - **Bot code**: `artifacts/api-server/src/bot.ts`
 - **Secret**: `TELEGRAM_BOT_TOKEN` (stored in Replit Secrets)
-- **Commands**: `/start` (opens Mini App via WebApp button), `/help` (shows help text)
+- **Commands**: `/start` (opens Mini App), `/stats` (personal metrics), `/clients` (client list), `/todo` (pending tasks), `/help` (shows help text)
 - **Document sending**: `sendDocument()` function sends PDF files to users via bot chat
 - **PDF Generation**: `POST /api/mini-app/clients/:id/generate-pdf` — generates commercial proposal PDF with client info, basket products, calculations; auto-sends via Telegram bot to expert's chat
 - **PDF Download**: `GET /api/mini-app/clients/:id/download-pdf` — downloads PDF directly
