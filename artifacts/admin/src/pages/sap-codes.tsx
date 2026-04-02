@@ -47,7 +47,7 @@ const emptyForm: SapCodeForm = {
 const writeRoles = ["superadmin", "head_office_admin", "editor"];
 const adminRoles = ["superadmin", "head_office_admin"];
 
-export default function SapCodes({ user }: { user?: any }) {
+export default function SapCodes({ user }: { user?: { role: string } }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();

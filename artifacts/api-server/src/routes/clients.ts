@@ -38,7 +38,11 @@ router.get("/clients", requireAuth, async (req, res) => {
 
   const conditions: any[] = [];
 
-  if (user.role === "branch_head" && user.branchId) {
+  if (user.role === "branch_head") {
+    if (!user.branchId) {
+      res.json({ data: [], total: 0, page, pageSize });
+      return;
+    }
     conditions.push(eq(clientsTable.branchId, user.branchId));
   } else if (params.success && params.data.branchId) {
     conditions.push(eq(clientsTable.branchId, params.data.branchId));
@@ -91,7 +95,7 @@ router.get("/clients", requireAuth, async (req, res) => {
   res.json({ data, total, page, pageSize });
 });
 
-router.post("/clients", requireAuth, async (req, res) => {
+router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admin", "editor", "hunter"), async (req, res) => {
   const parsed = CreateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
   const [client] = await db.insert(clientsTable).values({
@@ -120,7 +124,11 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const conditions: any[] = [eq(clientsTable.id, params.data.id)];
-  if (user.role === "branch_head" && user.branchId) {
+  if (user.role === "branch_head") {
+    if (!user.branchId) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
     conditions.push(eq(clientsTable.branchId, user.branchId));
   }
 
@@ -163,12 +171,9 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
   const parsed = UpdateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
 
-  if (user.role === "branch_head" && user.branchId) {
-    const [existing] = await db.select({ branchId: clientsTable.branchId }).from(clientsTable).where(eq(clientsTable.id, params.data.id)).limit(1);
-    if (!existing || existing.branchId !== user.branchId) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
+  if (user.role === "branch_head") {
+    res.status(403).json({ error: "Branch heads have view-only access to clients" });
+    return;
   }
 
   const updateData: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };

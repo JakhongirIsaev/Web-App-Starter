@@ -62,7 +62,7 @@ interface ProductGroup {
   segments: Record<string, any>;
 }
 
-export default function CreditProducts({ user }: { user?: any }) {
+export default function CreditProducts({ user }: { user?: { role: string } }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { toast } = useToast();

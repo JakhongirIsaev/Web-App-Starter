@@ -67,7 +67,7 @@ Tables:
 - `superadmin` — Full system access
 - `head_office_admin` — Manage products, users, branches, articles
 - `editor` — Manage content (articles, products)
-- `branch_head` — View their branch only
+- `branch_head` — View their branch only; read-only access to articles, credit products, SAP codes, credit lines (can export); clients: view + export only (no status change, no reassign, no import)
 - `hunter` — Credit specialist (Mini App only, not admin)
 
 ## Auth & RBAC
@@ -152,9 +152,23 @@ All data pages (Clients, Products, Articles, Users, Branches) have Export and Im
 - **Import**: File upload via `multer`, parsed with `csv-parse` or `exceljs`, wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
 - **Shared utilities**: `artifacts/admin/src/lib/csv.ts` (frontend), `artifacts/api-server/src/lib/csv.ts` (backend)
 - **Import endpoints**: `POST /api/{resource}/import` (superadmin/head_office_admin only)
-- **Users Excel Import** (`POST /api/users/import`): Accepts .xlsx/.xls/.csv files; auto-detects column headers (ФИО/Telegram ID/Роль/Филиал/Телефон); matches branch by name (case-insensitive); auto-generates 8-char random passwords; skips duplicate Telegram IDs; returns `{ imported, skipped, created }` with plaintext passwords (shown once)
-- **Users Excel Template** (`GET /api/users/import-template`): Returns pre-filled .xlsx with correct headers, example data, and role/branch reference sheet
-- **Branch_head restrictions**: Articles page is read-only for `branch_head` (create/edit/delete/import hidden); Client detail page hides status change and reassign for `branch_head`
+- **Users Bulk Excel Import**:
+  - **Endpoint**: `POST /api/users/import` (superadmin/head_office_admin only)
+  - **File formats**: Accepts `.xlsx`, `.xls`, or `.csv` files
+  - **Columns**: ФИО (name), Telegram ID, Роль (role), Филиал (branch name), Телефон (phone), Пароль (password - optional, auto-generated if omitted)
+  - **Column mapping**: Supports RU/UZ/EN header variants (case-insensitive)
+  - **Branch matching**: Matches branch names by exact match or fuzzy includes
+  - **Role mapping**: Maps Russian/Uzbek role names to system values (e.g., "начальник филиала" → "branch_head")
+  - **Duplicate handling**: Skips rows with existing Telegram IDs
+  - **Password auto-generation**: Generates secure 8-10 char passwords when not provided
+  - **Response**: Returns `{ imported, created: [...credentials], skipped: [...reasons] }` with plaintext passwords (shown once)
+  - **Template**: `GET /api/users/import-template` returns downloadable .xlsx template with example data, correct headers, and role/branch reference sheet
+  - **Frontend**: Pre-import preview/confirmation dialog (client-side xlsx parsing); Import results dialog shows created/skipped counts, credentials table, and CSV download for generated credentials
+- **Branch_head restrictions**: 
+  - Articles page: read-only (create/edit/delete/import hidden)
+  - Clients page: hide import button
+  - Client detail page: hide status change, reassign, and upload buttons
+  - Resource access: Restricted to their branch only; empty/404 for clients with null branchId
 
 ## Frontend Pages
 

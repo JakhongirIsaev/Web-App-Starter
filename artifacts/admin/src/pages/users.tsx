@@ -4,7 +4,7 @@ import {
   useCreateUser, useUpdateUser, useActivateUser, useDeactivateUser
 } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
-import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { downloadCsv } from "@/lib/csv";
+import * as XLSX from "xlsx";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -40,6 +41,103 @@ interface ImportResult {
 
 const emptyForm: UserForm = { telegramId: "", name: "", role: "branch_head", branchId: "", password: "" };
 
+interface ImportCreated {
+  row: number;
+  name: string;
+  telegramId: string;
+  role: string;
+  branch: string;
+  password: string;
+}
+
+interface ImportSkipped {
+  row: number;
+  reason: string;
+  name?: string;
+  telegramId?: string;
+}
+
+interface ImportResult {
+  imported: number;
+  skipped: ImportSkipped[];
+  created: ImportCreated[];
+}
+
+interface PreviewRow {
+  row: number;
+  name: string;
+  telegramId: string;
+  role: string;
+  branch: string;
+  phone: string;
+  password: string;
+}
+
+const COLUMN_MAP: Record<string, string> = {
+  "фио": "name", "ф.и.о.": "name", "ф.и.о": "name", "имя": "name", "name": "name", "ism": "name", "ismi": "name", "fish": "name",
+  "telegram id": "telegramId", "telegramid": "telegramId", "telegram": "telegramId", "тг id": "telegramId", "тг": "telegramId",
+  "роль": "role", "role": "role", "rol": "role",
+  "филиал": "branch", "branch": "branch", "filial": "branch",
+  "телефон": "phone", "phone": "phone", "telefon": "phone", "тел": "phone",
+  "пароль": "password", "password": "password", "parol": "password",
+};
+
+const ROLE_ALIASES: Record<string, string> = {
+  "суперадмин": "superadmin", "superadmin": "superadmin",
+  "админ главного офиса": "head_office_admin", "head_office_admin": "head_office_admin", "admin": "head_office_admin",
+  "редактор": "editor", "editor": "editor", "muharrir": "editor",
+  "начальник филиала": "branch_head", "branch_head": "branch_head", "filial boshlig'i": "branch_head", "нач. филиала": "branch_head",
+  "охотник": "hunter", "hunter": "hunter", "хантер": "hunter",
+};
+
+function parseFileToPreview(buffer: ArrayBuffer, fileName: string): PreviewRow[] {
+  let rows: Record<string, string>[] = [];
+
+  if (fileName.endsWith(".csv")) {
+    const text = new TextDecoder("utf-8").decode(buffer);
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(/[;,\t]/).map(h => h.trim().replace(/^["']|["']$/g, ""));
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(/[;,\t]/).map(v => v.trim().replace(/^["']|["']$/g, ""));
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => { row[h] = vals[idx] || ""; });
+      rows.push(row);
+    }
+  } else {
+    const wb = XLSX.read(buffer, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) return [];
+    rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "" });
+  }
+
+  const preview: PreviewRow[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
+    const mapped: Record<string, string> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      const normalized = key.toLowerCase().trim();
+      const field = COLUMN_MAP[normalized];
+      if (field) mapped[field] = String(value).trim();
+    }
+    if (!mapped.name && !mapped.telegramId) continue;
+
+    const roleLower = (mapped.role || "").toLowerCase().trim();
+    const resolvedRole = ROLE_ALIASES[roleLower] || mapped.role || "";
+
+    preview.push({
+      row: i + 2,
+      name: mapped.name || "",
+      telegramId: mapped.telegramId || "",
+      role: resolvedRole,
+      branch: mapped.branch || "",
+      phone: mapped.phone || "",
+      password: mapped.password || "",
+    });
+  }
+  return preview;
+}
+
 export default function Users() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -53,9 +151,13 @@ export default function Users() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>(emptyForm);
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+
   const [importResultOpen, setImportResultOpen] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [importLoading, setImportLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const { data: branches } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
   const { data: users, isLoading } = useListUsers(
@@ -121,32 +223,32 @@ export default function Users() {
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (importRef.current) importRef.current.value = "";
+
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import-template`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "import_template.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: t("users.templateDownloaded") });
+      const buffer = await file.arrayBuffer();
+      const rows = parseFileToPreview(buffer, file.name.toLowerCase());
+      if (rows.length === 0) {
+        toast({ variant: "destructive", title: t("users.noValidRows") });
+        return;
+      }
+      setPreviewRows(rows);
+      setPreviewFile(file);
+      setPreviewOpen(true);
     } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+      toast({ variant: "destructive", title: t("users.parseError"), description: err.message });
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportLoading(true);
+  const handleConfirmImport = async () => {
+    if (!previewFile) return;
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", previewFile);
+    setImporting(true);
+    setPreviewOpen(false);
     try {
       const token = localStorage.getItem("auth_token");
       const res = await fetch(`${import.meta.env.BASE_URL}api/users/import`, {
@@ -162,12 +264,34 @@ export default function Users() {
     } catch (err: any) {
       toast({ variant: "destructive", title: t("common.importError"), description: err.message });
     } finally {
-      setImportLoading(false);
-      if (importRef.current) importRef.current.value = "";
+      setImporting(false);
+      setPreviewFile(null);
+      setPreviewRows([]);
     }
   };
 
-  const downloadCredentials = () => {
+  const handleDownloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import-template`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "users_import_template.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+    }
+  };
+
+  const handleDownloadCredentials = () => {
     if (!importResult?.created?.length) return;
     const rows = importResult.created.map(c => ({
       name: c.name,
@@ -176,8 +300,16 @@ export default function Users() {
       branch: c.branch,
       password: c.password,
     }));
-    downloadCsv(rows, `credentials_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`);
+    downloadCsv(rows, `credentials_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`);
     toast({ title: t("users.credentialsDownloaded") });
+  };
+
+  const getSkipReasonLabel = (reason: string) => {
+    switch (reason) {
+      case "duplicate_telegram_id": return t("users.skipDuplicate");
+      case "missing_required_fields": return t("users.skipMissingFields");
+      default: return reason;
+    }
   };
 
   const isPending = createUser.isPending || updateUser.isPending;
@@ -191,14 +323,14 @@ export default function Users() {
           <p className="text-muted-foreground mt-1">{t("users.subtitle")}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <input type="file" ref={importRef} accept=".xlsx,.xls,.csv" onChange={handleImport} className="hidden" />
-          <Button variant="outline" className="gap-2" onClick={handleDownloadTemplate}>
+          <input type="file" ref={importRef} accept=".xlsx,.xls,.csv" onChange={handleFileSelect} className="hidden" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadTemplate}>
             <FileSpreadsheet className="h-4 w-4" />
             {t("users.downloadTemplate")}
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()} disabled={importLoading}>
+          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()} disabled={importing}>
             <Upload className="h-4 w-4" />
-            {importLoading ? t("common.loading") : t("users.importExcel")}
+            {importing ? t("common.loading") : t("users.importExcel")}
           </Button>
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
@@ -358,59 +490,129 @@ export default function Users() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importResultOpen} onOpenChange={setImportResultOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewFile(null); setPreviewRows([]); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("users.importResults")}</DialogTitle>
-            <DialogDescription>{t("users.importResultsDesc")}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {t("users.importPreviewTitle")}
+            </DialogTitle>
+            <DialogDescription>{t("users.importPreviewDesc", { count: previewRows.length })}</DialogDescription>
           </DialogHeader>
+
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs w-12">#</TableHead>
+                  <TableHead className="text-xs">{t("users.fullName")}</TableHead>
+                  <TableHead className="text-xs">{t("users.telegramId")}</TableHead>
+                  <TableHead className="text-xs">{t("users.role")}</TableHead>
+                  <TableHead className="text-xs">{t("users.branch")}</TableHead>
+                  <TableHead className="text-xs">{t("users.previewPhone")}</TableHead>
+                  <TableHead className="text-xs">{t("users.previewPassword")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {previewRows.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{r.row}</TableCell>
+                    <TableCell className="text-sm">
+                      {r.name || <span className="text-red-500 italic">—</span>}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono">
+                      {r.telegramId || <span className="text-red-500 italic">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {r.role ? (
+                        <Badge variant="outline" className={getRoleColor(r.role)}>{t(`roles.${r.role}`, { defaultValue: r.role })}</Badge>
+                      ) : (
+                        <span className="text-red-500 italic">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{r.branch || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{r.phone || "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {r.password ? (
+                        <span className="font-mono text-xs">{r.password}</span>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">{t("users.autoGenerated")}</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setPreviewOpen(false); setPreviewFile(null); setPreviewRows([]); }}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={importing} className="gap-2">
+              <Upload className="h-4 w-4" />
+              {importing ? t("common.loading") : t("users.confirmImport")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importResultOpen} onOpenChange={setImportResultOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("users.importResultTitle")}</DialogTitle>
+            <DialogDescription>{t("users.importResultDesc")}</DialogDescription>
+          </DialogHeader>
+
           {importResult && (
             <div className="space-y-4 py-2">
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2 px-4 py-3 bg-green-50 dark:bg-green-950/30 rounded-lg flex-1">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div>
+                  <div className="text-lg font-bold text-green-700 dark:text-green-400">{importResult.imported}</div>
+                  <div className="text-xs text-green-600 dark:text-green-500">{t("users.importCreated")}</div>
+                </div>
+              </div>
+              {importResult.skipped.length > 0 && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg flex-1">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
                   <div>
-                    <div className="text-sm font-medium text-green-700 dark:text-green-400">{t("users.importCreated")}</div>
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-400">{importResult.imported}</div>
+                    <div className="text-lg font-bold text-amber-700 dark:text-amber-400">{importResult.skipped.length}</div>
+                    <div className="text-xs text-amber-600 dark:text-amber-500">{t("users.importSkipped")}</div>
                   </div>
                 </div>
-                {importResult.skipped.length > 0 && (
-                  <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 px-4 py-2 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-yellow-600" />
-                    <div>
-                      <div className="text-sm font-medium text-yellow-700 dark:text-yellow-400">{t("users.importSkipped")}</div>
-                      <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{importResult.skipped.length}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
+            </div>
 
               {importResult.created.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-medium">{t("users.createdUsers")}</h4>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={downloadCredentials}>
-                      <Download className="h-3 w-3" />
+                    <h4 className="text-sm font-semibold">{t("users.createdUsers")}</h4>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadCredentials}>
+                      <Download className="h-3.5 w-3.5" />
                       {t("users.downloadCredentials")}
                     </Button>
                   </div>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("users.fullName")}</TableHead>
-                          <TableHead>{t("users.telegramId")}</TableHead>
-                          <TableHead>{t("users.role")}</TableHead>
-                          <TableHead>{t("users.passwordLabel")}</TableHead>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-xs">{t("users.fullName")}</TableHead>
+                          <TableHead className="text-xs">{t("users.telegramId")}</TableHead>
+                          <TableHead className="text-xs">{t("users.role")}</TableHead>
+                          <TableHead className="text-xs">{t("users.branch")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {importResult.created.map((c, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium">{c.name}</TableCell>
-                            <TableCell><code className="bg-muted px-1.5 py-0.5 rounded text-xs">{c.telegramId}</code></TableCell>
-                            <TableCell>{c.role}</TableCell>
-                            <TableCell><code className="bg-muted px-1.5 py-0.5 rounded text-xs">{c.password}</code></TableCell>
+                            <TableCell className="text-sm">{c.name}</TableCell>
+                            <TableCell className="text-sm font-mono">{c.telegramId}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getRoleColor(c.role)}>{t(`roles.${c.role}`)}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{c.branch || "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -421,22 +623,28 @@ export default function Users() {
 
               {importResult.skipped.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2">{t("users.skippedRows")}</h4>
+                  <h4 className="text-sm font-semibold mb-2">{t("users.skippedRows")}</h4>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("users.rowNumber")}</TableHead>
-                          <TableHead>{t("users.fullName")}</TableHead>
-                          <TableHead>{t("users.reason")}</TableHead>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-xs">{t("users.rowNumber")}</TableHead>
+                          <TableHead className="text-xs">{t("users.fullName")}</TableHead>
+                          <TableHead className="text-xs">{t("users.telegramId")}</TableHead>
+                          <TableHead className="text-xs">{t("users.skipReason")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {importResult.skipped.map((s, i) => (
                           <TableRow key={i}>
-                            <TableCell>{s.row}</TableCell>
-                            <TableCell>{s.name}</TableCell>
-                            <TableCell className="text-yellow-600 dark:text-yellow-400">{s.reason}</TableCell>
+                            <TableCell className="text-sm font-mono">{s.row}</TableCell>
+                            <TableCell className="text-sm">{s.name || "-"}</TableCell>
+                            <TableCell className="text-sm font-mono">{s.telegramId || "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                                {getSkipReasonLabel(s.reason)}
+                              </Badge>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

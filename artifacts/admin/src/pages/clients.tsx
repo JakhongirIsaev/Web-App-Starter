@@ -29,7 +29,8 @@ export function getStatusBadge(status: string, t: (key: string) => string) {
   }
 }
 
-export default function Clients() {
+export default function Clients({ user }: { user?: { role: string } }) {
+  const isBranchHead = user?.role === "branch_head";
   const { t } = useTranslation();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -110,11 +111,15 @@ export default function Clients() {
           <p className="text-muted-foreground mt-1">{t("clients.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
-          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-            <Upload className="h-4 w-4" />
-            {t("common.import")}
-          </Button>
+          {!isBranchHead && (
+            <>
+              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+              <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
+                <Upload className="h-4 w-4" />
+                {t("common.import")}
+              </Button>
+            </>
+          )}
           <Button variant="outline" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             {t("common.export")}

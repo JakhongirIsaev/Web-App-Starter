@@ -20,7 +20,7 @@ import {
 
 const adminRoles = ["superadmin", "head_office_admin", "editor"];
 
-export default function ClientDetail({ params, user: currentUser }: { params: { id: string }; user?: any }) {
+export default function ClientDetail({ params, user: currentUser }: { params: { id: string }; user?: { role: string } }) {
   const clientId = parseInt(params.id, 10);
   const { toast } = useToast();
   const { t } = useTranslation();

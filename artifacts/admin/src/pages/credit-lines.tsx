@@ -65,7 +65,7 @@ function fmtNum(value: string | number | null | undefined): string {
   return decPart ? `${formatted}.${decPart}` : formatted;
 }
 
-export default function CreditLines({ user }: { user?: any }) {
+export default function CreditLines({ user }: { user?: { role: string } }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { toast } = useToast();

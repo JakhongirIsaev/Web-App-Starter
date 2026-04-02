@@ -45,7 +45,7 @@ interface ArticleForm {
 const emptyForm: ArticleForm = { title: "", content: "", category: "general", isPublished: false, targetAllBranches: true, branchIds: [] };
 
 
-export default function Articles({ user }: { user?: any }) {
+export default function Articles({ user }: { user?: { role: string } }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
