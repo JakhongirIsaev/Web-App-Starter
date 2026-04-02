@@ -174,7 +174,7 @@ export default function QuestionnairePage() {
           </Button>
         ) : (
           <Button className="flex-1 gap-1" onClick={() => setStep(step + 1)} disabled={!canProceed}>
-            {t("common.next") || "Далее"}
+            {t("common.next")}
             <ChevronRight className="w-4 h-4" />
           </Button>
         )}

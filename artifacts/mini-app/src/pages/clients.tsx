@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { Plus, Search, ChevronRight, User } from "lucide-react";
+import { Plus, Search, ChevronRight, User, Download } from "lucide-react";
 import { fmtDate } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -35,16 +35,39 @@ export default function ClientsPage() {
     !search || (c.fullName || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const exportAllMutation = useMutation({
+    mutationFn: async () => {
+      const blob = await api.getBlob("/mini-app/clients-export-all");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all_clients_export_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+
   const statuses = ["", "draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"];
 
   return (
     <div className="space-y-3 pb-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold">{t("clients.title")}</h1>
-        <Button size="sm" onClick={() => navigate("/new-client")} className="gap-1">
-          <Plus className="w-4 h-4" />
-          {t("clients.newClient")}
-        </Button>
+        <div className="flex gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportAllMutation.mutate()}
+            disabled={exportAllMutation.isPending}
+            className="gap-1"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button size="sm" onClick={() => navigate("/new-client")} className="gap-1">
+            <Plus className="w-4 h-4" />
+            {t("clients.newClient")}
+          </Button>
+        </div>
       </div>
 
       <div className="relative">

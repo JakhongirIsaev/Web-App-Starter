@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -6,24 +6,59 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search, Package, ChevronDown, ChevronUp } from "lucide-react";
 
+interface ProductGroup {
+  number: number;
+  name: string;
+  sapCode: string;
+  segments: Record<string, any>;
+}
+
 export default function ProductsPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [segmentFilter, setSegmentFilter] = useState("");
+  const [expandedNumber, setExpandedNumber] = useState<number | null>(null);
+  const [selectedSegments, setSelectedSegments] = useState<Record<number, string>>({});
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["mini-products"],
     queryFn: () => api.get("/mini-app/products"),
   });
 
-  const segments = [...new Set(products.map((p: any) => p.segment).filter(Boolean))];
+  const grouped = useMemo(() => {
+    const map = new Map<number, ProductGroup>();
+    for (const p of products as any[]) {
+      const num = p.number || p.id;
+      if (!map.has(num)) {
+        map.set(num, {
+          number: num,
+          name: p.name,
+          sapCode: p.sapCode || "",
+          segments: {},
+        });
+      }
+      const segKey = p.segment || "__default";
+      map.get(num)!.segments[segKey] = p;
+    }
+    return Array.from(map.values()).sort((a, b) => a.number - b.number);
+  }, [products]);
 
-  const filtered = products.filter((p: any) => {
-    const matchSearch = !search || p.name?.toLowerCase().includes(search.toLowerCase());
-    const matchSegment = !segmentFilter || p.segment === segmentFilter;
-    return matchSearch && matchSegment;
-  });
+  const filtered = grouped.filter((g) =>
+    !search || g.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const segmentOrder = ["микро", "малый", "средний"];
+  const segmentLabels: Record<string, string> = {
+    "микро": t("products.micro"),
+    "малый": t("products.small"),
+    "средний": t("products.medium"),
+  };
+
+  const getSelectedSegment = (group: ProductGroup) => {
+    const segs = Object.keys(group.segments);
+    const chosen = selectedSegments[group.number];
+    if (chosen && group.segments[chosen]) return chosen;
+    return segmentOrder.find((s) => segs.includes(s)) || segs[0] || "__default";
+  };
 
   return (
     <div className="space-y-4 pb-4">
@@ -33,6 +68,7 @@ export default function ProductsPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold">{t("nav.products")}</h1>
+          <p className="text-xs text-muted-foreground">{filtered.length} {t("recommendation.allProducts").toLowerCase()}</p>
         </div>
       </div>
 
@@ -46,28 +82,6 @@ export default function ProductsPage() {
         />
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-        <button
-          onClick={() => setSegmentFilter("")}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-            !segmentFilter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-          }`}
-        >
-          {t("clients.allStatuses")}
-        </button>
-        {segments.map((s: string) => (
-          <button
-            key={s}
-            onClick={() => setSegmentFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-              segmentFilter === s ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
       {isLoading ? (
         <p className="text-center text-muted-foreground py-8">{t("common.loading")}</p>
       ) : filtered.length === 0 ? (
@@ -78,53 +92,101 @@ export default function ProductsPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((p: any) => {
-            const isExpanded = expandedId === p.id;
+          {filtered.map((group) => {
+            const isExpanded = expandedNumber === group.number;
+            const currentSeg = getSelectedSegment(group);
+            const product = group.segments[currentSeg];
+            const availableSegs = segmentOrder.filter((s) => group.segments[s]);
+
             return (
-              <Card
-                key={p.id}
-                className="cursor-pointer"
-                onClick={() => setExpandedId(isExpanded ? null : p.id)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{p.name}</p>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {p.segment && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{p.segment}</span>
-                        )}
-                        {p.sapCode && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">SAP: {p.sapCode}</span>
+              <Card key={group.number} className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div
+                    className="p-3 cursor-pointer"
+                    onClick={() => setExpandedNumber(isExpanded ? null : group.number)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            #{group.number}
+                          </span>
+                          <p className="text-sm font-medium truncate">{group.name}</p>
+                        </div>
+                        {group.sapCode && (
+                          <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                            SAP: {group.sapCode}
+                          </span>
                         )}
                       </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+                      )}
                     </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    )}
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-3 pt-3 border-t space-y-2 text-xs">
-                      {p.loanAmount && <InfoRow label={t("recommendation.amount")} value={p.loanAmount} />}
-                      {p.rateUzs && <InfoRow label="UZS" value={p.rateUzs} />}
-                      {p.rateUsd && <InfoRow label="USD" value={p.rateUsd} />}
-                      {p.rateEur && <InfoRow label="EUR" value={p.rateEur} />}
-                      {p.termWorkingCapital && <InfoRow label={t("recommendation.term")} value={p.termWorkingCapital} />}
-                      {p.termFixedAssets && <InfoRow label={t("recommendation.term") + " (ОС)"} value={p.termFixedAssets} />}
-                      {p.gracePeriod && <InfoRow label={t("calculator.gracePeriod")} value={p.gracePeriod} />}
-                      {p.disbursementForm && <InfoRow label={t("creditProducts.disbursementForm") || "Форма выдачи"} value={p.disbursementForm} />}
-                      {p.purpose && (
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">{t("recommendation.title")}</p>
-                          <p className="text-foreground">{p.purpose}</p>
+                    <div className="border-t">
+                      {availableSegs.length > 1 && (
+                        <div className="px-3 pt-3 pb-1">
+                          <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wider">{t("products.businessType")}</p>
+                          <div className="flex gap-1.5">
+                            {availableSegs.map((seg) => (
+                              <button
+                                key={seg}
+                                onClick={() => setSelectedSegments((prev) => ({ ...prev, [group.number]: seg }))}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                                  currentSeg === seg
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                                }`}
+                              >
+                                {segmentLabels[seg] || seg}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
-                      {p.highlight && (
-                        <div className="bg-primary/10 rounded-lg p-2">
-                          <p className="text-primary font-medium">{p.highlight}</p>
+
+                      {product && (
+                        <div className="p-3 space-y-2 text-xs">
+                          {product.loanAmount && (
+                            <InfoRow label={t("products.loanAmount")} value={product.loanAmount} />
+                          )}
+                          {product.rateUzs && (
+                            <InfoRow label={t("products.rateUzs")} value={product.rateUzs} />
+                          )}
+                          {product.rateUsd && (
+                            <InfoRow label={t("products.rateUsd")} value={product.rateUsd} />
+                          )}
+                          {product.rateEur && (
+                            <InfoRow label={t("products.rateEur")} value={product.rateEur} />
+                          )}
+                          {product.termWorkingCapital && (
+                            <InfoRow label={t("products.termWC")} value={product.termWorkingCapital} />
+                          )}
+                          {product.termFixedAssets && (
+                            <InfoRow label={t("products.termFA")} value={product.termFixedAssets} />
+                          )}
+                          {product.gracePeriod && (
+                            <InfoRow label={t("products.gracePeriod")} value={product.gracePeriod} />
+                          )}
+                          {product.disbursementForm && (
+                            <InfoRow label={t("products.disbursement")} value={product.disbursementForm} />
+                          )}
+                          {product.purpose && (
+                            <div>
+                              <p className="text-muted-foreground mb-0.5">{t("products.purpose")}</p>
+                              <p className="text-foreground text-xs leading-relaxed">{product.purpose}</p>
+                            </div>
+                          )}
+                          {product.highlight && (
+                            <div className="bg-primary/10 rounded-lg p-2">
+                              <p className="text-primary font-medium text-xs">{product.highlight}</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -141,8 +203,8 @@ export default function ProductsPage() {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex justify-between gap-2">
+      <span className="text-muted-foreground flex-shrink-0">{label}</span>
       <span className="text-foreground font-medium text-right">{value}</span>
     </div>
   );

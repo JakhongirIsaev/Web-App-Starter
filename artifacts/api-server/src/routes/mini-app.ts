@@ -918,4 +918,87 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   res.send(text);
 });
 
+router.get("/mini-app/clients-export-all", requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+  const role = req.user!.role;
+  const branchId = req.user!.branchId;
+
+  let whereClause;
+  if (role === "superadmin" || role === "head_office_admin") {
+    whereClause = undefined;
+  } else if (role === "branch_head" && branchId) {
+    whereClause = eq(clientsTable.branchId, branchId);
+  } else {
+    whereClause = eq(clientsTable.assignedToId, userId);
+  }
+
+  const clients = await db
+    .select()
+    .from(clientsTable)
+    .where(whereClause)
+    .orderBy(desc(clientsTable.updatedAt));
+
+  let text = `=== ЭКСПОРТ ВСЕХ КЛИЕНТОВ ===\n`;
+  text += `Дата: ${new Date().toISOString().slice(0, 10)}\n`;
+  text += `Всего: ${clients.length}\n\n`;
+
+  for (const client of clients) {
+    text += `${"=".repeat(50)}\n`;
+    text += `ФИО: ${client.fullName || "—"}\n`;
+    text += `Телефон: ${client.phone || "—"}\n`;
+    text += `Статус: ${client.status}\n`;
+    text += `Дата создания: ${client.createdAt}\n`;
+
+    const docs = await db
+      .select()
+      .from(clientDocumentsTable)
+      .where(eq(clientDocumentsTable.clientId, client.id));
+
+    if (docs.length > 0) {
+      text += `Документы: ${docs.length}\n`;
+      for (const doc of docs) {
+        text += `  - ${doc.docType} (${doc.fileName})`;
+        if (doc.extractedData && typeof doc.extractedData === "object") {
+          const entries = Object.entries(doc.extractedData as Record<string, string>);
+          if (entries.length > 0) {
+            text += `: ${entries.map(([k, v]) => `${k}=${v}`).join(", ")}`;
+          }
+        }
+        text += `\n`;
+      }
+    }
+
+    const clientNotes = await db
+      .select()
+      .from(clientNotesTable)
+      .where(eq(clientNotesTable.clientId, client.id));
+
+    if (clientNotes.length > 0) {
+      text += `Заметки: ${clientNotes.length}\n`;
+      for (const n of clientNotes) {
+        text += `  - [${n.createdAt}] ${n.content}\n`;
+      }
+    }
+
+    const calcs = await db
+      .select()
+      .from(calculationsTable)
+      .where(eq(calculationsTable.clientId, client.id));
+
+    if (calcs.length > 0) {
+      text += `Расчёты: ${calcs.length}\n`;
+      for (const c of calcs) {
+        text += `  - ${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} мес., ${c.interestRate}%\n`;
+      }
+    }
+
+    text += `\n`;
+  }
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="all_clients_${dateStr}.txt"; filename*=UTF-8''${encodeURIComponent(`all_clients_export_${dateStr}.txt`)}`);
+  res.send(text);
+});
+
 export default router;

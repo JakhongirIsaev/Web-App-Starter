@@ -283,11 +283,30 @@
     "save": "Saqlash",
     "cancel": "Bekor qilish",
     "back": "Orqaga",
+    "next": "Keyingi",
     "loading": "Yuklanmoqda...",
     "error": "Xatolik",
     "success": "Muvaffaqiyatli",
     "noResults": "Natijalar topilmadi",
     "close": "Yopish",
-    "delete": "O'chirish"
+    "delete": "O'chirish",
+    "exportAll": "Barcha mijozlarni eksport qilish"
+  },
+  "products": {
+    "micro": "Mikro",
+    "small": "Kichik",
+    "medium": "O'rta",
+    "businessType": "Biznes turi",
+    "rate": "Stavka",
+    "rateUzs": "UZS stavkasi",
+    "rateUsd": "USD stavkasi",
+    "rateEur": "EUR stavkasi",
+    "loanAmount": "Kredit summasi",
+    "termWC": "Muddat (aylanma mablag')",
+    "termFA": "Muddat (asosiy vositalar)",
+    "gracePeriod": "Imtiyozli davr",
+    "disbursement": "Berish shakli",
+    "purpose": "Maqsad",
+    "sapCode": "SAP kod"
   }
 }

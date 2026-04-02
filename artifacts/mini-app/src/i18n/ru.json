@@ -283,11 +283,30 @@
     "save": "Сохранить",
     "cancel": "Отмена",
     "back": "Назад",
+    "next": "Далее",
     "loading": "Загрузка...",
     "error": "Ошибка",
     "success": "Успешно",
     "noResults": "Нет результатов",
     "close": "Закрыть",
-    "delete": "Удалить"
+    "delete": "Удалить",
+    "exportAll": "Экспорт всех клиентов"
+  },
+  "products": {
+    "micro": "Микро",
+    "small": "Малый",
+    "medium": "Средний",
+    "businessType": "Тип бизнеса",
+    "rate": "Ставка",
+    "rateUzs": "Ставка UZS",
+    "rateUsd": "Ставка USD",
+    "rateEur": "Ставка EUR",
+    "loanAmount": "Сумма кредита",
+    "termWC": "Срок (оборот. средства)",
+    "termFA": "Срок (осн. средства)",
+    "gracePeriod": "Льготный период",
+    "disbursement": "Форма выдачи",
+    "purpose": "Назначение",
+    "sapCode": "SAP код"
   }
 }
