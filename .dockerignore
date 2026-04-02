@@ -1,0 +1,12 @@
+.git
+.gitignore
+.railway
+.venv
+node_modules
+**/node_modules
+**/dist
+**/.DS_Store
+**/*.log
+npm-debug.log*
+pnpm-debug.log*
+attached_assets/**/*.tmp
