@@ -176,7 +176,7 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 - **Clients** — Client list with search, add new client button
 - **New Client** — Client creation form with CRM fields
 - **Client Detail** — Client info, notes, next actions, scanned documents, start questionnaire
-- **Scan Document** — Camera capture + Tesseract.js OCR, extracts fields (name, passport, phone, VIN, etc.), saves image + data to DB
+- **Scan Document** — Camera capture + PaddleOCR server-side OCR (Russian lang), extracts fields (name, passport, phone, VIN, etc.), saves image + data to DB
 - **Questionnaire** — 6-step questionnaire (business_type, size, need_type, purpose, amount, term)
 - **Recommendation** — Rule-based product recommendations from questionnaire results
 - **Products** — Browse credit products catalog
@@ -185,6 +185,16 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 - **Layout** — Bottom navigation with 5 tabs: Home, Clients, Products, Calculator, Knowledge
 
 Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
+
+## OCR (PaddleOCR)
+
+- **Engine**: PaddleOCR 2.9.1 + PaddlePaddle 2.6.2 (Python, server-side)
+- **Script**: `artifacts/api-server/src/ocr/paddle_ocr.py`
+- **API endpoint**: `POST /api/ocr/recognize` — accepts `{ image: "base64..." }`, returns `{ text, boxes }`
+- **Language**: Russian (`lang="ru"`)
+- **Flow**: Mini App sends base64 image → API server spawns Python subprocess → PaddleOCR processes → returns recognized text + confidence scores
+- **System deps**: `gomp` (OpenMP runtime), `libGL`, `glib` — required for PaddlePaddle/OpenCV
+- **LD_LIBRARY_PATH**: gcc lib path set in spawn env for `libgomp.so.1`
 
 ## Telegram Bot Integration
 

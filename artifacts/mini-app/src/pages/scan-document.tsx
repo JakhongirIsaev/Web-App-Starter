@@ -59,22 +59,20 @@ export default function ScanDocumentPage() {
 
   const runOcr = async (dataUrl: string) => {
     try {
-      setOcrProgress(0);
+      setOcrProgress(10);
 
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker("rus+uzb_cyrl+eng", 1, {
-        logger: (m: any) => {
-          if (m.status === "recognizing text") {
-            setOcrProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
+      const progressInterval = setInterval(() => {
+        setOcrProgress((prev) => Math.min(prev + 5, 90));
+      }, 800);
 
-      const { data } = await worker.recognize(dataUrl);
-      await worker.terminate();
+      const result = await api.post("/ocr/recognize", { image: dataUrl });
 
-      setOcrText(data.text);
-      const fields = parseExtractedFields(data.text, docType);
+      clearInterval(progressInterval);
+      setOcrProgress(100);
+
+      const text = result.text || "";
+      setOcrText(text);
+      const fields = parseExtractedFields(text, docType);
       setExtractedFields(fields);
       setState("review");
     } catch (err: any) {
