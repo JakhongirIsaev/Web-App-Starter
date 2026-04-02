@@ -155,14 +155,14 @@ export default function ProductsPage() {
                           {product.loanAmount && (
                             <InfoRow label={t("products.loanAmount")} value={product.loanAmount} />
                           )}
-                          {product.rateUzs && (
-                            <InfoRow label={t("products.rateUzs")} value={product.rateUzs} />
+                          {product.rateUZS && (
+                            <InfoRow label={t("products.rateUzs")} value={product.rateUZS} />
                           )}
-                          {product.rateUsd && (
-                            <InfoRow label={t("products.rateUsd")} value={product.rateUsd} />
+                          {product.rateUSD && (
+                            <InfoRow label={t("products.rateUsd")} value={product.rateUSD} />
                           )}
-                          {product.rateEur && (
-                            <InfoRow label={t("products.rateEur")} value={product.rateEur} />
+                          {product.rateEUR && (
+                            <InfoRow label={t("products.rateEur")} value={product.rateEUR} />
                           )}
                           {product.termWorkingCapital && (
                             <InfoRow label={t("products.termWC")} value={product.termWorkingCapital} />

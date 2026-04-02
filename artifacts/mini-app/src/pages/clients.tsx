@@ -62,6 +62,7 @@ export default function ClientsPage() {
             className="gap-1"
           >
             <Download className="w-4 h-4" />
+            {t("common.exportAll")}
           </Button>
           <Button size="sm" onClick={() => navigate("/new-client")} className="gap-1">
             <Plus className="w-4 h-4" />
