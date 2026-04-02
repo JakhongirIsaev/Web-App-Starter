@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
-    "start": "pnpm run serve",
-    "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
+    "start": "node ../../scripts/serve-spa.mjs ./dist/public",
+    "preview": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

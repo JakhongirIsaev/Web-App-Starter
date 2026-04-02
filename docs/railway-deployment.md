@@ -26,15 +26,18 @@ Recommended external dependency:
 
 ## Railway service settings
 
-Use the repository root as the working directory for every app service so workspace packages and root Python files stay available.
+Use the repository root as the working directory for every app service so workspace packages, shared libraries, and root Python files stay available.
+
+Do not add a single root `railway.toml` for this repo. Each service needs a different build/start command, so Railway should keep those values in the individual service settings.
 
 ### `api-server`
 
 - Install: `pnpm install --frozen-lockfile`
-- Build: `pnpm --filter @workspace/api-server run build`
-- Start: `pnpm --filter @workspace/api-server run start`
+- Build: `pnpm run build:api-server`
+- Start: `pnpm run start:api-server`
 - Public: `true`
 - Port: `PORT`
+- Healthcheck path: `/api/healthz`
 
 Required env vars:
 
@@ -52,8 +55,8 @@ Optional env vars:
 ### `admin`
 
 - Install: `pnpm install --frozen-lockfile`
-- Build: `pnpm --filter @workspace/admin run build`
-- Start: `pnpm --filter @workspace/admin run start`
+- Build: `pnpm run build:admin`
+- Start: `pnpm run start:admin`
 - Public: `true`
 - Port: `PORT`
 
@@ -69,8 +72,8 @@ Recommended env vars:
 ### `mini-app`
 
 - Install: `pnpm install --frozen-lockfile`
-- Build: `pnpm --filter @workspace/mini-app run build`
-- Start: `pnpm --filter @workspace/mini-app run start`
+- Build: `pnpm run build:mini-app`
+- Start: `pnpm run start:mini-app`
 - Public: `true`
 - Port: `PORT`
 
@@ -88,4 +91,5 @@ Recommended env vars:
 - `db` is a workspace library, not a database service.
 - `api-spec`, `api-client-react`, and `api-zod` are codegen/support packages only.
 - `mockup-sandbox` is a design/demo artifact and should stay out of production.
+- `admin` and `mini-app` now use the checked-in `scripts/serve-spa.mjs` static server in production instead of `vite preview`.
 - The API process also starts the Telegram bot, so run a single web replica unless you split the bot into its own worker later.
