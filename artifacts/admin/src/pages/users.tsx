@@ -16,6 +16,7 @@ import { getRoleColor } from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import * as XLSX from "xlsx";
 import {
@@ -251,7 +252,7 @@ export default function Users() {
     setPreviewOpen(false);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import`, {
+      const res = await fetch(buildApiUrl("/api/users/import"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -273,7 +274,7 @@ export default function Users() {
   const handleDownloadTemplate = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import-template`, {
+      const res = await fetch(buildApiUrl("/api/users/import-template"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(await res.text());

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, buildApiUrl } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,7 +122,9 @@ export default function ClientDetailPage() {
 
   const getDocImageUrl = (doc: any) => {
     if (doc.storagePath && doc.storagePath.startsWith("http")) return doc.storagePath;
-    if (doc.storagePath) return `/api/storage/files/${encodeURIComponent(doc.storagePath)}`;
+    if (doc.storagePath) {
+      return buildApiUrl(`/api/storage/file?path=${encodeURIComponent(doc.storagePath)}`);
+    }
     return null;
   };
 

@@ -30,7 +30,9 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 
   const domain = process.env["REPLIT_DEV_DOMAIN"] || process.env["REPLIT_DOMAINS"]?.split(",")[0];
-  const miniAppUrl = domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/";
+  const miniAppUrl =
+    process.env["MINI_APP_URL"]?.trim() ||
+    (domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/");
   startBot(miniAppUrl).catch((err) => {
     logger.error({ err }, "Failed to start Telegram bot");
   });

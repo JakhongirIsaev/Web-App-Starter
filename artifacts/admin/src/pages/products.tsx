@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { buildApiUrl } from "@/lib/api";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
 import {
@@ -148,7 +149,7 @@ export default function Products() {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/products/import`, {
+      const res = await fetch(buildApiUrl("/api/products/import"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

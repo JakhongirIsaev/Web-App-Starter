@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -132,7 +133,7 @@ export default function Articles({ user }: { user?: { role: string } }) {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/articles/import`, {
+      const res = await fetch(buildApiUrl("/api/articles/import"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

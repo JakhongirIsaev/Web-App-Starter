@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
+import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -84,7 +85,7 @@ export default function Branches() {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/branches/import`, {
+      const res = await fetch(buildApiUrl("/api/branches/import"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

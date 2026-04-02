@@ -26,26 +26,28 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
   }
 });
 
-router.get("/storage/objects/:objectPath", requireAuth, async (req: Request, res: Response) => {
-  const objectPath = req.params.objectPath;
-  if (!objectPath) {
+router.get("/storage/file", requireAuth, async (req: Request, res: Response) => {
+  const objectPath = req.query.path;
+  if (typeof objectPath !== "string" || !objectPath) {
     res.status(400).json({ error: "Missing object path" });
     return;
   }
 
   try {
-    const readStream = await objectStorageService.getObjectEntityReadStream(objectPath);
-    const metadata = await objectStorageService.getObjectEntityMetadata(objectPath);
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const objectResponse = await objectStorageService.downloadObject(objectFile);
 
-    if (metadata.contentType) {
-      res.setHeader("Content-Type", metadata.contentType);
-    }
-    if (metadata.size) {
-      res.setHeader("Content-Length", metadata.size.toString());
-    }
-    res.setHeader("Cache-Control", "private, max-age=3600");
+    objectResponse.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
 
-    const nodeStream = readStream instanceof Readable ? readStream : Readable.from(readStream as any);
+    if (!objectResponse.body) {
+      res.status(objectResponse.status).end();
+      return;
+    }
+
+    res.status(objectResponse.status);
+    const nodeStream = Readable.fromWeb(objectResponse.body as globalThis.ReadableStream);
     nodeStream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {

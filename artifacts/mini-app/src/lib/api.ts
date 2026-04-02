@@ -1,4 +1,10 @@
 const API_BASE = "/api";
+const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN ?? "").trim().replace(/\/+$/, "");
+
+export function buildApiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return API_ORIGIN ? `${API_ORIGIN}${normalizedPath}` : normalizedPath;
+}
 
 function getToken(): string | null {
   return localStorage.getItem("miniapp_auth_token");
@@ -22,7 +28,7 @@ async function request(path: string, options: RequestInit = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(err.error || "Request failed");
@@ -37,7 +43,7 @@ async function requestBlob(path: string, options: RequestInit = {}) {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
   if (!res.ok) {
     throw new Error("Request failed");
   }
@@ -55,7 +61,7 @@ export const api = {
 };
 
 export async function login(telegramId: string, password: string) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await fetch(buildApiUrl(`${API_BASE}/auth/login`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ telegramId, password }),
@@ -67,7 +73,7 @@ export async function login(telegramId: string, password: string) {
 }
 
 export async function loginWithTelegram(initData: string) {
-  const res = await fetch(`${API_BASE}/auth/telegram`, {
+  const res = await fetch(buildApiUrl(`${API_BASE}/auth/telegram`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ initData }),

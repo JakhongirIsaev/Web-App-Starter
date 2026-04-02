@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { buildApiUrl } from "@/lib/api";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
 import {
@@ -22,11 +23,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const BASE = import.meta.env.BASE_URL;
 const getToken = () => localStorage.getItem("auth_token");
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(`${BASE}api${url}`, {
+  const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
     headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...options?.headers },
   });
@@ -124,7 +124,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch(`${BASE}api/sap-codes/import`, {
+      const res = await fetch(buildApiUrl("/api/sap-codes/import"), {
         method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
