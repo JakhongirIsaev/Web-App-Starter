@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { MinervaIcon } from "@/components/minerva-logo";
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
@@ -52,8 +53,8 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-primary-foreground font-bold text-2xl">M</span>
+          <div className="w-16 h-16 flex items-center justify-center mx-auto mb-3">
+            <MinervaIcon size={56} />
           </div>
           <h1 className="text-xl font-bold text-foreground">{t("app.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("app.subtitle")}</p>

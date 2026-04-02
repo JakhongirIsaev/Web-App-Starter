@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { Home, Users, Package, Calculator, BookOpen, LogOut, Globe } from "lucide-react";
+import { MinervaIcon } from "@/components/minerva-logo";
 
 interface Props {
   children: ReactNode;
@@ -36,9 +37,7 @@ export default function MiniAppLayout({ children }: Props) {
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto">
       <header className="flex items-center justify-between px-4 py-2 bg-card border-b border-border sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-xs">M</span>
-          </div>
+          <MinervaIcon size={24} />
           <span className="font-semibold text-sm">{t("app.title")}</span>
         </div>
         <div className="flex items-center gap-1">
