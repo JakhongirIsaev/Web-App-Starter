@@ -157,6 +157,15 @@
     "saved": "Корзина сохранена",
     "totalProducts": "Всего продуктов: {{count}}"
   },
+  "pdf": {
+    "generate": "Сформировать КП",
+    "generating": "Формирование PDF...",
+    "generated": "КП сформировано",
+    "sentViaTelegram": "PDF отправлен в Telegram",
+    "notSentViaTelegram": "PDF создан (Telegram-бот не настроен)",
+    "downloadPdf": "Скачать PDF",
+    "sendTelegram": "Отправить в Telegram"
+  },
   "calculator": {
     "title": "Кредитный калькулятор",
     "productName": "Название продукта",
@@ -222,12 +231,17 @@
       "certificate": "Справка / Свидетельство",
       "other": "Другой документ"
     },
-    "takePhoto": "Сфотографировать документ",
+    "takePhoto": "Сфотографировать",
+    "addMore": "Добавить фото",
+    "photosCount": "Фото: {{count}}",
+    "processAll": "Распознать все ({{count}})",
     "processing": "Распознавание текста...",
+    "processingPhoto": "Фото {{current}} из {{total}}...",
     "preparingOcr": "Подготовка OCR...",
     "extractedFields": "Извлечённые данные",
     "rawText": "Распознанный текст",
-    "retake": "Переснять",
+    "retake": "Переснять всё",
+    "removePhoto": "Удалить",
     "save": "Сохранить",
     "uploading": "Сохранение...",
     "saved": "Документ сохранён",

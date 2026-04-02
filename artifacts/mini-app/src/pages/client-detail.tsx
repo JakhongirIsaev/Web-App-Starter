@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, FileDown, Send, Loader2, CheckCircle } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -79,6 +79,16 @@ export default function ClientDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
+    },
+  });
+
+  const [pdfResult, setPdfResult] = useState<{ success: boolean; telegramSent: boolean } | null>(null);
+
+  const generatePdfMutation = useMutation({
+    mutationFn: () => api.post(`/mini-app/clients/${params.id}/generate-pdf`, { sendViaTelegram: true }),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      setPdfResult(result);
     },
   });
 
@@ -293,6 +303,37 @@ export default function ClientDetailPage() {
               </CardContent>
             </Card>
           ))}
+
+          {pdfResult ? (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-3 text-center space-y-2">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto" />
+                <p className="text-sm font-medium text-green-800">{t("pdf.generated")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {pdfResult.telegramSent ? t("pdf.sentViaTelegram") : t("pdf.notSentViaTelegram")}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Button
+              className="w-full gap-2 mt-2"
+              variant={client.status === "basket" ? "default" : "outline"}
+              onClick={() => generatePdfMutation.mutate()}
+              disabled={generatePdfMutation.isPending}
+            >
+              {generatePdfMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t("pdf.generating")}
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  {t("pdf.generate")}
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
 

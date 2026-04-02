@@ -18,8 +18,22 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, count, gte, lte, isNull, or } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
+import { generateClientPdf } from "../pdf/generate";
+import { sendDocument } from "../bot";
 
 const router: IRouter = Router();
+
+async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
+  const [client] = await db
+    .select({ assignedToId: clientsTable.assignedToId, branchId: clientsTable.branchId })
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+  if (!client) return false;
+  if (user.role === "superadmin" || user.role === "head_office_admin") return true;
+  if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
+  return client.assignedToId === user.id;
+}
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   const userId = req.user!.id;
@@ -617,6 +631,10 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
 
 router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
+  if (!(await verifyClientAccess(clientId, req.user!))) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
   const { docType, fileName, storagePath, ocrText, extractedData } = req.body;
   if (!fileName || !storagePath) {
     res.status(400).json({ error: "fileName and storagePath are required" });
@@ -636,6 +654,10 @@ router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => 
 
 router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
+  if (!(await verifyClientAccess(clientId, req.user!))) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
   const docs = await db
     .select()
     .from(clientDocumentsTable)
@@ -664,6 +686,159 @@ router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
     .returning();
   if (!deleted) { res.status(404).json({ error: "Document not found" }); return; }
   res.json({ success: true });
+});
+
+router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
+  const clientId = parseInt(req.params.id);
+  const user = req.user!;
+  const sendViaTelegram = req.body.sendViaTelegram !== false;
+
+  if (!(await verifyClientAccess(clientId, user))) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  const basket = await db
+    .select()
+    .from(basketsTable)
+    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
+    .limit(1);
+
+  let basketItems: any[] = [];
+  if (basket.length) {
+    basketItems = await db
+      .select()
+      .from(basketItemsTable)
+      .where(eq(basketItemsTable.basketId, basket[0].id));
+  }
+
+  const calculations = await db
+    .select()
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt));
+
+  const [expert] = await db
+    .select({ name: usersTable.name, telegramId: usersTable.telegramId })
+    .from(usersTable)
+    .where(eq(usersTable.id, user.id))
+    .limit(1);
+
+  const [branch] = client.branchId
+    ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
+    : [null];
+
+  try {
+    const pdfBuffer = await generateClientPdf({
+      client,
+      basketItems,
+      calculations,
+      expertName: expert?.name || "—",
+      branchName: branch?.name || "—",
+    });
+
+    let telegramSent = false;
+    if (sendViaTelegram && expert?.telegramId) {
+      const filename = `KP_${(client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const caption = `📋 КП для клиента: ${client.fullName || "—"}\n👤 Эксперт: ${expert.name}`;
+      telegramSent = await sendDocument(expert.telegramId, pdfBuffer, filename, caption);
+    }
+
+    await db
+      .update(clientsTable)
+      .set({ status: "pdf_generated", updatedAt: new Date() })
+      .where(eq(clientsTable.id, clientId));
+
+    res.json({
+      success: true,
+      telegramSent,
+      pdfSize: pdfBuffer.length,
+    });
+  } catch (err: any) {
+    console.error("PDF generation error:", err);
+    res.status(500).json({ error: "Failed to generate PDF" });
+  }
+});
+
+router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {
+  const clientId = parseInt(req.params.id);
+
+  if (!(await verifyClientAccess(clientId, req.user!))) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  const basket = await db
+    .select()
+    .from(basketsTable)
+    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
+    .limit(1);
+
+  let basketItems: any[] = [];
+  if (basket.length) {
+    basketItems = await db
+      .select()
+      .from(basketItemsTable)
+      .where(eq(basketItemsTable.basketId, basket[0].id));
+  }
+
+  const calculations = await db
+    .select()
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt));
+
+  const user = req.user!;
+  const [expert] = await db
+    .select({ name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, user.id))
+    .limit(1);
+
+  const [branch] = client.branchId
+    ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
+    : [null];
+
+  try {
+    const pdfBuffer = await generateClientPdf({
+      client,
+      basketItems,
+      calculations,
+      expertName: expert?.name || "—",
+      branchName: branch?.name || "—",
+    });
+
+    const safeName = `KP_${client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const displayName = `KP_${(client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
+    res.send(pdfBuffer);
+  } catch (err: any) {
+    console.error("PDF download error:", err);
+    res.status(500).json({ error: "Failed to generate PDF" });
+  }
 });
 
 export default router;

@@ -157,6 +157,15 @@
     "saved": "Savat saqlandi",
     "totalProducts": "Jami mahsulotlar: {{count}}"
   },
+  "pdf": {
+    "generate": "KP yaratish",
+    "generating": "PDF shakllantirilmoqda...",
+    "generated": "KP tayyor",
+    "sentViaTelegram": "PDF Telegramga yuborildi",
+    "notSentViaTelegram": "PDF yaratildi (Telegram-bot sozlanmagan)",
+    "downloadPdf": "PDF yuklab olish",
+    "sendTelegram": "Telegramga yuborish"
+  },
   "calculator": {
     "title": "Kredit kalkulyatori",
     "productName": "Mahsulot nomi",
@@ -222,12 +231,17 @@
       "certificate": "Guvohnoma / Sertifikat",
       "other": "Boshqa hujjat"
     },
-    "takePhoto": "Hujjatni suratga olish",
+    "takePhoto": "Suratga olish",
+    "addMore": "Yana surat qo'shish",
+    "photosCount": "Surat: {{count}}",
+    "processAll": "Hammasini tanib olish ({{count}})",
     "processing": "Matnni tanib olish...",
+    "processingPhoto": "Surat {{current}} / {{total}}...",
     "preparingOcr": "OCR tayyorlanmoqda...",
     "extractedFields": "Ajratilgan ma'lumotlar",
     "rawText": "Tanilgan matn",
     "retake": "Qayta olish",
+    "removePhoto": "O'chirish",
     "save": "Saqlash",
     "uploading": "Saqlanmoqda...",
     "saved": "Hujjat saqlandi",

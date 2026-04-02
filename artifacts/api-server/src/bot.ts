@@ -1,7 +1,27 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import { logger } from "./lib/logger";
 
 let bot: Bot | null = null;
+
+export function getBot(): Bot | null {
+  return bot;
+}
+
+export async function sendDocument(chatId: string | number, fileBuffer: Buffer, filename: string, caption?: string) {
+  if (!bot) {
+    logger.warn("Bot not initialized, cannot send document");
+    return false;
+  }
+  try {
+    await bot.api.sendDocument(chatId, new InputFile(fileBuffer, filename), {
+      caption: caption || undefined,
+    });
+    return true;
+  } catch (err: any) {
+    logger.error({ err: err.message, chatId }, "Failed to send document via Telegram");
+    return false;
+  }
+}
 
 export async function startBot(miniAppUrl: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;

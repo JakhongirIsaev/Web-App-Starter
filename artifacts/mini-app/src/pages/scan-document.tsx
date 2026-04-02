@@ -2,12 +2,13 @@ import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import {
   ArrowLeft, Camera, FileText, Loader2, CheckCircle2,
-  RotateCcw, Upload, Eye, Scan, CreditCard, Car, FileCheck
+  RotateCcw, Upload, Eye, Scan, CreditCard, Car, FileCheck,
+  Plus, X, ImageIcon
 } from "lucide-react";
 
 const DOC_TYPES = [
@@ -17,7 +18,14 @@ const DOC_TYPES = [
   { value: "other", icon: FileText, labelKey: "scanDoc.types.other" },
 ] as const;
 
-type OcrState = "idle" | "capturing" | "processing" | "review" | "uploading" | "done";
+type ScanState = "capture" | "processing" | "review" | "uploading" | "done";
+
+interface PhotoItem {
+  id: string;
+  dataUrl: string;
+  ocrText?: string;
+  extractedFields?: Record<string, string>;
+}
 
 export default function ScanDocumentPage() {
   const { t } = useTranslation();
@@ -26,12 +34,12 @@ export default function ScanDocumentPage() {
   const queryClient = useQueryClient();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [state, setState] = useState<OcrState>("idle");
+  const [state, setState] = useState<ScanState>("capture");
   const [docType, setDocType] = useState("passport");
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [processingIndex, setProcessingIndex] = useState(0);
   const [ocrText, setOcrText] = useState("");
   const [extractedFields, setExtractedFields] = useState<Record<string, string>>({});
-  const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState("");
 
   const handleCapture = () => {
@@ -42,51 +50,56 @@ export default function ScanDocumentPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setState("capturing");
-    setError("");
-
     const reader = new FileReader();
-    reader.onload = async (ev) => {
+    reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
-      setImageData(dataUrl);
-      setState("processing");
-      await runOcr(dataUrl);
+      const newPhoto: PhotoItem = { id: Date.now().toString(), dataUrl };
+      setPhotos(prev => [...prev, newPhoto]);
     };
     reader.readAsDataURL(file);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const runOcr = async (dataUrl: string) => {
-    try {
-      setOcrProgress(10);
+  const removePhoto = (id: string) => {
+    setPhotos(prev => prev.filter(p => p.id !== id));
+  };
 
-      const progressInterval = setInterval(() => {
-        setOcrProgress((prev) => Math.min(prev + 5, 90));
-      }, 800);
+  const processAllPhotos = async () => {
+    if (photos.length === 0) return;
+    setState("processing");
+    setError("");
 
-      const result = await api.post("/ocr/recognize", { image: dataUrl });
+    const updatedPhotos = [...photos];
+    let combinedText = "";
+    const allFields: Record<string, string> = {};
 
-      clearInterval(progressInterval);
-      setOcrProgress(100);
-
-      const text = result.text || "";
-      setOcrText(text);
-      const fields = parseExtractedFields(text, docType);
-      setExtractedFields(fields);
-      setState("review");
-    } catch (err: any) {
-      console.error("OCR error:", err);
-      setError(err.message || "OCR failed");
-      setState("idle");
+    for (let i = 0; i < updatedPhotos.length; i++) {
+      setProcessingIndex(i);
+      try {
+        const result = await api.post("/ocr/recognize", { image: updatedPhotos[i].dataUrl });
+        const text = result.text || "";
+        updatedPhotos[i].ocrText = text;
+        const fields = parseExtractedFields(text, docType);
+        updatedPhotos[i].extractedFields = fields;
+        combinedText += (combinedText ? "\n---\n" : "") + text;
+        Object.entries(fields).forEach(([k, v]) => {
+          if (v && !allFields[k]) allFields[k] = v;
+        });
+      } catch (err: any) {
+        console.error(`OCR error on photo ${i + 1}:`, err);
+        updatedPhotos[i].ocrText = `[Error: ${err.message}]`;
+      }
     }
+
+    setPhotos(updatedPhotos);
+    setOcrText(combinedText);
+    setExtractedFields(allFields);
+    setState("review");
   };
 
   const parseExtractedFields = (text: string, type: string): Record<string, string> => {
     const fields: Record<string, string> = {};
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-
-    const fullText = text.toUpperCase();
 
     const namePatterns = [/ФИО[:\s]+(.+)/i, /Ф\.И\.О[:\s]+(.+)/i, /FISH[:\s]+(.+)/i, /ИСМИ[:\s]+(.+)/i, /NAME[:\s]+(.+)/i];
     for (const p of namePatterns) {
@@ -97,19 +110,14 @@ export default function ScanDocumentPage() {
     const passportPatterns = [/([A-Z]{2}\d{7})/i, /серия.*?([A-Z]{2}).*?№?\s*(\d{7})/i];
     for (const p of passportPatterns) {
       const m = text.match(p);
-      if (m) {
-        fields.passportNumber = m[0].trim();
-        break;
-      }
+      if (m) { fields.passportNumber = m[0].trim(); break; }
     }
 
     const datePatterns = [/(\d{2}[.\/-]\d{2}[.\/-]\d{4})/g];
     const dates: string[] = [];
     for (const p of datePatterns) {
       let m;
-      while ((m = p.exec(text)) !== null) {
-        dates.push(m[1]);
-      }
+      while ((m = p.exec(text)) !== null) dates.push(m[1]);
     }
     if (dates.length > 0) fields.dateOfBirth = dates[0];
 
@@ -150,34 +158,35 @@ export default function ScanDocumentPage() {
     mutationFn: async () => {
       setState("uploading");
 
-      let storagePath = `documents/client-${params.clientId}/${Date.now()}.jpg`;
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        let storagePath = `documents/client-${params.clientId}/${Date.now()}-${i}.jpg`;
 
-      try {
-        const blob = await fetch(imageData!).then(r => r.blob());
-        const uploadMeta = await api.post("/storage/uploads/request-url", {
-          name: storagePath,
-          size: blob.size,
-          contentType: "image/jpeg",
+        try {
+          const blob = await fetch(photo.dataUrl).then(r => r.blob());
+          const uploadMeta = await api.post("/storage/uploads/request-url", {
+            name: storagePath,
+            size: blob.size,
+            contentType: "image/jpeg",
+          });
+          await fetch(uploadMeta.uploadURL, {
+            method: "PUT",
+            body: blob,
+            headers: { "Content-Type": "image/jpeg" },
+          });
+          storagePath = uploadMeta.objectPath;
+        } catch (err) {
+          console.warn("Object storage upload failed for photo", i, err);
+        }
+
+        await api.post(`/mini-app/clients/${params.clientId}/documents`, {
+          docType,
+          fileName: `scan_${docType}_${Date.now()}_p${i + 1}.jpg`,
+          storagePath,
+          ocrText: photo.ocrText || "",
+          extractedData: photo.extractedFields || {},
         });
-        await fetch(uploadMeta.uploadURL, {
-          method: "PUT",
-          body: blob,
-          headers: { "Content-Type": "image/jpeg" },
-        });
-        storagePath = uploadMeta.objectPath;
-      } catch (err) {
-        console.warn("Object storage upload failed, saving path reference only:", err);
       }
-
-      const doc = await api.post(`/mini-app/clients/${params.clientId}/documents`, {
-        docType,
-        fileName: `scan_${docType}_${Date.now()}.jpg`,
-        storagePath,
-        ocrText,
-        extractedData: extractedFields,
-      });
-
-      return doc;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.clientId] });
@@ -191,11 +200,11 @@ export default function ScanDocumentPage() {
   });
 
   const reset = () => {
-    setState("idle");
-    setImageData(null);
+    setState("capture");
+    setPhotos([]);
     setOcrText("");
     setExtractedFields({});
-    setOcrProgress(0);
+    setProcessingIndex(0);
     setError("");
   };
 
@@ -225,7 +234,7 @@ export default function ScanDocumentPage() {
         className="hidden"
       />
 
-      {state === "idle" && (
+      {state === "capture" && (
         <>
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -252,37 +261,98 @@ export default function ScanDocumentPage() {
             </CardContent>
           </Card>
 
-          <Button className="w-full gap-2 h-12" onClick={handleCapture}>
-            <Camera className="w-5 h-5" />
-            {t("scanDoc.takePhoto")}
-          </Button>
-
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
+          {photos.length > 0 && (
+            <Card>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                    {t("scanDoc.photosCount", { count: photos.length })}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <img
+                        src={photo.dataUrl}
+                        alt="Scan"
+                        className="w-full h-20 object-cover rounded-lg border"
+                      />
+                      <button
+                        onClick={() => removePhoto(photo.id)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-80 hover:opacity-100"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
+
+          <div className="flex gap-2">
+            <Button
+              variant={photos.length > 0 ? "outline" : "default"}
+              className="flex-1 gap-2 h-12"
+              onClick={handleCapture}
+            >
+              {photos.length > 0 ? <Plus className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
+              {photos.length > 0 ? t("scanDoc.addMore") : t("scanDoc.takePhoto")}
+            </Button>
+            {photos.length > 0 && (
+              <Button className="flex-1 gap-2 h-12" onClick={processAllPhotos}>
+                <Scan className="w-5 h-5" />
+                {t("scanDoc.processAll", { count: photos.length })}
+              </Button>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
         </>
       )}
 
-      {(state === "capturing" || state === "processing") && (
+      {state === "processing" && (
         <Card>
-          <CardContent className="p-6 text-center space-y-4">
-            {imageData && (
-              <img src={imageData} alt="Captured" className="w-full rounded-lg border max-h-48 object-contain" />
-            )}
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <p className="text-sm font-medium">{t("scanDoc.processing")}</p>
-              {state === "processing" && (
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${ocrProgress}%` }}
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-4 gap-1.5">
+              {photos.map((photo, idx) => (
+                <div key={photo.id} className="relative">
+                  <img
+                    src={photo.dataUrl}
+                    alt={`Photo ${idx + 1}`}
+                    className={`w-full h-14 object-cover rounded-lg border-2 transition-all ${
+                      idx === processingIndex
+                        ? "border-primary ring-2 ring-primary/30"
+                        : idx < processingIndex
+                        ? "border-green-500 opacity-70"
+                        : "border-border opacity-40"
+                    }`}
                   />
+                  {idx < processingIndex && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 rounded-lg">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    </div>
+                  )}
+                  {idx === processingIndex && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-lg">
+                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                    </div>
+                  )}
                 </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {ocrProgress > 0 ? `${ocrProgress}%` : t("scanDoc.preparingOcr")}
+              ))}
+            </div>
+            <div className="text-center space-y-2">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+              <p className="text-sm font-medium">
+                {t("scanDoc.processingPhoto", { current: processingIndex + 1, total: photos.length })}
               </p>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${((processingIndex + 0.5) / photos.length) * 100}%` }}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -290,13 +360,20 @@ export default function ScanDocumentPage() {
 
       {state === "review" && (
         <>
-          {imageData && (
-            <Card>
-              <CardContent className="p-3">
-                <img src={imageData} alt="Scanned" className="w-full rounded-lg max-h-40 object-contain" />
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {photos.map((photo, idx) => (
+                  <img
+                    key={photo.id}
+                    src={photo.dataUrl}
+                    alt={`Photo ${idx + 1}`}
+                    className="h-20 rounded-lg border flex-shrink-0 object-cover"
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {Object.keys(extractedFields).length > 0 && (
             <Card>

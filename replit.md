@@ -48,7 +48,7 @@ Tables:
 - `articles` — knowledge base articles with category (general/onboarding/sap/documents/credit_process/faq) and branch visibility targeting
 - `article_visibility` — maps articles to specific branches
 - `activity_log` — audit log of system events
-- `credit_products` — MSME department credit product lineup with segment, SAP code, rates, terms, grace period, purpose, highlight
+- `credit_products` — MSME department credit product lineup (20 products × 3 segments = 60 rows) with segment, SAP code, rates, terms, grace period, purpose, highlight
 - `sap_codes` — SAP system product codes registry with status, product type, category
 - `credit_lines` — International organization credit line balances with agreement details, disbursement, remaining balance
 
@@ -176,7 +176,7 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 - **Clients** — Client list with search, add new client button
 - **New Client** — Client creation form with CRM fields
 - **Client Detail** — Client info, notes, next actions, scanned documents, start questionnaire
-- **Scan Document** — Camera capture + PaddleOCR server-side OCR (Russian lang), extracts fields (name, passport, phone, VIN, etc.), saves image + data to DB
+- **Scan Document** — Camera-first multi-photo scanning with PaddleOCR server-side OCR (Russian lang); capture multiple photos, batch-process OCR, review combined results, extracts fields (name, passport, phone, VIN, etc.), saves all images + data to DB
 - **Questionnaire** — 6-step questionnaire (business_type, size, need_type, purpose, amount, term)
 - **Recommendation** — Rule-based product recommendations from questionnaire results
 - **Products** — Browse credit products catalog
@@ -202,6 +202,9 @@ Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 - **Bot code**: `artifacts/api-server/src/bot.ts`
 - **Secret**: `TELEGRAM_BOT_TOKEN` (stored in Replit Secrets)
 - **Commands**: `/start` (opens Mini App via WebApp button), `/help` (shows help text)
+- **Document sending**: `sendDocument()` function sends PDF files to users via bot chat
+- **PDF Generation**: `POST /api/mini-app/clients/:id/generate-pdf` — generates commercial proposal PDF with client info, basket products, calculations; auto-sends via Telegram bot to expert's chat
+- **PDF Download**: `GET /api/mini-app/clients/:id/download-pdf` — downloads PDF directly
 - **Auto-login**: When opened inside Telegram, the Mini App detects `window.Telegram.WebApp.initData`, sends it to `POST /api/auth/telegram` for HMAC-SHA256 validation, and auto-authenticates the user if their Telegram ID is registered
 - **Fallback**: If Telegram auth fails (unregistered user), shows manual login form with error message
 - **Telegram WebApp SDK**: Loaded via `<script>` in `artifacts/mini-app/index.html`
