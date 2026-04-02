@@ -2,6 +2,11 @@ import { db } from "@workspace/db";
 import { creditProductsTable, sapCodesTable, creditLinesTable, basketItemsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
+// VERIFIED 2026-04-02: 20 products × 3 segments = 60 rows
+// Products #9 HAMROH, #12 VOYAH, #13 LIXIANG, #14 Trend Motor have
+// intentionally different rateUZS/loanAmount for средний vs микро/малый segments
+// (matches original Ipak Yuli Bank product passport data)
+
 async function seed() {
   console.log("Seeding credit products...");
   await db.delete(basketItemsTable);
