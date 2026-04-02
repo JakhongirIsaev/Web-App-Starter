@@ -212,6 +212,42 @@
     "completed": "Завершён",
     "rejected": "Отклонён"
   },
+  "scanDoc": {
+    "title": "Сканирование документа",
+    "subtitle": "Сфотографируйте документ для извлечения данных",
+    "selectType": "Тип документа",
+    "types": {
+      "passport": "Паспорт / ID",
+      "vehicleDoc": "Документ на авто",
+      "certificate": "Справка / Свидетельство",
+      "other": "Другой документ"
+    },
+    "takePhoto": "Сфотографировать документ",
+    "processing": "Распознавание текста...",
+    "preparingOcr": "Подготовка OCR...",
+    "extractedFields": "Извлечённые данные",
+    "rawText": "Распознанный текст",
+    "retake": "Переснять",
+    "save": "Сохранить",
+    "uploading": "Сохранение...",
+    "saved": "Документ сохранён",
+    "savedHint": "Данные извлечены и прикреплены к клиенту",
+    "scanAnother": "Сканировать ещё",
+    "backToClient": "К клиенту",
+    "fields": {
+      "fullName": "ФИО",
+      "passportNumber": "Номер паспорта",
+      "dateOfBirth": "Дата рождения",
+      "phone": "Телефон",
+      "address": "Адрес",
+      "vin": "VIN номер",
+      "plateNumber": "Гос. номер",
+      "inn": "ИНН"
+    },
+    "documents": "Документы",
+    "noDocuments": "Нет документов",
+    "scanDocument": "Сканировать документ"
+  },
   "common": {
     "save": "Сохранить",
     "cancel": "Отмена",

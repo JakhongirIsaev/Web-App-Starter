@@ -60,6 +60,7 @@ Tables:
 - `baskets` — Product baskets for clients (selected recommended products)
 - `basket_items` — Individual items in a basket
 - `calculations` — Saved loan calculations with full payment schedules (JSON)
+- `client_documents` — Scanned document images with OCR text and extracted fields (JSON)
 
 ## Role Model
 
@@ -174,7 +175,8 @@ Mobile-first screens for credit experts (served at `/mini-app/`):
 - **Home** — Greeting, quick actions (4 buttons), personal stats, today's to-do
 - **Clients** — Client list with search, add new client button
 - **New Client** — Client creation form with CRM fields
-- **Client Detail** — Client info, notes, next actions, start questionnaire
+- **Client Detail** — Client info, notes, next actions, scanned documents, start questionnaire
+- **Scan Document** — Camera capture + Tesseract.js OCR, extracts fields (name, passport, phone, VIN, etc.), saves image + data to DB
 - **Questionnaire** — 6-step questionnaire (business_type, size, need_type, purpose, amount, term)
 - **Recommendation** — Rule-based product recommendations from questionnaire results
 - **Products** — Browse credit products catalog

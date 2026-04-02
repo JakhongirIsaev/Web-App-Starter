@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2 } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -36,6 +36,18 @@ export default function ClientDetailPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["mini-client", params.id],
     queryFn: () => api.get(`/mini-app/clients/${params.id}`),
+  });
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ["client-documents", params.id],
+    queryFn: () => api.get(`/mini-app/clients/${params.id}/documents`),
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: number) => api.delete(`/mini-app/documents/${docId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-documents", params.id] });
+    },
   });
 
   const addNoteMutation = useMutation({
@@ -162,6 +174,58 @@ export default function ClientDetailPage() {
           <Calculator className="w-4 h-4" />
         </Button>
       </div>
+
+      <Button
+        variant="outline"
+        className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5"
+        onClick={() => navigate(`/scan/${client.id}`)}
+      >
+        <Scan className="w-4 h-4" />
+        {t("scanDoc.scanDocument")}
+      </Button>
+
+      {documents.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("scanDoc.documents")} ({documents.length})</h3>
+          {documents.map((doc: any) => {
+            const docIcon = doc.docType === "passport" ? CreditCard
+              : doc.docType === "vehicle_doc" ? Car
+              : doc.docType === "certificate" ? FileCheck
+              : FileText;
+            const DocIcon = docIcon;
+            return (
+              <Card key={doc.id} className="mb-1.5">
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <DocIcon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t(`scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`)}</p>
+                    <p className="text-xs text-muted-foreground">{fmtDate(doc.createdAt)}</p>
+                    {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {Object.entries(doc.extractedData).slice(0, 3).map(([k, v]) => (
+                          <span key={k} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                            {t(`scanDoc.fields.${k}`, k)}: {String(v).substring(0, 20)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                    onClick={() => deleteDocMutation.mutate(doc.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {showNoteForm && (
         <Card>

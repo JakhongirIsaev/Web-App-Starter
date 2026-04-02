@@ -14,6 +14,7 @@ import {
   basketsTable,
   basketItemsTable,
   calculationsTable,
+  clientDocumentsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, count, gte, lte, isNull, or } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
@@ -612,6 +613,57 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
     .where(eq(clientsTable.branchId, branchId));
 
   res.json({ workers: workerStats, totalBranchClients: branchTotal.count });
+});
+
+router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+  const clientId = Number(req.params.id);
+  const { docType, fileName, storagePath, ocrText, extractedData } = req.body;
+  if (!fileName || !storagePath) {
+    res.status(400).json({ error: "fileName and storagePath are required" });
+    return;
+  }
+  const [doc] = await db.insert(clientDocumentsTable).values({
+    clientId,
+    userId: req.user!.id,
+    docType: docType || "other",
+    fileName,
+    storagePath,
+    ocrText: ocrText || null,
+    extractedData: extractedData || null,
+  }).returning();
+  res.status(201).json(doc);
+});
+
+router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+  const clientId = Number(req.params.id);
+  const docs = await db
+    .select()
+    .from(clientDocumentsTable)
+    .where(eq(clientDocumentsTable.clientId, clientId))
+    .orderBy(desc(clientDocumentsTable.createdAt));
+  res.json(docs);
+});
+
+router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
+  const docId = Number(req.params.id);
+  const { ocrText, extractedData } = req.body;
+  const [updated] = await db
+    .update(clientDocumentsTable)
+    .set({ ocrText, extractedData })
+    .where(eq(clientDocumentsTable.id, docId))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Document not found" }); return; }
+  res.json(updated);
+});
+
+router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
+  const docId = Number(req.params.id);
+  const [deleted] = await db
+    .delete(clientDocumentsTable)
+    .where(eq(clientDocumentsTable.id, docId))
+    .returning();
+  if (!deleted) { res.status(404).json({ error: "Document not found" }); return; }
+  res.json({ success: true });
 });
 
 export default router;

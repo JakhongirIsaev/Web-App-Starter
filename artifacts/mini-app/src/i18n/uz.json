@@ -212,6 +212,42 @@
     "completed": "Bajarilgan",
     "rejected": "Rad etilgan"
   },
+  "scanDoc": {
+    "title": "Hujjatni skanerlash",
+    "subtitle": "Ma'lumotlarni olish uchun hujjatni suratga oling",
+    "selectType": "Hujjat turi",
+    "types": {
+      "passport": "Pasport / ID",
+      "vehicleDoc": "Avtomobil hujjati",
+      "certificate": "Guvohnoma / Sertifikat",
+      "other": "Boshqa hujjat"
+    },
+    "takePhoto": "Hujjatni suratga olish",
+    "processing": "Matnni tanib olish...",
+    "preparingOcr": "OCR tayyorlanmoqda...",
+    "extractedFields": "Ajratilgan ma'lumotlar",
+    "rawText": "Tanilgan matn",
+    "retake": "Qayta olish",
+    "save": "Saqlash",
+    "uploading": "Saqlanmoqda...",
+    "saved": "Hujjat saqlandi",
+    "savedHint": "Ma'lumotlar ajratildi va mijozga biriktirildi",
+    "scanAnother": "Yana skanerlash",
+    "backToClient": "Mijozga qaytish",
+    "fields": {
+      "fullName": "F.I.O",
+      "passportNumber": "Pasport raqami",
+      "dateOfBirth": "Tug'ilgan sana",
+      "phone": "Telefon",
+      "address": "Manzil",
+      "vin": "VIN raqam",
+      "plateNumber": "Davlat raqami",
+      "inn": "STIR"
+    },
+    "documents": "Hujjatlar",
+    "noDocuments": "Hujjatlar yo'q",
+    "scanDocument": "Hujjatni skanerlash"
+  },
   "common": {
     "save": "Saqlash",
     "cancel": "Bekor qilish",

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean, numeric, jsonb } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { branchesTable } from "./branches";
 import { clientsTable } from "./clients";
@@ -79,5 +79,17 @@ export const calculationsTable = pgTable("calculations", {
   totalPayment: numeric("total_payment", { precision: 18, scale: 2 }),
   totalInterest: numeric("total_interest", { precision: 18, scale: 2 }),
   currency: text("currency").notNull().default("UZS"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const clientDocumentsTable = pgTable("client_documents", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clientsTable.id),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  docType: text("doc_type").notNull().default("other"),
+  fileName: text("file_name").notNull(),
+  storagePath: text("storage_path").notNull(),
+  ocrText: text("ocr_text"),
+  extractedData: jsonb("extracted_data"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
