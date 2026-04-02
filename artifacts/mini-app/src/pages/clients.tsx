@@ -37,7 +37,7 @@ export default function ClientsPage() {
 
   const exportAllMutation = useMutation({
     mutationFn: async () => {
-      const blob = await api.getBlob("/mini-app/clients-export-all");
+      const blob = await api.getBlob("/mini-app/clients/export-all");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

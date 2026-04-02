@@ -35,7 +35,10 @@
     "importError": "Import xatosi",
     "exportSuccess": "Eksport bajarildi",
     "selectFile": "CSV faylni tanlang",
-    "uploadFile": "Faylni yuklash"
+    "uploadFile": "Faylni yuklash",
+    "total": "Jami",
+    "prev": "Oldingi",
+    "nextPage": "Keyingi"
   },
   "nav": {
     "overview": "Umumiy ko'rinish",
@@ -325,7 +328,9 @@
     "number": "№",
     "medium": "o'rta",
     "small": "kichik",
-    "micro": "mikro"
+    "micro": "mikro",
+    "records": "yozuvlar",
+    "products": "mahsulotlar"
   },
   "sapCodes": {
     "title": "Mahsulot shifrlari",

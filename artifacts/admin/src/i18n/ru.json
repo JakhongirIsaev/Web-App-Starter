@@ -35,7 +35,10 @@
     "importError": "Ошибка импорта",
     "exportSuccess": "Экспорт выполнен",
     "selectFile": "Выберите CSV файл",
-    "uploadFile": "Загрузить файл"
+    "uploadFile": "Загрузить файл",
+    "total": "Итого",
+    "prev": "Назад",
+    "nextPage": "Далее"
   },
   "nav": {
     "overview": "Обзор",
@@ -325,7 +328,9 @@
     "number": "№",
     "medium": "средний",
     "small": "малый",
-    "micro": "микро"
+    "micro": "микро",
+    "records": "записей",
+    "products": "продуктов"
   },
   "sapCodes": {
     "title": "Шифры продуктов",
