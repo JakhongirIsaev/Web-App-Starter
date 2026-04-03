@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { z } from "zod";
@@ -58,7 +57,7 @@ export default function Login() {
     telegramId: z.string().min(1, t("login.telegramId")),
     password: z.string().min(1, t("login.password")),
   });
-  
+
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -68,7 +67,7 @@ export default function Login() {
   });
 
   function onSubmit(values: z.infer<typeof loginSchema>) {
-    loginMutation.mutate({ data: values }, {
+    loginMutation.mutate({ data: { ...values, telegramId: values.telegramId.trim() } }, {
       onSuccess: (response) => {
         localStorage.setItem("auth_token", response.token);
         toast({
@@ -83,7 +82,7 @@ export default function Login() {
           title: t("login.authFailed"),
           description: error?.message || t("login.invalidCredentials"),
         });
-      }
+      },
     });
   }
 
@@ -92,11 +91,11 @@ export default function Login() {
       <div className="hidden md:flex flex-col flex-1 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0d3d1a 0%, #155d27 40%, #1a7a32 100%)" }}>
         <StripeBackground />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-        
+
         <div className="relative z-10 flex flex-col justify-between h-full p-12">
           <div>
             <Logo size={36} textColor="text-white" className="mb-16" />
-            
+
             <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight max-w-lg mb-6">
               {t("login.headline")}
             </h1>
@@ -104,7 +103,7 @@ export default function Login() {
               {t("login.tagline")}
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2 text-white/40 text-sm font-medium">
             <ShieldCheck className="w-4 h-4" />
             {t("login.encryption")}
@@ -133,9 +132,9 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>{t("login.telegramId")}</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder={t("login.telegramPlaceholder")} 
-                        {...field} 
+                      <Input
+                        placeholder={t("login.telegramPlaceholder")}
+                        {...field}
                         className="h-12"
                       />
                     </FormControl>
@@ -150,10 +149,10 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>{t("login.password")}</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="••••••••" 
-                        {...field} 
+                      <Input
+                        type="password"
+                        placeholder="********"
+                        {...field}
                         className="h-12"
                       />
                     </FormControl>
@@ -161,8 +160,8 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full h-12 text-base font-medium"
                 disabled={loginMutation.isPending}
               >

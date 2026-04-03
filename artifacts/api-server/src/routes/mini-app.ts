@@ -1,7 +1,8 @@
-import { Router, type IRouter } from "express";
+﻿import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   clientsTable,
+  type ClientStatus,
   usersTable,
   branchesTable,
   creditProductsTable,
@@ -16,10 +17,19 @@ import {
   calculationsTable,
   clientDocumentsTable,
 } from "@workspace/db";
-import { eq, and, desc, sql, count, gte, lte, isNull, or } from "drizzle-orm";
+import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
+import {
+  buildClientPreferenceProfile,
+  buildRecommendationNote,
+  getRateSummary,
+  getRelevantTerm,
+  summarizeClientPreferences,
+  type ProductLike,
+  type QuestionnaireAnswer,
+} from "../lib/recommendation";
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
@@ -34,6 +44,117 @@ async function verifyClientAccess(clientId: number, user: { id: number; role: st
   if (user.role === "superadmin" || user.role === "head_office_admin") return true;
   if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
   return client.assignedToId === user.id;
+}
+
+function getSegmentAliases(value?: string | null) {
+  if (!value) return [];
+
+  const normalized = value.toLowerCase();
+  const aliasMap: Record<string, string[]> = {
+    micro: ["micro", "mikro", "микро"],
+    small: ["small", "kichik", "малый", "малый бизнес", "small business"],
+    medium: ["medium", "o'rta", "средний", "middle"],
+  };
+
+  return aliasMap[normalized] || [normalized];
+}
+
+async function getLatestQuestionnaireAnswers(clientId: number): Promise<QuestionnaireAnswer[]> {
+  const [session] = await db
+    .select({ id: questionnaireSessionsTable.id })
+    .from(questionnaireSessionsTable)
+    .where(eq(questionnaireSessionsTable.clientId, clientId))
+    .orderBy(desc(questionnaireSessionsTable.createdAt))
+    .limit(1);
+
+  if (!session) return [];
+
+  return db
+    .select({
+      questionKey: questionnaireAnswersTable.questionKey,
+      answer: questionnaireAnswersTable.answer,
+    })
+    .from(questionnaireAnswersTable)
+    .where(eq(questionnaireAnswersTable.sessionId, session.id))
+    .orderBy(questionnaireAnswersTable.id);
+}
+
+async function getDetailedBasketItems(clientId: number) {
+  const [basket] = await db
+    .select()
+    .from(basketsTable)
+    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
+    .limit(1);
+
+  if (!basket) return [];
+
+  const basketItems = await db
+    .select()
+    .from(basketItemsTable)
+    .where(eq(basketItemsTable.basketId, basket.id));
+
+  const productIds = basketItems
+    .map((item) => item.productId)
+    .filter((value): value is number => typeof value === "number");
+
+  const products = productIds.length > 0
+    ? await db
+        .select()
+        .from(creditProductsTable)
+        .where(inArray(creditProductsTable.id, productIds))
+    : [];
+
+  const productMap = new Map(products.map((product) => [product.id, product]));
+
+  return basketItems.map((item) => {
+    const product = item.productId ? productMap.get(item.productId) : undefined;
+    return {
+      ...item,
+      ...product,
+      whySuitable: item.notes || null,
+    };
+  });
+}
+
+async function buildPdfPayload(clientId: number, user: { id: number }) {
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+
+  if (!client) return null;
+
+  const basketItems = await getDetailedBasketItems(clientId);
+  const calculations = await db
+    .select()
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt));
+
+  const answers = await getLatestQuestionnaireAnswers(clientId);
+  const profile = buildClientPreferenceProfile(answers);
+  const preferenceSummary = summarizeClientPreferences(profile);
+
+  const [expert] = await db
+    .select({ name: usersTable.name, telegramId: usersTable.telegramId })
+    .from(usersTable)
+    .where(eq(usersTable.id, user.id))
+    .limit(1);
+
+  const [branch] = client.branchId
+    ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
+    : [null];
+
+  return {
+    client,
+    basketItems,
+    calculations,
+    preferenceSummary,
+    expertName: expert?.name || "-",
+    expertTelegramId: expert?.telegramId || null,
+    branchName: branch?.name || "-",
+  };
 }
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
@@ -179,7 +300,7 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const branchId = req.user!.branchId;
-  const status = req.query.status as string | undefined;
+  const status = typeof req.query.status === "string" ? req.query.status as ClientStatus : undefined;
   const isAdmin = adminRoles.includes(role);
 
   let whereClause;
@@ -267,16 +388,16 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     .where(whereClause)
     .orderBy(desc(clientsTable.updatedAt));
 
-  let text = `=== ЭКСПОРТ ВСЕХ КЛИЕНТОВ ===\n`;
-  text += `Дата: ${new Date().toISOString().slice(0, 10)}\n`;
-  text += `Всего: ${clients.length}\n\n`;
+  let text = `=== BARCHA MIJOZLAR EKSPORTI ===\n`;
+  text += `Sana: ${new Date().toISOString().slice(0, 10)}\n`;
+  text += `Jami: ${clients.length}\n\n`;
 
   for (const client of clients) {
     text += `${"=".repeat(50)}\n`;
-    text += `ФИО: ${client.fullName || "—"}\n`;
-    text += `Телефон: ${client.phone || "—"}\n`;
-    text += `Статус: ${client.status}\n`;
-    text += `Дата создания: ${client.createdAt}\n`;
+    text += `F.I.Sh.: ${client.fullName || "-"}\n`;
+    text += `Telefon: ${client.phone || "-"}\n`;
+    text += `Holat: ${client.status}\n`;
+    text += `Yaratilgan sana: ${client.createdAt}\n`;
 
     const docs = await db
       .select()
@@ -284,7 +405,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
       .where(eq(clientDocumentsTable.clientId, client.id));
 
     if (docs.length > 0) {
-      text += `Документы: ${docs.length}\n`;
+      text += `Hujjatlar: ${docs.length}\n`;
       for (const doc of docs) {
         text += `  - ${doc.docType} (${doc.fileName})`;
         if (doc.extractedData && typeof doc.extractedData === "object") {
@@ -303,7 +424,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
       .where(eq(clientNotesTable.clientId, client.id));
 
     if (clientNotes.length > 0) {
-      text += `Заметки: ${clientNotes.length}\n`;
+      text += `Izohlar: ${clientNotes.length}\n`;
       for (const n of clientNotes) {
         text += `  - [${n.createdAt}] ${n.content}\n`;
       }
@@ -315,9 +436,9 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
       .where(eq(calculationsTable.clientId, client.id));
 
     if (calcs.length > 0) {
-      text += `Расчёты: ${calcs.length}\n`;
+      text += `Hisob-kitoblar: ${calcs.length}\n`;
       for (const c of calcs) {
-        text += `  - ${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} мес., ${c.interestRate}%\n`;
+        text += `  - ${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} oy, ${c.interestRate}%\n`;
       }
     }
 
@@ -331,7 +452,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
 });
 
 router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
   const [client] = await db
     .select()
     .from(clientsTable)
@@ -368,13 +489,7 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
     .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
     .limit(1);
 
-  let basketItems: any[] = [];
-  if (basket.length) {
-    basketItems = await db
-      .select()
-      .from(basketItemsTable)
-      .where(eq(basketItemsTable.basketId, basket[0].id));
-  }
+  const basketItems = await getDetailedBasketItems(clientId);
 
   const calculations = await db
     .select()
@@ -386,7 +501,7 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
 });
 
 router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
   const { fullName, phone, status } = req.body;
 
   const updates: any = { updatedAt: new Date() };
@@ -404,7 +519,7 @@ router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
   const { type, content } = req.body;
 
   const [note] = await db
@@ -416,7 +531,7 @@ router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
   const { actionType, actionDate, priority, description } = req.body;
 
   const [action] = await db
@@ -438,7 +553,7 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) 
   const [action] = await db
     .update(clientNextActionsTable)
     .set({ isCompleted: true, updatedAt: new Date() })
-    .where(eq(clientNextActionsTable.id, parseInt(req.params.id)))
+    .where(eq(clientNextActionsTable.id, Number(req.params.id)))
     .returning();
 
   res.json(action);
@@ -471,7 +586,7 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/recommend", requireAuth, async (req, res) => {
-  const { clientId, answers } = req.body;
+  const { clientId, answers = [] } = req.body;
 
   const allProducts = await db
     .select()
@@ -479,31 +594,32 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
     .where(eq(creditProductsTable.isActive, true));
 
   let recommended = allProducts;
+  const answerList = Array.isArray(answers) ? answers : [];
+  const profile = buildClientPreferenceProfile(answerList);
 
-  if (answers) {
-    const needType = answers.find((a: any) => a.questionKey === "need_type")?.answer;
-    const businessSize = answers.find((a: any) => a.questionKey === "business_size")?.answer;
-    const loanPurpose = answers.find((a: any) => a.questionKey === "loan_purpose")?.answer;
-
-    if (businessSize) {
-      const segmentMap: Record<string, string> = {
-        micro: "микро",
-        small: "малый",
-        medium: "средний",
-      };
-      const segment = segmentMap[businessSize] || businessSize;
-      const filtered = recommended.filter(
-        (p) => p.segment?.toLowerCase().includes(segment.toLowerCase())
-      );
-      if (filtered.length > 0) recommended = filtered;
-    }
-
-    if (loanPurpose === "working_capital") {
-      recommended = recommended.filter((p) => p.termWorkingCapital);
-    } else if (loanPurpose === "fixed_assets") {
-      recommended = recommended.filter((p) => p.termFixedAssets);
-    }
+  if (profile.businessSize) {
+    const aliases = getSegmentAliases(profile.businessSize);
+    const filtered = recommended.filter((product) => {
+      const segment = product.segment?.toLowerCase() || "";
+      return aliases.some((alias) => segment.includes(alias));
+    });
+    if (filtered.length > 0) recommended = filtered;
   }
+
+  if (profile.loanPurpose === "working_capital") {
+    recommended = recommended.filter((product) => product.termWorkingCapital);
+  } else if (profile.loanPurpose === "fixed_assets") {
+    recommended = recommended.filter((product) => product.termFixedAssets);
+  } else if (profile.loanPurpose === "untargeted") {
+    recommended = recommended.filter((product) => product.termUntargeted);
+  }
+
+  const enrichedRecommended = recommended.map((product) => ({
+    ...product,
+    whySuitable: buildRecommendationNote(product as ProductLike, profile),
+    relevantTerm: getRelevantTerm(product as ProductLike, profile.loanPurpose),
+    rateSummary: getRateSummary(product as ProductLike),
+  }));
 
   if (clientId) {
     await db
@@ -512,7 +628,12 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
       .where(eq(clientsTable.id, clientId));
   }
 
-  res.json({ recommended, total: allProducts.length });
+  res.json({
+    recommended: enrichedRecommended,
+    preferenceProfile: profile,
+    total: allProducts.length,
+    recommendedCount: enrichedRecommended.length,
+  });
 });
 
 router.post("/mini-app/basket", requireAuth, async (req, res) => {
@@ -816,7 +937,7 @@ router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
   const user = req.user!;
   const sendViaTelegram = req.body.sendViaTelegram !== false;
 
@@ -825,61 +946,20 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     return;
   }
 
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
-    .limit(1);
-
-  if (!client) {
+  const payload = await buildPdfPayload(clientId, user);
+  if (!payload) {
     res.status(404).json({ error: "Client not found" });
     return;
   }
 
-  const basket = await db
-    .select()
-    .from(basketsTable)
-    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
-    .limit(1);
-
-  let basketItems: any[] = [];
-  if (basket.length) {
-    basketItems = await db
-      .select()
-      .from(basketItemsTable)
-      .where(eq(basketItemsTable.basketId, basket[0].id));
-  }
-
-  const calculations = await db
-    .select()
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt));
-
-  const [expert] = await db
-    .select({ name: usersTable.name, telegramId: usersTable.telegramId })
-    .from(usersTable)
-    .where(eq(usersTable.id, user.id))
-    .limit(1);
-
-  const [branch] = client.branchId
-    ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
-    : [null];
-
   try {
-    const pdfBuffer = await generateClientPdf({
-      client,
-      basketItems,
-      calculations,
-      expertName: expert?.name || "—",
-      branchName: branch?.name || "—",
-    });
+    const pdfBuffer = await generateClientPdf(payload);
 
     let telegramSent = false;
-    if (sendViaTelegram && expert?.telegramId) {
-      const filename = `KP_${(client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const caption = `📋 КП для клиента: ${client.fullName || "—"}\n👤 Эксперт: ${expert.name}`;
-      telegramSent = await sendDocument(expert.telegramId, pdfBuffer, filename, caption);
+    if (sendViaTelegram && payload.expertTelegramId) {
+      const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const caption = `📋 Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\n👤 Ekspert: ${payload.expertName}`;
+      telegramSent = await sendDocument(payload.expertTelegramId, pdfBuffer, filename, caption);
     }
 
     await db
@@ -899,66 +979,24 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
 });
 
 router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
     res.status(403).json({ error: "Access denied" });
     return;
   }
 
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
-    .limit(1);
-
-  if (!client) {
+  const payload = await buildPdfPayload(clientId, req.user!);
+  if (!payload) {
     res.status(404).json({ error: "Client not found" });
     return;
   }
 
-  const basket = await db
-    .select()
-    .from(basketsTable)
-    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
-    .limit(1);
-
-  let basketItems: any[] = [];
-  if (basket.length) {
-    basketItems = await db
-      .select()
-      .from(basketItemsTable)
-      .where(eq(basketItemsTable.basketId, basket[0].id));
-  }
-
-  const calculations = await db
-    .select()
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt));
-
-  const user = req.user!;
-  const [expert] = await db
-    .select({ name: usersTable.name })
-    .from(usersTable)
-    .where(eq(usersTable.id, user.id))
-    .limit(1);
-
-  const [branch] = client.branchId
-    ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
-    : [null];
-
   try {
-    const pdfBuffer = await generateClientPdf({
-      client,
-      basketItems,
-      calculations,
-      expertName: expert?.name || "—",
-      branchName: branch?.name || "—",
-    });
+    const pdfBuffer = await generateClientPdf(payload);
 
-    const safeName = `KP_${client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    const displayName = `KP_${(client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const safeName = `KP_${payload.client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const displayName = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);
@@ -969,7 +1007,7 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
 });
 
 router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
-  const clientId = parseInt(req.params.id);
+  const clientId = Number(req.params.id);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
     res.status(403).json({ error: "Access denied" });
@@ -1003,14 +1041,14 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
     .from(calculationsTable)
     .where(eq(calculationsTable.clientId, clientId));
 
-  let text = `=== ДАННЫЕ КЛИЕНТА ===\n`;
-  text += `ФИО: ${client.fullName || "—"}\n`;
-  text += `Телефон: ${client.phone || "—"}\n`;
-  text += `Статус: ${client.status}\n`;
-  text += `Дата создания: ${client.createdAt}\n\n`;
+  let text = `=== MIJOZ MA'LUMOTLARI ===\n`;
+  text += `F.I.Sh.: ${client.fullName || "-"}\n`;
+  text += `Telefon: ${client.phone || "-"}\n`;
+  text += `Holat: ${client.status}\n`;
+  text += `Yaratilgan sana: ${client.createdAt}\n\n`;
 
   if (docs.length > 0) {
-    text += `=== ДОКУМЕНТЫ (${docs.length}) ===\n`;
+    text += `=== HUJJATLAR (${docs.length}) ===\n`;
     for (const doc of docs) {
       text += `\n--- ${doc.docType} (${doc.fileName}) ---\n`;
       if (doc.extractedData && typeof doc.extractedData === "object") {
@@ -1019,14 +1057,14 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
         }
       }
       if (doc.ocrText) {
-        text += `  OCR текст: ${doc.ocrText}\n`;
+        text += `  OCR matn: ${doc.ocrText}\n`;
       }
     }
     text += `\n`;
   }
 
   if (clientNotes.length > 0) {
-    text += `=== ЗАМЕТКИ (${clientNotes.length}) ===\n`;
+    text += `=== IZOH VA ESLATMALAR (${clientNotes.length}) ===\n`;
     for (const n of clientNotes) {
       text += `[${n.createdAt}] ${n.content}\n`;
     }
@@ -1034,9 +1072,9 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   }
 
   if (calcs.length > 0) {
-    text += `=== РАСЧЁТЫ (${calcs.length}) ===\n`;
+    text += `=== HISOB-KITOBLAR (${calcs.length}) ===\n`;
     for (const c of calcs) {
-      text += `${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} мес., ${c.interestRate}%, платёж: ${c.monthlyPayment}\n`;
+      text += `${c.productName}: ${c.loanAmount} ${c.currency}, ${c.termMonths} oy, ${c.interestRate}%, oylik to'lov: ${c.monthlyPayment}\n`;
     }
   }
 
@@ -1046,3 +1084,6 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
 });
 
 export default router;
+
+
+

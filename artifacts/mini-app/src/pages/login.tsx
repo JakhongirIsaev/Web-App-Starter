@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -9,18 +9,24 @@ import { MinervaIcon } from "@/components/minerva-logo";
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
-  const { login, isTelegram, telegramError, loading: authLoading } = useAuth();
+  const { login, isTelegram, telegramError, detectedTelegramId, loading: authLoading } = useAuth();
   const [telegramId, setTelegramId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!telegramId && detectedTelegramId) {
+      setTelegramId(detectedTelegramId);
+    }
+  }, [detectedTelegramId, telegramId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      await login(telegramId, password);
+      await login(telegramId.trim(), password);
     } catch {
       setError(t("common.error"));
     } finally {
@@ -68,6 +74,11 @@ export default function LoginPage() {
                 <div>
                   <p className="text-sm font-medium text-destructive">{t("login.telegramAuthFailed")}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t("login.telegramAuthHint")}</p>
+                  {detectedTelegramId && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Telegram ID: <span className="font-semibold">{detectedTelegramId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -86,7 +97,7 @@ export default function LoginPage() {
                 <Input
                   value={telegramId}
                   onChange={(e) => setTelegramId(e.target.value)}
-                  placeholder="100000001"
+                  placeholder={detectedTelegramId || "399083740"}
                   className="mt-1"
                 />
               </div>
@@ -96,7 +107,7 @@ export default function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="********"
                   className="mt-1"
                 />
               </div>

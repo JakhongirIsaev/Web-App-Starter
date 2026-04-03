@@ -38,6 +38,7 @@ export default function RecommendationPage() {
           productId: p.id,
           productType: "credit",
           productName: p.name,
+          notes: p.whySuitable || null,
         }));
       return api.post("/mini-app/basket", { clientId: parseInt(params.clientId), items });
     },
@@ -118,9 +119,9 @@ export default function RecommendationPage() {
                             {p.segment}
                           </span>
                         )}
-                        {p.rateUzs && (
+                        {p.rateUZS && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700">
-                            {t("recommendation.rate")}: {p.rateUzs}
+                            {t("recommendation.rate")}: {p.rateUZS}
                           </span>
                         )}
                         {p.loanAmount && (
@@ -131,6 +132,9 @@ export default function RecommendationPage() {
                       </div>
                       {p.purpose && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.purpose}</p>
+                      )}
+                      {p.whySuitable && (
+                        <p className="text-xs text-primary mt-2">{p.whySuitable}</p>
                       )}
                     </div>
                   </div>

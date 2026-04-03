@@ -32,6 +32,7 @@ interface AuthContextType {
   loading: boolean;
   isTelegram: boolean;
   telegramError: string | null;
+  detectedTelegramId: string | null;
   login: (telegramId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isTelegram: false,
   telegramError: null,
+  detectedTelegramId: null,
   login: async () => {},
   logout: async () => {},
 });
@@ -49,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+  const detectedTelegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() ?? null;
 
   const isTelegram = !!(window.Telegram?.WebApp?.initData);
 
@@ -91,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (telegramId: string, password: string) => {
-    const data = await apiLogin(telegramId, password);
+    const data = await apiLogin(telegramId.trim(), password);
     setUser(data.user);
   }, []);
 
@@ -101,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isTelegram, telegramError, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isTelegram, telegramError, detectedTelegramId, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

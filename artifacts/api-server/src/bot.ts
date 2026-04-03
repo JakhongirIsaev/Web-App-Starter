@@ -2,9 +2,11 @@ import { Bot, InlineKeyboard, InputFile } from "grammy";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, clientsTable, clientNextActionsTable } from "@workspace/db";
-import { eq, and, count, lte, isNull } from "drizzle-orm";
+import { eq, and, count, gte, lte, desc } from "drizzle-orm";
 
 let bot: Bot | null = null;
+
+const adminRoles = ["superadmin", "head_office_admin"] as const;
 
 export function getBot(): Bot | null {
   return bot;
@@ -46,6 +48,22 @@ async function getUserByTelegramId(telegramId: string) {
   return user;
 }
 
+function isAdminRole(role: string) {
+  return adminRoles.includes(role as (typeof adminRoles)[number]);
+}
+
+function formatRole(role: string) {
+  const labels: Record<string, string> = {
+    superadmin: "superadmin",
+    head_office_admin: "bosh ofis admini",
+    branch_head: "filial boshligi",
+    hunter: "kredit eksperti",
+    editor: "muharrir",
+  };
+
+  return labels[role] || role;
+}
+
 export async function startBot(miniAppUrl: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -56,20 +74,31 @@ export async function startBot(miniAppUrl: string) {
   bot = new Bot(token);
 
   bot.command("start", async (ctx) => {
-    const keyboard = new InlineKeyboard().webApp(
-      "🚀 Открыть Minerva",
-      miniAppUrl,
-    );
+    const telegramId = ctx.from?.id?.toString();
+    const user = telegramId ? await getUserByTelegramId(telegramId) : null;
+    const keyboard = new InlineKeyboard().webApp("Minerva mini-ilovasini ochish", miniAppUrl);
+
+    if (user) {
+      await ctx.reply(
+        `Assalomu alaykum, <b>${user.name}</b>.\n\n` +
+          `Siz tizimda <b>${formatRole(user.role)}</b> sifatida ro'yxatdan o'tgansiz.\n` +
+          `Mini-ilovani ochib, mijozlar, tavsiyalar va PDF takliflar bilan ishlashingiz mumkin.\n\n` +
+          `Buyruqlar:\n` +
+          `/stats - ko'rsatkichlar\n` +
+          `/clients - mijozlar ro'yxati\n` +
+          `/todo - vazifalar\n` +
+          `/help - yordam`,
+        { parse_mode: "HTML", reply_markup: keyboard },
+      );
+      return;
+    }
 
     await ctx.reply(
-      "👋 Добро пожаловать в Minerva!\n\n" +
-        "Нажмите кнопку ниже, чтобы открыть приложение кредитного эксперта.\n\n" +
-        "Доступные команды:\n" +
-        "/stats — Мои показатели\n" +
-        "/clients — Список клиентов\n" +
-        "/todo — Задачи на сегодня\n" +
-        "/help — Показать справку",
-      { reply_markup: keyboard },
+      "Assalomu alaykum.\n\n" +
+        "Sizning Telegram akkauntingiz hali Minerva foydalanuvchisi sifatida biriktirilmagan.\n" +
+        `Aniqlangan Telegram ID: <b>${telegramId || "noma'lum"}</b>\n\n` +
+        "Administrator ushbu ID ni foydalanuvchiga bog'lagach, mini-ilovaga avtomatik kirish ishlaydi. Hozircha qo'lda kirishdan foydalanishingiz mumkin.",
+      { parse_mode: "HTML", reply_markup: keyboard },
     );
   });
 
@@ -79,47 +108,60 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("❌ Вы не зарегистрированы в системе. Обратитесь к администратору.");
+      await ctx.reply("Sizning Telegram ID tizimda topilmadi. Avval administratorga murojaat qiling.");
       return;
     }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const clientBaseFilter =
+      isAdminRole(user.role)
+        ? undefined
+        : user.role === "branch_head" && user.branchId
+          ? eq(clientsTable.branchId, user.branchId)
+          : eq(clientsTable.assignedToId, user.id);
 
     const [totalResult] = await db
       .select({ count: count() })
       .from(clientsTable)
-      .where(eq(clientsTable.assignedToId, user.id));
+      .where(clientBaseFilter);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const [todayResult] = await db
       .select({ count: count() })
       .from(clientsTable)
-      .where(and(
-        eq(clientsTable.assignedToId, user.id),
-        lte(clientsTable.createdAt, new Date()),
-      ));
+      .where(
+        clientBaseFilter
+          ? and(clientBaseFilter, gte(clientsTable.createdAt, today))
+          : gte(clientsTable.createdAt, today)
+      );
 
     const [completedResult] = await db
       .select({ count: count() })
       .from(clientsTable)
-      .where(and(
-        eq(clientsTable.assignedToId, user.id),
-        eq(clientsTable.status, "completed"),
-      ));
+      .where(
+        clientBaseFilter
+          ? and(clientBaseFilter, eq(clientsTable.status, "completed"))
+          : eq(clientsTable.status, "completed")
+      );
 
     const [pendingResult] = await db
       .select({ count: count() })
       .from(clientNextActionsTable)
-      .where(and(
-        eq(clientNextActionsTable.userId, user.id),
-        isNull(clientNextActionsTable.completedAt),
-      ));
+      .where(
+        isAdminRole(user.role)
+          ? eq(clientNextActionsTable.isCompleted, false)
+          : and(eq(clientNextActionsTable.userId, user.id), eq(clientNextActionsTable.isCompleted, false))
+      );
 
     await ctx.reply(
-      `📊 <b>Ваши показатели</b>\n\n` +
-      `👤 <b>${user.name}</b>\n\n` +
-      `📋 Всего клиентов: <b>${totalResult.count}</b>\n` +
-      `✅ Завершено: <b>${completedResult.count}</b>\n` +
-      `⏳ Активных задач: <b>${pendingResult.count}</b>`,
+      `📊 <b>Minerva ko'rsatkichlari</b>\n\n` +
+        `👤 <b>${user.name}</b>\n` +
+        `Rol: <b>${formatRole(user.role)}</b>\n\n` +
+        `📋 Jami mijozlar: <b>${totalResult.count}</b>\n` +
+        `🆕 Bugun qo'shilgan: <b>${todayResult.count}</b>\n` +
+        `✅ Yakunlangan: <b>${completedResult.count}</b>\n` +
+        `⏳ Faol vazifalar: <b>${pendingResult.count}</b>`,
       { parse_mode: "HTML" },
     );
   });
@@ -130,9 +172,16 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("❌ Вы не зарегистрированы в системе.");
+      await ctx.reply("Sizning Telegram ID tizimda topilmadi.");
       return;
     }
+
+    const filter =
+      isAdminRole(user.role)
+        ? undefined
+        : user.role === "branch_head" && user.branchId
+          ? eq(clientsTable.branchId, user.branchId)
+          : eq(clientsTable.assignedToId, user.id);
 
     const clients = await db
       .select({
@@ -142,12 +191,12 @@ export async function startBot(miniAppUrl: string) {
         status: clientsTable.status,
       })
       .from(clientsTable)
-      .where(eq(clientsTable.assignedToId, user.id))
-      .orderBy(clientsTable.createdAt)
+      .where(filter)
+      .orderBy(desc(clientsTable.updatedAt))
       .limit(20);
 
     if (clients.length === 0) {
-      await ctx.reply("📋 У вас пока нет клиентов. Откройте Mini App, чтобы добавить нового.");
+      await ctx.reply("Hozircha ko'rsatish uchun mijozlar yo'q. Mini-ilovadan yangi mijoz qo'shishingiz mumkin.");
       return;
     }
 
@@ -161,11 +210,10 @@ export async function startBot(miniAppUrl: string) {
       rejected: "❌",
     };
 
-    let msg = `📋 <b>Ваши клиенты (${clients.length})</b>\n\n`;
-    for (const c of clients) {
-      const emoji = statusEmoji[c.status] || "📌";
-      msg += `${emoji} <b>${c.fullName || "Без имени"}</b>\n`;
-      msg += `   ${c.phone || "Нет телефона"} · ${c.status}\n\n`;
+    let msg = `📋 <b>Mijozlar ro'yxati (${clients.length})</b>\n\n`;
+    for (const client of clients) {
+      msg += `${statusEmoji[client.status] || "📌"} <b>${client.fullName || "Ismsiz mijoz"}</b>\n`;
+      msg += `   ${client.phone || "Telefon yo'q"} · ${client.status}\n\n`;
     }
 
     await ctx.reply(msg, { parse_mode: "HTML" });
@@ -177,9 +225,11 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("❌ Вы не зарегистрированы в системе.");
+      await ctx.reply("Sizning Telegram ID tizimda topilmadi.");
       return;
     }
+
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const actions = await db
       .select({
@@ -191,15 +241,20 @@ export async function startBot(miniAppUrl: string) {
       })
       .from(clientNextActionsTable)
       .leftJoin(clientsTable, eq(clientNextActionsTable.clientId, clientsTable.id))
-      .where(and(
-        eq(clientNextActionsTable.userId, user.id),
-        isNull(clientNextActionsTable.completedAt),
-      ))
+      .where(
+        isAdminRole(user.role)
+          ? and(eq(clientNextActionsTable.isCompleted, false), lte(clientNextActionsTable.actionDate, tomorrow))
+          : and(
+              eq(clientNextActionsTable.userId, user.id),
+              eq(clientNextActionsTable.isCompleted, false),
+              lte(clientNextActionsTable.actionDate, tomorrow)
+            )
+      )
       .orderBy(clientNextActionsTable.actionDate)
       .limit(15);
 
     if (actions.length === 0) {
-      await ctx.reply("✅ Нет активных задач! Откройте Mini App для работы.");
+      await ctx.reply("Faol vazifalar topilmadi. Mini-ilovadan keyingi harakatlarni rejalashtirishingiz mumkin.");
       return;
     }
 
@@ -207,23 +262,21 @@ export async function startBot(miniAppUrl: string) {
       follow_up: "📞",
       meeting: "🤝",
       proposal: "📄",
-      documents: "📋",
+      documents: "📁",
     };
 
     const priorityEmoji: Record<string, string> = {
       high: "🔴",
-      medium: "🟡",
+      medium: "🟠",
       low: "🟢",
     };
 
-    let msg = `📝 <b>Ваши задачи (${actions.length})</b>\n\n`;
-    for (const a of actions) {
-      const typeIcon = typeEmoji[a.actionType] || "📌";
-      const prioIcon = priorityEmoji[a.priority || "medium"] || "🟡";
-      const date = a.actionDate ? new Date(a.actionDate).toLocaleDateString("ru-RU") : "—";
-      const isOverdue = a.actionDate && new Date(a.actionDate) < new Date();
-      msg += `${typeIcon} ${prioIcon} <b>${a.clientName || "Без имени"}</b>\n`;
-      msg += `   ${a.actionType} · ${date}${isOverdue ? " ⚠️ просрочено" : ""}\n\n`;
+    let msg = `🗂 <b>Yaqin vazifalar (${actions.length})</b>\n\n`;
+    for (const action of actions) {
+      const date = action.actionDate ? new Date(action.actionDate).toLocaleDateString("uz-UZ") : "Sana yo'q";
+      const overdue = action.actionDate && new Date(action.actionDate) < new Date();
+      msg += `${typeEmoji[action.actionType] || "📌"} ${priorityEmoji[action.priority || "medium"] || "🟠"} <b>${action.clientName || "Ismsiz mijoz"}</b>\n`;
+      msg += `   ${action.actionType} · ${date}${overdue ? " · kechikkan" : ""}\n\n`;
     }
 
     await ctx.reply(msg, { parse_mode: "HTML" });
@@ -231,14 +284,13 @@ export async function startBot(miniAppUrl: string) {
 
   bot.command("help", async (ctx) => {
     await ctx.reply(
-      "📖 <b>Minerva — приложение кредитного эксперта</b>\n\n" +
-        "Доступные команды:\n" +
-        "/start — Открыть Mini App\n" +
-        "/stats — Мои показатели\n" +
-        "/clients — Список клиентов\n" +
-        "/todo — Задачи на сегодня\n" +
-        "/help — Показать справку\n\n" +
-        "Используйте Mini App для полного доступа ко всем функциям.",
+      "📘 <b>Minerva yordam</b>\n\n" +
+        "/start - mini-ilovani ochish\n" +
+        "/stats - ko'rsatkichlarni ko'rish\n" +
+        "/clients - mijozlar ro'yxatini ko'rish\n" +
+        "/todo - yaqin vazifalarni ko'rish\n" +
+        "/help - yordam matnini qayta ochish\n\n" +
+        "Mini-ilova ichida so'rovnoma, tavsiya, kalkulyator va PDF taklif yaratish funksiyalari mavjud.",
       { parse_mode: "HTML" },
     );
   });
@@ -246,7 +298,7 @@ export async function startBot(miniAppUrl: string) {
   bot.catch((err) => {
     const desc = (err.error as any)?.description || "";
     if (desc.includes("terminated by other getUpdates request")) {
-      logger.warn("Bot polling conflict detected (409) — another instance is running. Stopping this bot instance.");
+      logger.warn("Bot polling conflict detected (409) - another instance is running. Stopping this bot instance.");
       bot?.stop();
       return;
     }
@@ -262,13 +314,13 @@ export async function startBot(miniAppUrl: string) {
     }).catch((err: any) => {
       const desc = err?.description || err?.message || "";
       if (desc.includes("terminated by other getUpdates request") || desc.includes("409")) {
-        logger.warn("Bot polling stopped due to conflict (409) — another instance is running");
+        logger.warn("Bot polling stopped due to conflict (409) - another instance is running");
       } else {
         logger.error({ err: desc }, "Bot polling stopped unexpectedly");
       }
     });
   } catch (err: any) {
-    logger.error({ err: err.message || err }, "Failed to start Telegram bot — check TELEGRAM_BOT_TOKEN");
+    logger.error({ err: err.message || err }, "Failed to start Telegram bot - check TELEGRAM_BOT_TOKEN");
     bot = null;
   }
 }

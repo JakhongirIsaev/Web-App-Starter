@@ -339,6 +339,7 @@ export default function ClientDetailPage() {
               <CardContent className="p-3">
                 <p className="text-sm font-medium">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">{item.productType}</p>
+                {item.notes && <p className="text-xs text-primary mt-2">{item.notes}</p>}
               </CardContent>
             </Card>
           ))}

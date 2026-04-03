@@ -107,7 +107,8 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const { telegramId, password } = parsed.data;
+  const telegramId = parsed.data.telegramId.replace(/\s+/g, "").trim();
+  const password = parsed.data.password;
 
   const users = await db
     .select()

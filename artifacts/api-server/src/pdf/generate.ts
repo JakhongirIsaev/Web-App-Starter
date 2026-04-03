@@ -1,4 +1,10 @@
 import PDFDocument from "pdfkit";
+import { existsSync } from "node:fs";
+
+interface PreferenceItem {
+  label: string;
+  value: string;
+}
 
 interface PdfData {
   client: {
@@ -6,11 +12,27 @@ interface PdfData {
     fullName: string | null;
     phone: string | null;
     sessionId: string;
-    createdAt: Date;
+    createdAt: Date | string;
   };
   basketItems: Array<{
-    productName: string;
-    productType?: string;
+    productName?: string;
+    name?: string;
+    productType?: string | null;
+    sapCode?: string | null;
+    segment?: string | null;
+    disbursementForm?: string | null;
+    loanAmount?: string | null;
+    termWorkingCapital?: string | null;
+    termFixedAssets?: string | null;
+    termUntargeted?: string | null;
+    rateUZS?: string | null;
+    rateUSD?: string | null;
+    rateEUR?: string | null;
+    gracePeriod?: string | null;
+    purpose?: string | null;
+    highlight?: string | null;
+    notes?: string | null;
+    whySuitable?: string | null;
   }>;
   calculations: Array<{
     productName: string;
@@ -27,18 +49,75 @@ interface PdfData {
   }>;
   expertName: string;
   branchName: string;
+  preferenceSummary?: PreferenceItem[];
 }
+
+type FontName = "body" | "bold";
+type PdfDoc = InstanceType<typeof PDFDocument>;
 
 function fmtNum(val: string | number | null | undefined): string {
-  if (!val) return "—";
-  const n = typeof val === "string" ? parseFloat(val) : val;
-  if (isNaN(n)) return String(val);
-  return n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (val === null || val === undefined || val === "") return "-";
+  const n = typeof val === "string" ? Number.parseFloat(val) : val;
+  if (Number.isNaN(n)) return String(val);
+  return n.toLocaleString("uz-UZ", { maximumFractionDigits: 2 });
 }
 
-function fmtDate(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("ru-RU", { year: "numeric", month: "2-digit", day: "2-digit" });
+function fmtDate(value: Date | string): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return date.toLocaleDateString("uz-UZ", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function buildRateSummary(item: PdfData["basketItems"][number]) {
+  return [
+    item.rateUZS ? `UZS: ${item.rateUZS}` : null,
+    item.rateUSD ? `USD: ${item.rateUSD}` : null,
+    item.rateEUR ? `EUR: ${item.rateEUR}` : null,
+  ].filter(Boolean).join(" | ");
+}
+
+function resolveFontCandidates() {
+  const regularCandidates = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    "C:\\Windows\\Fonts\\arial.ttf",
+    "C:\\Windows\\Fonts\\segoeui.ttf",
+  ];
+  const boldCandidates = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+    "C:\\Windows\\Fonts\\arialbd.ttf",
+    "C:\\Windows\\Fonts\\segoeuib.ttf",
+  ];
+
+  const body = regularCandidates.find((candidate) => existsSync(candidate));
+  const bold = boldCandidates.find((candidate) => existsSync(candidate));
+
+  return { body, bold };
+}
+
+function createFontApplier(doc: PdfDoc) {
+  const fonts = resolveFontCandidates();
+  if (fonts.body) doc.registerFont("minerva-body", fonts.body);
+  if (fonts.bold) doc.registerFont("minerva-bold", fonts.bold);
+
+  return (fontName: FontName) => {
+    if (fontName === "bold" && fonts.bold) {
+      doc.font("minerva-bold");
+      return;
+    }
+    if (fonts.body) {
+      doc.font("minerva-body");
+      return;
+    }
+    doc.font(fontName === "bold" ? "Helvetica-Bold" : "Helvetica");
+  };
+}
+
+function ensureSpace(doc: PdfDoc, y: number, needed: number) {
+  const bottomLimit = doc.page.height - 72;
+  if (y + needed <= bottomLimit) return y;
+  doc.addPage();
+  return 56;
 }
 
 export function generateClientPdf(data: PdfData): Promise<Buffer> {
@@ -47,8 +126,8 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       size: "A4",
       margin: 50,
       info: {
-        Title: `Коммерческое предложение — ${data.client.fullName || "Клиент"}`,
-        Author: "Ipak Yuli Bank — Minerva",
+        Title: `Tijorat taklifi - ${data.client.fullName || "Mijoz"}`,
+        Author: "Ipak Yo'li Bank - Minerva",
       },
     });
 
@@ -57,132 +136,167 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const green = "#1B5E20";
-    const greenLight = "#4CAF50";
-    const gray = "#616161";
-    const darkText = "#212121";
-    const pageWidth = doc.page.width - 100;
+    const useFont = createFontApplier(doc);
+    const green = "#136A2A";
+    const greenSoft = "#E8F5E9";
+    const darkText = "#1F2937";
+    const muted = "#6B7280";
+    const line = "#D1D5DB";
+    const contentWidth = doc.page.width - 100;
 
-    doc.rect(0, 0, doc.page.width, 120).fill(green);
+    const drawSectionTitle = (title: string, y: number) => {
+      y = ensureSpace(doc, y, 36);
+      doc.save();
+      doc.roundedRect(50, y, contentWidth, 26, 8).fill(greenSoft);
+      doc.restore();
+      useFont("bold");
+      doc.fontSize(12).fillColor(green).text(title, 62, y + 7);
+      return y + 36;
+    };
 
-    doc.fontSize(22).fillColor("#FFFFFF").text("IPAK YO'LI BANK", 50, 35, { align: "left" });
-    doc.fontSize(10).fillColor("#C8E6C9").text("MINERVA — Кредитный эксперт", 50, 65, { align: "left" });
+    const drawRow = (label: string, value: string, y: number) => {
+      y = ensureSpace(doc, y, 22);
+      useFont("bold");
+      doc.fontSize(9).fillColor(muted).text(label, 50, y, { width: 150 });
+      useFont("body");
+      doc.fontSize(10).fillColor(darkText).text(value || "-", 205, y, { width: contentWidth - 155 });
+      return y + Math.max(doc.heightOfString(value || "-", { width: contentWidth - 155 }), 16) + 4;
+    };
 
-    doc.fontSize(14).fillColor("#FFFFFF").text("КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ", 50, 90, { align: "center", width: pageWidth });
+    const drawParagraph = (text: string, y: number, options?: { color?: string; size?: number }) => {
+      y = ensureSpace(doc, y, 30);
+      useFont("body");
+      doc
+        .fontSize(options?.size ?? 10)
+        .fillColor(options?.color ?? darkText)
+        .text(text, 50, y, { width: contentWidth });
+      return y + doc.heightOfString(text, { width: contentWidth }) + 8;
+    };
 
-    doc.moveDown(3);
+    const preferenceSummary = data.preferenceSummary || [];
+
+    doc.save();
+    doc.rect(0, 0, doc.page.width, 122).fill(green);
+    doc.restore();
+
+    useFont("bold");
+    doc.fontSize(24).fillColor("#FFFFFF").text("IPAK YO'LI BANK", 50, 32);
+    useFont("body");
+    doc.fontSize(11).fillColor("#D1FAE5").text("MINERVA - kredit eksperti yordamchisi", 50, 66);
+    useFont("bold");
+    doc.fontSize(15).fillColor("#FFFFFF").text("Mijoz uchun tijorat taklifi", 50, 90, {
+      width: contentWidth,
+      align: "center",
+    });
 
     let y = 145;
+    y = drawRow("Sana", fmtDate(new Date()), y);
+    y = drawRow("Ekspert", data.expertName || "-", y);
+    y = drawRow("Filial", data.branchName || "-", y);
+    y = drawRow("Ish raqami", data.client.sessionId || "-", y);
 
-    doc.fontSize(9).fillColor(gray);
-    doc.text(`Дата: ${fmtDate(new Date())}`, 50, y);
-    doc.text(`Эксперт: ${data.expertName}`, 50, y + 14);
-    doc.text(`Филиал: ${data.branchName}`, 50, y + 28);
-    doc.text(`Дело №: ${data.client.sessionId}`, 350, y);
-    y += 55;
+    y += 8;
+    doc.moveTo(50, y).lineTo(50 + contentWidth, y).strokeColor(line).stroke();
+    y += 16;
 
-    doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
-    y += 15;
+    y = drawSectionTitle("Mijoz ma'lumotlari", y);
+    y = drawRow("F.I.Sh.", data.client.fullName || "-", y);
+    y = drawRow("Telefon", data.client.phone || "-", y);
+    y = drawRow("Ro'yxatga olingan sana", fmtDate(data.client.createdAt), y);
 
-    doc.fontSize(13).fillColor(green).text("Информация о клиенте", 50, y);
-    y += 22;
-
-    const clientInfo = [
-      ["ФИО", data.client.fullName || "—"],
-      ["Телефон", data.client.phone || "—"],
-      ["Дата регистрации", fmtDate(data.client.createdAt)],
-    ];
-
-    doc.fontSize(10);
-    for (const [label, value] of clientInfo) {
-      doc.fillColor(gray).text(label + ":", 50, y, { continued: false });
-      doc.fillColor(darkText).text(String(value), 200, y);
-      y += 18;
-    }
-
-    y += 15;
-
-    if (data.basketItems.length > 0) {
-      doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
-      y += 15;
-      doc.fontSize(13).fillColor(green).text("Рекомендованные продукты", 50, y);
-      y += 25;
-
-      for (let i = 0; i < data.basketItems.length; i++) {
-        const item = data.basketItems[i];
-        doc.fontSize(10).fillColor(darkText);
-        doc.text(`${i + 1}. ${item.productName}`, 60, y);
-        if (item.productType) {
-          doc.fontSize(8).fillColor(gray).text(`   Тип: ${item.productType}`, 60, y + 14);
-          y += 14;
-        }
-        y += 18;
+    if (preferenceSummary.length > 0) {
+      y = drawSectionTitle("Mijoz ehtiyojlari va afzalliklari", y + 8);
+      for (const item of preferenceSummary) {
+        y = drawRow(item.label, item.value, y);
       }
-      y += 10;
     }
 
-    if (data.calculations.length > 0) {
-      doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
-      y += 15;
-      doc.fontSize(13).fillColor(green).text("Расчёты по кредитным продуктам", 50, y);
-      y += 25;
+    y = drawSectionTitle("Tavsiya etilgan mahsulotlar", y + 8);
+    if (data.basketItems.length === 0) {
+      y = drawParagraph("Savatda mahsulotlar yo'q. Avval mijoz uchun mos mahsulotlarni tanlang.", y, {
+        color: muted,
+      });
+    } else {
+      data.basketItems.forEach((item, index) => {
+        y = ensureSpace(doc, y, 120);
+        const productName = item.productName || item.name || `Mahsulot ${index + 1}`;
+        useFont("bold");
+        doc.fontSize(11).fillColor(green).text(`${index + 1}. ${productName}`, 50, y, { width: contentWidth });
+        y += 20;
 
-      for (const calc of data.calculations) {
-        if (y > 700) {
-          doc.addPage();
-          y = 50;
+        const detailRows: PreferenceItem[] = [
+          item.sapCode ? { label: "SAP kodi", value: item.sapCode } : null,
+          item.segment ? { label: "Segment", value: item.segment } : null,
+          item.loanAmount ? { label: "Kredit summasi", value: item.loanAmount } : null,
+          (item.termWorkingCapital || item.termFixedAssets || item.termUntargeted)
+            ? {
+                label: "Mavjud muddatlar",
+                value: [item.termWorkingCapital, item.termFixedAssets, item.termUntargeted].filter(Boolean).join(" | "),
+              }
+            : null,
+          item.disbursementForm ? { label: "Berish shakli", value: item.disbursementForm } : null,
+          item.gracePeriod ? { label: "Imtiyozli davr", value: item.gracePeriod } : null,
+          buildRateSummary(item) ? { label: "Stavkalar", value: buildRateSummary(item) } : null,
+        ].filter((row): row is PreferenceItem => Boolean(row));
+
+        for (const row of detailRows) {
+          y = drawRow(row.label, row.value, y);
         }
 
-        doc.rect(50, y, pageWidth, 28).fill("#F5F5F5");
-        doc.fontSize(11).fillColor(green).text(calc.productName, 60, y + 7);
-        y += 35;
+        if (item.purpose) {
+          y = drawRow("Mahsulot maqsadi", item.purpose, y);
+        }
+        if (item.highlight) {
+          y = drawRow("Asosiy afzalligi", item.highlight, y);
+        }
+        y = drawRow("Nima uchun mos", item.whySuitable || item.notes || "Mahsulot mijoz ehtiyojlariga mos kelgani uchun tavsiya qilindi.", y);
+        y += 6;
+      });
+    }
 
-        const rows = [
-          ["Сумма кредита", `${fmtNum(calc.loanAmount)} ${calc.currency}`],
-          ["Процентная ставка", `${calc.interestRate}% годовых`],
-          ["Срок", `${calc.termMonths} мес.`],
-          ["Тип погашения", calc.repaymentType === "annuity" ? "Аннуитетный" : "Дифференцированный"],
-        ];
+    y = drawSectionTitle("Hisob-kitob natijalari", y + 8);
+    if (data.calculations.length === 0) {
+      y = drawParagraph("Ushbu mijoz uchun alohida kredit hisob-kitobi saqlanmagan.", y, { color: muted });
+    } else {
+      data.calculations.forEach((calc) => {
+        y = ensureSpace(doc, y, 118);
+        useFont("bold");
+        doc.fontSize(11).fillColor(green).text(calc.productName, 50, y, { width: contentWidth });
+        y += 18;
 
-        if (calc.initialPayment && parseFloat(calc.initialPayment) > 0) {
-          rows.push(["Первоначальный взнос", `${fmtNum(calc.initialPayment)} ${calc.currency}`]);
+        y = drawRow("Kredit summasi", `${fmtNum(calc.loanAmount)} ${calc.currency}`, y);
+        y = drawRow("Foiz stavkasi", `${calc.interestRate}%`, y);
+        y = drawRow("Muddat", `${calc.termMonths} oy`, y);
+        y = drawRow("To'lov turi", calc.repaymentType === "annuity" ? "Annuitet" : "Differensial", y);
+
+        if (calc.initialPayment && Number.parseFloat(calc.initialPayment) > 0) {
+          y = drawRow("Boshlang'ich to'lov", `${fmtNum(calc.initialPayment)} ${calc.currency}`, y);
         }
         if (calc.gracePeriodMonths && calc.gracePeriodMonths > 0) {
-          rows.push(["Льготный период", `${calc.gracePeriodMonths} мес.`]);
+          y = drawRow("Imtiyozli davr", `${calc.gracePeriodMonths} oy`, y);
         }
 
-        rows.push(
-          ["Ежемесячный платёж", `${fmtNum(calc.monthlyPayment)} ${calc.currency}`],
-          ["Общая сумма выплат", `${fmtNum(calc.totalPayment)} ${calc.currency}`],
-          ["Переплата", `${fmtNum(calc.totalInterest)} ${calc.currency}`],
-        );
-
-        doc.fontSize(9);
-        for (const [label, value] of rows) {
-          doc.fillColor(gray).text(label + ":", 70, y);
-          doc.fillColor(darkText).text(value, 250, y);
-          y += 16;
-        }
-
-        y += 15;
-      }
+        y = drawRow("Oylik to'lov", `${fmtNum(calc.monthlyPayment)} ${calc.currency}`, y);
+        y = drawRow("Jami to'lov", `${fmtNum(calc.totalPayment)} ${calc.currency}`, y);
+        y = drawRow("Foizlar bo'yicha jami", `${fmtNum(calc.totalInterest)} ${calc.currency}`, y);
+        y += 8;
+      });
     }
 
-    if (y > 680) {
-      doc.addPage();
-      y = 50;
-    }
+    y += 6;
+    y = drawParagraph(
+      "Mazkur hujjat maslahat va dastlabki tanlov uchun tayyorlangan. Yakuniy kredit shartlari mijoz hujjatlari va risk tahlili asosida bank tomonidan tasdiqlanadi.",
+      y,
+      { color: muted, size: 9 }
+    );
 
-    y += 20;
-    doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
-    y += 20;
-
-    doc.fontSize(8).fillColor(gray);
-    doc.text("Данное коммерческое предложение носит информационный характер и не является офертой.", 50, y, { width: pageWidth, align: "center" });
-    y += 14;
-    doc.text("Окончательные условия кредитования определяются после рассмотрения заявки.", 50, y, { width: pageWidth, align: "center" });
-    y += 14;
-    doc.text(`© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`, 50, y, { width: pageWidth, align: "center" });
+    useFont("body");
+    doc.fontSize(8).fillColor(muted).text(
+      `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
+      50,
+      doc.page.height - 36,
+      { width: contentWidth, align: "center" }
+    );
 
     doc.end();
   });
