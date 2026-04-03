@@ -1,5 +1,4 @@
 import { useLocation } from "wouter";
-import { useLogin } from "@workspace/api-client-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import Logo from "@/components/logo";
+import { buildApiUrl } from "@/lib/api";
 
 const STRIPES = Array.from({ length: 40 }).map((_, i) => {
   const seed = Math.sin(i * 9301 + 49297) * 49297;
@@ -51,7 +51,6 @@ export default function Login() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useTranslation();
-  const loginMutation = useLogin();
 
   const loginSchema = z.object({
     telegramId: z.string().min(1, t("login.telegramId")),
@@ -66,24 +65,54 @@ export default function Login() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof loginSchema>) {
-    loginMutation.mutate({ data: { ...values, telegramId: values.telegramId.trim() } }, {
-      onSuccess: (response) => {
-        localStorage.setItem("auth_token", response.token);
-        toast({
-          title: t("login.welcomeBack"),
-          description: t("login.loggedInAs", { name: response.user.name }),
-        });
-        setLocation("/");
-      },
-      onError: (error: any) => {
-        toast({
-          variant: "destructive",
-          title: t("login.authFailed"),
-          description: error?.message || t("login.invalidCredentials"),
-        });
-      },
-    });
+  async function onSubmit(values: z.infer<typeof loginSchema>) {
+    const telegramId = values.telegramId.replace(/\s+/g, "").trim();
+
+    // Make the first login request stateless so a stale token can never poison it.
+    localStorage.removeItem("auth_token");
+
+    try {
+      const response = await fetch(buildApiUrl("/api/auth/login"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          telegramId,
+          password: values.password,
+        }),
+      });
+
+      const rawBody = await response.text();
+      const data = rawBody ? JSON.parse(rawBody) : null;
+
+      if (!response.ok) {
+        const message =
+          typeof data?.error === "string" && data.error.trim()
+            ? `HTTP ${response.status}: ${data.error}`
+            : t("login.invalidCredentials");
+
+        throw new Error(message);
+      }
+
+      localStorage.setItem("auth_token", data.token);
+      toast({
+        title: t("login.welcomeBack"),
+        description: t("login.loggedInAs", { name: data.user.name }),
+      });
+      setLocation("/");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: t("login.authFailed"),
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : t("login.invalidCredentials"),
+      });
+    }
   }
 
   return (
@@ -163,9 +192,9 @@ export default function Login() {
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-medium"
-                disabled={loginMutation.isPending}
+                disabled={form.formState.isSubmitting}
               >
-                {loginMutation.isPending ? (
+                {form.formState.isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     {t("login.authenticating")}

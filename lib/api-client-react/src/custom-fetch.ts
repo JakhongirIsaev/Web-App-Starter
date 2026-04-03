@@ -78,6 +78,13 @@ function resolveUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
+function shouldAttachAuthHeader(url: string): boolean {
+  return !(
+    url.includes("/api/auth/login") ||
+    url.includes("/api/auth/telegram")
+  );
+}
+
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
   const headers = new Headers();
 
@@ -336,6 +343,7 @@ export async function customFetch<T = unknown>(
   }
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  const resolvedUrl = resolveUrl(input);
 
   if (
     typeof init.body === "string" &&
@@ -351,19 +359,27 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
+  if (
+    shouldAttachAuthHeader(resolvedUrl) &&
+    _authTokenGetter &&
+    !headers.has("authorization")
+  ) {
     const token = await _authTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
-  } else if (typeof window !== 'undefined' && !headers.has("authorization")) {
+  } else if (
+    shouldAttachAuthHeader(resolvedUrl) &&
+    typeof window !== "undefined" &&
+    !headers.has("authorization")
+  ) {
     const token = localStorage.getItem("auth_token");
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
   }
 
-  const requestInfo = { method, url: resolveUrl(input) };
+  const requestInfo = { method, url: resolvedUrl };
 
   const response = await fetch(input, { ...init, method, headers });
 

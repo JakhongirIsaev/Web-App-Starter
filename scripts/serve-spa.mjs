@@ -58,8 +58,7 @@ const server = http.createServer(async (req, res) => {
 
   const headers = {
     "Content-Type": getContentType(filePath),
-    "Cache-Control":
-      relativePath.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache",
+    "Cache-Control": getCacheControl(relativePath, filePath),
   };
 
   res.writeHead(200, headers);
@@ -192,4 +191,16 @@ function getContentType(filePath) {
     default:
       return "application/octet-stream";
   }
+}
+
+function getCacheControl(relativePath, filePath) {
+  if (relativePath.startsWith("/assets/")) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  if (path.basename(filePath).toLowerCase() === "index.html") {
+    return "no-store, max-age=0";
+  }
+
+  return "no-cache";
 }
