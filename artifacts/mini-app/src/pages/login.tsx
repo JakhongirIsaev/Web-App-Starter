@@ -9,17 +9,44 @@ import { MinervaIcon } from "@/components/minerva-logo";
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
-  const { login, isTelegram, telegramError, detectedTelegramId, loading: authLoading } = useAuth();
+  const {
+    login,
+    isTelegram,
+    telegramError,
+    detectedTelegramId,
+    loading: authLoading,
+    manualTelegramLogin,
+    resumeTelegramAutoLogin,
+  } = useAuth();
   const [telegramId, setTelegramId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!telegramId && detectedTelegramId) {
+    if (telegramId) {
+      return;
+    }
+
+    if (isTelegram && (manualTelegramLogin || telegramError)) {
+      setTelegramId("10000001");
+      return;
+    }
+
+    if (detectedTelegramId) {
       setTelegramId(detectedTelegramId);
     }
-  }, [detectedTelegramId, telegramId]);
+  }, [detectedTelegramId, isTelegram, manualTelegramLogin, telegramError, telegramId]);
+
+  const demoHint =
+    i18n.language === "ru"
+      ? "Для демо: войдите как 10000001 / password. PDF все равно придет в ваш текущий Telegram."
+      : "Demo uchun: 10000001 / password bilan kiring. PDF baribir sizning joriy Telegram akkauntingizga yuboriladi.";
+
+  const useTelegramAccountLabel =
+    i18n.language === "ru"
+      ? "Вернуться ко входу через Telegram"
+      : "Telegram akkauntiga qaytish";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +108,26 @@ export default function LoginPage() {
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isTelegram && (
+          <Card className="mb-4 border-primary/30 bg-primary/5">
+            <CardContent className="pt-4 space-y-3">
+              <p className="text-xs leading-5 text-foreground">{demoHint}</p>
+              {manualTelegramLogin && detectedTelegramId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => void resumeTelegramAutoLogin()}
+                  disabled={loading || authLoading}
+                >
+                  {useTelegramAccountLabel}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

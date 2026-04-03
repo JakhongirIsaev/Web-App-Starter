@@ -3,42 +3,10 @@ import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { LoginBody } from "@workspace/api-zod";
+import { validateTelegramInitData } from "../lib/telegram";
 
 const router: IRouter = Router();
-
-function validateTelegramInitData(initData: string, botToken: string): { valid: boolean; user?: any } {
-  try {
-    const params = new URLSearchParams(initData);
-    const hash = params.get("hash");
-    if (!hash) return { valid: false };
-
-    params.delete("hash");
-    const entries = Array.from(params.entries());
-    entries.sort(([a], [b]) => a.localeCompare(b));
-    const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join("\n");
-
-    const secretKey = crypto
-      .createHmac("sha256", "WebAppData")
-      .update(botToken)
-      .digest();
-
-    const computedHash = crypto
-      .createHmac("sha256", secretKey)
-      .update(dataCheckString)
-      .digest("hex");
-
-    if (computedHash !== hash) return { valid: false };
-
-    const userStr = params.get("user");
-    if (!userStr) return { valid: false };
-
-    return { valid: true, user: JSON.parse(userStr) };
-  } catch {
-    return { valid: false };
-  }
-}
 
 router.get("/auth/me", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildApiUrl } from "@/lib/api";
+import { getTelegramInitData } from "@/lib/telegram";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +87,11 @@ export default function ClientDetailPage() {
   const [pdfResult, setPdfResult] = useState<{ success: boolean; telegramSent: boolean } | null>(null);
 
   const generatePdfMutation = useMutation({
-    mutationFn: () => api.post(`/mini-app/clients/${params.id}/generate-pdf`, { sendViaTelegram: true }),
+    mutationFn: () =>
+      api.post(`/mini-app/clients/${params.id}/generate-pdf`, {
+        sendViaTelegram: true,
+        telegramInitData: getTelegramInitData(),
+      }),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setPdfResult(result);

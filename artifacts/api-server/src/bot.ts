@@ -82,7 +82,8 @@ export async function startBot(miniAppUrl: string) {
       await ctx.reply(
         `Assalomu alaykum, <b>${user.name}</b>.\n\n` +
           `Siz tizimda <b>${formatRole(user.role)}</b> sifatida ro'yxatdan o'tgansiz.\n` +
-          `Mini-ilovani ochib, mijozlar, tavsiyalar va PDF takliflar bilan ishlashingiz mumkin.\n\n` +
+          `Mini-ilovani ochib, mijozlar, tavsiyalar va PDF takliflar bilan ishlashingiz mumkin.\n` +
+          `Demo uchun boshqa akkaunt kerak bo'lsa, mini-ilovada logout qiling va <b>10000001</b> / <b>password</b> bilan kiring.\n\n` +
           `Buyruqlar:\n` +
           `/stats - ko'rsatkichlar\n` +
           `/clients - mijozlar ro'yxati\n` +

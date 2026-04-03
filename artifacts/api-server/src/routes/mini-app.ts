@@ -21,6 +21,7 @@ import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzl
 import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
+import { validateTelegramInitData } from "../lib/telegram";
 import {
   buildClientPreferenceProfile,
   buildRecommendationNote,
@@ -940,6 +941,10 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
   const clientId = Number(req.params.id);
   const user = req.user!;
   const sendViaTelegram = req.body.sendViaTelegram !== false;
+  const telegramInitData =
+    typeof req.body.telegramInitData === "string"
+      ? req.body.telegramInitData.trim()
+      : "";
 
   if (!(await verifyClientAccess(clientId, user))) {
     res.status(403).json({ error: "Access denied" });
@@ -956,10 +961,23 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     const pdfBuffer = await generateClientPdf(payload);
 
     let telegramSent = false;
-    if (sendViaTelegram && payload.expertTelegramId) {
+    let targetTelegramId = payload.expertTelegramId;
+
+    if (sendViaTelegram && telegramInitData && process.env.TELEGRAM_BOT_TOKEN) {
+      const validatedTelegram = validateTelegramInitData(
+        telegramInitData,
+        process.env.TELEGRAM_BOT_TOKEN,
+      );
+
+      if (validatedTelegram.valid && validatedTelegram.user?.id) {
+        targetTelegramId = String(validatedTelegram.user.id);
+      }
+    }
+
+    if (sendViaTelegram && targetTelegramId) {
       const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const caption = `📋 Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\n👤 Ekspert: ${payload.expertName}`;
-      telegramSent = await sendDocument(payload.expertTelegramId, pdfBuffer, filename, caption);
+      telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
     }
 
     await db
@@ -970,6 +988,7 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     res.json({
       success: true,
       telegramSent,
+      sentToTelegramId: telegramSent ? targetTelegramId : null,
       pdfSize: pdfBuffer.length,
     });
   } catch (err: any) {
