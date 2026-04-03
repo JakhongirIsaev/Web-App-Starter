@@ -33,6 +33,7 @@ Do not add a single root `railway.toml` for this repo. Each service needs a diff
 ### `api-server`
 
 - Install: `pnpm install --frozen-lockfile`
+- First deploy against a fresh database: `pnpm run db:push`
 - Build: `pnpm run build:api-server`
 - Start: `pnpm run start:api-server`
 - Public: `true`
@@ -89,6 +90,7 @@ Recommended env vars:
 ## Notes
 
 - `db` is a workspace library, not a database service.
+- For a brand new Railway PostgreSQL instance, run `pnpm run db:push` once before expecting the API to seed demo data.
 - `api-spec`, `api-client-react`, and `api-zod` are codegen/support packages only.
 - `mockup-sandbox` is a design/demo artifact and should stay out of production.
 - `admin` and `mini-app` now use the checked-in `scripts/serve-spa.mjs` static server in production instead of `vite preview`.
