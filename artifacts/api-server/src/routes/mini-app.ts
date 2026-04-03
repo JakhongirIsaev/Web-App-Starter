@@ -22,6 +22,7 @@ import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 
 const router: IRouter = Router();
+const adminRoles = ["superadmin", "head_office_admin"];
 
 async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
   const [client] = await db
@@ -37,46 +38,73 @@ async function verifyClientAccess(clientId: number, user: { id: number; role: st
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   const userId = req.user!.id;
+  const role = req.user!.role;
   const branchId = req.user!.branchId;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const isAdmin = adminRoles.includes(role);
 
   const [myClients] = await db
     .select({ count: count() })
     .from(clientsTable)
-    .where(eq(clientsTable.assignedToId, userId));
+    .where(
+      isAdmin
+        ? undefined
+        : eq(clientsTable.assignedToId, userId)
+    );
 
   const [myClientsToday] = await db
     .select({ count: count() })
     .from(clientsTable)
-    .where(and(eq(clientsTable.assignedToId, userId), gte(clientsTable.createdAt, today)));
+    .where(
+      isAdmin
+        ? gte(clientsTable.createdAt, today)
+        : and(eq(clientsTable.assignedToId, userId), gte(clientsTable.createdAt, today))
+    );
 
   const [myClientsMonth] = await db
     .select({ count: count() })
     .from(clientsTable)
-    .where(and(eq(clientsTable.assignedToId, userId), gte(clientsTable.createdAt, monthStart)));
+    .where(
+      isAdmin
+        ? gte(clientsTable.createdAt, monthStart)
+        : and(eq(clientsTable.assignedToId, userId), gte(clientsTable.createdAt, monthStart))
+    );
 
   const [completedMonth] = await db
     .select({ count: count() })
     .from(clientsTable)
     .where(
-      and(
-        eq(clientsTable.assignedToId, userId),
-        eq(clientsTable.status, "completed"),
-        gte(clientsTable.updatedAt, monthStart)
-      )
+      isAdmin
+        ? and(
+            eq(clientsTable.status, "completed"),
+            gte(clientsTable.updatedAt, monthStart)
+          )
+        : and(
+            eq(clientsTable.assignedToId, userId),
+            eq(clientsTable.status, "completed"),
+            gte(clientsTable.updatedAt, monthStart)
+          )
     );
 
   const [basketsToday] = await db
     .select({ count: count() })
     .from(basketsTable)
-    .where(and(eq(basketsTable.userId, userId), gte(basketsTable.createdAt, today)));
+    .where(
+      isAdmin
+        ? gte(basketsTable.createdAt, today)
+        : and(eq(basketsTable.userId, userId), gte(basketsTable.createdAt, today))
+    );
 
   const statusCounts = await db
     .select({ status: clientsTable.status, count: count() })
     .from(clientsTable)
-    .where(eq(clientsTable.assignedToId, userId))
+    .where(
+      isAdmin
+        ? undefined
+        : eq(clientsTable.assignedToId, userId)
+    )
     .groupBy(clientsTable.status);
 
   res.json({
@@ -91,7 +119,9 @@ router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
 
 router.get("/mini-app/todo", requireAuth, async (req, res) => {
   const userId = req.user!.id;
+  const role = req.user!.role;
   const now = new Date();
+  const isAdmin = adminRoles.includes(role);
 
   const pendingActions = await db
     .select({
@@ -106,11 +136,16 @@ router.get("/mini-app/todo", requireAuth, async (req, res) => {
     .from(clientNextActionsTable)
     .leftJoin(clientsTable, eq(clientNextActionsTable.clientId, clientsTable.id))
     .where(
-      and(
-        eq(clientNextActionsTable.userId, userId),
-        eq(clientNextActionsTable.isCompleted, false),
-        lte(clientNextActionsTable.actionDate, new Date(now.getTime() + 24 * 60 * 60 * 1000))
-      )
+      isAdmin
+        ? and(
+            eq(clientNextActionsTable.isCompleted, false),
+            lte(clientNextActionsTable.actionDate, new Date(now.getTime() + 24 * 60 * 60 * 1000))
+          )
+        : and(
+            eq(clientNextActionsTable.userId, userId),
+            eq(clientNextActionsTable.isCompleted, false),
+            lte(clientNextActionsTable.actionDate, new Date(now.getTime() + 24 * 60 * 60 * 1000))
+          )
     )
     .orderBy(clientNextActionsTable.actionDate)
     .limit(20);
@@ -119,14 +154,20 @@ router.get("/mini-app/todo", requireAuth, async (req, res) => {
     .select({ id: clientsTable.id, fullName: clientsTable.fullName, status: clientsTable.status })
     .from(clientsTable)
     .where(
-      and(
-        eq(clientsTable.assignedToId, userId),
-        or(
-          eq(clientsTable.status, "draft"),
-          eq(clientsTable.status, "questionnaire"),
-          eq(clientsTable.status, "recommendation")
-        )
-      )
+      isAdmin
+        ? or(
+            eq(clientsTable.status, "draft"),
+            eq(clientsTable.status, "questionnaire"),
+            eq(clientsTable.status, "recommendation")
+          )
+        : and(
+            eq(clientsTable.assignedToId, userId),
+            or(
+              eq(clientsTable.status, "draft"),
+              eq(clientsTable.status, "questionnaire"),
+              eq(clientsTable.status, "recommendation")
+            )
+          )
     )
     .orderBy(desc(clientsTable.updatedAt))
     .limit(10);
@@ -139,9 +180,12 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
   const role = req.user!.role;
   const branchId = req.user!.branchId;
   const status = req.query.status as string | undefined;
+  const isAdmin = adminRoles.includes(role);
 
   let whereClause;
-  if (role === "branch_head" && branchId) {
+  if (isAdmin) {
+    whereClause = status ? eq(clientsTable.status, status) : undefined;
+  } else if (role === "branch_head" && branchId) {
     whereClause = status
       ? and(eq(clientsTable.branchId, branchId), eq(clientsTable.status, status))
       : eq(clientsTable.branchId, branchId);

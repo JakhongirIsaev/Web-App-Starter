@@ -26,7 +26,7 @@ export async function seedDatabase() {
   ]).returning();
 
   const users = await db.insert(usersTable).values([
-    { telegramId: "399083740", name: "Owner", role: "superadmin", branchId: null, passwordHash, isActive: true },
+    { telegramId: "399083740", name: "Jakhongir Isaev", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000001", name: "Алибек Джаксыбеков", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000002", name: "Дана Сейтова", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
     { telegramId: "100000003", name: "Руслан Берекетов", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
