@@ -51,6 +51,7 @@ interface PdfData {
   expertName: string;
   branchName: string;
   preferenceSummary?: PreferenceItem[];
+  offerSummary?: string | null;
 }
 
 type FontName = "body" | "bold";
@@ -252,6 +253,11 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
         y = drawRow("Nima uchun mos", item.whySuitable || item.notes || "Mahsulot mijoz ehtiyojlariga mos kelgani uchun tavsiya qilindi.", y);
         y += 6;
       });
+    }
+
+    if (data.offerSummary) {
+      y = drawSectionTitle("Taklif xulosasi", y + 8);
+      y = drawParagraph(data.offerSummary, y);
     }
 
     y = drawSectionTitle("Hisob-kitob natijalari", y + 8);

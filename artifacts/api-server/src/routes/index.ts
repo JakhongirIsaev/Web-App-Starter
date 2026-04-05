@@ -12,11 +12,13 @@ import sapCodesRouter from "./sap-codes";
 import creditLinesRouter from "./credit-lines";
 import miniAppRouter from "./mini-app";
 import storageRouter from "./storage";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(aiRouter);
 router.use(storageRouter);
 router.use(branchesRouter);
 router.use(usersRouter);

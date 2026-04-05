@@ -23,7 +23,7 @@ const statusColors: Record<string, string> = {
 const statusFlow = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed"];
 
 export default function ClientDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -91,6 +91,7 @@ export default function ClientDetailPage() {
       api.post(`/mini-app/clients/${params.id}/generate-pdf`, {
         sendViaTelegram: true,
         telegramInitData: getTelegramInitData(),
+        language: i18n.language === "ru" ? "ru" : "uz",
       }),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });

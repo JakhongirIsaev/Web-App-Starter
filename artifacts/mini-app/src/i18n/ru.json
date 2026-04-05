@@ -145,7 +145,10 @@
     "term": "Срок",
     "amount": "Сумма",
     "allProducts": "Все продукты",
-    "recommended": "Рекомендованные"
+    "recommended": "Рекомендованные",
+    "aiRank": "AI #{{rank}}",
+    "aiConfidence": "Уверенность {{value}}%",
+    "aiHint": "Система в фоне уточняет финальные рекомендации по каталогу..."
   },
   "basket": {
     "title": "Корзина",
@@ -257,6 +260,11 @@
     "preparingOcr": "Подготовка OCR...",
     "extractedFields": "Извлечённые данные",
     "rawText": "Распознанный текст",
+    "translateToUz": "Перевести на UZ",
+    "translateToRu": "Перевести на RU",
+    "translating": "Перевод...",
+    "translatedUz": "Перевод на узбекский",
+    "translatedRu": "Перевод на русский",
     "retake": "Переснять всё",
     "removePhoto": "Удалить",
     "save": "Сохранить",
@@ -273,7 +281,16 @@
       "address": "Адрес",
       "vin": "VIN номер",
       "plateNumber": "Гос. номер",
-      "inn": "ИНН"
+      "inn": "ИНН",
+      "make": "Марка",
+      "model": "Модель",
+      "vehicleType": "Тип авто",
+      "color": "Цвет",
+      "plateText": "Гос. номер",
+      "approximateYear": "Приблизительный год",
+      "visibleConditionNotes": "Заметки о состоянии",
+      "confidence": "Уверенность",
+      "rawNotes": "Доп. заметки"
     },
     "documents": "Документы",
     "noDocuments": "Нет документов",

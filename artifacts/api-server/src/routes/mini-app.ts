@@ -22,6 +22,7 @@ import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
+import { generateOfferSummary } from "../ai/service";
 import {
   formatDateTimeInAppTimeZone,
   formatFileDate,
@@ -162,6 +163,57 @@ async function buildPdfPayload(clientId: number, user: { id: number }) {
     expertTelegramId: expert?.telegramId || null,
     branchName: branch?.name || "-",
   };
+}
+
+function calculationsToSummaryInput(calculation: {
+  loanAmount: string;
+  monthlyPayment: string | null;
+  totalPayment: string | null;
+  totalInterest: string | null;
+  termMonths: number;
+  interestRate: string;
+  currency: string;
+} | undefined) {
+  if (!calculation) return null;
+
+  return {
+    loanAmount: calculation.loanAmount,
+    monthlyPayment: calculation.monthlyPayment || undefined,
+    totalPayment: calculation.totalPayment || undefined,
+    totalInterest: calculation.totalInterest || undefined,
+    termMonths: calculation.termMonths,
+    interestRate: calculation.interestRate,
+    currency: calculation.currency,
+  };
+}
+
+async function buildOfferSummaryForPdf(
+  payload: NonNullable<Awaited<ReturnType<typeof buildPdfPayload>>>,
+  language: "ru" | "uz" | "en",
+) {
+  const selectedProducts = payload.basketItems.map((item) => ({
+    productId: typeof item.productId === "number" ? item.productId : null,
+    productName: item.productName || item.name || "Mahsulot",
+    whySuitable: item.whySuitable || item.notes || null,
+    amount: item.loanAmount || null,
+    rate: [item.rateUZS, item.rateUSD, item.rateEUR].filter(Boolean).join(" | ") || null,
+    termMonths: null,
+    notes: item.notes || null,
+  }));
+
+  if (selectedProducts.length === 0) {
+    return null;
+  }
+
+  const latestCalculation = calculationsToSummaryInput(payload.calculations[0]);
+  const offerSummaryResult = await generateOfferSummary({
+    selectedProducts,
+    calculatorResult: latestCalculation ?? undefined,
+    clientName: payload.client.fullName || "Mijoz",
+    language,
+  });
+
+  return offerSummaryResult.summary;
 }
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
@@ -961,7 +1013,16 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
   }
 
   try {
-    const pdfBuffer = await generateClientPdf(payload);
+    const language =
+      req.body.language === "ru" || req.body.language === "en"
+        ? req.body.language
+        : "uz";
+    const offerSummary = await buildOfferSummaryForPdf(payload, language);
+
+    const pdfBuffer = await generateClientPdf({
+      ...payload,
+      offerSummary,
+    });
 
     let telegramSent = false;
     let targetTelegramId = payload.expertTelegramId;
@@ -1015,7 +1076,15 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   }
 
   try {
-    const pdfBuffer = await generateClientPdf(payload);
+    const language =
+      req.query.language === "ru" || req.query.language === "en"
+        ? req.query.language
+        : "uz";
+    const offerSummary = await buildOfferSummaryForPdf(payload, language);
+    const pdfBuffer = await generateClientPdf({
+      ...payload,
+      offerSummary,
+    });
 
     const fileDate = formatFileDate();
     const safeName = `KP_${payload.client.id}_${fileDate}.pdf`;

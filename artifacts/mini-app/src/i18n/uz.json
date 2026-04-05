@@ -145,7 +145,10 @@
     "term": "Muddat",
     "amount": "Summa",
     "allProducts": "Barcha mahsulotlar",
-    "recommended": "Tavsiya etilgan"
+    "recommended": "Tavsiya etilgan",
+    "aiRank": "AI #{{rank}}",
+    "aiConfidence": "Ishonch {{value}}%",
+    "aiHint": "Mos mahsulotlar fon rejimida yana bir bor tekshirilmoqda..."
   },
   "basket": {
     "title": "Savat",
@@ -257,6 +260,11 @@
     "preparingOcr": "OCR tayyorlanmoqda...",
     "extractedFields": "Ajratilgan ma'lumotlar",
     "rawText": "Tanilgan matn",
+    "translateToUz": "UZ ga tarjima",
+    "translateToRu": "RU ga tarjima",
+    "translating": "Tarjima qilinmoqda...",
+    "translatedUz": "Uzbekcha tarjima",
+    "translatedRu": "Ruscha tarjima",
     "retake": "Qayta olish",
     "removePhoto": "O'chirish",
     "save": "Saqlash",
@@ -273,7 +281,16 @@
       "address": "Manzil",
       "vin": "VIN raqam",
       "plateNumber": "Davlat raqami",
-      "inn": "STIR"
+      "inn": "STIR",
+      "make": "Marka",
+      "model": "Model",
+      "vehicleType": "Avto turi",
+      "color": "Rang",
+      "plateText": "Davlat raqami",
+      "approximateYear": "Taxminiy yil",
+      "visibleConditionNotes": "Holat bo'yicha izoh",
+      "confidence": "Ishonch",
+      "rawNotes": "Qo'shimcha izoh"
     },
     "documents": "Hujjatlar",
     "noDocuments": "Hujjatlar yo'q",
