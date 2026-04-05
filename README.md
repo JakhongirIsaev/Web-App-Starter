@@ -19,7 +19,7 @@ The Mini App does not expose a chatbot. Background AI is triggered only from wor
 The backend remains the single integration point for AI. It calls Ollama over Railway private networking using:
 
 - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-- `OLLAMA_MODEL=gemma4:e2b`
+- `OLLAMA_MODEL=gemma3:4b`
 
 Allowed bank products are still determined by backend-controlled catalog data. AI only ranks/explains within the allowed list and never replaces business rules.
 

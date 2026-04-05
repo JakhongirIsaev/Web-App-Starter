@@ -31,7 +31,7 @@ Recommended external dependency:
 - `backend-api` calls `ollama-ai` over Railway private networking.
 - Use this internal backend env:
   - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-  - `OLLAMA_MODEL=gemma4:e2b`
+  - `OLLAMA_MODEL=gemma3:4b`
 - Do not add a public domain to `ollama-ai`.
 - Mount a persistent Railway volume on `ollama-ai` at `/root/.ollama` so the pulled model survives deploys.
 
@@ -63,7 +63,7 @@ Optional env vars:
 - `TELEGRAM_BOT_TOKEN`
 - `LOG_LEVEL`
 - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-- `OLLAMA_MODEL=gemma4:e2b`
+- `OLLAMA_MODEL=gemma3:4b`
 - `PUBLIC_OBJECT_SEARCH_PATHS`
 - `PRIVATE_OBJECT_DIR`
 
@@ -113,7 +113,7 @@ Recommended env vars:
 
 Recommended env vars:
 
-- `OLLAMA_MODEL=gemma4:e2b`
+- `OLLAMA_MODEL=gemma3:4b`
 - `OLLAMA_HOST=0.0.0.0:11434`
 - `OLLAMA_MODELS=/root/.ollama`
 
@@ -128,7 +128,7 @@ Recommended env vars:
 5. Do not assign any public domain to `ollama-ai`.
 6. On `backend-api`, set:
    - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-   - `OLLAMA_MODEL=gemma4:e2b`
+   - `OLLAMA_MODEL=gemma3:4b`
 7. Redeploy `ollama-ai`, wait for the first model pull to complete, then redeploy `backend-api`.
 8. Verify public backend health:
    - `GET /api/healthz`
@@ -149,4 +149,4 @@ Recommended env vars:
 - `admin` and `mini-app` now use the checked-in `scripts/serve-spa.mjs` static server in production instead of `vite preview`.
 - Use `Asia/Tashkent` as the runtime timezone for all three deployable services so dashboards, exports, and PDFs stay aligned with Uzbekistan time.
 - The API process also starts the Telegram bot, so run a single web replica unless you split the bot into its own worker later.
-- The `ollama-ai` service keeps models on a volume at `/root/.ollama`; the first deploy will be slower because `gemma4:e2b` must be pulled once.
+- The `ollama-ai` service keeps models on a volume at `/root/.ollama`; the first deploy will be slower because `gemma3:4b` must be pulled once.

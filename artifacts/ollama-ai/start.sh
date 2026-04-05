@@ -3,7 +3,7 @@ set -eu
 
 export OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0:11434}"
 export OLLAMA_MODELS="${OLLAMA_MODELS:-/root/.ollama}"
-export OLLAMA_MODEL="${OLLAMA_MODEL:-gemma4:e2b}"
+export OLLAMA_MODEL="${OLLAMA_MODEL:-gemma3:4b}"
 
 mkdir -p "${OLLAMA_MODELS}"
 

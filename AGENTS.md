@@ -32,7 +32,7 @@ AI is a background capability, not a chatbot.
 
 ## Model
 
-- `gemma4:e2b`
+- `gemma3:4b`
 
 ## Languages
 

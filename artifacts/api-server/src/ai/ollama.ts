@@ -47,7 +47,7 @@ function stripTrailingSlash(value: string): string {
 export function getOllamaConfig() {
   return {
     url: stripTrailingSlash(process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434"),
-    model: process.env.OLLAMA_MODEL?.trim() || "gemma4:e2b",
+    model: process.env.OLLAMA_MODEL?.trim() || "gemma3:4b",
   };
 }
 
