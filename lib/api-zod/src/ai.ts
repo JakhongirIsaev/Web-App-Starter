@@ -20,6 +20,35 @@ export const AiAllowedProductSchema = z.object({
   whySuitable: z.string().trim().min(1).nullable().optional(),
 });
 
+export const AiQuestionAnswerSchema = z.object({
+  questionKey: z.string().trim().min(1),
+  answer: z.string().trim().min(1),
+});
+
+export const AiGeneratedQuestionOptionSchema = z.object({
+  value: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+});
+
+export const AiGeneratedQuestionSchema = z.object({
+  key: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  type: z.enum(["select", "input"]),
+  placeholder: z.string().trim().min(1).nullable().optional(),
+  helperText: z.string().trim().min(1).nullable().optional(),
+  options: z.array(AiGeneratedQuestionOptionSchema).max(8).default([]),
+});
+
+export const AiGenerateQuestionsBody = z.object({
+  language: languageSchema.default("uz"),
+  existingAnswers: z.array(AiQuestionAnswerSchema).default([]),
+  maxQuestions: z.number().int().min(1).max(6).default(4),
+});
+
+export const AiGenerateQuestionsResponse = z.object({
+  questions: z.array(AiGeneratedQuestionSchema).max(6).default([]),
+});
+
 export const AiRecommendProductsBody = z.object({
   clientBusinessType: z.string().trim().min(1).optional(),
   sector: z.string().trim().min(1).optional(),
@@ -29,6 +58,7 @@ export const AiRecommendProductsBody = z.object({
   requestedAmount: z.union([z.string().trim().min(1), z.number().finite()]).optional(),
   termMonths: z.union([z.string().trim().min(1), z.number().int().positive()]).optional(),
   language: languageSchema.default("uz"),
+  questionnaireAnswers: z.array(AiQuestionAnswerSchema).default([]),
   allowedProducts: z.array(AiAllowedProductSchema).default([]),
 });
 
@@ -86,7 +116,7 @@ export const AiTranslateResponse = z.object({
 });
 
 export const AiExtractAutoBody = z.object({
-  images: z.array(z.string().min(1)).min(1).max(4),
+  images: z.array(z.string().min(1)).min(1).max(8),
   language: languageSchema.default("uz"),
   extraFields: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
   ocrText: z.string().optional(),
@@ -115,6 +145,8 @@ export const AiHealthResponse = z.object({
 
 export type AiRecommendProductsBodyType = z.infer<typeof AiRecommendProductsBody>;
 export type AiRecommendProductsResponseType = z.infer<typeof AiRecommendProductsResponse>;
+export type AiGenerateQuestionsBodyType = z.infer<typeof AiGenerateQuestionsBody>;
+export type AiGenerateQuestionsResponseType = z.infer<typeof AiGenerateQuestionsResponse>;
 export type AiGenerateOfferSummaryBodyType = z.infer<typeof AiGenerateOfferSummaryBody>;
 export type AiGenerateOfferSummaryResponseType = z.infer<typeof AiGenerateOfferSummaryResponse>;
 export type AiTranslateBodyType = z.infer<typeof AiTranslateBody>;

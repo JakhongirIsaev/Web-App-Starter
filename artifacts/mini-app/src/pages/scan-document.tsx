@@ -1,14 +1,27 @@
 import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, buildApiUrl } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import {
-  ArrowLeft, Camera, FileText, Loader2, CheckCircle2,
-  RotateCcw, Upload, Eye, Scan, CreditCard, Car, FileCheck,
-  Plus, X, ImageIcon
+  ArrowLeft,
+  Camera,
+  FileText,
+  Loader2,
+  CheckCircle2,
+  RotateCcw,
+  Upload,
+  Eye,
+  Scan,
+  CreditCard,
+  Car,
+  FileCheck,
+  Plus,
+  X,
+  ImageIcon,
+  Download,
 } from "lucide-react";
 
 const DOC_TYPES = [
@@ -18,6 +31,8 @@ const DOC_TYPES = [
   { value: "other", icon: FileText, labelKey: "scanDoc.types.other" },
 ] as const;
 
+const MAX_PHOTOS = 8;
+
 type ScanState = "capture" | "processing" | "review" | "uploading" | "done";
 
 interface PhotoItem {
@@ -25,6 +40,57 @@ interface PhotoItem {
   dataUrl: string;
   ocrText?: string;
   extractedFields?: Record<string, string>;
+}
+
+function detectRuOrUzText(text: string): "ru" | "uz" {
+  const cyrillicCount = text.match(/[\u0400-\u04FF]/g)?.length ?? 0;
+  const latinCount = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return cyrillicCount > latinCount ? "ru" : "uz";
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(String(event.target?.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function optimizeDataUrl(dataUrl: string, maxWidth = 1600, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      if (!image.naturalWidth || image.naturalWidth <= maxWidth) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const scale = maxWidth / image.naturalWidth;
+      const canvas = document.createElement("canvas");
+      canvas.width = maxWidth;
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function fileToPhotoItem(file: File, index: number): Promise<PhotoItem> {
+  const dataUrl = await readFileAsDataUrl(file);
+  const optimizedDataUrl = await optimizeDataUrl(dataUrl);
+  return {
+    id: `${Date.now()}-${index}`,
+    dataUrl: optimizedDataUrl,
+  };
 }
 
 export default function ScanDocumentPage() {
@@ -45,20 +111,28 @@ export default function ScanDocumentPage() {
   const [translatedLanguage, setTranslatedLanguage] = useState<"ru" | "uz" | null>(null);
   const [error, setError] = useState("");
 
-  const translateMutation = useMutation({
-    mutationFn: async (targetLanguage: "ru" | "uz") => {
-      const sourceLanguage = /[\u0400-\u04FF]/.test(ocrText) ? "ru" : "uz";
-      return api.post("/ai/translate", {
-        text: ocrText,
-        sourceLanguage,
-        targetLanguage,
-      });
-    },
-    onSuccess: (result: any, targetLanguage) => {
-      setTranslatedText(result.text || "");
-      setTranslatedLanguage(targetLanguage);
-    },
-  });
+  const scanMessages = {
+    tooManyPhotos:
+      i18n.language === "ru"
+        ? `Можно добавить не более ${MAX_PHOTOS} фотографий за раз.`
+        : `${MAX_PHOTOS} tadan ko'p surat biriktirib bo'lmaydi.`,
+    invalidImage:
+      i18n.language === "ru"
+        ? "Добавляйте только изображения."
+        : "Faqat rasm fayllarini yuklang.",
+    translateFailed:
+      i18n.language === "ru"
+        ? "Перевод сейчас не удалось получить. Попробуйте еще раз."
+        : "Tarjimani hozir olib bo'lmadi. Qayta urinib ko'ring.",
+    extractFailed:
+      i18n.language === "ru"
+        ? "AI не смог полноценно извлечь данные по авто. OCR результат сохранен."
+        : "AI avtomobil ma'lumotlarini to'liq ajrata olmadi. OCR natijasi saqlandi.",
+    exportFailed:
+      i18n.language === "ru"
+        ? "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring."
+        : "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
+  };
 
   const toFieldMap = useCallback((values: Record<string, unknown>) => {
     return Object.fromEntries(
@@ -68,53 +142,187 @@ export default function ScanDocumentPage() {
     ) as Record<string, string>;
   }, []);
 
-  const handleCapture = () => {
-    fileInputRef.current?.click();
+  const translateMutation = useMutation({
+    mutationFn: async (targetLanguage: "ru" | "uz") => {
+      const sourceLanguage = detectRuOrUzText(ocrText);
+      return api.post("/ai/translate", {
+        text: ocrText,
+        sourceLanguage,
+        targetLanguage,
+      });
+    },
+    onMutate: () => {
+      setError("");
+    },
+    onSuccess: (result: any, targetLanguage) => {
+      setTranslatedText(result.text || "");
+      setTranslatedLanguage(targetLanguage);
+    },
+    onError: () => {
+      setTranslatedText("");
+      setTranslatedLanguage(null);
+      setError(scanMessages.translateFailed);
+    },
+  });
+
+  const exportAutoMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem("miniapp_auth_token");
+      const response = await fetch(buildApiUrl("/api/mini-app/exports/auto-excel"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          clientId: parseInt(params.clientId),
+          extractedData: extractedFields,
+          ocrText,
+          imageCount: photos.length,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to export Excel");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `auto_extract_${params.clientId}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: () => {
+      setError(scanMessages.exportFailed);
+    },
+  });
+
+  const appendFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const validFiles = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
+    if (validFiles.length === 0) {
+      setError(scanMessages.invalidImage);
+      return;
+    }
+
+    const remainingSlots = MAX_PHOTOS - photos.length;
+    if (remainingSlots <= 0) {
+      setError(scanMessages.tooManyPhotos);
+      return;
+    }
+
+    const filesToAdd = validFiles.slice(0, remainingSlots);
+    const photoItems = await Promise.all(
+      filesToAdd.map((file, index) => fileToPhotoItem(file, index)),
+    );
+
+    setPhotos((prev) => [...prev, ...photoItems]);
+    setError(validFiles.length > remainingSlots ? scanMessages.tooManyPhotos : "");
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      const newPhoto: PhotoItem = { id: Date.now().toString(), dataUrl };
-      setPhotos(prev => [...prev, newPhoto]);
-    };
-    reader.readAsDataURL(file);
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleCapture = () => {
+    fileInputRef.current?.click();
   };
 
   const handlePickFromGallery = () => {
     galleryInputRef.current?.click();
   };
 
-  const handleGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const handleCameraChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    await appendFiles(event.target.files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        const newPhoto: PhotoItem = { id: `${Date.now()}-${i}`, dataUrl };
-        setPhotos(prev => [...prev, newPhoto]);
-      };
-      reader.readAsDataURL(file);
-    }
-
+  const handleGalleryChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    await appendFiles(event.target.files);
     if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   const removePhoto = (id: string) => {
-    setPhotos(prev => prev.filter(p => p.id !== id));
+    setPhotos((prev) => prev.filter((photo) => photo.id !== id));
+  };
+
+  const parseExtractedFields = (text: string, type: string): Record<string, string> => {
+    const fields: Record<string, string> = {};
+    const normalizedText = text.replace(/\r/g, "");
+
+    const namePatterns = [
+      /(?:ФИО|F\.?I\.?O\.?|FISH|Исм(?:и)?|NAME)[:\s]+([^\n]+)/iu,
+    ];
+    for (const pattern of namePatterns) {
+      const match = normalizedText.match(pattern);
+      if (match) {
+        fields.fullName = match[1].trim();
+        break;
+      }
+    }
+
+    const passportPatterns = [
+      /\b([A-ZА-Я]{2}\s?\d{7})\b/iu,
+      /(?:passport|паспорт|seriya|серия)[:\s#№-]*([A-ZА-Я]{2}\s?\d{7})/iu,
+    ];
+    for (const pattern of passportPatterns) {
+      const match = normalizedText.match(pattern);
+      if (match) {
+        fields.passportNumber = match[1].replace(/\s+/g, "");
+        break;
+      }
+    }
+
+    const dateMatches = normalizedText.match(/\b(\d{2}[./-]\d{2}[./-]\d{4})\b/g);
+    if (dateMatches?.length) {
+      fields.dateOfBirth = dateMatches[0];
+    }
+
+    const phoneMatches = normalizedText.match(/\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g);
+    if (phoneMatches?.length) {
+      fields.phone = phoneMatches[0].replace(/\s+/g, "");
+    }
+
+    const addressPatterns = [
+      /(?:адрес|манзил|address)[:\s]+([^\n]+)/iu,
+    ];
+    for (const pattern of addressPatterns) {
+      const match = normalizedText.match(pattern);
+      if (match) {
+        fields.address = match[1].trim();
+        break;
+      }
+    }
+
+    if (type === "vehicle_doc") {
+      const vinMatch = normalizedText.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+      if (vinMatch) {
+        fields.vin = vinMatch[0];
+      }
+
+      const platePatterns = [
+        /\b(\d{2}[A-Z]\d{3}[A-Z]{2})\b/i,
+        /\b([A-Z]{1,2}\s?\d{3,4}\s?[A-Z]{2,3})\b/i,
+      ];
+      for (const pattern of platePatterns) {
+        const match = normalizedText.match(pattern);
+        if (match) {
+          fields.plateNumber = match[1].trim();
+          break;
+        }
+      }
+    }
+
+    const innMatch = normalizedText.match(/\b\d{9}\b/);
+    if (innMatch && !fields.passportNumber?.includes(innMatch[0])) {
+      fields.inn = innMatch[0];
+    }
+
+    return fields;
   };
 
   const processAllPhotos = async () => {
     if (photos.length === 0) return;
+
     setState("processing");
     setError("");
     setTranslatedText("");
@@ -123,22 +331,25 @@ export default function ScanDocumentPage() {
     const updatedPhotos = [...photos];
     let combinedText = "";
     const allFields: Record<string, string> = {};
+    let autoExtractionFailed = false;
 
-    for (let i = 0; i < updatedPhotos.length; i++) {
-      setProcessingIndex(i);
+    for (let index = 0; index < updatedPhotos.length; index += 1) {
+      setProcessingIndex(index);
       try {
-        const result = await api.post("/ocr/recognize", { image: updatedPhotos[i].dataUrl });
+        const result = await api.post("/ocr/recognize", { image: updatedPhotos[index].dataUrl });
         const text = result.text || "";
-        updatedPhotos[i].ocrText = text;
+        updatedPhotos[index].ocrText = text;
         const fields = parseExtractedFields(text, docType);
-        updatedPhotos[i].extractedFields = fields;
-        combinedText += (combinedText ? "\n---\n" : "") + text;
-        Object.entries(fields).forEach(([k, v]) => {
-          if (v && !allFields[k]) allFields[k] = v;
+        updatedPhotos[index].extractedFields = fields;
+        combinedText += text ? `${combinedText ? "\n---\n" : ""}${text}` : "";
+        Object.entries(fields).forEach(([key, value]) => {
+          if (value && !allFields[key]) {
+            allFields[key] = value;
+          }
         });
       } catch (err: any) {
-        console.error(`OCR error on photo ${i + 1}:`, err);
-        updatedPhotos[i].ocrText = `[Error: ${err.message}]`;
+        console.error(`OCR error on photo ${index + 1}:`, err);
+        updatedPhotos[index].ocrText = "";
       }
     }
 
@@ -147,9 +358,10 @@ export default function ScanDocumentPage() {
         const autoResult = await api.post("/ai/extract-auto", {
           images: updatedPhotos.map((photo) => photo.dataUrl),
           language: i18n.language === "ru" ? "ru" : "uz",
-          extraFields: { docType },
+          extraFields: { docType, imageCount: updatedPhotos.length },
           ocrText: combinedText || undefined,
         });
+
         const autoFields = toFieldMap({
           make: autoResult.make,
           model: autoResult.model,
@@ -164,8 +376,8 @@ export default function ScanDocumentPage() {
               : null,
           rawNotes: autoResult.rawNotes,
         });
-        Object.assign(allFields, autoFields);
 
+        Object.assign(allFields, autoFields);
         if (updatedPhotos[0]) {
           updatedPhotos[0].extractedFields = {
             ...(updatedPhotos[0].extractedFields || {}),
@@ -173,6 +385,7 @@ export default function ScanDocumentPage() {
           };
         }
       } catch (err) {
+        autoExtractionFailed = true;
         console.warn("AI vehicle extraction failed, OCR results will still be used", err);
       }
     }
@@ -180,75 +393,20 @@ export default function ScanDocumentPage() {
     setPhotos(updatedPhotos);
     setOcrText(combinedText);
     setExtractedFields(allFields);
+    setError(autoExtractionFailed ? scanMessages.extractFailed : "");
     setState("review");
-  };
-
-  const parseExtractedFields = (text: string, type: string): Record<string, string> => {
-    const fields: Record<string, string> = {};
-
-    const namePatterns = [/ФИО[:\s]+(.+)/i, /Ф\.И\.О[:\s]+(.+)/i, /FISH[:\s]+(.+)/i, /ИСМИ[:\s]+(.+)/i, /NAME[:\s]+(.+)/i];
-    for (const p of namePatterns) {
-      const m = text.match(p);
-      if (m) { fields.fullName = m[1].trim(); break; }
-    }
-
-    const passportPatterns = [/([A-Z]{2}\d{7})/i, /серия.*?([A-Z]{2}).*?№?\s*(\d{7})/i];
-    for (const p of passportPatterns) {
-      const m = text.match(p);
-      if (m) { fields.passportNumber = m[0].trim(); break; }
-    }
-
-    const datePatterns = [/(\d{2}[.\/-]\d{2}[.\/-]\d{4})/g];
-    const dates: string[] = [];
-    for (const p of datePatterns) {
-      let m;
-      while ((m = p.exec(text)) !== null) dates.push(m[1]);
-    }
-    if (dates.length > 0) fields.dateOfBirth = dates[0];
-
-    const phonePatterns = [/\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g, /\+?\d{3}[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g];
-    for (const p of phonePatterns) {
-      const m = text.match(p);
-      if (m) { fields.phone = m[0].replace(/\s/g, ""); break; }
-    }
-
-    const addressPatterns = [/адрес[:\s]+(.+)/i, /манзил[:\s]+(.+)/i, /address[:\s]+(.+)/i];
-    for (const p of addressPatterns) {
-      const m = text.match(p);
-      if (m) { fields.address = m[1].trim(); break; }
-    }
-
-    if (type === "vehicle_doc") {
-      const vinPattern = /[A-HJ-NPR-Z0-9]{17}/;
-      const vinMatch = text.match(vinPattern);
-      if (vinMatch) fields.vin = vinMatch[0];
-
-      const platePatterns = [/(\d{2}[A-Z]\d{3}[A-Z]{2})/i, /([A-Z]{1,2}\s?\d{3,4}\s?[A-Z]{2,3})/i];
-      for (const p of platePatterns) {
-        const m = text.match(p);
-        if (m) { fields.plateNumber = m[0].trim(); break; }
-      }
-    }
-
-    const innPattern = /\b\d{9}\b/;
-    const innMatch = text.match(innPattern);
-    if (innMatch && !fields.passportNumber?.includes(innMatch[0])) {
-      fields.inn = innMatch[0];
-    }
-
-    return fields;
   };
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
       setState("uploading");
 
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        let storagePath = `documents/client-${params.clientId}/${Date.now()}-${i}.jpg`;
+      for (let index = 0; index < photos.length; index += 1) {
+        const photo = photos[index];
+        let storagePath = `documents/client-${params.clientId}/${Date.now()}-${index}.jpg`;
 
         try {
-          const blob = await fetch(photo.dataUrl).then(r => r.blob());
+          const blob = await fetch(photo.dataUrl).then((response) => response.blob());
           const uploadMeta = await api.post("/storage/uploads/request-url", {
             name: storagePath,
             size: blob.size,
@@ -261,12 +419,12 @@ export default function ScanDocumentPage() {
           });
           storagePath = uploadMeta.objectPath;
         } catch (err) {
-          console.warn("Object storage upload failed for photo", i, err);
+          console.warn("Object storage upload failed for photo", index, err);
         }
 
         await api.post(`/mini-app/clients/${params.clientId}/documents`, {
           docType,
-          fileName: `scan_${docType}_${Date.now()}_p${i + 1}.jpg`,
+          fileName: `scan_${docType}_${Date.now()}_p${index + 1}.jpg`,
           storagePath,
           ocrText: photo.ocrText || "",
           extractedData: photo.extractedFields || {},
@@ -297,7 +455,10 @@ export default function ScanDocumentPage() {
 
   return (
     <div className="space-y-4 pb-4">
-      <button onClick={() => navigate(`/clients/${params.clientId}`)} className="flex items-center gap-1 text-sm text-muted-foreground">
+      <button
+        onClick={() => navigate(`/clients/${params.clientId}`)}
+        className="flex items-center gap-1 text-sm text-muted-foreground"
+      >
         <ArrowLeft className="w-4 h-4" />
         {t("common.back")}
       </button>
@@ -317,7 +478,8 @@ export default function ScanDocumentPage() {
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={handleFileChange}
+        multiple
+        onChange={handleCameraChange}
         className="hidden"
       />
       <input
@@ -335,20 +497,24 @@ export default function ScanDocumentPage() {
             <CardContent className="p-4 space-y-3">
               <label className="text-sm font-medium">{t("scanDoc.selectType")}</label>
               <div className="grid grid-cols-2 gap-2">
-                {DOC_TYPES.map(dt => {
-                  const Icon = dt.icon;
+                {DOC_TYPES.map((docTypeOption) => {
+                  const Icon = docTypeOption.icon;
                   return (
                     <button
-                      key={dt.value}
-                      onClick={() => setDocType(dt.value)}
+                      key={docTypeOption.value}
+                      onClick={() => setDocType(docTypeOption.value)}
                       className={`p-3 rounded-xl border-2 text-left transition-all ${
-                        docType === dt.value
+                        docType === docTypeOption.value
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/30"
                       }`}
                     >
-                      <Icon className={`w-5 h-5 mb-1 ${docType === dt.value ? "text-primary" : "text-muted-foreground"}`} />
-                      <p className="text-xs font-medium">{t(dt.labelKey)}</p>
+                      <Icon
+                        className={`w-5 h-5 mb-1 ${
+                          docType === docTypeOption.value ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
+                      <p className="text-xs font-medium">{t(docTypeOption.labelKey)}</p>
                     </button>
                   );
                 })}
@@ -364,6 +530,9 @@ export default function ScanDocumentPage() {
                     <ImageIcon className="w-4 h-4 text-primary" />
                     {t("scanDoc.photosCount", { count: photos.length })}
                   </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {MAX_PHOTOS} max
+                  </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.map((photo) => (
@@ -375,9 +544,9 @@ export default function ScanDocumentPage() {
                       />
                       <button
                         onClick={() => removePhoto(photo.id)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-80 hover:opacity-100"
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-white rounded-full flex items-center justify-center opacity-100 shadow-sm"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -387,23 +556,16 @@ export default function ScanDocumentPage() {
           )}
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 gap-2 h-12"
-              onClick={handleCapture}
-            >
+            <Button variant="outline" className="flex-1 gap-2 h-12" onClick={handleCapture}>
               <Camera className="w-5 h-5" />
-              {t("scanDoc.takePhoto")}
+              {photos.length > 0 ? t("scanDoc.addMore") : t("scanDoc.takePhoto")}
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1 gap-2 h-12"
-              onClick={handlePickFromGallery}
-            >
+            <Button variant="outline" className="flex-1 gap-2 h-12" onClick={handlePickFromGallery}>
               <ImageIcon className="w-5 h-5" />
               {t("scanDoc.fromGallery")}
             </Button>
           </div>
+
           {photos.length > 0 && (
             <Button className="w-full gap-2 h-12" onClick={processAllPhotos}>
               <Scan className="w-5 h-5" />
@@ -419,25 +581,25 @@ export default function ScanDocumentPage() {
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="grid grid-cols-4 gap-1.5">
-              {photos.map((photo, idx) => (
+              {photos.map((photo, index) => (
                 <div key={photo.id} className="relative">
                   <img
                     src={photo.dataUrl}
-                    alt={`Photo ${idx + 1}`}
+                    alt={`Photo ${index + 1}`}
                     className={`w-full h-14 object-cover rounded-lg border-2 transition-all ${
-                      idx === processingIndex
+                      index === processingIndex
                         ? "border-primary ring-2 ring-primary/30"
-                        : idx < processingIndex
-                        ? "border-green-500 opacity-70"
-                        : "border-border opacity-40"
+                        : index < processingIndex
+                          ? "border-green-500 opacity-70"
+                          : "border-border opacity-40"
                     }`}
                   />
-                  {idx < processingIndex && (
+                  {index < processingIndex && (
                     <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 rounded-lg">
                       <CheckCircle2 className="w-5 h-5 text-green-600" />
                     </div>
                   )}
-                  {idx === processingIndex && (
+                  {index === processingIndex && (
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-lg">
                       <Loader2 className="w-5 h-5 text-primary animate-spin" />
                     </div>
@@ -466,11 +628,11 @@ export default function ScanDocumentPage() {
           <Card>
             <CardContent className="p-3">
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {photos.map((photo, idx) => (
+                {photos.map((photo, index) => (
                   <img
                     key={photo.id}
                     src={photo.dataUrl}
-                    alt={`Photo ${idx + 1}`}
+                    alt={`Photo ${index + 1}`}
                     className="h-20 rounded-lg border flex-shrink-0 object-cover"
                   />
                 ))}
@@ -487,10 +649,13 @@ export default function ScanDocumentPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-2">
-                {Object.entries(extractedFields).map(([key, val]) => (
-                  <div key={key} className="flex items-center justify-between py-1 border-b border-border/50 last:border-0">
+                {Object.entries(extractedFields).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between py-1 border-b border-border/50 last:border-0"
+                  >
                     <span className="text-xs text-muted-foreground">{t(`scanDoc.fields.${key}`, key)}</span>
-                    <span className="text-sm font-medium text-right max-w-[60%] truncate">{val}</span>
+                    <span className="text-sm font-medium text-right max-w-[60%] truncate">{value}</span>
                   </div>
                 ))}
               </CardContent>
@@ -507,7 +672,7 @@ export default function ScanDocumentPage() {
             <CardContent className="p-4 pt-0">
               <textarea
                 value={ocrText}
-                onChange={(e) => setOcrText(e.target.value)}
+                onChange={(event) => setOcrText(event.target.value)}
                 rows={6}
                 className="w-full text-xs font-mono bg-muted/50 rounded-lg p-2 border resize-none"
               />
@@ -535,9 +700,7 @@ export default function ScanDocumentPage() {
               {translatedText && (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">
-                    {translatedLanguage === "ru"
-                      ? t("scanDoc.translatedRu")
-                      : t("scanDoc.translatedUz")}
+                    {translatedLanguage === "ru" ? t("scanDoc.translatedRu") : t("scanDoc.translatedUz")}
                   </p>
                   <textarea
                     value={translatedText}
@@ -552,12 +715,27 @@ export default function ScanDocumentPage() {
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 gap-1" onClick={reset}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="flex-1 gap-1 min-w-[120px]" onClick={reset}>
               <RotateCcw className="w-4 h-4" />
               {t("scanDoc.retake")}
             </Button>
-            <Button className="flex-1 gap-1" onClick={() => uploadMutation.mutate()}>
+            {docType === "vehicle_doc" && Object.keys(extractedFields).length > 0 && (
+              <Button
+                variant="outline"
+                className="flex-1 gap-1 min-w-[140px]"
+                onClick={() => exportAutoMutation.mutate()}
+                disabled={exportAutoMutation.isPending}
+              >
+                {exportAutoMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {i18n.language === "ru" ? "Excel выгрузка" : "Excel eksport"}
+              </Button>
+            )}
+            <Button className="flex-1 gap-1 min-w-[120px]" onClick={() => uploadMutation.mutate()}>
               <Upload className="w-4 h-4" />
               {t("scanDoc.save")}
             </Button>

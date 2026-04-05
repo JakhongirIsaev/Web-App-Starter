@@ -5,6 +5,10 @@ import {
   AiExtractAutoResponseType,
   AiGenerateOfferSummaryBodyType,
   AiGenerateOfferSummaryResponse,
+  AiGenerateQuestionsBodyType,
+  AiGenerateQuestionsResponse,
+  AiGenerateQuestionsResponseType,
+  AiQuestionAnswerSchema,
   AiRecommendProductsBodyType,
   AiRecommendProductsResponse,
   AiTranslateBodyType,
@@ -31,6 +35,50 @@ const RECOMMEND_RESPONSE_SCHEMA: Record<string, unknown> = {
         },
       },
     },
+  },
+};
+
+const QUESTION_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["questions"],
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["key", "label", "type", "options"],
+        properties: {
+          key: { type: "string" },
+          label: { type: "string" },
+          type: { type: "string", enum: ["select", "input"] },
+          placeholder: { type: ["string", "null"] },
+          helperText: { type: ["string", "null"] },
+          options: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["value", "label"],
+              properties: {
+                value: { type: "string" },
+                label: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const TRANSLATE_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["text"],
+  properties: {
+    text: { type: "string" },
   },
 };
 
@@ -75,8 +123,152 @@ function trimText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function trimMultilineText(value: string): string {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function countMatches(value: string, pattern: RegExp): number {
+  return value.match(pattern)?.length ?? 0;
+}
+
+function looksMostlyCyrillic(value: string): boolean {
+  const cyrillic = countMatches(value, /[\u0400-\u04FF]/g);
+  const latin = countMatches(value, /[A-Za-z]/g);
+  return cyrillic > 0 && cyrillic >= latin;
+}
+
+function looksLikeUzbekLatin(value: string): boolean {
+  const cyrillic = countMatches(value, /[\u0400-\u04FF]/g);
+  const latin = countMatches(value, /[A-Za-z]/g);
+  return latin > 0 && cyrillic <= Math.max(1, Math.floor(latin / 4));
+}
+
+function shouldRetryTranslation(
+  sourceText: string,
+  targetLanguage: "ru" | "uz",
+  translatedText: string,
+): boolean {
+  const sourceHasLetters = /[A-Za-z\u0400-\u04FF]/.test(sourceText);
+  if (!sourceHasLetters || translatedText.length < 3) return true;
+  if (targetLanguage === "ru") return !looksMostlyCyrillic(translatedText);
+  return !looksLikeUzbekLatin(translatedText);
+}
+
+function buildQuestionOption(
+  value: string,
+  uz: string,
+  ru: string,
+  en: string,
+  language: "ru" | "uz" | "en",
+) {
+  if (language === "ru") return { value, label: ru };
+  if (language === "en") return { value, label: en };
+  return { value, label: uz };
+}
+
+function buildFallbackQuestions(
+  input: AiGenerateQuestionsBodyType,
+): AiGenerateQuestionsResponseType {
+  const answerMap = new Map(
+    input.existingAnswers.map(
+      (item: AiGenerateQuestionsBodyType["existingAnswers"][number]) => [
+        item.questionKey,
+        item.answer,
+      ],
+    ),
+  );
+  const language = input.language;
+  const fallbackQuestions = [
+    {
+      key: "monthly_turnover_range",
+      label:
+        language === "ru"
+          ? "Какой диапазон ежемесячного оборота у клиента?"
+          : language === "en"
+            ? "What is the client's approximate monthly turnover?"
+            : "Mijozning oylik aylanmasi taxminan qaysi diapazonda?",
+      type: "select" as const,
+      helperText:
+        language === "ru"
+          ? "Это помогает точнее подобрать лимит и формат продукта."
+          : language === "en"
+            ? "This helps choose a suitable limit and product format."
+            : "Bu mos limit va mahsulot formatini aniqlashga yordam beradi.",
+      options: [
+        buildQuestionOption("up_to_500m", "500 mln so'mgacha", "До 500 млн сум", "Up to 500m UZS", language),
+        buildQuestionOption("500m_to_2b", "500 mln - 2 mlrd so'm", "500 млн - 2 млрд сум", "500m to 2b UZS", language),
+        buildQuestionOption("over_2b", "2 mlrd so'mdan yuqori", "Свыше 2 млрд сум", "Over 2b UZS", language),
+        buildQuestionOption("not_sure", "Aniq emas", "Пока неясно", "Not sure yet", language),
+      ],
+    },
+    {
+      key: "has_collateral",
+      label:
+        language === "ru"
+          ? "Есть ли у клиента залог или имущество для обеспечения?"
+          : language === "en"
+            ? "Does the client have collateral or assets for security?"
+            : "Mijozda ta'minot yoki garovga qo'yiladigan aktiv bormi?",
+      type: "select" as const,
+      helperText:
+        language === "ru"
+          ? "Ответ помогает не показывать неподходящие варианты."
+          : language === "en"
+            ? "This helps avoid showing unsuitable options."
+            : "Bu mos bo'lmagan variantlarni qisqartirishga yordam beradi.",
+      options: [
+        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
+        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
+        buildQuestionOption("not_sure", "Hali noma'lum", "Пока неизвестно", "Not sure yet", language),
+      ],
+    },
+    {
+      key: "preferred_currency",
+      label:
+        language === "ru"
+          ? "В какой валюте клиенту удобнее оформлять продукт?"
+          : language === "en"
+            ? "Which currency is more convenient for the client?"
+            : "Mijozga mahsulot qaysi valyutada qulayroq?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("uzs", "So'm", "Сум", "UZS", language),
+        buildQuestionOption("usd", "Dollar", "Доллар", "USD", language),
+        buildQuestionOption("eur", "Yevro", "Евро", "EUR", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+      ],
+    },
+    {
+      key: "needs_quick_disbursement",
+      label:
+        language === "ru"
+          ? "Нужна ли клиенту максимально быстрая выдача?"
+          : language === "en"
+            ? "Does the client need the fastest possible disbursement?"
+            : "Mijozga mablag'ni tez ajratish muhimmi?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("yes", "Ha, tez kerak", "Да, важно быстро", "Yes, urgently", language),
+        buildQuestionOption("flexible", "Muddat bo'yicha moslashuvchan", "Срок гибкий", "Flexible timing", language),
+        buildQuestionOption("not_sure", "Hali noma'lum", "Пока неизвестно", "Not sure yet", language),
+      ],
+    },
+  ];
+
+  return AiGenerateQuestionsResponse.parse({
+    questions: fallbackQuestions
+      .filter((question) => !answerMap.has(question.key))
+      .slice(0, input.maxQuestions),
+  });
+}
+
 function fallbackRecommendation(input: AiRecommendProductsBodyType) {
-  const recommendations = input.allowedProducts.slice(0, 5).map((product: AiRecommendProductsBodyType["allowedProducts"][number], index: number) => ({
+  const recommendations = input.allowedProducts.slice(0, 5).map((product, index) => ({
     productId: product.id ?? null,
     productName: product.name,
     rank: index + 1,
@@ -101,10 +293,10 @@ function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
   const calc = input.calculatorResult;
   const language: "ru" | "uz" | "en" =
     input.language === "ru" || input.language === "en" ? input.language : "uz";
+
   const summaryPartsByLanguage = {
     uz: [
-      `${input.clientName} uchun tavsiya etilgan asosiy mahsulot: ${firstProduct.productName}.`,
-      firstProduct.whySuitable ? `Tanlash sababi: ${firstProduct.whySuitable}.` : "",
+      `${input.clientName} uchun asosiy taklif: ${firstProduct.productName}.`,
       calc?.loanAmount && calc?.currency
         ? `Hisob-kitob bo'yicha kredit summasi ${calc.loanAmount} ${calc.currency}.`
         : "",
@@ -114,8 +306,7 @@ function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
         : "",
     ],
     ru: [
-      `Для клиента ${input.clientName} ключевым вариантом является ${firstProduct.productName}.`,
-      firstProduct.whySuitable ? `Причина выбора: ${firstProduct.whySuitable}.` : "",
+      `Для клиента подготовлен основной вариант ${firstProduct.productName}.`,
       calc?.loanAmount && calc?.currency
         ? `По расчету сумма кредита составляет ${calc.loanAmount} ${calc.currency}.`
         : "",
@@ -125,8 +316,7 @@ function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
         : "",
     ],
     en: [
-      `The leading option for ${input.clientName} is ${firstProduct.productName}.`,
-      firstProduct.whySuitable ? `Why it fits: ${firstProduct.whySuitable}.` : "",
+      `The main offer for ${input.clientName} is ${firstProduct.productName}.`,
       calc?.loanAmount && calc?.currency
         ? `The calculated loan amount is ${calc.loanAmount} ${calc.currency}.`
         : "",
@@ -137,10 +327,8 @@ function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
     ],
   } as const;
 
-  const summaryParts = summaryPartsByLanguage[language].filter(Boolean);
-
   return AiGenerateOfferSummaryResponse.parse({
-    summary: summaryParts.join(" "),
+    summary: summaryPartsByLanguage[language].filter(Boolean).join(" "),
   });
 }
 
@@ -161,10 +349,102 @@ function fallbackAutoExtractionFromOcr(ocrText?: string | null): AiExtractAutoRe
   });
 }
 
+function mergeAutoExtractionWithFallback(
+  extracted: AiExtractAutoResponseType,
+  fallback: AiExtractAutoResponseType,
+): AiExtractAutoResponseType {
+  return AiExtractAutoResponse.parse({
+    make: extracted.make ?? fallback.make,
+    model: extracted.model ?? fallback.model,
+    vehicleType: extracted.vehicleType ?? fallback.vehicleType,
+    color: extracted.color ?? fallback.color,
+    plateText: extracted.plateText ?? fallback.plateText,
+    approximateYear: extracted.approximateYear ?? fallback.approximateYear,
+    visibleConditionNotes: extracted.visibleConditionNotes ?? fallback.visibleConditionNotes,
+    confidence: Math.max(extracted.confidence ?? 0, fallback.confidence ?? 0),
+    rawNotes: extracted.rawNotes ?? fallback.rawNotes,
+  });
+}
+
+export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyType) {
+  const existingAnswers = input.existingAnswers.map(
+    (item: AiGenerateQuestionsBodyType["existingAnswers"][number]) =>
+      AiQuestionAnswerSchema.parse(item),
+  );
+  const existingKeys = new Set(
+    existingAnswers.map((item: typeof existingAnswers[number]) => item.questionKey),
+  );
+
+  try {
+    const { data, model } = await ollamaChatJson<unknown>({
+      format: QUESTION_RESPONSE_SCHEMA,
+      timeoutMs: 40_000,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a banking workflow assistant for a Telegram Mini App.",
+            "Create concise follow-up questionnaire items for a credit expert.",
+            "Return valid JSON only.",
+            "Ask at most the requested number of questions.",
+            "Do not repeat already answered question keys.",
+            "Do not repeat base question keys.",
+            "Prefer select questions with 3 to 4 clear options.",
+            "Use meaningful snake_case keys.",
+            "Do not invent policies, rates, or eligibility rules.",
+            "Questions must help choose a bank product in a structured workflow.",
+            languageInstruction(input.language),
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: compactJson({
+            maxQuestions: input.maxQuestions,
+            existingAnswers,
+            forbiddenQuestionKeys: Array.from(existingKeys),
+            baseQuestionKeys: [
+              "business_type",
+              "business_size",
+              "need_type",
+              "loan_purpose",
+              "desired_amount",
+              "desired_term",
+            ],
+          }),
+        },
+      ],
+    });
+
+    const parsed = AiGenerateQuestionsResponse.parse(data);
+    return {
+      questions: parsed.questions
+        .filter(
+          (question: AiGenerateQuestionsResponseType["questions"][number]) =>
+            !existingKeys.has(question.key),
+        )
+        .slice(0, input.maxQuestions)
+        .map((question: AiGenerateQuestionsResponseType["questions"][number]) => ({
+          ...question,
+          options: question.type === "select" ? question.options.slice(0, 6) : [],
+        })),
+      model,
+    };
+  } catch {
+    return {
+      ...buildFallbackQuestions({
+        ...input,
+        existingAnswers,
+      }),
+      model: "fallback",
+    };
+  }
+}
+
 export async function recommendAllowedProducts(input: AiRecommendProductsBodyType) {
-  const sanitizedProducts = input.allowedProducts.map((item: AiRecommendProductsBodyType["allowedProducts"][number]) =>
+  const sanitizedProducts = input.allowedProducts.map((item) =>
     AiAllowedProductSchema.parse(item),
   );
+
   if (sanitizedProducts.length === 0) {
     return AiRecommendProductsResponse.parse({ recommendations: [] });
   }
@@ -193,7 +473,8 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
             needsGoals: input.needsGoals ?? null,
             requestedAmount: input.requestedAmount ?? null,
             termMonths: input.termMonths ?? null,
-            allowedProducts: sanitizedProducts.map((product: typeof sanitizedProducts[number]) => ({
+            questionnaireAnswers: input.questionnaireAnswers ?? [],
+            allowedProducts: sanitizedProducts.map((product) => ({
               id: product.id ?? null,
               name: product.name,
               segment: product.segment ?? null,
@@ -214,9 +495,8 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
       ],
     });
 
-    const parsed = AiRecommendProductsResponse.parse(data);
     return {
-      ...parsed,
+      ...AiRecommendProductsResponse.parse(data),
       model,
     };
   } catch {
@@ -237,7 +517,8 @@ export async function generateOfferSummary(input: AiGenerateOfferSummaryBodyType
           content: [
             "You are a banking workflow assistant.",
             "Write one concise polished offer summary for a client-ready PDF.",
-            "Do not mention internal reasoning.",
+            "Write only client-facing text.",
+            "Do not mention internal reasoning or why the product was selected.",
             "Do not invent products, rates, or terms.",
             "Use only the provided data.",
             languageInstruction(input.language),
@@ -270,31 +551,56 @@ export async function translateText(input: AiTranslateBodyType) {
   const sourceLabel = input.sourceLanguage === "ru" ? "Russian" : "Uzbek";
   const targetLabel = input.targetLanguage === "ru" ? "Russian" : "Uzbek";
 
-  const { content, model } = await ollamaChatText({
-    timeoutMs: 25_000,
-    temperature: 0.1,
-    messages: [
-      {
-        role: "system",
-        content: [
-          "You are a translation helper in a banking workflow.",
-          `Translate from ${sourceLabel} to ${targetLabel}.`,
-          "Return translated text only.",
-          "Preserve numbers, names, currency values, and identifiers.",
-          "Do not add explanations or markup.",
-        ].join(" "),
-      },
-      {
-        role: "user",
-        content: input.text,
-      },
-    ],
-  });
+  const translateOnce = async (retry = false) => {
+    const { data, model } = await ollamaChatJson<{ text: string }>({
+      format: TRANSLATE_RESPONSE_SCHEMA,
+      timeoutMs: 30_000,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a translation helper in a banking workflow.",
+            `Translate from ${sourceLabel} to ${targetLabel}.`,
+            input.targetLanguage === "uz"
+              ? "Output Uzbek in Latin script only. Do not use Cyrillic."
+              : "Output Russian in natural Cyrillic.",
+            "Return JSON with one field: text.",
+            "Preserve names, numbers, identifiers, VIN, plate text, passport numbers, phone numbers, and currency values.",
+            "Do not add explanations, comments, or markdown.",
+            retry
+              ? "The previous attempt was not translated correctly. Translate the content faithfully now."
+              : "Translate the content faithfully.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: input.text,
+        },
+      ],
+    });
 
-  return { text: trimText(content), model };
+    return {
+      model,
+      text: trimMultilineText(data.text || ""),
+    };
+  };
+
+  let translated = await translateOnce(false);
+  if (shouldRetryTranslation(input.text, input.targetLanguage, translated.text)) {
+    translated = await translateOnce(true);
+  }
+
+  if (!translated.text) {
+    throw new Error("Translation returned empty text");
+  }
+
+  return translated;
 }
 
 export async function extractAutoDetails(input: AiExtractAutoBodyType) {
+  const ocrFallback = fallbackAutoExtractionFromOcr(input.ocrText);
+
   try {
     const { data, model } = await ollamaChatJson<unknown>({
       format: EXTRACT_AUTO_RESPONSE_SCHEMA,
@@ -335,12 +641,15 @@ export async function extractAutoDetails(input: AiExtractAutoBodyType) {
     });
 
     return {
-      ...AiExtractAutoResponse.parse(data),
+      ...mergeAutoExtractionWithFallback(
+        AiExtractAutoResponse.parse(data),
+        ocrFallback,
+      ),
       model,
     };
   } catch {
     return {
-      ...fallbackAutoExtractionFromOcr(input.ocrText),
+      ...ocrFallback,
       model: "fallback",
     };
   }

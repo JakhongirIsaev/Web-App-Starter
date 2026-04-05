@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import {
   AiExtractAutoBody,
   AiGenerateOfferSummaryBody,
+  AiGenerateQuestionsBody,
   AiRecommendProductsBody,
   AiTranslateBody,
 } from "@workspace/api-zod";
@@ -11,6 +12,7 @@ import { getOllamaConfig, getOllamaHealth, OllamaRequestError } from "../ai/olla
 import {
   extractAutoDetails,
   generateOfferSummary,
+  generateFollowUpQuestions,
   recommendAllowedProducts,
   translateText,
 } from "../ai/service";
@@ -60,6 +62,25 @@ router.get("/ai/health", async (req, res) => {
       modelAvailable: false,
       modelLoaded: null,
     });
+  }
+});
+
+router.post("/ai/generate-questionnaire", requireAuth, async (req, res) => {
+  const startedAt = Date.now();
+  const parsed = AiGenerateQuestionsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const result = await generateFollowUpQuestions(parsed.data);
+    logAiResult(req, "/api/ai/generate-questionnaire", true, startedAt);
+    res.json(result);
+  } catch (error) {
+    logAiResult(req, "/api/ai/generate-questionnaire", false, startedAt, error);
+    const status = error instanceof OllamaRequestError ? error.status : 503;
+    res.status(status).json({ error: error instanceof Error ? error.message : "Question generation failed" });
   }
 });
 

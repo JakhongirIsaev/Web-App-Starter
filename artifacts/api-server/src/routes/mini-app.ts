@@ -1,5 +1,6 @@
 ﻿import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
+import XLSX from "xlsx";
 import {
   clientsTable,
   type ClientStatus,
@@ -194,11 +195,9 @@ async function buildOfferSummaryForPdf(
   const selectedProducts = payload.basketItems.map((item) => ({
     productId: typeof item.productId === "number" ? item.productId : null,
     productName: item.productName || item.name || "Mahsulot",
-    whySuitable: item.whySuitable || item.notes || null,
-    amount: item.loanAmount || null,
-    rate: [item.rateUZS, item.rateUSD, item.rateEUR].filter(Boolean).join(" | ") || null,
-    termMonths: null,
-    notes: item.notes || null,
+    amount: item.loanAmount || undefined,
+    rate: [item.rateUZS, item.rateUSD, item.rateEUR].filter(Boolean).join(" | ") || undefined,
+    termMonths: undefined,
   }));
 
   if (selectedProducts.length === 0) {
@@ -1059,6 +1058,61 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     console.error("PDF generation error:", err);
     res.status(500).json({ error: "Failed to generate PDF" });
   }
+});
+
+router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
+  const extractedData =
+    req.body?.extractedData && typeof req.body.extractedData === "object"
+      ? (req.body.extractedData as Record<string, unknown>)
+      : {};
+  const ocrText = typeof req.body?.ocrText === "string" ? req.body.ocrText : "";
+  const imageCount =
+    typeof req.body?.imageCount === "number" && Number.isFinite(req.body.imageCount)
+      ? req.body.imageCount
+      : 0;
+  const clientId =
+    typeof req.body?.clientId === "number" && Number.isFinite(req.body.clientId)
+      ? req.body.clientId
+      : null;
+
+  const workbook = XLSX.utils.book_new();
+  const vehicleSheet = XLSX.utils.json_to_sheet([
+    {
+      clientId: clientId ?? "",
+      exportedAt: formatDateTimeInAppTimeZone(new Date()),
+      imageCount,
+      make: String(extractedData.make ?? ""),
+      model: String(extractedData.model ?? ""),
+      vehicleType: String(extractedData.vehicleType ?? ""),
+      color: String(extractedData.color ?? ""),
+      plateText: String(extractedData.plateText ?? extractedData.plateNumber ?? ""),
+      approximateYear: String(extractedData.approximateYear ?? ""),
+      vin: String(extractedData.vin ?? ""),
+      visibleConditionNotes: String(extractedData.visibleConditionNotes ?? ""),
+      confidence: String(extractedData.confidence ?? ""),
+      rawNotes: String(extractedData.rawNotes ?? ""),
+    },
+  ]);
+  XLSX.utils.book_append_sheet(workbook, vehicleSheet, "Vehicle");
+
+  const rawTextSheet = XLSX.utils.aoa_to_sheet([
+    ["OCR Text"],
+    [ocrText || ""],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, rawTextSheet, "OCR");
+
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  const fileName = `auto_extract_${clientId ?? "preview"}_${formatFileDate()}.xlsx`;
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+  );
+  res.send(buffer);
 });
 
 router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {

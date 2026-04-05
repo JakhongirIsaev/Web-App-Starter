@@ -250,7 +250,6 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
         if (item.highlight) {
           y = drawRow("Asosiy afzalligi", item.highlight, y);
         }
-        y = drawRow("Nima uchun mos", item.whySuitable || item.notes || "Mahsulot mijoz ehtiyojlariga mos kelgani uchun tavsiya qilindi.", y);
         y += 6;
       });
     }

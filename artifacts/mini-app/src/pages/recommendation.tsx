@@ -49,10 +49,11 @@ export default function RecommendationPage() {
       api.post("/ai/recommend-products", {
         clientBusinessType: answerMap.get("business_type") || undefined,
         sector: answerMap.get("business_type") || undefined,
-        needsGoals: [answerMap.get("need_type"), answerMap.get("loan_purpose")].filter(Boolean),
+        needsGoals: answers.map((item) => `${item.questionKey}: ${item.answer}`),
         requestedAmount: answerMap.get("desired_amount") || undefined,
         termMonths: answerMap.get("desired_term") || undefined,
         language: i18n.language === "ru" ? "ru" : "uz",
+        questionnaireAnswers: answers,
         allowedProducts: (data?.recommended || []).map((product: any) => ({
           id: product.id,
           name: product.name,
