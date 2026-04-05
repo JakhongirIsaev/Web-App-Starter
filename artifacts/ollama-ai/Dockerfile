@@ -9,4 +9,4 @@ RUN chmod +x /start.sh
 
 EXPOSE 11434
 
-CMD ["/bin/bash", "/start.sh"]
+ENTRYPOINT ["/bin/sh", "/start.sh"]

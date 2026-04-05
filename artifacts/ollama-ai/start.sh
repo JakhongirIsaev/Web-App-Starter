@@ -1,5 +1,5 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 export OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0:11434}"
 export OLLAMA_MODELS="${OLLAMA_MODELS:-/root/.ollama}"
