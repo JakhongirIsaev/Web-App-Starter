@@ -23,6 +23,12 @@ import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
 import {
+  formatDateTimeInAppTimeZone,
+  formatFileDate,
+  startOfAppDay,
+  startOfAppMonth,
+} from "../lib/timezone";
+import {
   buildClientPreferenceProfile,
   buildRecommendationNote,
   getRateSummary,
@@ -162,9 +168,8 @@ router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const branchId = req.user!.branchId;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const today = startOfAppDay();
+  const monthStart = startOfAppMonth();
   const isAdmin = adminRoles.includes(role);
 
   const [myClients] = await db
@@ -390,7 +395,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     .orderBy(desc(clientsTable.updatedAt));
 
   let text = `=== BARCHA MIJOZLAR EKSPORTI ===\n`;
-  text += `Sana: ${new Date().toISOString().slice(0, 10)}\n`;
+  text += `Sana: ${formatFileDate()}\n`;
   text += `Jami: ${clients.length}\n\n`;
 
   for (const client of clients) {
@@ -398,7 +403,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     text += `F.I.Sh.: ${client.fullName || "-"}\n`;
     text += `Telefon: ${client.phone || "-"}\n`;
     text += `Holat: ${client.status}\n`;
-    text += `Yaratilgan sana: ${client.createdAt}\n`;
+    text += `Yaratilgan sana: ${formatDateTimeInAppTimeZone(client.createdAt)}\n`;
 
     const docs = await db
       .select()
@@ -427,7 +432,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     if (clientNotes.length > 0) {
       text += `Izohlar: ${clientNotes.length}\n`;
       for (const n of clientNotes) {
-        text += `  - [${n.createdAt}] ${n.content}\n`;
+        text += `  - [${formatDateTimeInAppTimeZone(n.createdAt)}] ${n.content}\n`;
       }
     }
 
@@ -446,7 +451,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     text += `\n`;
   }
 
-  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateStr = formatFileDate();
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="all_clients_${dateStr}.txt"; filename*=UTF-8''${encodeURIComponent(`all_clients_export_${dateStr}.txt`)}`);
   res.send(text);
@@ -841,9 +846,7 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
     .from(usersTable)
     .where(and(eq(usersTable.branchId, branchId), eq(usersTable.isActive, true)));
 
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  const monthStart = startOfAppMonth();
 
   const workerStats = [];
   for (const w of workers) {
@@ -975,7 +978,7 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     }
 
     if (sendViaTelegram && targetTelegramId) {
-      const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
       const caption = `📋 Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\n👤 Ekspert: ${payload.expertName}`;
       telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
     }
@@ -1014,8 +1017,9 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   try {
     const pdfBuffer = await generateClientPdf(payload);
 
-    const safeName = `KP_${payload.client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    const displayName = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const fileDate = formatFileDate();
+    const safeName = `KP_${payload.client.id}_${fileDate}.pdf`;
+    const displayName = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${fileDate}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);
@@ -1064,7 +1068,7 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   text += `F.I.Sh.: ${client.fullName || "-"}\n`;
   text += `Telefon: ${client.phone || "-"}\n`;
   text += `Holat: ${client.status}\n`;
-  text += `Yaratilgan sana: ${client.createdAt}\n\n`;
+  text += `Yaratilgan sana: ${formatDateTimeInAppTimeZone(client.createdAt)}\n\n`;
 
   if (docs.length > 0) {
     text += `=== HUJJATLAR (${docs.length}) ===\n`;
@@ -1085,7 +1089,7 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   if (clientNotes.length > 0) {
     text += `=== IZOH VA ESLATMALAR (${clientNotes.length}) ===\n`;
     for (const n of clientNotes) {
-      text += `[${n.createdAt}] ${n.content}\n`;
+      text += `[${formatDateTimeInAppTimeZone(n.createdAt)}] ${n.content}\n`;
     }
     text += `\n`;
   }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
-import { format } from "date-fns";
 import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { formatAdminLongDate } from "@/lib/time";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -188,7 +188,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   <Calendar className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.createdDate")}</dt>
-                    <dd className="text-base text-foreground mt-1">{format(new Date(client.createdAt), 'MMMM d, yyyy')}</dd>
+                    <dd className="text-base text-foreground mt-1">{formatAdminLongDate(client.createdAt)}</dd>
                   </div>
                 </div>
               </dl>

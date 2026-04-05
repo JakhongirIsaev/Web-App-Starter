@@ -11,9 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
-import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
 import { localizePurpose, localizeHighlight, localizeDisbursement, localizeMonthsField, localizeLoanAmount } from "@/lib/localize";
+import { formatAdminFileDate } from "@/lib/time";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -138,7 +138,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
       termUntargeted: p.termUntargeted || "", rateUZS: p.rateUZS || "", rateUSD: p.rateUSD || "",
       rateEUR: p.rateEUR || "", gracePeriod: p.gracePeriod || "", purpose: p.purpose || "", highlight: p.highlight || "",
     }));
-    downloadCsv(rows, `credit_products_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
+import { formatDateInAppTimeZone } from "../lib/timezone";
 
 interface PreferenceItem {
   label: string;
@@ -63,8 +64,7 @@ function fmtNum(val: string | number | null | undefined): string {
 }
 
 function fmtDate(value: Date | string): string {
-  const date = typeof value === "string" ? new Date(value) : value;
-  return date.toLocaleDateString("uz-UZ", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return formatDateInAppTimeZone(value);
 }
 
 function buildRateSummary(item: PdfData["basketItems"][number]) {

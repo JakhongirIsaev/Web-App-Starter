@@ -6,7 +6,6 @@ import {
 } from "@workspace/api-client-react";
 import type { Article } from "@workspace/api-client-react";
 import { Plus, BookOpen, Globe2, Building2, Pencil, Trash2, Download, Upload } from "lucide-react";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate, formatAdminShortDate } from "@/lib/time";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -122,7 +122,7 @@ export default function Articles({ user }: { user?: { role: string } }) {
       isPublished: a.isPublished, targetAllBranches: a.targetAllBranches,
       author: a.author?.name || "", updatedAt: a.updatedAt,
     }));
-    downloadCsv(rows, `articles_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `articles_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -234,7 +234,7 @@ export default function Articles({ user }: { user?: { role: string } }) {
                 <CardFooter className="pt-0 text-xs text-muted-foreground flex justify-between items-center border-t border-border/30 px-6 py-3 mt-auto">
                   <span>{t("articles.by", { name: article.author?.name || 'System' })}</span>
                   <div className="flex items-center gap-2">
-                    <span>{format(new Date(article.updatedAt), 'MMM d, yyyy')}</span>
+                    <span>{formatAdminShortDate(article.updatedAt)}</span>
                     {canWrite && (
                       <>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(article)}>

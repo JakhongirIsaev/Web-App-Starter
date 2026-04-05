@@ -44,6 +44,7 @@ Required env vars:
 
 - `PORT`
 - `DATABASE_URL`
+- `TZ=Asia/Tashkent`
 
 Optional env vars:
 
@@ -65,6 +66,7 @@ Required env vars:
 
 - `PORT`
 - `BASE_PATH=/`
+- `TZ=Asia/Tashkent`
 
 Recommended env vars:
 
@@ -82,6 +84,7 @@ Required env vars:
 
 - `PORT`
 - `BASE_PATH=/`
+- `TZ=Asia/Tashkent`
 
 Recommended env vars:
 
@@ -94,4 +97,5 @@ Recommended env vars:
 - `api-spec`, `api-client-react`, and `api-zod` are codegen/support packages only.
 - `mockup-sandbox` is a design/demo artifact and should stay out of production.
 - `admin` and `mini-app` now use the checked-in `scripts/serve-spa.mjs` static server in production instead of `vite preview`.
+- Use `Asia/Tashkent` as the runtime timezone for all three deployable services so dashboards, exports, and PDFs stay aligned with Uzbekistan time.
 - The API process also starts the Telegram bot, so run a single web replica unless you split the bot into its own worker later.

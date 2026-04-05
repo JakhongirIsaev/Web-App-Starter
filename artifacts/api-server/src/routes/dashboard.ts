@@ -4,6 +4,7 @@ import { clientsTable, usersTable, branchesTable, productsTable, activityLogTabl
 import { eq, and, sql, gte } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/auth";
+import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 
 const router: IRouter = Router();
 
@@ -11,9 +12,8 @@ router.get("/dashboard/summary", requireAuth, async (req, res) => {
   const user = req.user!;
   const branchScoped = user.role === "branch_head" && user.branchId;
 
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfDay = startOfAppDay();
+  const startOfMonth = startOfAppMonth();
 
   const branchFilter = branchScoped ? eq(clientsTable.branchId, user.branchId!) : undefined;
 

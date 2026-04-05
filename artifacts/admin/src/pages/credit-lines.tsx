@@ -11,9 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
-import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
 import { localizeSection, localizeDepartment, localizeSpecialConditions, localizeNotes } from "@/lib/localize";
+import { formatAdminFileDate } from "@/lib/time";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -142,7 +142,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
       remainingBalance: p.remainingBalance || "", projectCount: p.projectCount || "",
       specialConditions: p.specialConditions || "", notes: p.notes || "", section: p.section || "",
     }));
-    downloadCsv(rows, `credit_lines_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

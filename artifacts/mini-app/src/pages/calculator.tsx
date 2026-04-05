@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fmtNum } from "@/lib/format";
+import { fmtDate, fmtNum, getTashkentDateByMonthOffset } from "@/lib/format";
 import { Calculator as CalcIcon, ChevronDown, ChevronUp, Printer } from "lucide-react";
 
 export default function CalculatorPage() {
@@ -60,9 +60,7 @@ export default function CalculatorPage() {
   };
 
   const getPaymentDate = (monthIndex: number) => {
-    const today = new Date();
-    const d = new Date(today.getFullYear(), today.getMonth() + monthIndex, today.getDate());
-    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return fmtDate(getTashkentDateByMonthOffset(monthIndex));
   };
 
   return (

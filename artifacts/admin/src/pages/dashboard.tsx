@@ -10,9 +10,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
+import { formatAdminDateTime } from "@/lib/time";
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -230,7 +230,7 @@ export default function Dashboard() {
                       {" "}{activity.description}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{format(new Date(activity.createdAt), 'MMM d, h:mm a')}</span>
+                      <span>{formatAdminDateTime(activity.createdAt)}</span>
                       {activity.branchName && (
                         <>
                           <span>•</span>

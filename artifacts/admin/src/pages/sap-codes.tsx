@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
-import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate } from "@/lib/time";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -114,7 +114,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
       status: p.status || "", productId: p.productId || "", name: p.name,
       productType: p.productType || "", categoryId: p.categoryId || "", categoryName: p.categoryName || "",
     }));
-    downloadCsv(rows, `sap_codes_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

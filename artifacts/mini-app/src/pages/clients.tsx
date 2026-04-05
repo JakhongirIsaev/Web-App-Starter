@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { Plus, Search, ChevronRight, User, Download } from "lucide-react";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, formatFileDate } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -41,7 +41,7 @@ export default function ClientsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `all_clients_export_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `all_clients_export_${formatFileDate()}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     },

@@ -5,7 +5,6 @@ import {
 } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate, formatAdminFileDateTime, formatAdminMonthYear } from "@/lib/time";
 import * as XLSX from "xlsx";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -32,12 +32,6 @@ interface UserForm {
   role: string;
   branchId: string;
   password: string;
-}
-
-interface ImportResult {
-  imported: number;
-  skipped: { row: number; name: string; reason: string }[];
-  created: { name: string; telegramId: string; role: string; branch: string; password: string }[];
 }
 
 const emptyForm: UserForm = { telegramId: "", name: "", role: "branch_head", branchId: "", password: "" };
@@ -220,7 +214,7 @@ export default function Users() {
       id: u.id, name: u.name, telegramId: u.telegramId, role: u.role,
       branch: u.branch?.name || "", isActive: u.isActive, createdAt: u.createdAt,
     }));
-    downloadCsv(rows, `users_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `users_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -301,7 +295,7 @@ export default function Users() {
       branch: c.branch,
       password: c.password,
     }));
-    downloadCsv(rows, `credentials_${format(new Date(), "yyyy-MM-dd_HHmmss")}.csv`);
+    downloadCsv(rows, `credentials_${formatAdminFileDateTime()}.csv`);
     toast({ title: t("users.credentialsDownloaded") });
   };
 
@@ -405,7 +399,7 @@ export default function Users() {
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="font-medium text-foreground">{user.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{t("users.joined", { date: format(new Date(user.createdAt), "MMM yyyy") })}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{t("users.joined", { date: formatAdminMonthYear(user.createdAt) })}</div>
                     </TableCell>
                     <TableCell><code className="bg-muted px-2 py-1 rounded text-xs">{user.telegramId}</code></TableCell>
                     <TableCell>

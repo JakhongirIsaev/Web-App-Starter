@@ -12,9 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
 import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate } from "@/lib/time";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -74,7 +74,7 @@ export default function Branches() {
   const handleExport = () => {
     if (!branches?.length) return;
     const rows = branches.map(b => ({ id: b.id, name: b.name, city: b.city, isActive: b.isActive }));
-    downloadCsv(rows, `branches_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `branches_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

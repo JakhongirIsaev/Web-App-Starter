@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { useListClients, getListClientsQueryKey, useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { format } from "date-fns";
 import { Search, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate, formatAdminShortDate } from "@/lib/time";
 
 export function getStatusBadge(status: string, t: (key: string) => string) {
   const label = t(`statuses.${status}`);
@@ -79,7 +79,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
       sessionId: c.sessionId,
       createdAt: c.createdAt,
     }));
-    downloadCsv(rows, `clients_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `clients_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -219,7 +219,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
                       {client.assignedTo?.name || t("clients.unassigned")}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {format(new Date(client.createdAt), "MMM d, yyyy")}
+                      {formatAdminShortDate(client.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" asChild>

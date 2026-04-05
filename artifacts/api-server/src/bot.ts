@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, clientsTable, clientNextActionsTable } from "@workspace/db";
 import { eq, and, count, gte, lte, desc } from "drizzle-orm";
+import { formatDateInAppTimeZone, startOfAppDay } from "./lib/timezone";
 
 let bot: Bot | null = null;
 
@@ -113,8 +114,7 @@ export async function startBot(miniAppUrl: string) {
       return;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfAppDay();
 
     const clientBaseFilter =
       isAdminRole(user.role)
@@ -274,7 +274,7 @@ export async function startBot(miniAppUrl: string) {
 
     let msg = `🗂 <b>Yaqin vazifalar (${actions.length})</b>\n\n`;
     for (const action of actions) {
-      const date = action.actionDate ? new Date(action.actionDate).toLocaleDateString("uz-UZ") : "Sana yo'q";
+      const date = action.actionDate ? formatDateInAppTimeZone(action.actionDate) : "Sana yo'q";
       const overdue = action.actionDate && new Date(action.actionDate) < new Date();
       msg += `${typeEmoji[action.actionType] || "📌"} ${priorityEmoji[action.priority || "medium"] || "🟠"} <b>${action.clientName || "Ismsiz mijoz"}</b>\n`;
       msg += `   ${action.actionType} · ${date}${overdue ? " · kechikkan" : ""}\n\n`;

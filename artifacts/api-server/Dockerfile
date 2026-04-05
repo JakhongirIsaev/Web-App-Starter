@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+ENV TZ=Asia/Tashkent
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 fonts-dejavu-core \
@@ -25,6 +26,7 @@ FROM node:22-bookworm-slim AS runtime
 ENV PNPM_HOME=/pnpm
 ENV PATH="/opt/venv/bin:$PNPM_HOME:$PATH"
 ENV NODE_ENV=production
+ENV TZ=Asia/Tashkent
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 libglib2.0-0 libgl1 fonts-dejavu-core \

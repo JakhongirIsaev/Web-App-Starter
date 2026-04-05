@@ -18,8 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
-import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { formatAdminFileDate } from "@/lib/time";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -138,7 +138,7 @@ export default function Products() {
       minTermMonths: p.minTermMonths || "", maxTermMonths: p.maxTermMonths || "",
       interestRate: p.interestRate || "", isActive: p.isActive,
     }));
-    downloadCsv(rows, `products_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(rows, `products_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
