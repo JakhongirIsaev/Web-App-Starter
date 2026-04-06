@@ -23,7 +23,6 @@ import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
-import { generateOfferSummary } from "../ai/service";
 import {
   formatDateTimeInAppTimeZone,
   formatFileDate,
@@ -42,6 +41,7 @@ import {
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
+type PdfLanguage = "ru" | "uz" | "en";
 
 async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
   const [client] = await db
@@ -125,7 +125,15 @@ async function getDetailedBasketItems(clientId: number) {
   });
 }
 
-async function buildPdfPayload(clientId: number, user: { id: number }) {
+function resolvePdfLanguage(value: unknown): PdfLanguage {
+  return value === "ru" || value === "en" ? value : "uz";
+}
+
+async function buildPdfPayload(
+  clientId: number,
+  user: { id: number },
+  language: PdfLanguage,
+) {
   const [client] = await db
     .select()
     .from(clientsTable)
@@ -138,12 +146,24 @@ async function buildPdfPayload(clientId: number, user: { id: number }) {
   const calculations = await db
     .select()
     .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt));
+      .where(eq(calculationsTable.clientId, clientId))
+      .orderBy(desc(calculationsTable.createdAt));
 
   const answers = await getLatestQuestionnaireAnswers(clientId);
-  const profile = buildClientPreferenceProfile(answers);
-  const preferenceSummary = summarizeClientPreferences(profile);
+  const profile = buildClientPreferenceProfile(answers, language);
+  const preferenceSummary = summarizeClientPreferences(profile, language);
+
+  const localizedBasketItems = basketItems.map((item) => ({
+    ...item,
+    localizedSegment: null,
+    localizedPurpose: null,
+    localizedHighlight: null,
+    localizedLoanAmount: null,
+    localizedRate: null,
+    localizedRelevantTerm: null,
+    localizedDisbursementForm: null,
+    localizedGracePeriod: null,
+  }));
 
   const [expert] = await db
     .select({ name: usersTable.name, telegramId: usersTable.telegramId })
@@ -157,62 +177,14 @@ async function buildPdfPayload(clientId: number, user: { id: number }) {
 
   return {
     client,
-    basketItems,
+    basketItems: localizedBasketItems,
     calculations,
     preferenceSummary,
     expertName: expert?.name || "-",
     expertTelegramId: expert?.telegramId || null,
     branchName: branch?.name || "-",
-  };
-}
-
-function calculationsToSummaryInput(calculation: {
-  loanAmount: string;
-  monthlyPayment: string | null;
-  totalPayment: string | null;
-  totalInterest: string | null;
-  termMonths: number;
-  interestRate: string;
-  currency: string;
-} | undefined) {
-  if (!calculation) return null;
-
-  return {
-    loanAmount: calculation.loanAmount,
-    monthlyPayment: calculation.monthlyPayment || undefined,
-    totalPayment: calculation.totalPayment || undefined,
-    totalInterest: calculation.totalInterest || undefined,
-    termMonths: calculation.termMonths,
-    interestRate: calculation.interestRate,
-    currency: calculation.currency,
-  };
-}
-
-async function buildOfferSummaryForPdf(
-  payload: NonNullable<Awaited<ReturnType<typeof buildPdfPayload>>>,
-  language: "ru" | "uz" | "en",
-) {
-  const selectedProducts = payload.basketItems.map((item) => ({
-    productId: typeof item.productId === "number" ? item.productId : null,
-    productName: item.productName || item.name || "Mahsulot",
-    amount: item.loanAmount || undefined,
-    rate: [item.rateUZS, item.rateUSD, item.rateEUR].filter(Boolean).join(" | ") || undefined,
-    termMonths: undefined,
-  }));
-
-  if (selectedProducts.length === 0) {
-    return null;
-  }
-
-  const latestCalculation = calculationsToSummaryInput(payload.calculations[0]);
-  const offerSummaryResult = await generateOfferSummary({
-    selectedProducts,
-    calculatorResult: latestCalculation ?? undefined,
-    clientName: payload.client.fullName || "Mijoz",
     language,
-  });
-
-  return offerSummaryResult.summary;
+  };
 }
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
@@ -644,6 +616,7 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
 
 router.post("/mini-app/recommend", requireAuth, async (req, res) => {
   const { clientId, answers = [] } = req.body;
+  const language = resolvePdfLanguage(req.body.language);
 
   const allProducts = await db
     .select()
@@ -652,7 +625,7 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
 
   let recommended = allProducts;
   const answerList = Array.isArray(answers) ? answers : [];
-  const profile = buildClientPreferenceProfile(answerList);
+  const profile = buildClientPreferenceProfile(answerList, language);
 
   if (profile.businessSize) {
     const aliases = getSegmentAliases(profile.businessSize);
@@ -673,7 +646,7 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
 
   const enrichedRecommended = recommended.map((product) => ({
     ...product,
-    whySuitable: buildRecommendationNote(product as ProductLike, profile),
+    whySuitable: buildRecommendationNote(product as ProductLike, profile, language),
     relevantTerm: getRelevantTerm(product as ProductLike, profile.loanPurpose),
     rateSummary: getRateSummary(product as ProductLike),
   }));
@@ -1005,22 +978,17 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     return;
   }
 
-  const payload = await buildPdfPayload(clientId, user);
+  const language = resolvePdfLanguage(req.body.language);
+  const payload = await buildPdfPayload(clientId, user, language);
   if (!payload) {
     res.status(404).json({ error: "Client not found" });
     return;
   }
 
   try {
-    const language =
-      req.body.language === "ru" || req.body.language === "en"
-        ? req.body.language
-        : "uz";
-    const offerSummary = await buildOfferSummaryForPdf(payload, language);
-
     const pdfBuffer = await generateClientPdf({
       ...payload,
-      offerSummary,
+      offerSummary: null,
     });
 
     let telegramSent = false;
@@ -1117,27 +1085,23 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
 
 router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
+  const language = resolvePdfLanguage(req.query.language);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
     res.status(403).json({ error: "Access denied" });
     return;
   }
 
-  const payload = await buildPdfPayload(clientId, req.user!);
+  const payload = await buildPdfPayload(clientId, req.user!, language);
   if (!payload) {
     res.status(404).json({ error: "Client not found" });
     return;
   }
 
   try {
-    const language =
-      req.query.language === "ru" || req.query.language === "en"
-        ? req.query.language
-        : "uz";
-    const offerSummary = await buildOfferSummaryForPdf(payload, language);
     const pdfBuffer = await generateClientPdf({
       ...payload,
-      offerSummary,
+      offerSummary: null,
     });
 
     const fileDate = formatFileDate();

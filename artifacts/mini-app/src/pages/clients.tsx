@@ -50,10 +50,10 @@ export default function ClientsPage() {
   const statuses = ["", "draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"];
 
   return (
-    <div className="space-y-3 pb-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-3 pb-8">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-bold">{t("clients.title")}</h1>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           <Button
             size="sm"
             variant="outline"

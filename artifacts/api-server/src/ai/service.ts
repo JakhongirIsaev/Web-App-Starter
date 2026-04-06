@@ -32,6 +32,14 @@ const RECOMMEND_RESPONSE_SCHEMA: Record<string, unknown> = {
           rank: { type: "integer", minimum: 1, maximum: 10 },
           confidence: { type: "number", minimum: 0, maximum: 1 },
           explanation: { type: "string" },
+          localizedSegment: { type: ["string", "null"] },
+          localizedPurpose: { type: ["string", "null"] },
+          localizedHighlight: { type: ["string", "null"] },
+          localizedLoanAmount: { type: ["string", "null"] },
+          localizedRate: { type: ["string", "null"] },
+          localizedRelevantTerm: { type: ["string", "null"] },
+          localizedDisbursementForm: { type: ["string", "null"] },
+          localizedGracePeriod: { type: ["string", "null"] },
         },
       },
     },
@@ -109,7 +117,50 @@ const EXTRACT_AUTO_RESPONSE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-function languageInstruction(language: "ru" | "uz" | "en") {
+const LOCALIZED_PRODUCTS_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["products"],
+  properties: {
+    products: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["productName"],
+        properties: {
+          productId: { type: ["integer", "null"] },
+          productName: { type: "string" },
+          localizedSegment: { type: ["string", "null"] },
+          localizedPurpose: { type: ["string", "null"] },
+          localizedHighlight: { type: ["string", "null"] },
+          localizedLoanAmount: { type: ["string", "null"] },
+          localizedRate: { type: ["string", "null"] },
+          localizedRelevantTerm: { type: ["string", "null"] },
+          localizedDisbursementForm: { type: ["string", "null"] },
+          localizedGracePeriod: { type: ["string", "null"] },
+        },
+      },
+    },
+  },
+};
+
+type SupportedLanguage = "ru" | "uz" | "en";
+
+interface LocalizedProductPresentation {
+  productId?: number | null;
+  productName: string;
+  localizedSegment?: string | null;
+  localizedPurpose?: string | null;
+  localizedHighlight?: string | null;
+  localizedLoanAmount?: string | null;
+  localizedRate?: string | null;
+  localizedRelevantTerm?: string | null;
+  localizedDisbursementForm?: string | null;
+  localizedGracePeriod?: string | null;
+}
+
+function languageInstruction(language: SupportedLanguage) {
   if (language === "ru") return "Write the user-facing text in Russian.";
   if (language === "en") return "Write the user-facing text in English.";
   return "Write the user-facing text in Uzbek.";
@@ -164,7 +215,7 @@ function buildQuestionOption(
   uz: string,
   ru: string,
   en: string,
-  language: "ru" | "uz" | "en",
+  language: SupportedLanguage,
 ) {
   if (language === "ru") return { value, label: ru };
   if (language === "en") return { value, label: en };
@@ -185,77 +236,99 @@ function buildFallbackQuestions(
   const language = input.language;
   const fallbackQuestions = [
     {
-      key: "monthly_turnover_range",
-      label:
-        language === "ru"
-          ? "Какой диапазон ежемесячного оборота у клиента?"
-          : language === "en"
-            ? "What is the client's approximate monthly turnover?"
-            : "Mijozning oylik aylanmasi taxminan qaysi diapazonda?",
-      type: "select" as const,
-      helperText:
-        language === "ru"
-          ? "Это помогает точнее подобрать лимит и формат продукта."
-          : language === "en"
-            ? "This helps choose a suitable limit and product format."
-            : "Bu mos limit va mahsulot formatini aniqlashga yordam beradi.",
-      options: [
-        buildQuestionOption("up_to_500m", "500 mln so'mgacha", "До 500 млн сум", "Up to 500m UZS", language),
-        buildQuestionOption("500m_to_2b", "500 mln - 2 mlrd so'm", "500 млн - 2 млрд сум", "500m to 2b UZS", language),
-        buildQuestionOption("over_2b", "2 mlrd so'mdan yuqori", "Свыше 2 млрд сум", "Over 2b UZS", language),
-        buildQuestionOption("not_sure", "Aniq emas", "Пока неясно", "Not sure yet", language),
-      ],
-    },
-    {
-      key: "has_collateral",
-      label:
-        language === "ru"
-          ? "Есть ли у клиента залог или имущество для обеспечения?"
-          : language === "en"
-            ? "Does the client have collateral or assets for security?"
-            : "Mijozda ta'minot yoki garovga qo'yiladigan aktiv bormi?",
-      type: "select" as const,
-      helperText:
-        language === "ru"
-          ? "Ответ помогает не показывать неподходящие варианты."
-          : language === "en"
-            ? "This helps avoid showing unsuitable options."
-            : "Bu mos bo'lmagan variantlarni qisqartirishga yordam beradi.",
-      options: [
-        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
-        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
-        buildQuestionOption("not_sure", "Hali noma'lum", "Пока неизвестно", "Not sure yet", language),
-      ],
-    },
-    {
       key: "preferred_currency",
       label:
         language === "ru"
-          ? "В какой валюте клиенту удобнее оформлять продукт?"
+          ? "В какой валюте клиенту удобнее оформить продукт?"
           : language === "en"
-            ? "Which currency is more convenient for the client?"
+            ? "Which currency is most convenient for the client?"
             : "Mijozga mahsulot qaysi valyutada qulayroq?",
       type: "select" as const,
+      helperText:
+        language === "ru"
+          ? "Это помогает сразу убрать неподходящие валютные варианты."
+          : language === "en"
+            ? "This helps narrow down the most suitable products."
+            : "Bu mos bo'lmagan valyuta variantlarini darhol qisqartirishga yordam beradi.",
       options: [
         buildQuestionOption("uzs", "So'm", "Сум", "UZS", language),
-        buildQuestionOption("usd", "Dollar", "Доллар", "USD", language),
+        buildQuestionOption("usd", "Dollar", "Доллар США", "USD", language),
         buildQuestionOption("eur", "Yevro", "Евро", "EUR", language),
         buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
       ],
     },
     {
-      key: "needs_quick_disbursement",
+      key: "monthly_payment_comfort",
       label:
         language === "ru"
-          ? "Нужна ли клиенту максимально быстрая выдача?"
+          ? "Какой ежемесячный платеж для клиента комфортен?"
           : language === "en"
-            ? "Does the client need the fastest possible disbursement?"
-            : "Mijozga mablag'ni tez ajratish muhimmi?",
+            ? "What monthly payment level is comfortable for the client?"
+            : "Mijoz uchun qaysi oylik to'lov diapazoni qulay?",
+      type: "select" as const,
+      helperText:
+        language === "ru"
+          ? "Это помогает подобрать сумму и срок без лишней нагрузки на клиента."
+          : language === "en"
+            ? "This helps fit the amount and term to the client's cash flow."
+            : "Bu summa va muddatni mijozning pul oqimiga moslashtirishga yordam beradi.",
+      options: [
+        buildQuestionOption("up_to_10m", "10 mln so'mgacha", "До 10 млн сум", "Up to 10m UZS", language),
+        buildQuestionOption("10m_to_30m", "10-30 mln so'm", "10-30 млн сум", "10m to 30m UZS", language),
+        buildQuestionOption("over_30m", "30 mln so'mdan yuqori", "Свыше 30 млн сум", "Over 30m UZS", language),
+        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", "Not sure yet", language),
+      ],
+    },
+    {
+      key: "repayment_preference",
+      label:
+        language === "ru"
+          ? "Какой график погашения клиенту удобнее?"
+          : language === "en"
+            ? "Which repayment style is more convenient for the client?"
+            : "Mijozga qaysi to'lov jadvali qulayroq?",
       type: "select" as const,
       options: [
-        buildQuestionOption("yes", "Ha, tez kerak", "Да, важно быстро", "Yes, urgently", language),
-        buildQuestionOption("flexible", "Muddat bo'yicha moslashuvchan", "Срок гибкий", "Flexible timing", language),
-        buildQuestionOption("not_sure", "Hali noma'lum", "Пока неизвестно", "Not sure yet", language),
+        buildQuestionOption("annuity", "Har oy bir xil to'lov", "Равный платеж каждый месяц", "Equal monthly payment", language),
+        buildQuestionOption(
+          "differentiated",
+          "Boshlanishida katta, keyin kamayadigan",
+          "Сначала выше, затем уменьшается",
+          "Higher at first, then lower",
+          language,
+        ),
+        buildQuestionOption("not_sure", "Ekspert tavsiya bersin", "Пусть эксперт подскажет", "Expert can suggest", language),
+      ],
+    },
+    {
+      key: "down_payment_level",
+      label:
+        language === "ru"
+          ? "Какой первоначальный взнос клиент готов внести?"
+          : language === "en"
+            ? "What down payment is the client ready to contribute?"
+            : "Mijoz qancha boshlang'ich to'lov kiritishga tayyor?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("none", "Boshlang'ich to'lovsiz", "Без первоначального взноса", "No down payment", language),
+        buildQuestionOption("up_to_20", "20% gacha", "До 20%", "Up to 20%", language),
+        buildQuestionOption("20_to_40", "20-40%", "20-40%", "20-40%", language),
+        buildQuestionOption("over_40", "40% dan yuqori", "Свыше 40%", "Over 40%", language),
+      ],
+    },
+    {
+      key: "needs_grace_period",
+      label:
+        language === "ru"
+          ? "Нужен ли клиенту льготный период до начала основных платежей?"
+          : language === "en"
+            ? "Does the client need a grace period before principal payments start?"
+            : "Mijozga asosiy to'lovlar boshlanishidan oldin imtiyozli davr kerakmi?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
+        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
       ],
     },
   ];
@@ -265,6 +338,53 @@ function buildFallbackQuestions(
       .filter((question) => !answerMap.has(question.key))
       .slice(0, input.maxQuestions),
   });
+}
+
+function ensureMinimumFollowUpQuestions(
+  generatedQuestions: AiGenerateQuestionsResponseType["questions"],
+  input: AiGenerateQuestionsBodyType,
+): AiGenerateQuestionsResponseType["questions"] {
+  const minimumQuestions = Math.min(3, input.maxQuestions);
+  const fallbackQuestions = buildFallbackQuestions(input).questions;
+  const seenKeys = new Set(generatedQuestions.map((question) => question.key));
+  const mergedQuestions = [...generatedQuestions];
+
+  for (const fallbackQuestion of fallbackQuestions) {
+    if (mergedQuestions.length >= minimumQuestions) break;
+    if (seenKeys.has(fallbackQuestion.key)) continue;
+    seenKeys.add(fallbackQuestion.key);
+    mergedQuestions.push(fallbackQuestion);
+  }
+
+  return mergedQuestions.slice(0, input.maxQuestions);
+}
+
+function buildFallbackLocalizedProducts(
+  products: Array<{
+    productId?: number | null;
+    productName: string;
+    segment?: string | null;
+    purpose?: string | null;
+    highlight?: string | null;
+    loanAmount?: string | null;
+    rateSummary?: string | null;
+    relevantTerm?: string | null;
+    disbursementForm?: string | null;
+    gracePeriod?: string | null;
+  }>,
+): LocalizedProductPresentation[] {
+  return products.map((product) => ({
+    productId: product.productId ?? null,
+    productName: product.productName,
+    localizedSegment: product.segment ?? null,
+    localizedPurpose: product.purpose ?? null,
+    localizedHighlight: product.highlight ?? null,
+    localizedLoanAmount: product.loanAmount ?? null,
+    localizedRate: product.rateSummary ?? null,
+    localizedRelevantTerm: product.relevantTerm ?? null,
+    localizedDisbursementForm: product.disbursementForm ?? null,
+    localizedGracePeriod: product.gracePeriod ?? null,
+  }));
 }
 
 function fallbackRecommendation(input: AiRecommendProductsBodyType) {
@@ -283,6 +403,15 @@ function fallbackRecommendation(input: AiRecommendProductsBodyType) {
         ].join(" "),
       ) ||
       "Selected from the allowed catalog because it fits the current questionnaire profile.",
+    localizedSegment: product.segment ?? null,
+    localizedPurpose: product.purpose ?? null,
+    localizedHighlight: product.highlight ?? null,
+    localizedLoanAmount: product.loanAmount ?? null,
+    localizedRate: [product.rateUZS, product.rateUSD, product.rateEUR].filter(Boolean).join(" | ") || null,
+    localizedRelevantTerm:
+      [product.termWorkingCapital, product.termFixedAssets, product.termUntargeted].filter(Boolean).join(" | ") || null,
+    localizedDisbursementForm: product.disbursementForm ?? null,
+    localizedGracePeriod: null,
   }));
 
   return AiRecommendProductsResponse.parse({ recommendations });
@@ -291,7 +420,7 @@ function fallbackRecommendation(input: AiRecommendProductsBodyType) {
 function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
   const [firstProduct] = input.selectedProducts;
   const calc = input.calculatorResult;
-  const language: "ru" | "uz" | "en" =
+  const language: SupportedLanguage =
     input.language === "ru" || input.language === "en" ? input.language : "uz";
 
   const summaryPartsByLanguage = {
@@ -366,6 +495,60 @@ function mergeAutoExtractionWithFallback(
   });
 }
 
+export async function localizeProductPresentation(
+  products: Array<{
+    productId?: number | null;
+    productName: string;
+    segment?: string | null;
+    purpose?: string | null;
+    highlight?: string | null;
+    loanAmount?: string | null;
+    rateSummary?: string | null;
+    relevantTerm?: string | null;
+    disbursementForm?: string | null;
+    gracePeriod?: string | null;
+  }>,
+  language: SupportedLanguage,
+) {
+  if (products.length === 0) return [];
+  if (language === "ru" || language === "en") {
+    return buildFallbackLocalizedProducts(products);
+  }
+
+  try {
+    const { data } = await ollamaChatJson<unknown>({
+      format: LOCALIZED_PRODUCTS_RESPONSE_SCHEMA,
+      timeoutMs: 30_000,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You localize banking product presentation fields for a Telegram Mini App.",
+            "Return valid JSON only.",
+            "Translate all user-facing fields to Uzbek in Latin script only.",
+            "Keep productName unchanged.",
+            "Do not invent values.",
+            "Preserve numbers, currencies, and product identifiers.",
+            "If a field is empty, return null.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: compactJson({ products }),
+        },
+      ],
+    });
+
+    const parsed = data as { products?: LocalizedProductPresentation[] };
+    return Array.isArray(parsed.products)
+      ? parsed.products
+      : buildFallbackLocalizedProducts(products);
+  } catch {
+    return buildFallbackLocalizedProducts(products);
+  }
+}
+
 export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyType) {
   const existingAnswers = input.existingAnswers.map(
     (item: AiGenerateQuestionsBodyType["existingAnswers"][number]) =>
@@ -386,13 +569,14 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
             "You are a banking workflow assistant for a Telegram Mini App.",
             "Create concise follow-up questionnaire items for a credit expert.",
             "Return valid JSON only.",
-            "Ask at most the requested number of questions.",
+            "Always ask 2 to 4 useful follow-up questions when the profile is still broad.",
             "Do not repeat already answered question keys.",
             "Do not repeat base question keys.",
             "Prefer select questions with 3 to 4 clear options.",
             "Use meaningful snake_case keys.",
             "Do not invent policies, rates, or eligibility rules.",
             "Questions must help choose a bank product in a structured workflow.",
+            "Prefer questions about currency, comfortable monthly payment, repayment style, down payment, grace period, collateral, and urgency.",
             languageInstruction(input.language),
           ].join(" "),
         },
@@ -416,18 +600,33 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
     });
 
     const parsed = AiGenerateQuestionsResponse.parse(data);
+    const questions = parsed.questions
+      .filter(
+        (question: AiGenerateQuestionsResponseType["questions"][number]) =>
+          !existingKeys.has(question.key),
+      )
+      .slice(0, input.maxQuestions)
+      .map((question: AiGenerateQuestionsResponseType["questions"][number]) => ({
+        ...question,
+        options: question.type === "select" ? question.options.slice(0, 6) : [],
+      }));
+
+    if (questions.length >= 2) {
+      return {
+        questions: ensureMinimumFollowUpQuestions(questions, {
+          ...input,
+          existingAnswers,
+        }),
+        model,
+      };
+    }
+
     return {
-      questions: parsed.questions
-        .filter(
-          (question: AiGenerateQuestionsResponseType["questions"][number]) =>
-            !existingKeys.has(question.key),
-        )
-        .slice(0, input.maxQuestions)
-        .map((question: AiGenerateQuestionsResponseType["questions"][number]) => ({
-          ...question,
-          options: question.type === "select" ? question.options.slice(0, 6) : [],
-        })),
-      model,
+      ...buildFallbackQuestions({
+        ...input,
+        existingAnswers,
+      }),
+      model: "fallback",
     };
   } catch {
     return {
@@ -462,6 +661,9 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
             "Never invent products, rates, policies, or eligibility rules.",
             "Use only the allowed product catalog provided by the backend.",
             "Rank at most 5 products.",
+            "The explanation must be concise, natural, and entirely in the target language.",
+            "Also localize the product presentation fields into the same target language.",
+            "Keep productName unchanged.",
             languageInstruction(input.language),
           ].join(" "),
         },
@@ -563,14 +765,14 @@ export async function translateText(input: AiTranslateBodyType) {
             "You are a translation helper in a banking workflow.",
             `Translate from ${sourceLabel} to ${targetLabel}.`,
             input.targetLanguage === "uz"
-              ? "Output Uzbek in Latin script only. Do not use Cyrillic."
-              : "Output Russian in natural Cyrillic.",
+              ? "Output Uzbek in Latin script only. Do not use Cyrillic. Translate the entire text into Uzbek."
+              : "Output Russian in natural Cyrillic. Translate the entire text into Russian.",
             "Return JSON with one field: text.",
             "Preserve names, numbers, identifiers, VIN, plate text, passport numbers, phone numbers, and currency values.",
             "Do not add explanations, comments, or markdown.",
             retry
-              ? "The previous attempt was not translated correctly. Translate the content faithfully now."
-              : "Translate the content faithfully.",
+              ? "The previous attempt mixed languages. Rewrite the full text completely in the target language now."
+              : "Translate the content faithfully and fully.",
           ].join(" "),
         },
         {
@@ -586,9 +788,43 @@ export async function translateText(input: AiTranslateBodyType) {
     };
   };
 
+  const forceTranslate = async () => {
+    const { content, model } = await ollamaChatText({
+      timeoutMs: 30_000,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a strict translation helper in a banking workflow.",
+            `Translate from ${sourceLabel} to ${targetLabel}.`,
+            input.targetLanguage === "uz"
+              ? "Rewrite the entire text fully in Uzbek Latin script only."
+              : "Rewrite the entire text fully in natural Russian Cyrillic only.",
+            "Preserve names, numbers, identifiers, VIN, plate text, passport numbers, phone numbers, and currency values.",
+            "Do not leave any sentence or phrase in the source language.",
+            "Return translated text only.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: input.text,
+        },
+      ],
+    });
+
+    return {
+      model,
+      text: trimMultilineText(content || ""),
+    };
+  };
+
   let translated = await translateOnce(false);
   if (shouldRetryTranslation(input.text, input.targetLanguage, translated.text)) {
     translated = await translateOnce(true);
+  }
+  if (shouldRetryTranslation(input.text, input.targetLanguage, translated.text)) {
+    translated = await forceTranslate();
   }
 
   if (!translated.text) {

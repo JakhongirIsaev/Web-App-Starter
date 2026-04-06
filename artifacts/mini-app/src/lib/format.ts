@@ -20,17 +20,36 @@ function getAppClockParts(value: DateInput = new Date()) {
   };
 }
 
+function getMiniAppLanguage() {
+  if (typeof window === "undefined") return "uz";
+  return localStorage.getItem("minerva_miniapp_lang") === "ru" ? "ru" : "uz";
+}
+
+function getLocale() {
+  return getMiniAppLanguage() === "ru" ? "ru-RU" : "uz-UZ";
+}
+
+function getEmptyPlaceholder() {
+  return "—";
+}
+
 export function fmtNum(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "вЂ”";
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return String(value);
-  return num.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (value === null || value === undefined || value === "") {
+    return getEmptyPlaceholder();
+  }
+
+  const numericValue = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (Number.isNaN(numericValue)) return String(value);
+
+  return numericValue.toLocaleString(getLocale(), {
+    maximumFractionDigits: 2,
+  });
 }
 
 export function fmtDate(date: string | Date | null | undefined): string {
-  if (!date) return "вЂ”";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("ru-RU", {
+  if (!date) return getEmptyPlaceholder();
+  const parsedDate = typeof date === "string" ? new Date(date) : date;
+  return parsedDate.toLocaleDateString(getLocale(), {
     timeZone: APP_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
@@ -39,9 +58,9 @@ export function fmtDate(date: string | Date | null | undefined): string {
 }
 
 export function fmtDateTime(date: string | Date | null | undefined): string {
-  if (!date) return "вЂ”";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("ru-RU", {
+  if (!date) return getEmptyPlaceholder();
+  const parsedDate = typeof date === "string" ? new Date(date) : date;
+  return parsedDate.toLocaleDateString(getLocale(), {
     timeZone: APP_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
@@ -56,7 +75,10 @@ export function formatFileDate(date: DateInput = new Date()) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function getTashkentDateByMonthOffset(monthOffset: number, from: DateInput = new Date()) {
+export function getTashkentDateByMonthOffset(
+  monthOffset: number,
+  from: DateInput = new Date(),
+) {
   const { year, month, day } = getAppClockParts(from);
   return new Date(Date.UTC(year, month + monthOffset, day) - APP_TIME_ZONE_OFFSET_MS);
 }

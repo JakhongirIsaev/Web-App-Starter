@@ -20,31 +20,43 @@ export interface ProductLike {
   highlight?: string | null;
 }
 
-const BUSINESS_TYPE_LABELS: Record<string, string> = {
-  trade: "Savdo",
-  services: "Xizmatlar",
-  production: "Ishlab chiqarish",
-  agriculture: "Qishloq xo'jaligi",
-  other: "Boshqa",
+const BUSINESS_TYPE_LABELS = {
+  trade: { uz: "Savdo", ru: "Торговля", en: "Trade" },
+  services: { uz: "Xizmatlar", ru: "Услуги", en: "Services" },
+  production: { uz: "Ishlab chiqarish", ru: "Производство", en: "Production" },
+  agriculture: { uz: "Qishloq xo'jaligi", ru: "Сельское хозяйство", en: "Agriculture" },
+  other: { uz: "Boshqa", ru: "Другое", en: "Other" },
 };
 
-const BUSINESS_SIZE_LABELS: Record<string, string> = {
-  micro: "Mikro biznes",
-  small: "Kichik biznes",
-  medium: "O'rta biznes",
+const BUSINESS_SIZE_LABELS = {
+  micro: { uz: "Mikro biznes", ru: "Микробизнес", en: "Micro business" },
+  small: { uz: "Kichik biznes", ru: "Малый бизнес", en: "Small business" },
+  medium: { uz: "O'rta biznes", ru: "Средний бизнес", en: "Medium business" },
 };
 
-const NEED_TYPE_LABELS: Record<string, string> = {
-  credit: "Kredit mahsuloti",
-  non_credit: "Nokredit mahsulot",
-  both: "Kredit va qo'shimcha bank mahsulotlari",
+const NEED_TYPE_LABELS = {
+  credit: { uz: "Kredit mahsuloti", ru: "Кредитный продукт", en: "Credit product" },
+  non_credit: { uz: "Nokredit mahsulot", ru: "Некредитный продукт", en: "Non-credit product" },
+  both: {
+    uz: "Kredit va qo'shimcha bank mahsulotlari",
+    ru: "Кредит и дополнительные банковские продукты",
+    en: "Credit and additional banking products",
+  },
 };
 
-const LOAN_PURPOSE_LABELS: Record<string, string> = {
-  working_capital: "Aylanma mablag'ni to'ldirish",
-  fixed_assets: "Asosiy vositalarni sotib olish",
-  untargeted: "Erkin maqsad",
-  not_sure: "Maqsad hali aniqlanmagan",
+const LOAN_PURPOSE_LABELS = {
+  working_capital: {
+    uz: "Aylanma mablag'ni to'ldirish",
+    ru: "Пополнение оборотных средств",
+    en: "Working capital",
+  },
+  fixed_assets: {
+    uz: "Asosiy vositalarni sotib olish",
+    ru: "Приобретение основных средств",
+    en: "Fixed assets",
+  },
+  untargeted: { uz: "Erkin maqsad", ru: "Свободная цель", en: "Untargeted use" },
+  not_sure: { uz: "Maqsad hali aniqlanmagan", ru: "Цель пока не определена", en: "Purpose not decided yet" },
 };
 
 export interface ClientPreferenceProfile {
@@ -60,11 +72,26 @@ export interface ClientPreferenceProfile {
   desiredTerm?: string;
 }
 
+type SupportedLanguage = "ru" | "uz" | "en";
+
 function toAnswerMap(answers: QuestionnaireAnswer[] = []) {
   return new Map(answers.map((item) => [item.questionKey, item.answer]));
 }
 
-export function buildClientPreferenceProfile(answers: QuestionnaireAnswer[] = []): ClientPreferenceProfile {
+function getLabel<T extends string>(
+  labels: Record<T, { uz: string; ru: string; en: string }>,
+  value: string | undefined,
+  language: SupportedLanguage,
+) {
+  if (!value) return undefined;
+  const candidate = labels[value as T];
+  return candidate ? candidate[language] : value;
+}
+
+export function buildClientPreferenceProfile(
+  answers: QuestionnaireAnswer[] = [],
+  language: SupportedLanguage = "uz",
+): ClientPreferenceProfile {
   const answerMap = toAnswerMap(answers);
   const businessType = answerMap.get("business_type");
   const businessSize = answerMap.get("business_size");
@@ -75,26 +102,39 @@ export function buildClientPreferenceProfile(answers: QuestionnaireAnswer[] = []
 
   return {
     businessType,
-    businessTypeLabel: businessType ? (BUSINESS_TYPE_LABELS[businessType] || businessType) : undefined,
+    businessTypeLabel: getLabel(BUSINESS_TYPE_LABELS as any, businessType, language),
     businessSize,
-    businessSizeLabel: businessSize ? (BUSINESS_SIZE_LABELS[businessSize] || businessSize) : undefined,
+    businessSizeLabel: getLabel(BUSINESS_SIZE_LABELS as any, businessSize, language),
     needType,
-    needTypeLabel: needType ? (NEED_TYPE_LABELS[needType] || needType) : undefined,
+    needTypeLabel: getLabel(NEED_TYPE_LABELS as any, needType, language),
     loanPurpose,
-    loanPurposeLabel: loanPurpose ? (LOAN_PURPOSE_LABELS[loanPurpose] || loanPurpose) : undefined,
+    loanPurposeLabel: getLabel(LOAN_PURPOSE_LABELS as any, loanPurpose, language),
     desiredAmount,
     desiredTerm,
   };
 }
 
-export function summarizeClientPreferences(profile: ClientPreferenceProfile): Array<{ label: string; value: string }> {
+export function summarizeClientPreferences(
+  profile: ClientPreferenceProfile,
+  language: SupportedLanguage = "uz",
+): Array<{ label: string; value: string }> {
+  const labels = {
+    businessType: language === "ru" ? "Тип бизнеса" : language === "en" ? "Business type" : "Biznes turi",
+    businessSize: language === "ru" ? "Размер бизнеса" : language === "en" ? "Business size" : "Biznes hajmi",
+    needType: language === "ru" ? "Тип потребности" : language === "en" ? "Need type" : "Ehtiyoj turi",
+    purpose: language === "ru" ? "Цель" : language === "en" ? "Purpose" : "Maqsad",
+    amount: language === "ru" ? "Нужная сумма" : language === "en" ? "Requested amount" : "Kerakli summa",
+    term: language === "ru" ? "Нужный срок" : language === "en" ? "Requested term" : "Kerakli muddat",
+    months: language === "ru" ? "мес." : language === "en" ? "months" : "oy",
+  };
+
   return [
-    profile.businessTypeLabel ? { label: "Biznes turi", value: profile.businessTypeLabel } : null,
-    profile.businessSizeLabel ? { label: "Biznes hajmi", value: profile.businessSizeLabel } : null,
-    profile.needTypeLabel ? { label: "Ehtiyoj turi", value: profile.needTypeLabel } : null,
-    profile.loanPurposeLabel ? { label: "Maqsad", value: profile.loanPurposeLabel } : null,
-    profile.desiredAmount ? { label: "Kerakli summa", value: profile.desiredAmount } : null,
-    profile.desiredTerm ? { label: "Kerakli muddat", value: `${profile.desiredTerm} oy` } : null,
+    profile.businessTypeLabel ? { label: labels.businessType, value: profile.businessTypeLabel } : null,
+    profile.businessSizeLabel ? { label: labels.businessSize, value: profile.businessSizeLabel } : null,
+    profile.needTypeLabel ? { label: labels.needType, value: profile.needTypeLabel } : null,
+    profile.loanPurposeLabel ? { label: labels.purpose, value: profile.loanPurposeLabel } : null,
+    profile.desiredAmount ? { label: labels.amount, value: profile.desiredAmount } : null,
+    profile.desiredTerm ? { label: labels.term, value: `${profile.desiredTerm} ${labels.months}` } : null,
   ].filter((item): item is { label: string; value: string } => Boolean(item));
 }
 
@@ -123,39 +163,76 @@ export function getRateSummary(product: ProductLike): string | null {
   return rates.length > 0 ? rates.join(" | ") : null;
 }
 
-export function buildRecommendationNote(product: ProductLike, profile: ClientPreferenceProfile): string {
+export function buildRecommendationNote(
+  product: ProductLike,
+  profile: ClientPreferenceProfile,
+  language: SupportedLanguage = "uz",
+): string {
   const reasons: string[] = [];
 
+  const templates = {
+    uz: {
+      need: (value: string) => `Mijozning asosiy ehtiyoji ${value.toLowerCase()} bo'lgani uchun ushbu mahsulot tanlandi.`,
+      segment: (segment: string, size: string) => `Mahsulot segmenti ${segment} bo'lib, u ${size.toLowerCase()} uchun mos keladi.`,
+      purpose: (value: string) => `Mahsulotning asosiy yo'nalishi ${value.toLowerCase()} ehtiyojiga mos keladi.`,
+      amount: "Kerakli summa bank mahsuloti limitlari bilan solishtirilganda mos diapazonga tushadi.",
+      term: "So'ralgan muddat mavjud mahsulot shartlari bilan qoplanadi.",
+      disbursement: (value: string) => `Ajratish shakli: ${value}.`,
+      highlight: (value: string) => `Mahsulot afzalligi: ${value}.`,
+      fallback: "Mahsulot mijozning anketa javoblari va ekspert tanlovi asosida savatga qo'shildi.",
+    },
+    ru: {
+      need: (value: string) => `Продукт выбран, потому что основная потребность клиента — ${value.toLowerCase()}.`,
+      segment: (segment: string, size: string) => `Сегмент продукта — ${segment}, что подходит для клиента категории ${size.toLowerCase()}.`,
+      purpose: (value: string) => `Основное назначение продукта соответствует цели клиента: ${value.toLowerCase()}.`,
+      amount: "Запрошенная сумма укладывается в допустимый диапазон по продукту.",
+      term: "Желаемый срок покрывается текущими условиями продукта.",
+      disbursement: (value: string) => `Форма выдачи: ${value}.`,
+      highlight: (value: string) => `Ключевое преимущество: ${value}.`,
+      fallback: "Продукт добавлен на основе анкеты клиента и выбора эксперта.",
+    },
+    en: {
+      need: (value: string) => `The product was selected because the client's primary need is ${value.toLowerCase()}.`,
+      segment: (segment: string, size: string) => `The product segment is ${segment}, which fits a ${size.toLowerCase()} client.`,
+      purpose: (value: string) => `The product focus matches the client's goal: ${value.toLowerCase()}.`,
+      amount: "The requested amount fits the product limits.",
+      term: "The requested term is covered by the current product terms.",
+      disbursement: (value: string) => `Disbursement format: ${value}.`,
+      highlight: (value: string) => `Key advantage: ${value}.`,
+      fallback: "The product was added based on the client questionnaire and expert choice.",
+    },
+  }[language];
+
   if (profile.needTypeLabel) {
-    reasons.push(`Mijozning asosiy ehtiyoji ${profile.needTypeLabel.toLowerCase()} bo'lgani uchun ushbu mahsulot tanlandi.`);
+    reasons.push(templates.need(profile.needTypeLabel));
   }
 
   if (profile.businessSizeLabel && product.segment) {
-    reasons.push(`Mahsulot segmenti ${product.segment} bo'lib, u ${profile.businessSizeLabel.toLowerCase()} uchun mos keladi.`);
+    reasons.push(templates.segment(product.segment, profile.businessSizeLabel));
   }
 
   if (profile.loanPurposeLabel && productMatchesPurpose(product, profile.loanPurpose)) {
-    reasons.push(`Mahsulotning asosiy yo'nalishi ${profile.loanPurposeLabel.toLowerCase()} ehtiyojiga mos keladi.`);
+    reasons.push(templates.purpose(profile.loanPurposeLabel));
   }
 
   if (profile.desiredAmount && product.loanAmount) {
-    reasons.push(`Kerakli summa bank mahsuloti limitlari bilan solishtirilganda mos diapazonga tushadi.`);
+    reasons.push(templates.amount);
   }
 
   if (profile.desiredTerm && getRelevantTerm(product, profile.loanPurpose)) {
-    reasons.push(`So'ralgan muddat mavjud mahsulot shartlari bilan qoplanadi.`);
+    reasons.push(templates.term);
   }
 
   if (product.disbursementForm) {
-    reasons.push(`Ajratish shakli: ${product.disbursementForm}.`);
+    reasons.push(templates.disbursement(product.disbursementForm));
   }
 
   if (product.highlight) {
-    reasons.push(`Mahsulot afzalligi: ${product.highlight}.`);
+    reasons.push(templates.highlight(product.highlight));
   }
 
   if (reasons.length === 0) {
-    reasons.push("Mahsulot mijozning anketa javoblari va ekspert tanlovi asosida savatga qo'shildi.");
+    reasons.push(templates.fallback);
   }
 
   return reasons.join(" ");

@@ -68,6 +68,14 @@ export const AiRecommendProductSchema = z.object({
   rank: z.number().int().min(1).max(10),
   confidence: z.number().min(0).max(1),
   explanation: z.string().min(1),
+  localizedSegment: z.string().trim().min(1).nullable().optional(),
+  localizedPurpose: z.string().trim().min(1).nullable().optional(),
+  localizedHighlight: z.string().trim().min(1).nullable().optional(),
+  localizedLoanAmount: z.string().trim().min(1).nullable().optional(),
+  localizedRate: z.string().trim().min(1).nullable().optional(),
+  localizedRelevantTerm: z.string().trim().min(1).nullable().optional(),
+  localizedDisbursementForm: z.string().trim().min(1).nullable().optional(),
+  localizedGracePeriod: z.string().trim().min(1).nullable().optional(),
 });
 
 export const AiRecommendProductsResponse = z.object({

@@ -1,10 +1,58 @@
 import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
+import { buildPaymentSchedule } from "../lib/calculations";
 import { formatDateInAppTimeZone } from "../lib/timezone";
 
 interface PreferenceItem {
   label: string;
   value: string;
+}
+
+type PdfLanguage = "ru" | "uz" | "en";
+type FontName = "body" | "bold";
+type PdfDoc = InstanceType<typeof PDFDocument>;
+
+interface PdfBasketItem {
+  productName?: string;
+  name?: string;
+  productType?: string | null;
+  sapCode?: string | null;
+  segment?: string | null;
+  disbursementForm?: string | null;
+  loanAmount?: string | null;
+  termWorkingCapital?: string | null;
+  termFixedAssets?: string | null;
+  termUntargeted?: string | null;
+  rateUZS?: string | null;
+  rateUSD?: string | null;
+  rateEUR?: string | null;
+  gracePeriod?: string | null;
+  purpose?: string | null;
+  highlight?: string | null;
+  notes?: string | null;
+  whySuitable?: string | null;
+  localizedSegment?: string | null;
+  localizedPurpose?: string | null;
+  localizedHighlight?: string | null;
+  localizedLoanAmount?: string | null;
+  localizedRate?: string | null;
+  localizedRelevantTerm?: string | null;
+  localizedDisbursementForm?: string | null;
+  localizedGracePeriod?: string | null;
+}
+
+interface PdfCalculation {
+  productName: string;
+  loanAmount: string;
+  interestRate: string;
+  termMonths: number;
+  repaymentType: string;
+  initialPayment?: string | null;
+  gracePeriodMonths?: number | null;
+  monthlyPayment?: string | null;
+  totalPayment?: string | null;
+  totalInterest?: string | null;
+  currency: string;
 }
 
 interface PdfData {
@@ -15,65 +63,13 @@ interface PdfData {
     sessionId: string;
     createdAt: Date | string;
   };
-  basketItems: Array<{
-    productName?: string;
-    name?: string;
-    productType?: string | null;
-    sapCode?: string | null;
-    segment?: string | null;
-    disbursementForm?: string | null;
-    loanAmount?: string | null;
-    termWorkingCapital?: string | null;
-    termFixedAssets?: string | null;
-    termUntargeted?: string | null;
-    rateUZS?: string | null;
-    rateUSD?: string | null;
-    rateEUR?: string | null;
-    gracePeriod?: string | null;
-    purpose?: string | null;
-    highlight?: string | null;
-    notes?: string | null;
-    whySuitable?: string | null;
-  }>;
-  calculations: Array<{
-    productName: string;
-    loanAmount: string;
-    interestRate: string;
-    termMonths: number;
-    repaymentType: string;
-    initialPayment?: string | null;
-    gracePeriodMonths?: number | null;
-    monthlyPayment?: string | null;
-    totalPayment?: string | null;
-    totalInterest?: string | null;
-    currency: string;
-  }>;
+  basketItems: PdfBasketItem[];
+  calculations: PdfCalculation[];
   expertName: string;
   branchName: string;
   preferenceSummary?: PreferenceItem[];
   offerSummary?: string | null;
-}
-
-type FontName = "body" | "bold";
-type PdfDoc = InstanceType<typeof PDFDocument>;
-
-function fmtNum(val: string | number | null | undefined): string {
-  if (val === null || val === undefined || val === "") return "-";
-  const n = typeof val === "string" ? Number.parseFloat(val) : val;
-  if (Number.isNaN(n)) return String(val);
-  return n.toLocaleString("uz-UZ", { maximumFractionDigits: 2 });
-}
-
-function fmtDate(value: Date | string): string {
-  return formatDateInAppTimeZone(value);
-}
-
-function buildRateSummary(item: PdfData["basketItems"][number]) {
-  return [
-    item.rateUZS ? `UZS: ${item.rateUZS}` : null,
-    item.rateUSD ? `USD: ${item.rateUSD}` : null,
-    item.rateEUR ? `EUR: ${item.rateEUR}` : null,
-  ].filter(Boolean).join(" | ");
+  language?: PdfLanguage;
 }
 
 function resolveFontCandidates() {
@@ -121,13 +117,247 @@ function ensureSpace(doc: PdfDoc, y: number, needed: number) {
   return 56;
 }
 
+function resolveLocale(language: PdfLanguage) {
+  if (language === "ru") return "ru-RU";
+  if (language === "en") return "en-US";
+  return "uz-UZ";
+}
+
+function fmtNum(
+  value: string | number | null | undefined,
+  language: PdfLanguage,
+): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (Number.isNaN(parsed)) return String(value);
+  return parsed.toLocaleString(resolveLocale(language), {
+    maximumFractionDigits: 2,
+  });
+}
+
+function fmtDate(value: Date | string, language: PdfLanguage) {
+  return formatDateInAppTimeZone(value, resolveLocale(language));
+}
+
+function safeValue(value: string | null | undefined) {
+  return value && value.trim() ? value.trim() : "-";
+}
+
+function countMatches(value: string, pattern: RegExp) {
+  return value.match(pattern)?.length ?? 0;
+}
+
+function isCompatibleWithLanguage(
+  value: string | null | undefined,
+  language: PdfLanguage,
+) {
+  if (!value || !value.trim()) return false;
+
+  const text = value.trim();
+  const cyrillic = countMatches(text, /[\u0400-\u04FF]/g);
+  const latin = countMatches(text, /[A-Za-z]/g);
+
+  if (language === "uz") {
+    if (cyrillic > latin) return false;
+    return true;
+  }
+
+  if (language === "ru") {
+    if (cyrillic > 0) return true;
+    return latin === 0;
+  }
+
+  return true;
+}
+
+function buildRateSummary(item: PdfBasketItem) {
+  return [item.rateUZS, item.rateUSD, item.rateEUR].filter(Boolean).join(" | ");
+}
+
+function buildRelevantTerms(item: PdfBasketItem) {
+  return [item.termWorkingCapital, item.termFixedAssets, item.termUntargeted]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function getDisplayValueForLanguage(
+  language: PdfLanguage,
+  localizedValue: string | null | undefined,
+  fallbackValue: string | null | undefined,
+) {
+  if (isCompatibleWithLanguage(localizedValue, language)) {
+    return localizedValue!.trim();
+  }
+
+  if (isCompatibleWithLanguage(fallbackValue, language)) {
+    return fallbackValue!.trim();
+  }
+
+  return "-";
+}
+
+function getPdfCopy(language: PdfLanguage) {
+  if (language === "ru") {
+    return {
+      title: "Коммерческое предложение для клиента",
+      subtitle: "MINERVA - помощник кредитного эксперта",
+      metaDate: "Дата",
+      metaExpert: "Эксперт",
+      metaBranch: "Филиал",
+      metaCase: "Номер кейса",
+      clientSection: "Информация о клиенте",
+      clientName: "Ф.И.О.",
+      clientPhone: "Телефон",
+      clientCreatedAt: "Дата регистрации",
+      preferencesSection: "Потребности и предпочтения клиента",
+      productsSection: "Рекомендуемые продукты",
+      noProducts:
+        "В корзине пока нет продуктов. Сначала подберите для клиента подходящие варианты.",
+      productIndex: "Продукт",
+      sapCode: "SAP код",
+      segment: "Сегмент",
+      loanAmount: "Сумма кредита",
+      availableTerms: "Доступные сроки",
+      disbursementForm: "Форма выдачи",
+      gracePeriod: "Льготный период",
+      rates: "Ставки",
+      purpose: "Назначение продукта",
+      highlight: "Ключевое преимущество",
+      calculationsSection: "Результаты расчета",
+      noCalculations:
+        "Для этого клиента пока нет сохраненного кредитного расчета.",
+      interestRate: "Процентная ставка",
+      term: "Срок",
+      repaymentType: "Тип погашения",
+      initialPayment: "Первоначальный взнос",
+      monthlyPayment: "Ежемесячный платеж",
+      totalPayment: "Общая выплата",
+      totalInterest: "Общие проценты",
+      monthsSuffix: "мес.",
+      repaymentAnnuity: "Аннуитет",
+      repaymentDifferentiated: "Дифференцированный",
+      scheduleSection: "График ежемесячных платежей",
+      scheduleMonth: "Месяц",
+      schedulePayment: "Платеж",
+      schedulePrincipal: "Основной долг",
+      scheduleInterest: "Проценты",
+      scheduleRemaining: "Остаток",
+      footerNote:
+        "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа.",
+      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`,
+    } as const;
+  }
+
+  if (language === "en") {
+    return {
+      title: "Commercial offer for the client",
+      subtitle: "MINERVA - credit expert assistant",
+      metaDate: "Date",
+      metaExpert: "Expert",
+      metaBranch: "Branch",
+      metaCase: "Case number",
+      clientSection: "Client information",
+      clientName: "Client name",
+      clientPhone: "Phone",
+      clientCreatedAt: "Registered on",
+      preferencesSection: "Client needs and preferences",
+      productsSection: "Recommended products",
+      noProducts:
+        "There are no products in the basket yet. Select suitable options for the client first.",
+      productIndex: "Product",
+      sapCode: "SAP code",
+      segment: "Segment",
+      loanAmount: "Loan amount",
+      availableTerms: "Available terms",
+      disbursementForm: "Disbursement form",
+      gracePeriod: "Grace period",
+      rates: "Rates",
+      purpose: "Product purpose",
+      highlight: "Key advantage",
+      calculationsSection: "Calculation results",
+      noCalculations:
+        "No saved loan calculation is available for this client yet.",
+      interestRate: "Interest rate",
+      term: "Term",
+      repaymentType: "Repayment type",
+      initialPayment: "Initial payment",
+      monthlyPayment: "Monthly payment",
+      totalPayment: "Total payment",
+      totalInterest: "Total interest",
+      monthsSuffix: "months",
+      repaymentAnnuity: "Annuity",
+      repaymentDifferentiated: "Differentiated",
+      scheduleSection: "Monthly payment schedule",
+      scheduleMonth: "Month",
+      schedulePayment: "Payment",
+      schedulePrincipal: "Principal",
+      scheduleInterest: "Interest",
+      scheduleRemaining: "Balance",
+      footerNote:
+        "This document is prepared for preliminary discussion. Final financing terms are confirmed by the bank after document review and risk analysis.",
+      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. All rights reserved.`,
+    } as const;
+  }
+
+  return {
+    title: "Mijoz uchun tijorat taklifi",
+    subtitle: "MINERVA - kredit eksperti yordamchisi",
+    metaDate: "Sana",
+    metaExpert: "Ekspert",
+    metaBranch: "Filial",
+    metaCase: "Ish raqami",
+    clientSection: "Mijoz ma'lumotlari",
+    clientName: "F.I.Sh.",
+    clientPhone: "Telefon",
+    clientCreatedAt: "Ro'yxatdan o'tgan sana",
+    preferencesSection: "Mijoz ehtiyojlari va afzalliklari",
+    productsSection: "Tavsiya etilgan mahsulotlar",
+    noProducts:
+      "Savatda mahsulotlar yo'q. Avval mijoz uchun mos mahsulotlarni tanlang.",
+    productIndex: "Mahsulot",
+    sapCode: "SAP kodi",
+    segment: "Segment",
+    loanAmount: "Kredit summasi",
+    availableTerms: "Mavjud muddatlar",
+    disbursementForm: "Berish shakli",
+    gracePeriod: "Imtiyozli davr",
+    rates: "Stavkalar",
+    purpose: "Mahsulot maqsadi",
+    highlight: "Asosiy afzalligi",
+    calculationsSection: "Hisob-kitob natijalari",
+    noCalculations:
+      "Ushbu mijoz uchun hali saqlangan kredit hisob-kitobi mavjud emas.",
+    interestRate: "Foiz stavkasi",
+    term: "Muddat",
+    repaymentType: "To'lov turi",
+    initialPayment: "Boshlang'ich to'lov",
+    monthlyPayment: "Oylik to'lov",
+    totalPayment: "Jami to'lov",
+    totalInterest: "Foizlar bo'yicha jami",
+    monthsSuffix: "oy",
+    repaymentAnnuity: "Annuitet",
+    repaymentDifferentiated: "Differensial",
+    scheduleSection: "Oylik to'lov jadvali",
+    scheduleMonth: "Oy",
+    schedulePayment: "To'lov",
+    schedulePrincipal: "Asosiy qarz",
+    scheduleInterest: "Foiz",
+    scheduleRemaining: "Qoldiq",
+    footerNote:
+      "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi.",
+    footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
+  } as const;
+}
+
 export function generateClientPdf(data: PdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
+    const language = data.language ?? "uz";
+    const copy = getPdfCopy(language);
     const doc = new PDFDocument({
       size: "A4",
       margin: 50,
       info: {
-        Title: `Tijorat taklifi - ${data.client.fullName || "Mijoz"}`,
+        Title: `${copy.title} - ${data.client.fullName || "Client"}`,
         Author: "Ipak Yo'li Bank - Minerva",
       },
     });
@@ -160,11 +390,18 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       useFont("bold");
       doc.fontSize(9).fillColor(muted).text(label, 50, y, { width: 150 });
       useFont("body");
-      doc.fontSize(10).fillColor(darkText).text(value || "-", 205, y, { width: contentWidth - 155 });
+      doc
+        .fontSize(10)
+        .fillColor(darkText)
+        .text(value || "-", 205, y, { width: contentWidth - 155 });
       return y + Math.max(doc.heightOfString(value || "-", { width: contentWidth - 155 }), 16) + 4;
     };
 
-    const drawParagraph = (text: string, y: number, options?: { color?: string; size?: number }) => {
+    const drawParagraph = (
+      text: string,
+      y: number,
+      options?: { color?: string; size?: number },
+    ) => {
       y = ensureSpace(doc, y, 30);
       useFont("body");
       doc
@@ -172,6 +409,90 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
         .fillColor(options?.color ?? darkText)
         .text(text, 50, y, { width: contentWidth });
       return y + doc.heightOfString(text, { width: contentWidth }) + 8;
+    };
+
+    const drawScheduleHeader = (y: number) => {
+      y = ensureSpace(doc, y, 24);
+      doc.save();
+      doc.roundedRect(50, y, contentWidth, 20, 6).fill("#F3F4F6");
+      doc.restore();
+
+      useFont("bold");
+      doc.fontSize(8).fillColor(muted);
+      doc.text(copy.scheduleMonth, 56, y + 6, { width: 40 });
+      doc.text(copy.schedulePayment, 100, y + 6, {
+        width: 100,
+        align: "right",
+      });
+      doc.text(copy.schedulePrincipal, 205, y + 6, {
+        width: 100,
+        align: "right",
+      });
+      doc.text(copy.scheduleInterest, 310, y + 6, {
+        width: 85,
+        align: "right",
+      });
+      doc.text(copy.scheduleRemaining, 400, y + 6, {
+        width: 95,
+        align: "right",
+      });
+      return y + 24;
+    };
+
+    const drawScheduleTable = (
+      calculation: PdfCalculation,
+      y: number,
+    ) => {
+      const schedule = buildPaymentSchedule(calculation);
+      if (schedule.length === 0) return y;
+
+      y = drawSectionTitle(`${copy.scheduleSection}: ${calculation.productName}`, y);
+      y = drawScheduleHeader(y);
+
+      for (const row of schedule) {
+        const rowHeight = 18;
+        const nextY = ensureSpace(doc, y, rowHeight);
+        if (nextY !== y) {
+          y = drawScheduleHeader(nextY);
+        }
+
+        useFont("body");
+        doc.fontSize(8.5).fillColor(darkText);
+        doc.text(String(row.month), 56, y + 4, { width: 40 });
+        doc.text(
+          fmtNum(row.payment, language),
+          100,
+          y + 4,
+          { width: 100, align: "right" },
+        );
+        doc.text(
+          fmtNum(row.principal, language),
+          205,
+          y + 4,
+          { width: 100, align: "right" },
+        );
+        doc.text(
+          fmtNum(row.interest, language),
+          310,
+          y + 4,
+          { width: 85, align: "right" },
+        );
+        doc.text(
+          fmtNum(row.remaining, language),
+          400,
+          y + 4,
+          { width: 95, align: "right" },
+        );
+
+        doc
+          .moveTo(50, y + rowHeight)
+          .lineTo(50 + contentWidth, y + rowHeight)
+          .strokeColor("#F3F4F6")
+          .stroke();
+        y += rowHeight;
+      }
+
+      return y + 8;
     };
 
     const preferenceSummary = data.preferenceSummary || [];
@@ -183,124 +504,222 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     useFont("bold");
     doc.fontSize(24).fillColor("#FFFFFF").text("IPAK YO'LI BANK", 50, 32);
     useFont("body");
-    doc.fontSize(11).fillColor("#D1FAE5").text("MINERVA - kredit eksperti yordamchisi", 50, 66);
+    doc.fontSize(11).fillColor("#D1FAE5").text(copy.subtitle, 50, 66);
     useFont("bold");
-    doc.fontSize(15).fillColor("#FFFFFF").text("Mijoz uchun tijorat taklifi", 50, 90, {
+    doc.fontSize(15).fillColor("#FFFFFF").text(copy.title, 50, 90, {
       width: contentWidth,
       align: "center",
     });
 
     let y = 145;
-    y = drawRow("Sana", fmtDate(new Date()), y);
-    y = drawRow("Ekspert", data.expertName || "-", y);
-    y = drawRow("Filial", data.branchName || "-", y);
-    y = drawRow("Ish raqami", data.client.sessionId || "-", y);
+    y = drawRow(copy.metaDate, fmtDate(new Date(), language), y);
+    y = drawRow(copy.metaExpert, data.expertName || "-", y);
+    y = drawRow(copy.metaBranch, data.branchName || "-", y);
+    y = drawRow(copy.metaCase, data.client.sessionId || "-", y);
 
     y += 8;
     doc.moveTo(50, y).lineTo(50 + contentWidth, y).strokeColor(line).stroke();
     y += 16;
 
-    y = drawSectionTitle("Mijoz ma'lumotlari", y);
-    y = drawRow("F.I.Sh.", data.client.fullName || "-", y);
-    y = drawRow("Telefon", data.client.phone || "-", y);
-    y = drawRow("Ro'yxatga olingan sana", fmtDate(data.client.createdAt), y);
+    y = drawSectionTitle(copy.clientSection, y);
+    y = drawRow(copy.clientName, data.client.fullName || "-", y);
+    y = drawRow(copy.clientPhone, data.client.phone || "-", y);
+    y = drawRow(copy.clientCreatedAt, fmtDate(data.client.createdAt, language), y);
 
     if (preferenceSummary.length > 0) {
-      y = drawSectionTitle("Mijoz ehtiyojlari va afzalliklari", y + 8);
+      y = drawSectionTitle(copy.preferencesSection, y + 8);
       for (const item of preferenceSummary) {
         y = drawRow(item.label, item.value, y);
       }
     }
 
-    y = drawSectionTitle("Tavsiya etilgan mahsulotlar", y + 8);
+    y = drawSectionTitle(copy.productsSection, y + 8);
     if (data.basketItems.length === 0) {
-      y = drawParagraph("Savatda mahsulotlar yo'q. Avval mijoz uchun mos mahsulotlarni tanlang.", y, {
-        color: muted,
-      });
+      y = drawParagraph(copy.noProducts, y, { color: muted });
     } else {
       data.basketItems.forEach((item, index) => {
         y = ensureSpace(doc, y, 120);
-        const productName = item.productName || item.name || `Mahsulot ${index + 1}`;
+        const productName = item.productName || item.name || `${copy.productIndex} ${index + 1}`;
         useFont("bold");
-        doc.fontSize(11).fillColor(green).text(`${index + 1}. ${productName}`, 50, y, { width: contentWidth });
+        doc
+          .fontSize(11)
+          .fillColor(green)
+          .text(`${index + 1}. ${productName}`, 50, y, { width: contentWidth });
         y += 20;
 
-        const detailRows: PreferenceItem[] = [
-          item.sapCode ? { label: "SAP kodi", value: item.sapCode } : null,
-          item.segment ? { label: "Segment", value: item.segment } : null,
-          item.loanAmount ? { label: "Kredit summasi", value: item.loanAmount } : null,
-          (item.termWorkingCapital || item.termFixedAssets || item.termUntargeted)
-            ? {
-                label: "Mavjud muddatlar",
-                value: [item.termWorkingCapital, item.termFixedAssets, item.termUntargeted].filter(Boolean).join(" | "),
-              }
-            : null,
-          item.disbursementForm ? { label: "Berish shakli", value: item.disbursementForm } : null,
-          item.gracePeriod ? { label: "Imtiyozli davr", value: item.gracePeriod } : null,
-          buildRateSummary(item) ? { label: "Stavkalar", value: buildRateSummary(item) } : null,
-        ].filter((row): row is PreferenceItem => Boolean(row));
+        const detailRows: PreferenceItem[] = [];
+
+        if (item.sapCode) {
+          detailRows.push({ label: copy.sapCode, value: item.sapCode });
+        }
+
+        const segmentValue = getDisplayValueForLanguage(
+          language,
+          item.localizedSegment,
+          item.segment,
+        );
+        if (segmentValue !== "-") {
+          detailRows.push({ label: copy.segment, value: segmentValue });
+        }
+
+        const amountValue = getDisplayValueForLanguage(
+          language,
+          item.localizedLoanAmount,
+          item.loanAmount,
+        );
+        if (amountValue !== "-") {
+          detailRows.push({ label: copy.loanAmount, value: amountValue });
+        }
+
+        const termValue = getDisplayValueForLanguage(
+          language,
+          item.localizedRelevantTerm,
+          buildRelevantTerms(item),
+        );
+        if (termValue !== "-") {
+          detailRows.push({ label: copy.availableTerms, value: termValue });
+        }
+
+        const disbursementValue = getDisplayValueForLanguage(
+          language,
+          item.localizedDisbursementForm,
+          item.disbursementForm,
+        );
+        if (disbursementValue !== "-") {
+          detailRows.push({
+            label: copy.disbursementForm,
+            value: disbursementValue,
+          });
+        }
+
+        const graceValue = getDisplayValueForLanguage(
+          language,
+          item.localizedGracePeriod,
+          item.gracePeriod,
+        );
+        if (graceValue !== "-") {
+          detailRows.push({ label: copy.gracePeriod, value: graceValue });
+        }
+
+        const rateValue = getDisplayValueForLanguage(
+          language,
+          item.localizedRate,
+          buildRateSummary(item),
+        );
+        if (rateValue !== "-") {
+          detailRows.push({ label: copy.rates, value: rateValue });
+        }
+
+        const purposeValue = getDisplayValueForLanguage(
+          language,
+          item.localizedPurpose,
+          item.purpose,
+        );
+        if (purposeValue !== "-") {
+          detailRows.push({ label: copy.purpose, value: purposeValue });
+        }
+
+        const highlightValue = getDisplayValueForLanguage(
+          language,
+          item.localizedHighlight,
+          item.highlight,
+        );
+        if (highlightValue !== "-") {
+          detailRows.push({ label: copy.highlight, value: highlightValue });
+        }
 
         for (const row of detailRows) {
           y = drawRow(row.label, row.value, y);
         }
 
-        if (item.purpose) {
-          y = drawRow("Mahsulot maqsadi", item.purpose, y);
-        }
-        if (item.highlight) {
-          y = drawRow("Asosiy afzalligi", item.highlight, y);
-        }
         y += 6;
       });
     }
 
-    if (data.offerSummary) {
-      y = drawSectionTitle("Taklif xulosasi", y + 8);
-      y = drawParagraph(data.offerSummary, y);
-    }
-
-    y = drawSectionTitle("Hisob-kitob natijalari", y + 8);
+    y = drawSectionTitle(copy.calculationsSection, y + 8);
     if (data.calculations.length === 0) {
-      y = drawParagraph("Ushbu mijoz uchun alohida kredit hisob-kitobi saqlanmagan.", y, { color: muted });
+      y = drawParagraph(copy.noCalculations, y, { color: muted });
     } else {
-      data.calculations.forEach((calc) => {
-        y = ensureSpace(doc, y, 118);
+      data.calculations.forEach((calculation) => {
+        y = ensureSpace(doc, y, 132);
         useFont("bold");
-        doc.fontSize(11).fillColor(green).text(calc.productName, 50, y, { width: contentWidth });
+        doc
+          .fontSize(11)
+          .fillColor(green)
+          .text(calculation.productName, 50, y, { width: contentWidth });
         y += 18;
 
-        y = drawRow("Kredit summasi", `${fmtNum(calc.loanAmount)} ${calc.currency}`, y);
-        y = drawRow("Foiz stavkasi", `${calc.interestRate}%`, y);
-        y = drawRow("Muddat", `${calc.termMonths} oy`, y);
-        y = drawRow("To'lov turi", calc.repaymentType === "annuity" ? "Annuitet" : "Differensial", y);
+        y = drawRow(
+          copy.loanAmount,
+          `${fmtNum(calculation.loanAmount, language)} ${calculation.currency}`,
+          y,
+        );
+        y = drawRow(
+          copy.interestRate,
+          `${calculation.interestRate}%`,
+          y,
+        );
+        y = drawRow(
+          copy.term,
+          `${calculation.termMonths} ${copy.monthsSuffix}`,
+          y,
+        );
+        y = drawRow(
+          copy.repaymentType,
+          calculation.repaymentType === "annuity"
+            ? copy.repaymentAnnuity
+            : copy.repaymentDifferentiated,
+          y,
+        );
 
-        if (calc.initialPayment && Number.parseFloat(calc.initialPayment) > 0) {
-          y = drawRow("Boshlang'ich to'lov", `${fmtNum(calc.initialPayment)} ${calc.currency}`, y);
+        if (calculation.initialPayment && Number.parseFloat(calculation.initialPayment) > 0) {
+          y = drawRow(
+            copy.initialPayment,
+            `${fmtNum(calculation.initialPayment, language)} ${calculation.currency}`,
+            y,
+          );
         }
-        if (calc.gracePeriodMonths && calc.gracePeriodMonths > 0) {
-          y = drawRow("Imtiyozli davr", `${calc.gracePeriodMonths} oy`, y);
+        if (calculation.gracePeriodMonths && calculation.gracePeriodMonths > 0) {
+          y = drawRow(
+            copy.gracePeriod,
+            `${calculation.gracePeriodMonths} ${copy.monthsSuffix}`,
+            y,
+          );
         }
 
-        y = drawRow("Oylik to'lov", `${fmtNum(calc.monthlyPayment)} ${calc.currency}`, y);
-        y = drawRow("Jami to'lov", `${fmtNum(calc.totalPayment)} ${calc.currency}`, y);
-        y = drawRow("Foizlar bo'yicha jami", `${fmtNum(calc.totalInterest)} ${calc.currency}`, y);
+        y = drawRow(
+          copy.monthlyPayment,
+          `${fmtNum(calculation.monthlyPayment, language)} ${calculation.currency}`,
+          y,
+        );
+        y = drawRow(
+          copy.totalPayment,
+          `${fmtNum(calculation.totalPayment, language)} ${calculation.currency}`,
+          y,
+        );
+        y = drawRow(
+          copy.totalInterest,
+          `${fmtNum(calculation.totalInterest, language)} ${calculation.currency}`,
+          y,
+        );
+
         y += 8;
+        y = drawScheduleTable(calculation, y);
       });
     }
 
     y += 6;
-    y = drawParagraph(
-      "Mazkur hujjat maslahat va dastlabki tanlov uchun tayyorlangan. Yakuniy kredit shartlari mijoz hujjatlari va risk tahlili asosida bank tomonidan tasdiqlanadi.",
-      y,
-      { color: muted, size: 9 }
-    );
+    y = drawParagraph(copy.footerNote, y, {
+      color: muted,
+      size: 9,
+    });
 
     useFont("body");
     doc.fontSize(8).fillColor(muted).text(
-      `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
+      copy.footerCopyright,
       50,
       doc.page.height - 36,
-      { width: contentWidth, align: "center" }
+      { width: contentWidth, align: "center" },
     );
 
     doc.end();

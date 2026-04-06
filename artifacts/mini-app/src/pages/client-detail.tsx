@@ -135,7 +135,7 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-8">
       <button onClick={() => navigate("/clients")} className="flex items-center gap-1 text-sm text-muted-foreground">
         <ArrowLeft className="w-4 h-4" />
         {t("common.back")}
@@ -143,15 +143,19 @@ export default function ClientDetailPage() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-lg">{(client.fullName || "?")[0].toUpperCase()}</span>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <span className="text-primary font-bold text-lg">{(client.fullName || "?")[0].toUpperCase()}</span>
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate font-semibold">
+                  {client.fullName || t("clients.anonymous")}
+                </h2>
+                <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="font-semibold">{client.fullName || t("clients.anonymous")}</h2>
-              <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
-            </div>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[client.status] || ""}`}>
+            <span className={`inline-flex w-fit px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[client.status] || ""}`}>
               {t(`statuses.${client.status}`)}
             </span>
           </div>
@@ -198,17 +202,18 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setShowNoteForm(!showNoteForm)}>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowNoteForm(!showNoteForm)}>
           <MessageSquare className="w-4 h-4" />
           {t("clientDetail.addNote")}
         </Button>
-        <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setShowActionForm(!showActionForm)}>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowActionForm(!showActionForm)}>
           <Calendar className="w-4 h-4" />
           {t("clientDetail.addAction")}
         </Button>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
+        <Button variant="outline" size="sm" className="col-span-2 gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
           <Calculator className="w-4 h-4" />
+          {t("nav.calculator")}
         </Button>
       </div>
 
@@ -345,7 +350,11 @@ export default function ClientDetailPage() {
               <CardContent className="p-3">
                 <p className="text-sm font-medium">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">{item.productType}</p>
-                {item.notes && <p className="text-xs text-primary mt-2">{item.notes}</p>}
+                {item.notes && (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground line-clamp-3">
+                    {item.notes}
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -415,7 +424,9 @@ export default function ClientDetailPage() {
                   <span>{c.termMonths} {t("calculator.months")}</span>
                   <span>{c.interestRate}%</span>
                 </div>
-                <p className="text-sm font-semibold text-primary mt-1">{fmtNum(c.monthlyPayment)} / {t("calculator.months")}</p>
+                <p className="mt-1 text-sm font-semibold text-primary">
+                  {t("calculator.monthlyPayment")}: {fmtNum(c.monthlyPayment)} {c.currency}
+                </p>
               </CardContent>
             </Card>
           ))}

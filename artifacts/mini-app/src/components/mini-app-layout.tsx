@@ -34,8 +34,8 @@ export default function MiniAppLayout({ children }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto">
-      <header className="flex items-center justify-between px-4 py-2 bg-card border-b border-border sticky top-0 z-40">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card px-4 py-2 shadow-sm">
         <div className="flex items-center gap-2">
           <MinervaIcon size={24} />
           <span className="font-semibold text-sm">{t("app.title")}</span>
@@ -57,12 +57,12 @@ export default function MiniAppLayout({ children }: Props) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pt-4 pb-20 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-32 pt-4">
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-bottom z-50">
-        <div className="max-w-md mx-auto flex">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card safe-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+        <div className="mx-auto flex max-w-md">
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (
