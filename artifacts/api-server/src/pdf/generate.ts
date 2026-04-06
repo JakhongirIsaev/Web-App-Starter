@@ -210,7 +210,7 @@ function getPdfCopy(language: PdfLanguage) {
       clientPhone: "Телефон",
       clientCreatedAt: "Дата регистрации",
       preferencesSection: "Потребности и предпочтения клиента",
-      productsSection: "Рекомендуемые продукты",
+      productsSection: "Данные по выбранным продуктам",
       noProducts:
         "В корзине пока нет продуктов. Сначала подберите для клиента подходящие варианты.",
       productIndex: "Продукт",
@@ -261,7 +261,7 @@ function getPdfCopy(language: PdfLanguage) {
       clientPhone: "Phone",
       clientCreatedAt: "Registered on",
       preferencesSection: "Client needs and preferences",
-      productsSection: "Recommended products",
+      productsSection: "Selected product details",
       noProducts:
         "There are no products in the basket yet. Select suitable options for the client first.",
       productIndex: "Product",
@@ -311,7 +311,7 @@ function getPdfCopy(language: PdfLanguage) {
     clientPhone: "Telefon",
     clientCreatedAt: "Ro'yxatdan o'tgan sana",
     preferencesSection: "Mijoz ehtiyojlari va afzalliklari",
-    productsSection: "Tavsiya etilgan mahsulotlar",
+    productsSection: "Tanlangan mahsulot ma'lumotlari",
     noProducts:
       "Savatda mahsulotlar yo'q. Avval mijoz uchun mos mahsulotlarni tanlang.",
     productIndex: "Mahsulot",
@@ -636,76 +636,88 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       });
     }
 
-    y = drawSectionTitle(copy.calculationsSection, y + 8);
-    if (data.calculations.length === 0) {
-      y = drawParagraph(copy.noCalculations, y, { color: muted });
-    } else {
-      data.calculations.forEach((calculation) => {
-        y = ensureSpace(doc, y, 132);
-        useFont("bold");
-        doc
-          .fontSize(11)
-          .fillColor(green)
-          .text(calculation.productName, 50, y, { width: contentWidth });
-        y += 18;
+    const hasCreditProducts = data.basketItems.some(
+      (item) => item.productType !== "non_credit",
+    );
 
-        y = drawRow(
-          copy.loanAmount,
-          `${fmtNum(calculation.loanAmount, language)} ${calculation.currency}`,
-          y,
-        );
-        y = drawRow(
-          copy.interestRate,
-          `${calculation.interestRate}%`,
-          y,
-        );
-        y = drawRow(
-          copy.term,
-          `${calculation.termMonths} ${copy.monthsSuffix}`,
-          y,
-        );
-        y = drawRow(
-          copy.repaymentType,
-          calculation.repaymentType === "annuity"
-            ? copy.repaymentAnnuity
-            : copy.repaymentDifferentiated,
-          y,
-        );
+    if (hasCreditProducts || data.calculations.length > 0) {
+      y = drawSectionTitle(copy.calculationsSection, y + 8);
+      if (data.calculations.length === 0) {
+        y = drawParagraph(copy.noCalculations, y, { color: muted });
+      } else {
+        data.calculations.forEach((calculation) => {
+          y = ensureSpace(doc, y, 132);
+          useFont("bold");
+          doc
+            .fontSize(11)
+            .fillColor(green)
+            .text(calculation.productName, 50, y, { width: contentWidth });
+          y += 18;
 
-        if (calculation.initialPayment && Number.parseFloat(calculation.initialPayment) > 0) {
           y = drawRow(
-            copy.initialPayment,
-            `${fmtNum(calculation.initialPayment, language)} ${calculation.currency}`,
+            copy.loanAmount,
+            `${fmtNum(calculation.loanAmount, language)} ${calculation.currency}`,
             y,
           );
-        }
-        if (calculation.gracePeriodMonths && calculation.gracePeriodMonths > 0) {
           y = drawRow(
-            copy.gracePeriod,
-            `${calculation.gracePeriodMonths} ${copy.monthsSuffix}`,
+            copy.interestRate,
+            `${calculation.interestRate}%`,
             y,
           );
-        }
+          y = drawRow(
+            copy.term,
+            `${calculation.termMonths} ${copy.monthsSuffix}`,
+            y,
+          );
+          y = drawRow(
+            copy.repaymentType,
+            calculation.repaymentType === "annuity"
+              ? copy.repaymentAnnuity
+              : copy.repaymentDifferentiated,
+            y,
+          );
 
-        y = drawRow(
-          copy.monthlyPayment,
-          `${fmtNum(calculation.monthlyPayment, language)} ${calculation.currency}`,
-          y,
-        );
-        y = drawRow(
-          copy.totalPayment,
-          `${fmtNum(calculation.totalPayment, language)} ${calculation.currency}`,
-          y,
-        );
-        y = drawRow(
-          copy.totalInterest,
-          `${fmtNum(calculation.totalInterest, language)} ${calculation.currency}`,
-          y,
-        );
+          if (
+            calculation.initialPayment &&
+            Number.parseFloat(calculation.initialPayment) > 0
+          ) {
+            y = drawRow(
+              copy.initialPayment,
+              `${fmtNum(calculation.initialPayment, language)} ${calculation.currency}`,
+              y,
+            );
+          }
+          if (
+            calculation.gracePeriodMonths &&
+            calculation.gracePeriodMonths > 0
+          ) {
+            y = drawRow(
+              copy.gracePeriod,
+              `${calculation.gracePeriodMonths} ${copy.monthsSuffix}`,
+              y,
+            );
+          }
 
-        y += 8;
-        y = drawScheduleTable(calculation, y);
-      });
+          y = drawRow(
+            copy.monthlyPayment,
+            `${fmtNum(calculation.monthlyPayment, language)} ${calculation.currency}`,
+            y,
+          );
+          y = drawRow(
+            copy.totalPayment,
+            `${fmtNum(calculation.totalPayment, language)} ${calculation.currency}`,
+            y,
+          );
+          y = drawRow(
+            copy.totalInterest,
+            `${fmtNum(calculation.totalInterest, language)} ${calculation.currency}`,
+            y,
+          );
+
+          y += 8;
+          y = drawScheduleTable(calculation, y);
+        });
+      }
     }
 
     y += 6;

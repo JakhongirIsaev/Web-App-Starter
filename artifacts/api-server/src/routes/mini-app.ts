@@ -882,7 +882,17 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
     .where(eq(calculationsTable.clientId, clientId))
     .orderBy(desc(calculationsTable.createdAt));
 
-  res.json({ client, notes, nextActions, basket: basket[0] || null, basketItems, calculations });
+  const questionnaireAnswers = await getLatestQuestionnaireAnswers(clientId);
+
+  res.json({
+    client,
+    notes,
+    nextActions,
+    basket: basket[0] || null,
+    basketItems,
+    calculations,
+    questionnaireAnswers,
+  });
 });
 
 router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
@@ -947,25 +957,47 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) 
 router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
   const { clientId, answers } = req.body;
 
-  const [session] = await db
-    .insert(questionnaireSessionsTable)
-    .values({ clientId, userId: req.user!.id, status: "completed", completedAt: new Date() })
-    .returning();
+  const session = await db.transaction(async (tx) => {
+    const [createdSession] = await tx
+      .insert(questionnaireSessionsTable)
+      .values({
+        clientId,
+        userId: req.user!.id,
+        status: "completed",
+        completedAt: new Date(),
+      })
+      .returning();
 
-  if (answers && Array.isArray(answers)) {
-    for (const a of answers) {
-      await db.insert(questionnaireAnswersTable).values({
-        sessionId: session.id,
-        questionKey: a.questionKey,
-        answer: a.answer,
-      });
+    if (answers && Array.isArray(answers)) {
+      for (const a of answers) {
+        await tx.insert(questionnaireAnswersTable).values({
+          sessionId: createdSession.id,
+          questionKey: a.questionKey,
+          answer: a.answer,
+        });
+      }
     }
-  }
 
-  await db
-    .update(clientsTable)
-    .set({ status: "questionnaire", updatedAt: new Date() })
-    .where(eq(clientsTable.id, clientId));
+    const activeBaskets = await tx
+      .select({ id: basketsTable.id })
+      .from(basketsTable)
+      .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
+
+    if (activeBaskets.length > 0) {
+      const basketIds = activeBaskets.map((item) => item.id);
+      await tx.delete(basketItemsTable).where(inArray(basketItemsTable.basketId, basketIds));
+      await tx.delete(basketsTable).where(inArray(basketsTable.id, basketIds));
+    }
+
+    await tx.delete(calculationsTable).where(eq(calculationsTable.clientId, clientId));
+
+    await tx
+      .update(clientsTable)
+      .set({ status: "questionnaire", updatedAt: new Date() })
+      .where(eq(clientsTable.id, clientId));
+
+    return createdSession;
+  });
 
   res.json(session);
 });

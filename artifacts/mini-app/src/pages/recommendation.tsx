@@ -92,20 +92,37 @@ export default function RecommendationPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const answersStr = urlParams.get("answers");
-  const answers: RecommendationAnswer[] = answersStr
+  const queryAnswers: RecommendationAnswer[] = answersStr
     ? JSON.parse(decodeURIComponent(answersStr))
     : [];
+
+  const savedQuestionnaireQuery = useQuery({
+    queryKey: ["mini-client-questionnaire", params.clientId],
+    queryFn: () => api.get(`/mini-app/clients/${params.clientId}`),
+    enabled: queryAnswers.length === 0,
+    retry: false,
+  });
+
+  const savedAnswers: RecommendationAnswer[] = Array.isArray(
+    savedQuestionnaireQuery.data?.questionnaireAnswers,
+  )
+    ? savedQuestionnaireQuery.data.questionnaireAnswers
+    : [];
+
+  const answers = queryAnswers.length > 0 ? queryAnswers : savedAnswers;
+  const serializedAnswers = JSON.stringify(answers);
   const answerMap = new Map(answers.map((item) => [item.questionKey, item.answer]));
   const needType = answerMap.get("need_type") || undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["mini-recommend", params.clientId, currentLanguage, answersStr ?? ""],
+    queryKey: ["mini-recommend", params.clientId, currentLanguage, serializedAnswers],
     queryFn: () =>
       api.post("/mini-app/recommend", {
         clientId: parseInt(params.clientId),
         answers,
         language: currentLanguage,
       }),
+    enabled: answers.length > 0,
   });
 
   const { data: allProducts = [] } = useQuery({
@@ -122,7 +139,7 @@ export default function RecommendationPage() {
       "mini-ai-recommend",
       params.clientId,
       currentLanguage,
-      answersStr ?? "",
+      serializedAnswers,
       data?.recommended?.map((product: ProductRecord) => product.id).join(",") ?? "",
     ],
     enabled: !showAll && Boolean(data?.recommended?.length),
@@ -303,6 +320,34 @@ export default function RecommendationPage() {
           <CardContent className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t("common.loading")}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isLoading && answers.length === 0) {
+    return (
+      <div className="space-y-4 pb-8">
+        <button
+          onClick={() => navigate(`/questionnaire/${params.clientId}`)}
+          className="flex items-center gap-1 text-sm text-muted-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("common.back")}
+        </button>
+        <Card>
+          <CardContent className="space-y-3 p-6 text-sm text-muted-foreground">
+            <p>
+              {currentLanguage === "ru"
+                ? "Сначала заполните анкету клиента, чтобы Minerva смогла задать уточняющие вопросы и подобрать подходящие продукты."
+                : "Avval mijoz anketasini to'ldiring, shunda Minerva aniqlashtiruvchi savollar berib, mos mahsulotlarni tavsiya qiladi."}
+            </p>
+            <Button onClick={() => navigate(`/questionnaire/${params.clientId}`)}>
+              {currentLanguage === "ru"
+                ? "Вернуться к анкете"
+                : "So'rovnomaga qaytish"}
+            </Button>
           </CardContent>
         </Card>
       </div>

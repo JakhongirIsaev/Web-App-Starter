@@ -119,7 +119,7 @@ export default function ClientDetailPage() {
 
   const getNextAction = () => {
     if (client.status === "draft") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
-    if (client.status === "questionnaire") return { label: t("recommendation.title"), path: `/recommendation/${client.id}` };
+    if (client.status === "questionnaire") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
     if (client.status === "recommendation") return { label: t("basket.title"), path: `/recommendation/${client.id}` };
     return null;
   };
