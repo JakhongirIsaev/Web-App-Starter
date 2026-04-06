@@ -7,6 +7,7 @@ import {
   usersTable,
   branchesTable,
   creditProductsTable,
+  productsTable,
   articlesTable,
   articleVisibilityTable,
   clientNotesTable,
@@ -23,6 +24,7 @@ import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
+import { localizeProductPresentation } from "../ai/service";
 import {
   formatDateTimeInAppTimeZone,
   formatFileDate,
@@ -34,14 +36,30 @@ import {
   buildRecommendationNote,
   getRateSummary,
   getRelevantTerm,
+  isCreditNeedType,
+  isNonCreditNeedType,
   summarizeClientPreferences,
   type ProductLike,
   type QuestionnaireAnswer,
 } from "../lib/recommendation";
+import { buildCalculationSummary } from "../lib/calculations";
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
 type PdfLanguage = "ru" | "uz" | "en";
+
+interface DetailedBasketItem extends ProductLike {
+  id: number;
+  basketId: number;
+  productId: number | null;
+  productType: "credit" | "non_credit";
+  productName: string;
+  name: string;
+  calculationId?: number | null;
+  notes?: string | null;
+  whySuitable?: string | null;
+  sapCode?: string | null;
+}
 
 async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
   const [client] = await db
@@ -68,6 +86,191 @@ function getSegmentAliases(value?: string | null) {
   return aliasMap[normalized] || [normalized];
 }
 
+function getNonCreditSegmentLabel(language: PdfLanguage) {
+  if (language === "ru") return "Некредитный продукт";
+  if (language === "en") return "Non-credit product";
+  return "Nokredit mahsulot";
+}
+
+function extractScaledNumbers(value?: string | number | null) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return [value];
+  }
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return [];
+  }
+
+  const normalized = value.toLowerCase();
+  const matches = Array.from(normalized.matchAll(/(\d+(?:[.,]\d+)?)/g));
+
+  return matches
+    .map((match) => {
+      const raw = match[1].replace(",", ".");
+      const parsed = Number.parseFloat(raw);
+      if (!Number.isFinite(parsed)) return null;
+
+      const suffix = normalized.slice(match.index ?? 0, (match.index ?? 0) + 12);
+      const multiplier =
+        /\b(млн|million|mln)\b/.test(suffix)
+          ? 1_000_000
+          : /\b(тыс|thousand|ming)\b/.test(suffix)
+            ? 1_000
+            : 1;
+
+      return parsed * multiplier;
+    })
+    .filter((item): item is number => item !== null);
+}
+
+function parseAmountValue(value?: string | number | null) {
+  const [first] = extractScaledNumbers(value);
+  return typeof first === "number" && Number.isFinite(first) ? first : null;
+}
+
+function parsePercentValue(value?: string | null) {
+  if (!value) return null;
+  const percentMatch = value.match(/(\d+(?:[.,]\d+)?)\s*%/);
+  if (percentMatch) {
+    return Number.parseFloat(percentMatch[1].replace(",", "."));
+  }
+
+  const [first] = extractScaledNumbers(value);
+  return typeof first === "number" && Number.isFinite(first) ? first : null;
+}
+
+function parseIntegerValue(value?: string | number | null) {
+  const [first] = extractScaledNumbers(value);
+  if (typeof first !== "number" || !Number.isFinite(first)) return null;
+  return Math.max(1, Math.round(first));
+}
+
+function resolveCurrencyForProduct(
+  item: {
+    rateUZS?: string | null;
+    rateUSD?: string | null;
+    rateEUR?: string | null;
+  },
+  preferredCurrency?: string,
+) {
+  if (preferredCurrency === "usd" && item.rateUSD) return "USD";
+  if (preferredCurrency === "eur" && item.rateEUR) return "EUR";
+  if (preferredCurrency === "uzs" && item.rateUZS) return "UZS";
+  if (item.rateUZS) return "UZS";
+  if (item.rateUSD) return "USD";
+  if (item.rateEUR) return "EUR";
+  return "UZS";
+}
+
+function resolveRateForCurrency(
+  item: {
+    rateUZS?: string | null;
+    rateUSD?: string | null;
+    rateEUR?: string | null;
+  },
+  currency: string,
+) {
+  if (currency === "USD") return parsePercentValue(item.rateUSD);
+  if (currency === "EUR") return parsePercentValue(item.rateEUR);
+  return parsePercentValue(item.rateUZS ?? item.rateUSD ?? item.rateEUR ?? null);
+}
+
+function resolveRelevantTermMonths(
+  item: {
+    termWorkingCapital?: string | null;
+    termFixedAssets?: string | null;
+    termUntargeted?: string | null;
+  },
+  profile: ReturnType<typeof buildClientPreferenceProfile>,
+) {
+  const requestedTerm = parseIntegerValue(profile.desiredTerm);
+  if (requestedTerm) return requestedTerm;
+  return parseIntegerValue(
+    getRelevantTerm(item as ProductLike, profile.loanPurpose) ??
+      item.termWorkingCapital ??
+      item.termFixedAssets ??
+      item.termUntargeted ??
+      null,
+  );
+}
+
+function resolveInitialPaymentRatio(profile: ReturnType<typeof buildClientPreferenceProfile>) {
+  switch (profile.downPaymentLevel) {
+    case "up_to_20":
+      return 0.1;
+    case "20_to_40":
+      return 0.3;
+    case "over_40":
+      return 0.45;
+    default:
+      return 0;
+  }
+}
+
+function resolveGracePeriodMonths(
+  item: { gracePeriod?: string | null },
+  profile: ReturnType<typeof buildClientPreferenceProfile>,
+) {
+  if (profile.needsGracePeriod === "no") return 0;
+  const detected = parseIntegerValue(item.gracePeriod ?? null);
+  if (profile.needsGracePeriod === "yes") {
+    return Math.min(detected ?? 3, 6);
+  }
+  return Math.min(detected ?? 0, 6);
+}
+
+function mapNonCreditProduct(
+  product: typeof productsTable.$inferSelect,
+  language: PdfLanguage,
+) {
+  return {
+    id: product.id,
+    productType: "non_credit" as const,
+    name: product.name,
+    productName: product.name,
+    sapCode: null,
+    segment: getNonCreditSegmentLabel(language),
+    disbursementForm: null,
+    loanAmount: null,
+    termWorkingCapital: null,
+    termFixedAssets: null,
+    termUntargeted: null,
+    rateUZS: null,
+    rateUSD: null,
+    rateEUR: null,
+    gracePeriod: null,
+    purpose: product.description,
+    highlight: null,
+    isActive: product.isActive,
+  };
+}
+
+async function getRecommendationCatalog(language: PdfLanguage, needType?: string) {
+  const includeCredit = isCreditNeedType(needType);
+  const includeNonCredit = isNonCreditNeedType(needType);
+
+  const creditProducts = includeCredit
+    ? await db
+        .select()
+        .from(creditProductsTable)
+        .where(eq(creditProductsTable.isActive, true))
+        .orderBy(creditProductsTable.number)
+    : [];
+
+  const nonCreditProducts = includeNonCredit
+    ? await db
+        .select()
+        .from(productsTable)
+        .where(and(eq(productsTable.isActive, true), eq(productsTable.type, "non_credit")))
+        .orderBy(productsTable.name)
+    : [];
+
+  return [
+    ...creditProducts.map((product) => ({ ...product, productType: "credit" as const })),
+    ...nonCreditProducts.map((product) => mapNonCreditProduct(product, language)),
+  ];
+}
+
 async function getLatestQuestionnaireAnswers(clientId: number): Promise<QuestionnaireAnswer[]> {
   const [session] = await db
     .select({ id: questionnaireSessionsTable.id })
@@ -88,7 +291,7 @@ async function getLatestQuestionnaireAnswers(clientId: number): Promise<Question
     .orderBy(questionnaireAnswersTable.id);
 }
 
-async function getDetailedBasketItems(clientId: number) {
+async function getDetailedBasketItems(clientId: number): Promise<DetailedBasketItem[]> {
   const [basket] = await db
     .select()
     .from(basketsTable)
@@ -106,6 +309,11 @@ async function getDetailedBasketItems(clientId: number) {
     .map((item) => item.productId)
     .filter((value): value is number => typeof value === "number");
 
+  const nonCreditNames = basketItems
+    .filter((item) => item.productType === "non_credit")
+    .map((item) => item.productName)
+    .filter((value, index, array) => value && array.indexOf(value) === index);
+
   const products = productIds.length > 0
     ? await db
         .select()
@@ -113,16 +321,130 @@ async function getDetailedBasketItems(clientId: number) {
         .where(inArray(creditProductsTable.id, productIds))
     : [];
 
+  const nonCreditProducts = nonCreditNames.length > 0
+    ? await db
+        .select()
+        .from(productsTable)
+        .where(
+          and(
+            eq(productsTable.type, "non_credit"),
+            inArray(productsTable.name, nonCreditNames),
+          ),
+        )
+    : [];
+
   const productMap = new Map(products.map((product) => [product.id, product]));
+  const nonCreditMap = new Map(
+    nonCreditProducts.map((product) => [product.name, product]),
+  );
 
   return basketItems.map((item) => {
-    const product = item.productId ? productMap.get(item.productId) : undefined;
-    return {
+    const product =
+      item.productType === "credit" && item.productId
+        ? productMap.get(item.productId)
+        : undefined;
+    const nonCreditProduct =
+      item.productType === "non_credit"
+        ? nonCreditMap.get(item.productName)
+        : undefined;
+
+    const mergedItem: DetailedBasketItem = {
       ...item,
-      ...product,
+      ...(product
+        ? { ...product, productType: "credit" as const }
+        : nonCreditProduct
+          ? mapNonCreditProduct(nonCreditProduct, "uz")
+          : {}),
+      productType:
+        item.productType === "non_credit" ? "non_credit" : "credit",
+      name:
+        product?.name ??
+        nonCreditProduct?.name ??
+        item.productName,
       whySuitable: item.notes || null,
     };
+
+    return mergedItem;
   });
+}
+
+function buildProvisionalCalculations(
+  basketItems: DetailedBasketItem[],
+  profile: ReturnType<typeof buildClientPreferenceProfile>,
+  existingCalculations: Array<(typeof calculationsTable.$inferSelect)>,
+) {
+  const existingProductNames = new Set(
+    existingCalculations.map((calculation) => calculation.productName),
+  );
+
+  return basketItems
+    .filter(
+      (item) =>
+        item.productType === "credit" &&
+        !existingProductNames.has(item.productName || item.name || ""),
+    )
+    .map((item) => {
+      const requestedAmount = parseAmountValue(profile.desiredAmount);
+      const termMonths = resolveRelevantTermMonths(item, profile);
+      const currency = resolveCurrencyForProduct(item, profile.preferredCurrency);
+      const interestRate = resolveRateForCurrency(item, currency);
+
+      if (!requestedAmount || !termMonths || !interestRate) {
+        return null;
+      }
+
+      const initialPayment = Math.round(
+        requestedAmount * resolveInitialPaymentRatio(profile),
+      );
+      const financedAmount = Math.max(0, requestedAmount - initialPayment);
+
+      if (financedAmount <= 0) {
+        return null;
+      }
+
+      const provisionalBase = {
+        productName: item.productName || item.name || "Product",
+        loanAmount: financedAmount.toFixed(2),
+        interestRate: interestRate.toFixed(3),
+        termMonths,
+        repaymentType:
+          profile.repaymentPreference === "differentiated"
+            ? "differentiated"
+            : "annuity",
+        initialPayment: initialPayment > 0 ? initialPayment.toFixed(2) : null,
+        gracePeriodMonths: resolveGracePeriodMonths(item, profile),
+        currency,
+      };
+
+      const summary = buildCalculationSummary(provisionalBase);
+      if (!summary) {
+        return null;
+      }
+
+      return {
+        ...provisionalBase,
+        monthlyPayment: summary.monthlyPayment.toFixed(2),
+        totalPayment: summary.totalPayment.toFixed(2),
+        totalInterest: summary.totalInterest.toFixed(2),
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        productName: string;
+        loanAmount: string;
+        interestRate: string;
+        termMonths: number;
+        repaymentType: string;
+        initialPayment: string | null;
+        gracePeriodMonths: number;
+        currency: string;
+        monthlyPayment: string;
+        totalPayment: string;
+        totalInterest: string;
+      } => item !== null,
+    );
 }
 
 function resolvePdfLanguage(value: unknown): PdfLanguage {
@@ -143,27 +465,61 @@ async function buildPdfPayload(
   if (!client) return null;
 
   const basketItems = await getDetailedBasketItems(clientId);
-  const calculations = await db
+  const persistedCalculations = await db
     .select()
     .from(calculationsTable)
-      .where(eq(calculationsTable.clientId, clientId))
-      .orderBy(desc(calculationsTable.createdAt));
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt));
 
   const answers = await getLatestQuestionnaireAnswers(clientId);
   const profile = buildClientPreferenceProfile(answers, language);
   const preferenceSummary = summarizeClientPreferences(profile, language);
+  const localizedPresentation =
+    basketItems.length > 0
+      ? await localizeProductPresentation(
+          basketItems.map((item) => ({
+            productId: item.productType === "credit" ? item.id ?? item.productId ?? null : null,
+            productName: item.productName || item.name || "Product",
+            segment: item.segment ?? null,
+            purpose: item.purpose ?? null,
+            highlight: item.highlight ?? null,
+            loanAmount: item.loanAmount ?? null,
+            rateSummary: getRateSummary(item as ProductLike),
+            relevantTerm: getRelevantTerm(item as ProductLike, profile.loanPurpose),
+            disbursementForm: item.disbursementForm ?? null,
+            gracePeriod: item.gracePeriod ?? null,
+          })),
+          language,
+        )
+      : [];
 
-  const localizedBasketItems = basketItems.map((item) => ({
-    ...item,
-    localizedSegment: null,
-    localizedPurpose: null,
-    localizedHighlight: null,
-    localizedLoanAmount: null,
-    localizedRate: null,
-    localizedRelevantTerm: null,
-    localizedDisbursementForm: null,
-    localizedGracePeriod: null,
-  }));
+  const localizedMap = new Map(
+    localizedPresentation.map((item) => [
+      `${item.productId ?? "null"}:${item.productName}`,
+      item,
+    ]),
+  );
+
+  const localizedBasketItems = basketItems.map((item) => {
+    const key = `${item.productType === "credit" ? item.id ?? item.productId ?? null : "null"}:${item.productName || item.name || "Product"}`;
+    const localized = localizedMap.get(key);
+    return {
+      ...item,
+      localizedSegment: localized?.localizedSegment ?? null,
+      localizedPurpose: localized?.localizedPurpose ?? null,
+      localizedHighlight: localized?.localizedHighlight ?? null,
+      localizedLoanAmount: localized?.localizedLoanAmount ?? null,
+      localizedRate: localized?.localizedRate ?? null,
+      localizedRelevantTerm: localized?.localizedRelevantTerm ?? null,
+      localizedDisbursementForm: localized?.localizedDisbursementForm ?? null,
+      localizedGracePeriod: localized?.localizedGracePeriod ?? null,
+    };
+  });
+
+  const calculations = [
+    ...persistedCalculations,
+    ...buildProvisionalCalculations(basketItems, profile, persistedCalculations),
+  ];
 
   const [expert] = await db
     .select({ name: usersTable.name, telegramId: usersTable.telegramId })
@@ -617,15 +973,12 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
 router.post("/mini-app/recommend", requireAuth, async (req, res) => {
   const { clientId, answers = [] } = req.body;
   const language = resolvePdfLanguage(req.body.language);
-
-  const allProducts = await db
-    .select()
-    .from(creditProductsTable)
-    .where(eq(creditProductsTable.isActive, true));
-
-  let recommended = allProducts;
   const answerList = Array.isArray(answers) ? answers : [];
   const profile = buildClientPreferenceProfile(answerList, language);
+
+  const allProducts = await getRecommendationCatalog(language, profile.needType);
+
+  let recommended = allProducts;
 
   if (profile.businessSize) {
     const aliases = getSegmentAliases(profile.businessSize);
@@ -636,12 +989,23 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
     if (filtered.length > 0) recommended = filtered;
   }
 
-  if (profile.loanPurpose === "working_capital") {
-    recommended = recommended.filter((product) => product.termWorkingCapital);
-  } else if (profile.loanPurpose === "fixed_assets") {
-    recommended = recommended.filter((product) => product.termFixedAssets);
-  } else if (profile.loanPurpose === "untargeted") {
-    recommended = recommended.filter((product) => product.termUntargeted);
+  if (isCreditNeedType(profile.needType)) {
+    if (profile.loanPurpose === "working_capital") {
+      recommended = recommended.filter(
+        (product) =>
+          product.productType !== "credit" || Boolean(product.termWorkingCapital),
+      );
+    } else if (profile.loanPurpose === "fixed_assets") {
+      recommended = recommended.filter(
+        (product) =>
+          product.productType !== "credit" || Boolean(product.termFixedAssets),
+      );
+    } else if (profile.loanPurpose === "untargeted") {
+      recommended = recommended.filter(
+        (product) =>
+          product.productType !== "credit" || Boolean(product.termUntargeted),
+      );
+    }
   }
 
   const enrichedRecommended = recommended.map((product) => ({
@@ -695,7 +1059,8 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
     for (const item of items) {
       await db.insert(basketItemsTable).values({
         basketId,
-        productId: item.productId || null,
+        productId:
+          item.productType === "non_credit" ? null : item.productId || null,
         productType: item.productType || "credit",
         productName: item.productName,
         notes: item.notes || null,
@@ -816,11 +1181,9 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
 });
 
 router.get("/mini-app/products", requireAuth, async (req, res) => {
-  const products = await db
-    .select()
-    .from(creditProductsTable)
-    .where(eq(creditProductsTable.isActive, true))
-    .orderBy(creditProductsTable.number);
+  const needType =
+    typeof req.query.needType === "string" ? req.query.needType : undefined;
+  const products = await getRecommendationCatalog("uz", needType);
 
   res.json(products);
 });

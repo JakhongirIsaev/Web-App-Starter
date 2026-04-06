@@ -70,9 +70,52 @@ export interface ClientPreferenceProfile {
   loanPurposeLabel?: string;
   desiredAmount?: string;
   desiredTerm?: string;
+  preferredCurrency?: string;
+  preferredCurrencyLabel?: string;
+  monthlyPaymentComfort?: string;
+  monthlyPaymentComfortLabel?: string;
+  repaymentPreference?: string;
+  repaymentPreferenceLabel?: string;
+  downPaymentLevel?: string;
+  downPaymentLevelLabel?: string;
+  needsGracePeriod?: string;
+  needsGracePeriodLabel?: string;
 }
 
 type SupportedLanguage = "ru" | "uz" | "en";
+
+const CURRENCY_LABELS = {
+  uzs: { uz: "So'm", ru: "Сум", en: "UZS" },
+  usd: { uz: "AQSh dollari", ru: "Доллар США", en: "USD" },
+  eur: { uz: "Yevro", ru: "Евро", en: "EUR" },
+  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено", en: "Not decided yet" },
+};
+
+const MONTHLY_PAYMENT_LABELS = {
+  up_to_10m: { uz: "10 mln so'mgacha", ru: "До 10 млн сум", en: "Up to 10m UZS" },
+  "10m_to_30m": { uz: "10-30 mln so'm", ru: "10-30 млн сум", en: "10m to 30m UZS" },
+  over_30m: { uz: "30 mln so'mdan yuqori", ru: "Свыше 30 млн сум", en: "Over 30m UZS" },
+  not_sure: { uz: "Hali aniq emas", ru: "Пока неясно", en: "Not sure yet" },
+};
+
+const REPAYMENT_PREFERENCE_LABELS = {
+  annuity: { uz: "Har oy bir xil to'lov", ru: "Равный платеж каждый месяц", en: "Equal monthly payment" },
+  differentiated: { uz: "Boshlanishida katta, keyin kamayadigan", ru: "Сначала выше, затем меньше", en: "Higher first, then lower" },
+  not_sure: { uz: "Ekspert tavsiya bersin", ru: "Пусть эксперт подскажет", en: "Expert can suggest" },
+};
+
+const DOWN_PAYMENT_LABELS = {
+  none: { uz: "Boshlang'ich to'lovsiz", ru: "Без первоначального взноса", en: "No down payment" },
+  up_to_20: { uz: "20% gacha", ru: "До 20%", en: "Up to 20%" },
+  "20_to_40": { uz: "20-40%", ru: "20-40%", en: "20-40%" },
+  over_40: { uz: "40% dan yuqori", ru: "Свыше 40%", en: "Over 40%" },
+};
+
+const GRACE_PERIOD_LABELS = {
+  yes: { uz: "Ha", ru: "Да", en: "Yes" },
+  no: { uz: "Yo'q", ru: "Нет", en: "No" },
+  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено", en: "Not decided yet" },
+};
 
 function toAnswerMap(answers: QuestionnaireAnswer[] = []) {
   return new Map(answers.map((item) => [item.questionKey, item.answer]));
@@ -99,6 +142,11 @@ export function buildClientPreferenceProfile(
   const loanPurpose = answerMap.get("loan_purpose");
   const desiredAmount = answerMap.get("desired_amount");
   const desiredTerm = answerMap.get("desired_term");
+  const preferredCurrency = answerMap.get("preferred_currency");
+  const monthlyPaymentComfort = answerMap.get("monthly_payment_comfort");
+  const repaymentPreference = answerMap.get("repayment_preference");
+  const downPaymentLevel = answerMap.get("down_payment_level");
+  const needsGracePeriod = answerMap.get("needs_grace_period");
 
   return {
     businessType,
@@ -111,6 +159,16 @@ export function buildClientPreferenceProfile(
     loanPurposeLabel: getLabel(LOAN_PURPOSE_LABELS as any, loanPurpose, language),
     desiredAmount,
     desiredTerm,
+    preferredCurrency,
+    preferredCurrencyLabel: getLabel(CURRENCY_LABELS as any, preferredCurrency, language),
+    monthlyPaymentComfort,
+    monthlyPaymentComfortLabel: getLabel(MONTHLY_PAYMENT_LABELS as any, monthlyPaymentComfort, language),
+    repaymentPreference,
+    repaymentPreferenceLabel: getLabel(REPAYMENT_PREFERENCE_LABELS as any, repaymentPreference, language),
+    downPaymentLevel,
+    downPaymentLevelLabel: getLabel(DOWN_PAYMENT_LABELS as any, downPaymentLevel, language),
+    needsGracePeriod,
+    needsGracePeriodLabel: getLabel(GRACE_PERIOD_LABELS as any, needsGracePeriod, language),
   };
 }
 
@@ -125,6 +183,11 @@ export function summarizeClientPreferences(
     purpose: language === "ru" ? "Цель" : language === "en" ? "Purpose" : "Maqsad",
     amount: language === "ru" ? "Нужная сумма" : language === "en" ? "Requested amount" : "Kerakli summa",
     term: language === "ru" ? "Нужный срок" : language === "en" ? "Requested term" : "Kerakli muddat",
+    currency: language === "ru" ? "Валюта" : language === "en" ? "Currency" : "Valyuta",
+    monthlyPayment: language === "ru" ? "Комфортный ежемесячный платеж" : language === "en" ? "Comfortable monthly payment" : "Qulay oylik to'lov",
+    repayment: language === "ru" ? "Предпочтительный график" : language === "en" ? "Preferred repayment style" : "Afzal to'lov jadvali",
+    downPayment: language === "ru" ? "Первоначальный взнос" : language === "en" ? "Down payment" : "Boshlang'ich to'lov",
+    gracePeriod: language === "ru" ? "Нужен льготный период" : language === "en" ? "Needs grace period" : "Imtiyozli davr kerak",
     months: language === "ru" ? "мес." : language === "en" ? "months" : "oy",
   };
 
@@ -135,6 +198,11 @@ export function summarizeClientPreferences(
     profile.loanPurposeLabel ? { label: labels.purpose, value: profile.loanPurposeLabel } : null,
     profile.desiredAmount ? { label: labels.amount, value: profile.desiredAmount } : null,
     profile.desiredTerm ? { label: labels.term, value: `${profile.desiredTerm} ${labels.months}` } : null,
+    profile.preferredCurrencyLabel ? { label: labels.currency, value: profile.preferredCurrencyLabel } : null,
+    profile.monthlyPaymentComfortLabel ? { label: labels.monthlyPayment, value: profile.monthlyPaymentComfortLabel } : null,
+    profile.repaymentPreferenceLabel ? { label: labels.repayment, value: profile.repaymentPreferenceLabel } : null,
+    profile.downPaymentLevelLabel ? { label: labels.downPayment, value: profile.downPaymentLevelLabel } : null,
+    profile.needsGracePeriodLabel ? { label: labels.gracePeriod, value: profile.needsGracePeriodLabel } : null,
   ].filter((item): item is { label: string; value: string } => Boolean(item));
 }
 
@@ -161,6 +229,14 @@ export function getRateSummary(product: ProductLike): string | null {
   ].filter(Boolean);
 
   return rates.length > 0 ? rates.join(" | ") : null;
+}
+
+export function isCreditNeedType(needType?: string) {
+  return !needType || needType === "credit" || needType === "both";
+}
+
+export function isNonCreditNeedType(needType?: string) {
+  return needType === "non_credit" || needType === "both";
 }
 
 export function buildRecommendationNote(

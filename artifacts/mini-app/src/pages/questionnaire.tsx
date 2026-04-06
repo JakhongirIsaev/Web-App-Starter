@@ -49,8 +49,60 @@ function isQuestionDefinition(value: unknown): value is QuestionDefinition {
   );
 }
 
-function getFallbackQuestions(language: "ru" | "uz"): QuestionDefinition[] {
+function getFallbackQuestions(
+  language: "ru" | "uz",
+  needType?: string,
+): QuestionDefinition[] {
+  const isNonCredit = needType === "non_credit";
+
   if (language === "ru") {
+    if (isNonCredit) {
+      return [
+        {
+          key: "service_goal",
+          label: "Какой некредитный сервис клиенту нужен в первую очередь?",
+          type: "select",
+          options: [
+            { value: "settlement", label: "Расчётно-кассовое обслуживание" },
+            { value: "terminal", label: "POS-терминал и эквайринг" },
+            { value: "payroll", label: "Зарплатный проект" },
+            { value: "foreign_payments", label: "Валютные и международные платежи" },
+          ],
+        },
+        {
+          key: "monthly_turnover_band",
+          label: "Какой ожидаемый ежемесячный оборот по счёту?",
+          type: "select",
+          options: [
+            { value: "up_to_100m", label: "До 100 млн сум" },
+            { value: "100m_to_500m", label: "100–500 млн сум" },
+            { value: "over_500m", label: "Свыше 500 млн сум" },
+            { value: "not_sure", label: "Пока неясно" },
+          ],
+        },
+        {
+          key: "has_pos_need",
+          label: "Нужно ли клиенту принимать оплату картами и QR?",
+          type: "select",
+          options: [
+            { value: "yes", label: "Да, обязательно" },
+            { value: "later", label: "Позже может понадобиться" },
+            { value: "no", label: "Нет" },
+          ],
+        },
+        {
+          key: "foreign_payments_need",
+          label: "Есть ли потребность в валютных или международных переводах?",
+          type: "select",
+          options: [
+            { value: "yes", label: "Да" },
+            { value: "no", label: "Нет" },
+            { value: "not_sure", label: "Пока не определено" },
+          ],
+        },
+      ];
+    }
+
     return [
       {
         key: "preferred_currency",
@@ -84,6 +136,53 @@ function getFallbackQuestions(language: "ru" | "uz"): QuestionDefinition[] {
           { value: "annuity", label: "Равный платёж каждый месяц" },
           { value: "differentiated", label: "Сначала выше, потом ниже" },
           { value: "not_sure", label: "Пусть эксперт подскажет" },
+        ],
+      },
+    ];
+  }
+
+  if (isNonCredit) {
+    return [
+      {
+        key: "service_goal",
+        label: "Mijozga birinchi navbatda qaysi nokredit xizmat kerak?",
+        type: "select",
+        options: [
+          { value: "settlement", label: "Hisob-kitob xizmati" },
+          { value: "terminal", label: "POS-terminal va ekvayring" },
+          { value: "payroll", label: "Ish haqi loyihasi" },
+          { value: "foreign_payments", label: "Valyuta va xalqaro to'lovlar" },
+        ],
+      },
+      {
+        key: "monthly_turnover_band",
+        label: "Hisob bo'yicha kutilayotgan oylik aylanma qancha?",
+        type: "select",
+        options: [
+          { value: "up_to_100m", label: "100 mln so'mgacha" },
+          { value: "100m_to_500m", label: "100–500 mln so'm" },
+          { value: "over_500m", label: "500 mln so'mdan yuqori" },
+          { value: "not_sure", label: "Hali aniq emas" },
+        ],
+      },
+      {
+        key: "has_pos_need",
+        label: "Mijozga karta va QR orqali to'lov qabul qilish kerakmi?",
+        type: "select",
+        options: [
+          { value: "yes", label: "Ha, albatta" },
+          { value: "later", label: "Keyin kerak bo'lishi mumkin" },
+          { value: "no", label: "Yo'q" },
+        ],
+      },
+      {
+        key: "foreign_payments_need",
+        label: "Valyuta yoki xalqaro o'tkazmalar kerak bo'ladimi?",
+        type: "select",
+        options: [
+          { value: "yes", label: "Ha" },
+          { value: "no", label: "Yo'q" },
+          { value: "not_sure", label: "Hali aniqlanmagan" },
         ],
       },
     ];
@@ -332,7 +431,9 @@ export default function QuestionnairePage() {
   });
 
   const openFollowUps = async () => {
-    const fallbackQuestions = getFallbackQuestions(currentLanguage);
+    const needType =
+      answers.find((item) => item.questionKey === "need_type")?.answer ?? undefined;
+    const fallbackQuestions = getFallbackQuestions(currentLanguage, needType);
 
     try {
       const generated = await generateQuestionsMutation.mutateAsync();

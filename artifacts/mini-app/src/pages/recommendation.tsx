@@ -75,6 +75,13 @@ function buildClientFacingSummary(
   return parts.join(" ");
 }
 
+function truncateText(value: string | null, maxLength = 220) {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
 export default function RecommendationPage() {
   const { t, i18n } = useTranslation();
   const params = useParams<{ clientId: string }>();
@@ -89,6 +96,7 @@ export default function RecommendationPage() {
     ? JSON.parse(decodeURIComponent(answersStr))
     : [];
   const answerMap = new Map(answers.map((item) => [item.questionKey, item.answer]));
+  const needType = answerMap.get("need_type") || undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ["mini-recommend", params.clientId, currentLanguage, answersStr ?? ""],
@@ -101,8 +109,11 @@ export default function RecommendationPage() {
   });
 
   const { data: allProducts = [] } = useQuery({
-    queryKey: ["mini-all-products"],
-    queryFn: () => api.get("/mini-app/products"),
+    queryKey: ["mini-all-products", needType ?? "credit"],
+    queryFn: () =>
+      api.get(
+        `/mini-app/products${needType ? `?needType=${encodeURIComponent(needType)}` : ""}`,
+      ),
     enabled: showAll,
   });
 
@@ -213,10 +224,10 @@ export default function RecommendationPage() {
       aiRecommendation?.explanation,
       currentLanguage,
     )
-      ? aiRecommendation?.explanation?.trim() || null
+      ? truncateText(aiRecommendation?.explanation?.trim() || null)
       : currentLanguage === "ru" &&
           isTextCompatibleWithLanguage(product.whySuitable, currentLanguage)
-        ? product.whySuitable
+        ? truncateText(product.whySuitable)
         : null;
 
     return {
@@ -230,12 +241,14 @@ export default function RecommendationPage() {
       displayExplanation,
       clientFacingSummary:
         displayExplanation ||
-        buildClientFacingSummary(currentLanguage, {
-          purpose: displayPurpose,
-          highlight: displayHighlight,
-          amount: displayAmount,
-          rate: displayRate,
-        }) ||
+        truncateText(
+          buildClientFacingSummary(currentLanguage, {
+            purpose: displayPurpose,
+            highlight: displayHighlight,
+            amount: displayAmount,
+            rate: displayRate,
+          }),
+        ) ||
         null,
     };
   });
@@ -254,8 +267,8 @@ export default function RecommendationPage() {
       const items = visibleProducts
         .filter((product: ProductRecord) => selectedIds.has(product.id))
         .map((product: ProductRecord) => ({
-          productId: product.id,
-          productType: "credit",
+          productId: product.productType === "non_credit" ? null : product.id,
+          productType: product.productType || "credit",
           productName: product.name,
           notes: product.clientFacingSummary || null,
         }));

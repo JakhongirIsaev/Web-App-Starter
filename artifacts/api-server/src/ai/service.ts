@@ -234,7 +234,77 @@ function buildFallbackQuestions(
     ),
   );
   const language = input.language;
-  const fallbackQuestions = [
+  const needType = answerMap.get("need_type");
+  const fallbackQuestions = needType === "non_credit" ? [
+    {
+      key: "service_goal",
+      label:
+        language === "ru"
+          ? "Какой банковский сервис нужен клиенту в первую очередь?"
+          : language === "en"
+            ? "Which banking service is the highest priority for the client?"
+            : "Mijoz uchun qaysi bank xizmati birinchi navbatda muhim?",
+      type: "select" as const,
+      helperText:
+        language === "ru"
+          ? "Это помогает сразу убрать неподходящие некредитные продукты."
+          : language === "en"
+            ? "This quickly narrows down the non-credit offers."
+            : "Bu nokredit mahsulotlarni tezroq aniqroq tanlashga yordam beradi.",
+      options: [
+        buildQuestionOption("settlement_account", "Hisob-kitob xizmati", "Расчетный счет", "Settlement account", language),
+        buildQuestionOption("payment_acceptance", "To'lovlarni qabul qilish", "Прием платежей", "Payment acceptance", language),
+        buildQuestionOption("payroll", "Ish haqi loyihasi", "Зарплатный проект", "Payroll service", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+      ],
+    },
+    {
+      key: "monthly_turnover_band",
+      label:
+        language === "ru"
+          ? "Какой ежемесячный оборот ожидается по сервису?"
+          : language === "en"
+            ? "What monthly turnover is expected for the service?"
+            : "Xizmat bo'yicha kutilayotgan oylik aylanma qancha?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("up_to_100m", "100 mln so'mgacha", "До 100 млн сум", "Up to 100m UZS", language),
+        buildQuestionOption("100m_to_500m", "100-500 mln so'm", "100-500 млн сум", "100m to 500m UZS", language),
+        buildQuestionOption("over_500m", "500 mln so'mdan yuqori", "Свыше 500 млн сум", "Over 500m UZS", language),
+        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", "Not sure yet", language),
+      ],
+    },
+    {
+      key: "has_pos_need",
+      label:
+        language === "ru"
+          ? "Нужны ли клиенту терминалы или онлайн-прием платежей?"
+          : language === "en"
+            ? "Does the client need terminals or online payment acceptance?"
+            : "Mijozga terminal yoki onlayn to'lov qabul qilish kerakmi?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
+        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+      ],
+    },
+    {
+      key: "foreign_payments_need",
+      label:
+        language === "ru"
+          ? "Есть ли потребность в валютных или международных платежах?"
+          : language === "en"
+            ? "Is there a need for FX or international payments?"
+            : "Valyuta yoki xalqaro to'lovlarga ehtiyoj bormi?",
+      type: "select" as const,
+      options: [
+        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
+        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+      ],
+    },
+  ] : [
     {
       key: "preferred_currency",
       label:
@@ -387,6 +457,54 @@ function buildFallbackLocalizedProducts(
   }));
 }
 
+type MergeableRecommendation = {
+  productId?: number | null;
+  productName: string;
+  rank: number;
+  confidence: number;
+  explanation: string;
+  localizedSegment?: string | null;
+  localizedPurpose?: string | null;
+  localizedHighlight?: string | null;
+  localizedLoanAmount?: string | null;
+  localizedRate?: string | null;
+  localizedRelevantTerm?: string | null;
+  localizedDisbursementForm?: string | null;
+  localizedGracePeriod?: string | null;
+};
+
+function mergeLocalizedPresentation(
+  recommendations: MergeableRecommendation[],
+  localizedProducts: LocalizedProductPresentation[],
+) {
+  const localizedMap = new Map(
+    localizedProducts.map((product) => [
+      `${product.productId ?? "null"}:${product.productName}`,
+      product,
+    ]),
+  );
+
+  return recommendations.map((recommendation) => {
+    const localized =
+      localizedMap.get(`${recommendation.productId ?? "null"}:${recommendation.productName}`) ??
+      null;
+    if (!localized) return recommendation;
+    return {
+      ...recommendation,
+      localizedSegment: localized.localizedSegment ?? recommendation.localizedSegment ?? null,
+      localizedPurpose: localized.localizedPurpose ?? recommendation.localizedPurpose ?? null,
+      localizedHighlight: localized.localizedHighlight ?? recommendation.localizedHighlight ?? null,
+      localizedLoanAmount: localized.localizedLoanAmount ?? recommendation.localizedLoanAmount ?? null,
+      localizedRate: localized.localizedRate ?? recommendation.localizedRate ?? null,
+      localizedRelevantTerm:
+        localized.localizedRelevantTerm ?? recommendation.localizedRelevantTerm ?? null,
+      localizedDisbursementForm:
+        localized.localizedDisbursementForm ?? recommendation.localizedDisbursementForm ?? null,
+      localizedGracePeriod: localized.localizedGracePeriod ?? recommendation.localizedGracePeriod ?? null,
+    };
+  });
+}
+
 function fallbackRecommendation(input: AiRecommendProductsBodyType) {
   const recommendations = input.allowedProducts.slice(0, 5).map((product, index) => ({
     productId: product.id ?? null,
@@ -511,7 +629,7 @@ export async function localizeProductPresentation(
   language: SupportedLanguage,
 ) {
   if (products.length === 0) return [];
-  if (language === "ru" || language === "en") {
+  if (language === "en") {
     return buildFallbackLocalizedProducts(products);
   }
 
@@ -526,7 +644,9 @@ export async function localizeProductPresentation(
           content: [
             "You localize banking product presentation fields for a Telegram Mini App.",
             "Return valid JSON only.",
-            "Translate all user-facing fields to Uzbek in Latin script only.",
+            language === "ru"
+              ? "Translate all user-facing fields to natural Russian in Cyrillic only."
+              : "Translate all user-facing fields to Uzbek in Latin script only.",
             "Keep productName unchanged.",
             "Do not invent values.",
             "Preserve numbers, currencies, and product identifiers.",
@@ -557,6 +677,8 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
   const existingKeys = new Set(
     existingAnswers.map((item: typeof existingAnswers[number]) => item.questionKey),
   );
+  const answerMap = new Map(existingAnswers.map((item) => [item.questionKey, item.answer]));
+  const needType = answerMap.get("need_type");
 
   try {
     const { data, model } = await ollamaChatJson<unknown>({
@@ -576,7 +698,9 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
             "Use meaningful snake_case keys.",
             "Do not invent policies, rates, or eligibility rules.",
             "Questions must help choose a bank product in a structured workflow.",
-            "Prefer questions about currency, comfortable monthly payment, repayment style, down payment, grace period, collateral, and urgency.",
+            needType === "non_credit"
+              ? "For non-credit needs, prefer questions about settlement package usage, POS terminals, payroll, foreign payments, and account service needs."
+              : "Prefer questions about currency, comfortable monthly payment, repayment style, down payment, grace period, collateral, and urgency.",
             languageInstruction(input.language),
           ].join(" "),
         },
@@ -662,6 +786,7 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
             "Use only the allowed product catalog provided by the backend.",
             "Rank at most 5 products.",
             "The explanation must be concise, natural, and entirely in the target language.",
+            "Keep each explanation under 220 characters and no more than two short sentences.",
             "Also localize the product presentation fields into the same target language.",
             "Keep productName unchanged.",
             languageInstruction(input.language),
@@ -697,8 +822,44 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
       ],
     });
 
+    const parsed = AiRecommendProductsResponse.parse(data);
+    if (input.language === "en") {
+      return {
+        ...parsed,
+        model,
+      };
+    }
+
+    const localizedProducts = await localizeProductPresentation(
+      sanitizedProducts
+        .filter((product) =>
+          parsed.recommendations.some(
+            (recommendation) =>
+              recommendation.productId === (product.id ?? null) ||
+              recommendation.productName === product.name,
+          ),
+        )
+        .map((product) => ({
+          productId: product.id ?? null,
+          productName: product.name,
+          segment: product.segment ?? null,
+          purpose: product.purpose ?? null,
+          highlight: product.highlight ?? null,
+          loanAmount: product.loanAmount ?? null,
+          rateSummary:
+            [product.rateUZS, product.rateUSD, product.rateEUR].filter(Boolean).join(" | ") || null,
+          relevantTerm:
+            [product.termWorkingCapital, product.termFixedAssets, product.termUntargeted]
+              .filter(Boolean)
+              .join(" | ") || null,
+          disbursementForm: product.disbursementForm ?? null,
+          gracePeriod: null,
+        })),
+      input.language,
+    );
+
     return {
-      ...AiRecommendProductsResponse.parse(data),
+      recommendations: mergeLocalizedPresentation(parsed.recommendations, localizedProducts),
       model,
     };
   } catch {
