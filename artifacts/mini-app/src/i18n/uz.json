@@ -128,7 +128,10 @@
     "desiredTerm": "Kerakli muddat (oy)",
     "desiredTermPlaceholder": "masalan, 36",
     "submit": "Mahsulotlarni tanlash",
-    "submitting": "Tahlil..."
+    "submitting": "Tahlil...",
+    "aiSubtitle": "AI yordamchi mahsulot tanlash uchun savollar beradi",
+    "aiThinking": "AI tahlil qilmoqda...",
+    "inputPlaceholder": "Javobingizni kiriting..."
   },
   "recommendation": {
     "title": "Tavsiya etilgan mahsulotlar",
@@ -145,7 +148,12 @@
     "term": "Muddat",
     "amount": "Summa",
     "allProducts": "Barcha mahsulotlar",
-    "recommended": "Tavsiya etilgan"
+    "recommended": "Tavsiya etilgan",
+    "aiAnalyzing": "AI tavsiyalarni tahlil qilmoqda...",
+    "aiInsights": "AI tahlili",
+    "whyRecommended": "Nima uchun tavsiya qilamiz",
+    "riskNotes": "E'tibor bering",
+    "tips": "Maslahatlar"
   },
   "basket": {
     "title": "Savat",
@@ -265,6 +273,17 @@
     "savedHint": "Ma'lumotlar ajratildi va mijozga biriktirildi",
     "scanAnother": "Yana skanerlash",
     "backToClient": "Mijozga qaytish",
+    "aiSubtitle": "AI hujjatdan ma'lumotlarni ajratib oladi",
+    "processAllAI": "AI bilan tanib olish ({{count}})",
+    "processingPhotoAI": "AI surat {{current}} / {{total}} ni qayta ishlamoqda...",
+    "aiExtracting": "AI yordamida ma'lumotlarni ajratish...",
+    "aiExtracted": "Ma'lumotlar AI tomonidan ajratildi",
+    "genderDetected": "Jinsi aniqlandi",
+    "male": "Erkak",
+    "female": "Ayol",
+    "confidence": "Ishonchlilik",
+    "suggestedBadges": "Tavsiya etilgan teglar",
+    "savedHintAI": "Ma'lumotlar AI tomonidan ajratildi va mijozga biriktirildi",
     "fields": {
       "fullName": "F.I.O",
       "passportNumber": "Pasport raqami",
@@ -273,7 +292,15 @@
       "address": "Manzil",
       "vin": "VIN raqam",
       "plateNumber": "Davlat raqami",
-      "inn": "STIR"
+      "inn": "STIR",
+      "gender": "Jinsi",
+      "issuedDate": "Berilgan sana",
+      "expiryDate": "Amal qilish muddati",
+      "issuedBy": "Kim tomonidan berilgan",
+      "nationality": "Fuqarolik",
+      "vehicleMake": "Avtomobil markasi",
+      "vehicleModel": "Avtomobil modeli",
+      "vehicleYear": "Ishlab chiqarilgan yili"
     },
     "documents": "Hujjatlar",
     "noDocuments": "Hujjatlar yo'q",

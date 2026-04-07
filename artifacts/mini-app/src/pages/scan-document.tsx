@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -8,7 +8,7 @@ import { useLocation, useParams } from "wouter";
 import {
   ArrowLeft, Camera, FileText, Loader2, CheckCircle2,
   RotateCcw, Upload, Eye, Scan, CreditCard, Car, FileCheck,
-  Plus, X, ImageIcon
+  X, ImageIcon, Sparkles, User, Shield
 } from "lucide-react";
 
 const DOC_TYPES = [
@@ -27,6 +27,29 @@ interface PhotoItem {
   extractedFields?: Record<string, string>;
 }
 
+interface AIExtraction {
+  fullName?: string;
+  passportNumber?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  genderConfidence?: number;
+  address?: string;
+  phone?: string;
+  inn?: string;
+  issuedDate?: string;
+  expiryDate?: string;
+  issuedBy?: string;
+  nationality?: string;
+  vin?: string;
+  plateNumber?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: string;
+  suggestedBadges?: string[];
+  rawText?: string;
+  [key: string]: unknown;
+}
+
 export default function ScanDocumentPage() {
   const { t } = useTranslation();
   const params = useParams<{ clientId: string }>();
@@ -41,6 +64,7 @@ export default function ScanDocumentPage() {
   const [processingIndex, setProcessingIndex] = useState(0);
   const [ocrText, setOcrText] = useState("");
   const [extractedFields, setExtractedFields] = useState<Record<string, string>>({});
+  const [aiExtraction, setAiExtraction] = useState<AIExtraction | null>(null);
   const [error, setError] = useState("");
 
   const handleCapture = () => {
@@ -96,21 +120,54 @@ export default function ScanDocumentPage() {
     const updatedPhotos = [...photos];
     let combinedText = "";
     const allFields: Record<string, string> = {};
+    let bestAiExtraction: AIExtraction = {};
 
     for (let i = 0; i < updatedPhotos.length; i++) {
       setProcessingIndex(i);
       try {
-        const result = await api.post("/ocr/recognize", { image: updatedPhotos[i].dataUrl });
-        const text = result.text || "";
+        // Run OCR and AI extraction in parallel
+        const base64Data = updatedPhotos[i].dataUrl.split(",")[1];
+
+        const [ocrResult, aiResult] = await Promise.allSettled([
+          api.post("/ocr/recognize", { image: updatedPhotos[i].dataUrl }),
+          api.post("/ai/extract-document", {
+            clientId: parseInt(params.clientId),
+            imageBase64: base64Data,
+            docType,
+          }),
+        ]);
+
+        // Process OCR result
+        const text = ocrResult.status === "fulfilled" ? (ocrResult.value.text || "") : "";
         updatedPhotos[i].ocrText = text;
-        const fields = parseExtractedFields(text, docType);
-        updatedPhotos[i].extractedFields = fields;
         combinedText += (combinedText ? "\n---\n" : "") + text;
-        Object.entries(fields).forEach(([k, v]) => {
-          if (v && !allFields[k]) allFields[k] = v;
-        });
+
+        // Process AI extraction
+        if (aiResult.status === "fulfilled") {
+          const aiData = aiResult.value as AIExtraction;
+          // Merge AI fields
+          for (const [k, v] of Object.entries(aiData)) {
+            if (v && !bestAiExtraction[k]) {
+              (bestAiExtraction as any)[k] = v;
+            }
+          }
+
+          // Convert AI extraction to display fields
+          const displayFields = aiExtractionToFields(aiData);
+          updatedPhotos[i].extractedFields = displayFields;
+          Object.entries(displayFields).forEach(([k, v]) => {
+            if (v && !allFields[k]) allFields[k] = v;
+          });
+        } else {
+          // Fallback to regex parsing
+          const fields = parseExtractedFields(text, docType);
+          updatedPhotos[i].extractedFields = fields;
+          Object.entries(fields).forEach(([k, v]) => {
+            if (v && !allFields[k]) allFields[k] = v;
+          });
+        }
       } catch (err: any) {
-        console.error(`OCR error on photo ${i + 1}:`, err);
+        console.error(`Processing error on photo ${i + 1}:`, err);
         updatedPhotos[i].ocrText = `[Error: ${err.message}]`;
       }
     }
@@ -118,7 +175,29 @@ export default function ScanDocumentPage() {
     setPhotos(updatedPhotos);
     setOcrText(combinedText);
     setExtractedFields(allFields);
+    setAiExtraction(bestAiExtraction);
     setState("review");
+  };
+
+  const aiExtractionToFields = (ai: AIExtraction): Record<string, string> => {
+    const fields: Record<string, string> = {};
+    if (ai.fullName) fields.fullName = ai.fullName;
+    if (ai.passportNumber) fields.passportNumber = ai.passportNumber;
+    if (ai.dateOfBirth) fields.dateOfBirth = ai.dateOfBirth;
+    if (ai.phone) fields.phone = ai.phone;
+    if (ai.address) fields.address = ai.address;
+    if (ai.inn) fields.inn = ai.inn;
+    if (ai.vin) fields.vin = ai.vin;
+    if (ai.plateNumber) fields.plateNumber = ai.plateNumber;
+    if (ai.gender) fields.gender = ai.gender;
+    if (ai.issuedDate) fields.issuedDate = ai.issuedDate;
+    if (ai.expiryDate) fields.expiryDate = ai.expiryDate;
+    if (ai.issuedBy) fields.issuedBy = ai.issuedBy;
+    if (ai.nationality) fields.nationality = ai.nationality;
+    if (ai.vehicleMake) fields.vehicleMake = ai.vehicleMake;
+    if (ai.vehicleModel) fields.vehicleModel = ai.vehicleModel;
+    if (ai.vehicleYear) fields.vehicleYear = ai.vehicleYear;
+    return fields;
   };
 
   const parseExtractedFields = (text: string, type: string): Record<string, string> => {
@@ -144,7 +223,7 @@ export default function ScanDocumentPage() {
     }
     if (dates.length > 0) fields.dateOfBirth = dates[0];
 
-    const phonePatterns = [/\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g, /\+?\d{3}[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g];
+    const phonePatterns = [/\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/g];
     for (const p of phonePatterns) {
       const m = text.match(p);
       if (m) { fields.phone = m[0].replace(/\s/g, ""); break; }
@@ -202,12 +281,17 @@ export default function ScanDocumentPage() {
           console.warn("Object storage upload failed for photo", i, err);
         }
 
+        const mergedExtracted = {
+          ...(photo.extractedFields || {}),
+          ...(aiExtraction ? aiExtractionToFields(aiExtraction) : {}),
+        };
+
         await api.post(`/mini-app/clients/${params.clientId}/documents`, {
           docType,
           fileName: `scan_${docType}_${Date.now()}_p${i + 1}.jpg`,
           storagePath,
           ocrText: photo.ocrText || "",
-          extractedData: photo.extractedFields || {},
+          extractedData: mergedExtracted,
         });
       }
     },
@@ -227,6 +311,7 @@ export default function ScanDocumentPage() {
     setPhotos([]);
     setOcrText("");
     setExtractedFields({});
+    setAiExtraction(null);
     setProcessingIndex(0);
     setError("");
   };
@@ -244,7 +329,7 @@ export default function ScanDocumentPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold">{t("scanDoc.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("scanDoc.subtitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("scanDoc.aiSubtitle")}</p>
         </div>
       </div>
 
@@ -342,8 +427,8 @@ export default function ScanDocumentPage() {
           </div>
           {photos.length > 0 && (
             <Button className="w-full gap-2 h-12" onClick={processAllPhotos}>
-              <Scan className="w-5 h-5" />
-              {t("scanDoc.processAll", { count: photos.length })}
+              <Sparkles className="w-5 h-5" />
+              {t("scanDoc.processAllAI", { count: photos.length })}
             </Button>
           )}
 
@@ -384,8 +469,9 @@ export default function ScanDocumentPage() {
             <div className="text-center space-y-2">
               <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
               <p className="text-sm font-medium">
-                {t("scanDoc.processingPhoto", { current: processingIndex + 1, total: photos.length })}
+                {t("scanDoc.processingPhotoAI", { current: processingIndex + 1, total: photos.length })}
               </p>
+              <p className="text-xs text-muted-foreground">{t("scanDoc.aiExtracting")}</p>
               <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all duration-500"
@@ -413,6 +499,52 @@ export default function ScanDocumentPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* AI extraction badge */}
+          {aiExtraction && Object.keys(aiExtraction).length > 0 && (
+            <div className="flex items-center gap-2 px-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-xs text-primary font-medium">{t("scanDoc.aiExtracted")}</span>
+            </div>
+          )}
+
+          {/* Gender detection */}
+          {aiExtraction?.gender && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="p-3 flex items-center gap-3">
+                <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">
+                    {t("scanDoc.genderDetected")}: {aiExtraction.gender === "male" ? t("scanDoc.male") : t("scanDoc.female")}
+                  </p>
+                  {aiExtraction.genderConfidence && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("scanDoc.confidence")}: {Math.round(aiExtraction.genderConfidence * 100)}%
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Badges */}
+          {aiExtraction?.suggestedBadges && aiExtraction.suggestedBadges.length > 0 && (
+            <Card className="border-purple-200 bg-purple-50/50">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Shield className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-medium text-purple-700">{t("scanDoc.suggestedBadges")}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {aiExtraction.suggestedBadges.map((badge) => (
+                    <span key={badge} className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {Object.keys(extractedFields).length > 0 && (
             <Card>
@@ -480,7 +612,7 @@ export default function ScanDocumentPage() {
             <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
             <div>
               <p className="text-sm font-bold">{t("scanDoc.saved")}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t("scanDoc.savedHint")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("scanDoc.savedHintAI")}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={reset}>

@@ -128,7 +128,10 @@
     "desiredTerm": "Желаемый срок (месяцев)",
     "desiredTermPlaceholder": "напр. 36",
     "submit": "Подобрать продукты",
-    "submitting": "Анализ..."
+    "submitting": "Анализ...",
+    "aiSubtitle": "AI-помощник задаст вопросы для подбора продуктов",
+    "aiThinking": "AI анализирует...",
+    "inputPlaceholder": "Введите ваш ответ..."
   },
   "recommendation": {
     "title": "Рекомендованные продукты",
@@ -145,7 +148,12 @@
     "term": "Срок",
     "amount": "Сумма",
     "allProducts": "Все продукты",
-    "recommended": "Рекомендованные"
+    "recommended": "Рекомендованные",
+    "aiAnalyzing": "AI анализирует рекомендации...",
+    "aiInsights": "AI-аналитика",
+    "whyRecommended": "Почему рекомендуем",
+    "riskNotes": "Обратите внимание",
+    "tips": "Советы"
   },
   "basket": {
     "title": "Корзина",
@@ -265,6 +273,17 @@
     "savedHint": "Данные извлечены и прикреплены к клиенту",
     "scanAnother": "Сканировать ещё",
     "backToClient": "К клиенту",
+    "aiSubtitle": "AI извлечёт данные из документа",
+    "processAllAI": "AI распознать все ({{count}})",
+    "processingPhotoAI": "AI обрабатывает фото {{current}} из {{total}}...",
+    "aiExtracting": "Извлечение данных с помощью AI...",
+    "aiExtracted": "Данные извлечены AI",
+    "genderDetected": "Пол определён",
+    "male": "Мужской",
+    "female": "Женский",
+    "confidence": "Уверенность",
+    "suggestedBadges": "Рекомендуемые метки",
+    "savedHintAI": "Данные извлечены AI и прикреплены к клиенту",
     "fields": {
       "fullName": "ФИО",
       "passportNumber": "Номер паспорта",
@@ -273,7 +292,15 @@
       "address": "Адрес",
       "vin": "VIN номер",
       "plateNumber": "Гос. номер",
-      "inn": "ИНН"
+      "inn": "ИНН",
+      "gender": "Пол",
+      "issuedDate": "Дата выдачи",
+      "expiryDate": "Срок действия",
+      "issuedBy": "Кем выдан",
+      "nationality": "Гражданство",
+      "vehicleMake": "Марка авто",
+      "vehicleModel": "Модель авто",
+      "vehicleYear": "Год выпуска"
     },
     "documents": "Документы",
     "noDocuments": "Нет документов",

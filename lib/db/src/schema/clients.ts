@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
@@ -14,7 +14,12 @@ export const clientsTable = pgTable("clients", {
   sessionId: text("session_id").notNull().unique(),
   fullName: text("full_name"),
   phone: text("phone"),
+  tin: text("tin"),
   status: text("status").notNull().$type<ClientStatus>().default("draft"),
+  gender: text("gender"),
+  genderSource: text("gender_source"),
+  genderConfidence: numeric("gender_confidence", { precision: 4, scale: 3 }),
+  badges: jsonb("badges").$type<string[]>(),
   branchId: integer("branch_id").notNull().references(() => branchesTable.id),
   assignedToId: integer("assigned_to_id").references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),

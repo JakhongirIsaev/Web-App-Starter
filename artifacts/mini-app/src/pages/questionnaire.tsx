@@ -1,12 +1,26 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, ChevronRight, Check } from "lucide-react";
+import { ArrowLeft, ChevronRight, Check, Loader2, Sparkles } from "lucide-react";
+
+interface AIQuestion {
+  question: string;
+  type: "select" | "input";
+  options?: Array<{ value: string; label: string }>;
+  key: string;
+  done: boolean;
+  summary?: Record<string, unknown>;
+}
+
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 interface Answer {
   questionKey: string;
@@ -17,91 +31,57 @@ export default function QuestionnairePage() {
   const { t } = useTranslation();
   const params = useParams<{ clientId: string }>();
   const [, navigate] = useLocation();
-  const [step, setStep] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState<AIQuestion | null>(null);
+  const [currentAnswer, setCurrentAnswer] = useState("");
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const questions = [
-    {
-      key: "business_type",
-      label: t("questionnaire.businessType"),
-      type: "select" as const,
-      options: [
-        { value: "trade", label: t("questionnaire.businessTypeOptions.trade") },
-        { value: "services", label: t("questionnaire.businessTypeOptions.services") },
-        { value: "production", label: t("questionnaire.businessTypeOptions.production") },
-        { value: "agriculture", label: t("questionnaire.businessTypeOptions.agriculture") },
-        { value: "other", label: t("questionnaire.businessTypeOptions.other") },
-      ],
+  const nextQuestionMutation = useMutation({
+    mutationFn: async (history: ConversationMessage[]) => {
+      const res = await api.post("/ai/questionnaire/next", {
+        clientId: parseInt(params.clientId),
+        conversationHistory: history,
+      });
+      return res as AIQuestion;
     },
-    {
-      key: "business_size",
-      label: t("questionnaire.businessSize"),
-      type: "select" as const,
-      options: [
-        { value: "micro", label: t("questionnaire.businessSizeOptions.micro") },
-        { value: "small", label: t("questionnaire.businessSizeOptions.small") },
-        { value: "medium", label: t("questionnaire.businessSizeOptions.medium") },
-      ],
-    },
-    {
-      key: "need_type",
-      label: t("questionnaire.needType"),
-      type: "select" as const,
-      options: [
-        { value: "credit", label: t("questionnaire.needTypeOptions.credit") },
-        { value: "non_credit", label: t("questionnaire.needTypeOptions.non_credit") },
-        { value: "both", label: t("questionnaire.needTypeOptions.both") },
-      ],
-    },
-    {
-      key: "loan_purpose",
-      label: t("questionnaire.loanPurpose"),
-      type: "select" as const,
-      options: [
-        { value: "working_capital", label: t("questionnaire.loanPurposeOptions.working_capital") },
-        { value: "fixed_assets", label: t("questionnaire.loanPurposeOptions.fixed_assets") },
-        { value: "untargeted", label: t("questionnaire.loanPurposeOptions.untargeted") },
-        { value: "not_sure", label: t("questionnaire.loanPurposeOptions.not_sure") },
-      ],
-    },
-    {
-      key: "desired_amount",
-      label: t("questionnaire.desiredAmount"),
-      type: "input" as const,
-      placeholder: t("questionnaire.desiredAmountPlaceholder"),
-    },
-    {
-      key: "desired_term",
-      label: t("questionnaire.desiredTerm"),
-      type: "input" as const,
-      placeholder: t("questionnaire.desiredTermPlaceholder"),
-    },
-  ];
+    onSuccess: (data) => {
+      if (data.done) {
+        setIsComplete(true);
+        // Save answers for recommendation page
+        const summaryAnswers = data.summary
+          ? Object.entries(data.summary).map(([key, val]) => ({
+              questionKey: key,
+              answer: String(val),
+            }))
+          : answers;
 
-  const currentQuestion = questions[step];
-  const currentAnswer = answers.find((a) => a.questionKey === currentQuestion?.key)?.answer || "";
-
-  const setAnswer = (value: string) => {
-    setAnswers((prev) => {
-      const existing = prev.findIndex((a) => a.questionKey === currentQuestion.key);
-      if (existing >= 0) {
-        const updated = [...prev];
-        updated[existing] = { questionKey: currentQuestion.key, answer: value };
-        return updated;
+        // Submit questionnaire and generate recommendations
+        submitMutation.mutate(summaryAnswers);
+      } else {
+        setCurrentQuestion(data);
+        setCurrentAnswer("");
+        setQuestionCount((c) => c + 1);
+        // Add assistant message to history
+        setConversationHistory((prev) => [
+          ...prev,
+          { role: "assistant", content: JSON.stringify(data) },
+        ]);
       }
-      return [...prev, { questionKey: currentQuestion.key, answer: value }];
-    });
-  };
+    },
+  });
 
   const submitMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (finalAnswers: Answer[]) => {
       await api.post("/mini-app/questionnaire", {
         clientId: parseInt(params.clientId),
-        answers,
+        answers: finalAnswers,
       });
       return api.post("/mini-app/recommend", {
         clientId: parseInt(params.clientId),
-        answers,
+        answers: finalAnswers,
       });
     },
     onSuccess: () => {
@@ -109,76 +89,174 @@ export default function QuestionnairePage() {
     },
   });
 
-  const isLastStep = step === questions.length - 1;
-  const canProceed = currentAnswer.trim() !== "";
+  // Load first question
+  useEffect(() => {
+    if (conversationHistory.length === 0 && !currentQuestion) {
+      nextQuestionMutation.mutate([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentQuestion, answers]);
+
+  const handleAnswer = (value: string) => {
+    setCurrentAnswer(value);
+  };
+
+  const handleNext = () => {
+    if (!currentQuestion || !currentAnswer.trim()) return;
+
+    const newAnswer: Answer = { questionKey: currentQuestion.key, answer: currentAnswer };
+    setAnswers((prev) => [...prev, newAnswer]);
+
+    const updatedHistory: ConversationMessage[] = [
+      ...conversationHistory,
+      { role: "user", content: currentAnswer },
+    ];
+    setConversationHistory(updatedHistory);
+
+    nextQuestionMutation.mutate(updatedHistory);
+  };
+
+  const isLoading = nextQuestionMutation.isPending || submitMutation.isPending;
 
   return (
     <div className="space-y-4 pb-4">
-      <button onClick={() => (step > 0 ? setStep(step - 1) : navigate(`/clients/${params.clientId}`))} className="flex items-center gap-1 text-sm text-muted-foreground">
+      <button
+        onClick={() => navigate(`/clients/${params.clientId}`)}
+        className="flex items-center gap-1 text-sm text-muted-foreground"
+      >
         <ArrowLeft className="w-4 h-4" />
         {t("common.back")}
       </button>
 
-      <div>
-        <h1 className="text-lg font-bold">{t("questionnaire.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("questionnaire.subtitle")}</p>
+      <div className="flex items-center gap-2">
+        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+          <Sparkles className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold">{t("questionnaire.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("questionnaire.aiSubtitle")}</p>
+        </div>
       </div>
 
-      <div className="flex gap-1">
-        {questions.map((_, i) => (
-          <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`} />
-        ))}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        {step + 1} / {questions.length}
-      </p>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{currentQuestion.label}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {currentQuestion.type === "select" ? (
-            <div className="space-y-2">
-              {currentQuestion.options?.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setAnswer(opt.value)}
-                  className={`w-full text-left p-3 rounded-xl border transition-colors flex items-center justify-between ${
-                    currentAnswer === opt.value
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <span className="text-sm">{opt.label}</span>
-                  {currentAnswer === opt.value && <Check className="w-4 h-4 text-primary" />}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <Input
-              value={currentAnswer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder={currentQuestion.placeholder}
-              className="text-base"
+      {/* Progress indicator */}
+      {questionCount > 0 && (
+        <div className="flex gap-1">
+          {Array.from({ length: Math.max(questionCount, 4) }).map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                i < questionCount ? "bg-primary" : "bg-border"
+              }`}
             />
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
-      <div className="flex gap-2">
-        {isLastStep ? (
-          <Button className="flex-1" onClick={() => submitMutation.mutate()} disabled={!canProceed || submitMutation.isPending}>
-            {submitMutation.isPending ? t("questionnaire.submitting") : t("questionnaire.submit")}
-          </Button>
-        ) : (
-          <Button className="flex-1 gap-1" onClick={() => setStep(step + 1)} disabled={!canProceed}>
-            {t("common.next")}
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
+      {/* Previous answers */}
+      {answers.map((a, i) => (
+        <Card key={i} className="bg-muted/30 border-muted">
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground mb-1">
+              {conversationHistory
+                .filter((m) => m.role === "assistant")
+                [i]?.content
+                ? (() => {
+                    try {
+                      return JSON.parse(
+                        conversationHistory.filter((m) => m.role === "assistant")[i].content,
+                      ).question;
+                    } catch {
+                      return "";
+                    }
+                  })()
+                : ""}
+            </p>
+            <p className="text-sm font-medium">{a.answer}</p>
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Current question */}
+      {isLoading && !currentQuestion ? (
+        <Card>
+          <CardContent className="p-6 text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">{t("questionnaire.aiThinking")}</p>
+          </CardContent>
+        </Card>
+      ) : currentQuestion && !isComplete ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{currentQuestion.question}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {currentQuestion.type === "select" && currentQuestion.options ? (
+              <div className="space-y-2">
+                {currentQuestion.options.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleAnswer(opt.value)}
+                    className={`w-full text-left p-3 rounded-xl border transition-colors flex items-center justify-between ${
+                      currentAnswer === opt.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-sm">{opt.label}</span>
+                    {currentAnswer === opt.value && <Check className="w-4 h-4 text-primary" />}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Input
+                value={currentAnswer}
+                onChange={(e) => handleAnswer(e.target.value)}
+                placeholder={t("questionnaire.inputPlaceholder")}
+                className="text-base"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && currentAnswer.trim()) handleNext();
+                }}
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Action button */}
+      {currentQuestion && !isComplete && (
+        <Button
+          className="w-full gap-1"
+          onClick={handleNext}
+          disabled={!currentAnswer.trim() || isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t("questionnaire.aiThinking")}
+            </>
+          ) : (
+            <>
+              {t("common.next")}
+              <ChevronRight className="w-4 h-4" />
+            </>
+          )}
+        </Button>
+      )}
+
+      {/* Completion state */}
+      {isComplete && submitMutation.isPending && (
+        <Card>
+          <CardContent className="p-6 text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+            <p className="text-sm font-medium">{t("questionnaire.submitting")}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div ref={scrollRef} />
     </div>
   );
 }

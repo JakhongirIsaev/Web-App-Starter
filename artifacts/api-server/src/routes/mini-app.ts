@@ -823,12 +823,36 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     : [null];
 
   try {
+    // Fetch AI summary if available
+    let aiSummary: string | undefined;
+    let keyHighlights: string[] | undefined;
+    try {
+      const { chatCompletion } = await import("../lib/ai-client");
+      const { PDF_SUMMARY_PROMPT } = await import("../lib/ai-prompts");
+      const aiResponse = await chatCompletion(PDF_SUMMARY_PROMPT, [{
+        role: "user",
+        content: `Client: ${JSON.stringify({ fullName: client.fullName, phone: client.phone })}
+Products in basket: ${JSON.stringify(basketItems.map((i: any) => i.productName))}
+Calculations: ${JSON.stringify(calculations.map((c: any) => ({ product: c.productName, amount: c.loanAmount, currency: c.currency, term: c.termMonths })))}`,
+      }]);
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiSummary = parsed.aiSummary;
+        keyHighlights = parsed.keyHighlights;
+      }
+    } catch (aiErr) {
+      console.warn("AI summary generation failed, continuing without it:", aiErr);
+    }
+
     const pdfBuffer = await generateClientPdf({
       client,
       basketItems,
       calculations,
       expertName: expert?.name || "—",
       branchName: branch?.name || "—",
+      aiSummary,
+      keyHighlights,
     });
 
     let telegramSent = false;
@@ -905,12 +929,35 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
     : [null];
 
   try {
+    let aiSummary: string | undefined;
+    let keyHighlights: string[] | undefined;
+    try {
+      const { chatCompletion } = await import("../lib/ai-client");
+      const { PDF_SUMMARY_PROMPT } = await import("../lib/ai-prompts");
+      const aiResponse = await chatCompletion(PDF_SUMMARY_PROMPT, [{
+        role: "user",
+        content: `Client: ${JSON.stringify({ fullName: client.fullName, phone: client.phone })}
+Products in basket: ${JSON.stringify(basketItems.map((i: any) => i.productName))}
+Calculations: ${JSON.stringify(calculations.map((c: any) => ({ product: c.productName, amount: c.loanAmount, currency: c.currency, term: c.termMonths })))}`,
+      }]);
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiSummary = parsed.aiSummary;
+        keyHighlights = parsed.keyHighlights;
+      }
+    } catch (aiErr) {
+      console.warn("AI summary generation failed, continuing without it:", aiErr);
+    }
+
     const pdfBuffer = await generateClientPdf({
       client,
       basketItems,
       calculations,
       expertName: expert?.name || "—",
       branchName: branch?.name || "—",
+      aiSummary,
+      keyHighlights,
     });
 
     const safeName = `KP_${client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;

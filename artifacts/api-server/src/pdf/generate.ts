@@ -7,6 +7,9 @@ interface PdfData {
     phone: string | null;
     sessionId: string;
     createdAt: Date;
+    tin?: string | null;
+    gender?: string | null;
+    badges?: string[] | null;
   };
   basketItems: Array<{
     productName: string;
@@ -27,6 +30,8 @@ interface PdfData {
   }>;
   expertName: string;
   branchName: string;
+  aiSummary?: string;
+  keyHighlights?: string[];
 }
 
 function fmtNum(val: string | number | null | undefined): string {
@@ -87,11 +92,14 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     doc.fontSize(13).fillColor(green).text("Информация о клиенте", 50, y);
     y += 22;
 
-    const clientInfo = [
+    const clientInfo: [string, string][] = [
       ["ФИО", data.client.fullName || "—"],
       ["Телефон", data.client.phone || "—"],
       ["Дата регистрации", fmtDate(data.client.createdAt)],
     ];
+
+    if (data.client.tin) clientInfo.push(["ИНН/СТИР", data.client.tin]);
+    if (data.client.gender) clientInfo.push(["Пол", data.client.gender === "male" ? "Мужской" : "Женский"]);
 
     doc.fontSize(10);
     for (const [label, value] of clientInfo) {
@@ -100,7 +108,31 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       y += 18;
     }
 
+    if (data.client.badges && data.client.badges.length > 0) {
+      y += 5;
+      doc.fontSize(9).fillColor(gray).text("Метки: " + data.client.badges.join(", "), 50, y);
+      y += 16;
+    }
+
     y += 15;
+
+    if (data.aiSummary) {
+      doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
+      y += 15;
+      doc.fontSize(13).fillColor(green).text("AI-анализ клиента", 50, y);
+      y += 22;
+
+      doc.fontSize(10).fillColor(darkText).text(data.aiSummary, 50, y, { width: pageWidth });
+      y += doc.heightOfString(data.aiSummary, { width: pageWidth }) + 10;
+
+      if (data.keyHighlights && data.keyHighlights.length > 0) {
+        for (const highlight of data.keyHighlights) {
+          doc.fontSize(9).fillColor(gray).text("• " + highlight, 60, y, { width: pageWidth - 20 });
+          y += doc.heightOfString("• " + highlight, { width: pageWidth - 20 }) + 4;
+        }
+      }
+      y += 10;
+    }
 
     if (data.basketItems.length > 0) {
       doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");

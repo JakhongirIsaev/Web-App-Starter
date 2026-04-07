@@ -1,11 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Minus, ShoppingCart, Check } from "lucide-react";
+import { ArrowLeft, Plus, ShoppingCart, Check, Sparkles, Loader2, AlertTriangle, Lightbulb } from "lucide-react";
+
+interface AIFacts {
+  clientProfile?: string;
+  whyRecommended?: string[];
+  riskNotes?: string[];
+  tips?: string[];
+}
 
 export default function RecommendationPage() {
   const { t } = useTranslation();
@@ -27,6 +34,17 @@ export default function RecommendationPage() {
     queryKey: ["mini-all-products"],
     queryFn: () => api.get("/mini-app/products"),
     enabled: showAll,
+  });
+
+  const { data: aiFacts, isLoading: aiFactsLoading } = useQuery<AIFacts>({
+    queryKey: ["ai-recommend-facts", params.clientId],
+    queryFn: () =>
+      api.post("/ai/recommend-facts", {
+        clientId: parseInt(params.clientId),
+        answers,
+        recommendedProducts: data?.recommended || [],
+      }),
+    enabled: !!data?.recommended?.length,
   });
 
   const saveMutation = useMutation({
@@ -67,6 +85,70 @@ export default function RecommendationPage() {
           {t("recommendation.found", { count: products.length })}
         </p>
       </div>
+
+      {/* AI Facts Card */}
+      {aiFactsLoading ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+            <p className="text-sm text-muted-foreground">{t("recommendation.aiAnalyzing")}</p>
+          </CardContent>
+        </Card>
+      ) : aiFacts?.clientProfile ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-primary" />
+              {t("recommendation.aiInsights")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            <p className="text-sm">{aiFacts.clientProfile}</p>
+
+            {aiFacts.whyRecommended && aiFacts.whyRecommended.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-primary mb-1">{t("recommendation.whyRecommended")}</p>
+                <ul className="space-y-1">
+                  {aiFacts.whyRecommended.map((r, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <Check className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiFacts.riskNotes && aiFacts.riskNotes.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-orange-600 mb-1">{t("recommendation.riskNotes")}</p>
+                <ul className="space-y-1">
+                  {aiFacts.riskNotes.map((r, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <AlertTriangle className="w-3 h-3 text-orange-500 mt-0.5 flex-shrink-0" />
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiFacts.tips && aiFacts.tips.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-blue-600 mb-1">{t("recommendation.tips")}</p>
+                <ul className="space-y-1">
+                  {aiFacts.tips.map((tip, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <Lightbulb className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="flex gap-2">
         <Button
