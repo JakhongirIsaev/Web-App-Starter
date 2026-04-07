@@ -95,7 +95,10 @@
     "clientStatusDesc": "Mijozlarning bosqichlar bo'yicha taqsimoti",
     "recentActivity": "So'nggi faoliyat",
     "recentActivityDesc": "Mutaxassislar va filiallarning so'nggi harakatlari",
-    "noActivity": "So'nggi faoliyat topilmadi."
+    "noActivity": "So'nggi faoliyat topilmadi.",
+    "aiStatus": "AI Holati",
+    "aiOnline": "Onlayn",
+    "aiOffline": "Oflayn"
   },
   "clients": {
     "title": "Mijozlar",
@@ -142,7 +145,20 @@
     "reassignDesc": "Ushbu mijozni qayta tayinlash uchun ekspertni tanlang.",
     "selectHunter": "Ekspertni tanlang",
     "reassign": "Qayta tayinlash",
-    "reassigning": "Qayta tayinlanmoqda..."
+    "reassigning": "Qayta tayinlanmoqda...",
+    "questionnaireTitle": "Mijoz so'rovnomasi",
+    "questionnaireDesc": "So'rovnoma davomida to'plangan javoblar.",
+    "aiExtracted": "AI ajratish",
+    "calculationsTitle": "Hisob-kitoblar",
+    "calculationsDesc": "Mijoz uchun amalga oshirilgan kredit hisob-kitoblari.",
+    "calcAmount": "Kredit summasi",
+    "calcRate": "Stavka",
+    "calcTerm": "Muddat",
+    "calcMonths": "oy",
+    "calcPayment": "Oylik to'lov",
+    "quickStats": "Xulosa",
+    "completed": "To'ldirilgan",
+    "notStarted": "Boshlanmagan"
   },
   "statuses": {
     "draft": "Qoralama",

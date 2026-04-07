@@ -1,11 +1,14 @@
-import { 
+import {
   useGetDashboardSummary, getGetDashboardSummaryQueryKey,
   useGetBranchStats, getGetBranchStatsQueryKey,
   useGetClientStatusBreakdown, getGetClientStatusBreakdownQueryKey,
   useGetRecentActivity, getGetRecentActivityQueryKey
 } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { buildApiUrl } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, CheckCircle2, Building2, Package, Activity } from "lucide-react";
+import { Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -33,6 +36,17 @@ export default function Dashboard() {
     { query: { queryKey: getGetRecentActivityQueryKey({ limit: 10 }) } }
   );
 
+  const { data: aiHealth } = useQuery({
+    queryKey: ["ai-health"],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl("/api/ai/health"));
+      if (!res.ok) return { status: "degraded", ollamaReachable: false, model: "unknown", modelAvailable: false };
+      return res.json();
+    },
+    refetchInterval: 60000,
+    retry: false,
+  });
+
   const STATUS_COLORS: Record<string, string> = {
     draft:          "hsl(215 16% 52%)",   // slate-gray
     questionnaire:  "hsl(215 90% 52%)",   // blue
@@ -50,7 +64,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="shadow-sm border-border/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.activeClients")}</CardTitle>
@@ -108,6 +122,27 @@ export default function Dashboard() {
             {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
               <div className="text-3xl font-bold">{summary?.totalProducts || 0}</div>
             )}
+          </CardContent>
+        </Card>
+        <Card className={`shadow-sm ${aiHealth?.ollamaReachable ? 'border-green-500/30 bg-green-500/5' : 'border-orange-500/30 bg-orange-500/5'}`}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.aiStatus")}</CardTitle>
+            <Sparkles className={`h-4 w-4 ${aiHealth?.ollamaReachable ? 'text-green-500' : 'text-orange-500'}`} />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {aiHealth?.ollamaReachable ? (
+                <Wifi className="h-5 w-5 text-green-500" />
+              ) : (
+                <WifiOff className="h-5 w-5 text-orange-500" />
+              )}
+              <Badge variant={aiHealth?.ollamaReachable ? "default" : "secondary"}>
+                {aiHealth?.ollamaReachable ? t("dashboard.aiOnline") : t("dashboard.aiOffline")}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {aiHealth?.model || "—"}
+            </p>
           </CardContent>
         </Card>
       </div>

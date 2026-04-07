@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { clientsTable, branchesTable, usersTable } from "@workspace/db";
-import { eq, and, ilike, sql } from "drizzle-orm";
+import { clientsTable, branchesTable, usersTable, questionnaireSessionsTable, questionnaireAnswersTable, clientDocumentsTable, calculationsTable } from "@workspace/db";
+import { eq, and, ilike, sql, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import {
   CreateClientBody, UpdateClientBody, GetClientParams,
@@ -157,11 +157,49 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
 
   if (!rows.length) { res.status(404).json({ error: "Not found" }); return; }
   const c = rows[0];
-  res.json(buildClientResponse(
+  const base = buildClientResponse(
     c,
     c.branchName ? { id: c.branchId, name: c.branchName, city: c.branchCity, isActive: c.branchIsActive, createdAt: new Date(), updatedAt: new Date() } : null,
     c.assignedName ? { id: c.assignedToId, name: c.assignedName, role: c.assignedRole } : null,
-  ));
+  );
+
+  // Fetch questionnaire answers
+  let questionnaireAnswers: Array<{ questionKey: string; answer: string }> = [];
+  const [latestSession] = await db
+    .select()
+    .from(questionnaireSessionsTable)
+    .where(eq(questionnaireSessionsTable.clientId, params.data.id))
+    .orderBy(desc(questionnaireSessionsTable.id))
+    .limit(1);
+
+  if (latestSession) {
+    questionnaireAnswers = await db
+      .select({ questionKey: questionnaireAnswersTable.questionKey, answer: questionnaireAnswersTable.answer })
+      .from(questionnaireAnswersTable)
+      .where(eq(questionnaireAnswersTable.sessionId, latestSession.id))
+      .orderBy(questionnaireAnswersTable.id);
+  }
+
+  // Fetch documents
+  const documents = await db
+    .select()
+    .from(clientDocumentsTable)
+    .where(eq(clientDocumentsTable.clientId, params.data.id))
+    .orderBy(desc(clientDocumentsTable.createdAt));
+
+  // Fetch calculations
+  const calculations = await db
+    .select()
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, params.data.id))
+    .orderBy(desc(calculationsTable.createdAt));
+
+  res.json({
+    ...base,
+    questionnaireAnswers,
+    documents,
+    calculations,
+  });
 });
 
 router.put("/clients/:id", requireAuth, async (req, res) => {

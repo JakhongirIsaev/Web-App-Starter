@@ -95,7 +95,10 @@
     "clientStatusDesc": "Распределение клиентов по этапам",
     "recentActivity": "Последняя активность",
     "recentActivityDesc": "Последние действия специалистов и филиалов",
-    "noActivity": "Нет недавней активности."
+    "noActivity": "Нет недавней активности.",
+    "aiStatus": "AI Статус",
+    "aiOnline": "Онлайн",
+    "aiOffline": "Офлайн"
   },
   "clients": {
     "title": "Клиенты",
@@ -142,7 +145,20 @@
     "reassignDesc": "Выберите эксперта для переназначения этого клиента.",
     "selectHunter": "Выберите эксперта",
     "reassign": "Переназначить",
-    "reassigning": "Переназначение..."
+    "reassigning": "Переназначение...",
+    "questionnaireTitle": "Анкета клиента",
+    "questionnaireDesc": "Ответы, собранные во время анкетирования.",
+    "aiExtracted": "AI извлечение",
+    "calculationsTitle": "Расчёты",
+    "calculationsDesc": "Кредитные расчёты, выполненные для клиента.",
+    "calcAmount": "Сумма кредита",
+    "calcRate": "Ставка",
+    "calcTerm": "Срок",
+    "calcMonths": "мес.",
+    "calcPayment": "Ежемес. платёж",
+    "quickStats": "Сводка",
+    "completed": "Заполнено",
+    "notStarted": "Не начато"
   },
   "statuses": {
     "draft": "Черновик",
