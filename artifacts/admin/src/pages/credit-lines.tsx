@@ -142,7 +142,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
       remainingBalance: p.remainingBalance || "", projectCount: p.projectCount || "",
       specialConditions: p.specialConditions || "", notes: p.notes || "", section: p.section || "",
     }));
-    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

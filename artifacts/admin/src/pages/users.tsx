@@ -4,7 +4,7 @@ import {
   useCreateUser, useUpdateUser, useActivateUser, useDeactivateUser
 } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
-import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
+import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye, Building2, ChevronRight, ChevronDown, List, LayoutGrid, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,6 +140,8 @@ export default function Users() {
   const [role, setRole] = useState<string>("all");
   const [branchId, setBranchId] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "branch">("branch");
+  const [expandedBranches, setExpandedBranches] = useState<Set<number>>(new Set());
   const importRef = useRef<HTMLInputElement>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -214,7 +216,7 @@ export default function Users() {
       id: u.id, name: u.name, telegramId: u.telegramId, role: u.role,
       branch: u.branch?.name || "", isActive: u.isActive, createdAt: u.createdAt,
     }));
-    downloadCsv(rows, `users_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `users_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -295,7 +297,7 @@ export default function Users() {
       branch: c.branch,
       password: c.password,
     }));
-    downloadCsv(rows, `credentials_${formatAdminFileDateTime()}.csv`);
+    downloadCsv(rows, `credentials_${formatAdminFileDateTime()}.xlsx`);
     toast({ title: t("users.credentialsDownloaded") });
   };
 
@@ -310,6 +312,30 @@ export default function Users() {
   const isPending = createUser.isPending || updateUser.isPending;
   const filteredUsers = (users || []).filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.telegramId.includes(search));
 
+  const toggleBranch = (id: number) => {
+    setExpandedBranches(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const branchGroups = (() => {
+    if (!branches || !filteredUsers.length) return [];
+    const hqUsers = filteredUsers.filter(u => !u.branchId);
+    const groups: { id: number; name: string; users: typeof filteredUsers }[] = [];
+    if (hqUsers.length > 0) {
+      groups.push({ id: 0, name: t("users.hqAllBranches"), users: hqUsers });
+    }
+    for (const branch of branches) {
+      const branchUsers = filteredUsers.filter(u => u.branchId === branch.id);
+      if (branchUsers.length > 0 || (branchId !== "all" && Number(branchId) === branch.id)) {
+        groups.push({ id: branch.id, name: branch.name, users: branchUsers });
+      }
+    }
+    return groups;
+  })();
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -319,6 +345,14 @@ export default function Users() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <input type="file" ref={importRef} accept=".xlsx,.xls,.csv" onChange={handleFileSelect} className="hidden" />
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button variant={viewMode === "branch" ? "default" : "ghost"} size="sm" className="rounded-none gap-1.5" onClick={() => setViewMode("branch")}>
+              <Building2 className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" className="rounded-none gap-1.5" onClick={() => setViewMode("list")}>
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadTemplate}>
             <FileSpreadsheet className="h-4 w-4" />
             {t("users.downloadTemplate")}
@@ -356,77 +390,158 @@ export default function Users() {
                 <SelectItem value="hunter">{t("users.hunter")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("users.allBranches")}</SelectItem>
-                {branches?.map(b => (<SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>))}
-              </SelectContent>
-            </Select>
+            {viewMode === "list" && (
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("users.allBranches")}</SelectItem>
+                  {branches?.map(b => (<SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
-        <div className="relative w-full overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("users.user")}</TableHead>
-                <TableHead>{t("users.telegramId")}</TableHead>
-                <TableHead>{t("users.role")}</TableHead>
-                <TableHead>{t("users.branch")}</TableHead>
-                <TableHead>{t("common.status")}</TableHead>
-                <TableHead className="text-right">{t("common.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-28 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">{t("users.noUsers")}</TableCell>
-                </TableRow>
-              ) : (
-                filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{user.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{t("users.joined", { date: formatAdminMonthYear(user.createdAt) })}</div>
-                    </TableCell>
-                    <TableCell><code className="bg-muted px-2 py-1 rounded text-xs">{user.telegramId}</code></TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getRoleColor(user.role)}>{t(`roles.${user.role}`)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {user.branch?.name || <span className="italic text-muted-foreground/50">{t("users.hqAllBranches")}</span>}
-                    </TableCell>
-                    <TableCell>
-                      {user.isActive
-                        ? <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400"><UserCheck className="h-4 w-4" /> {t("common.active")}</div>
-                        : <div className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><UserX className="h-4 w-4" /> {t("common.inactive")}</div>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>{t("common.edit")}</Button>
-                        <Button variant="ghost" size="sm" className={user.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"} onClick={() => toggleActive(user)}>
-                          {user.isActive ? t("users.deactivate") : t("users.activate")}
-                        </Button>
+        {viewMode === "branch" ? (
+          <div className="divide-y divide-border/50">
+            {isLoading ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+            ) : branchGroups.length === 0 ? (
+              <div className="h-32 flex items-center justify-center text-muted-foreground">{t("users.noUsers")}</div>
+            ) : (
+              branchGroups.map((group) => {
+                const isExpanded = expandedBranches.has(group.id);
+                const activeCount = group.users.filter(u => u.isActive).length;
+                return (
+                  <div key={group.id}>
+                    <button
+                      onClick={() => toggleBranch(group.id)}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="w-5 h-5 text-primary" />
                       </div>
-                    </TableCell>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-foreground">{group.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {group.users.length} {t("users.user").toLowerCase()} · {activeCount} {t("common.active").toLowerCase()}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">{group.users.length}</Badge>
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="bg-muted/20 border-t border-border/30">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead>{t("users.user")}</TableHead>
+                              <TableHead>{t("users.telegramId")}</TableHead>
+                              <TableHead>{t("users.role")}</TableHead>
+                              <TableHead>{t("common.status")}</TableHead>
+                              <TableHead className="text-right">{t("common.actions")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {group.users.map((user) => (
+                              <TableRow key={user.id}>
+                                <TableCell>
+                                  <div className="font-medium text-foreground">{user.name}</div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">{t("users.joined", { date: formatAdminMonthYear(user.createdAt) })}</div>
+                                </TableCell>
+                                <TableCell><code className="bg-muted px-2 py-1 rounded text-xs">{user.telegramId}</code></TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={getRoleColor(user.role)}>{t(`roles.${user.role}`)}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {user.isActive
+                                    ? <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400"><UserCheck className="h-4 w-4" /> {t("common.active")}</div>
+                                    : <div className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><UserX className="h-4 w-4" /> {t("common.inactive")}</div>}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => openEdit(user)}>{t("common.edit")}</Button>
+                                    <Button variant="ghost" size="sm" className={user.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"} onClick={() => toggleActive(user)}>
+                                      {user.isActive ? t("users.deactivate") : t("users.activate")}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("users.user")}</TableHead>
+                  <TableHead>{t("users.telegramId")}</TableHead>
+                  <TableHead>{t("users.role")}</TableHead>
+                  <TableHead>{t("users.branch")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-28 rounded-full" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">{t("users.noUsers")}</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{user.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t("users.joined", { date: formatAdminMonthYear(user.createdAt) })}</div>
+                      </TableCell>
+                      <TableCell><code className="bg-muted px-2 py-1 rounded text-xs">{user.telegramId}</code></TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getRoleColor(user.role)}>{t(`roles.${user.role}`)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {user.branch?.name || <span className="italic text-muted-foreground/50">{t("users.hqAllBranches")}</span>}
+                      </TableCell>
+                      <TableCell>
+                        {user.isActive
+                          ? <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400"><UserCheck className="h-4 w-4" /> {t("common.active")}</div>
+                          : <div className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><UserX className="h-4 w-4" /> {t("common.inactive")}</div>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEdit(user)}>{t("common.edit")}</Button>
+                          <Button variant="ghost" size="sm" className={user.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"} onClick={() => toggleActive(user)}>
+                            {user.isActive ? t("users.deactivate") : t("users.activate")}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

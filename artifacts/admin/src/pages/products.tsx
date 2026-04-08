@@ -138,7 +138,7 @@ export default function Products() {
       minTermMonths: p.minTermMonths || "", maxTermMonths: p.maxTermMonths || "",
       interestRate: p.interestRate || "", isActive: p.isActive,
     }));
-    downloadCsv(rows, `products_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `products_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

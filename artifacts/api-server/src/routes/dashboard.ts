@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable } from "@workspace/db";
-import { eq, and, sql, gte } from "drizzle-orm";
+import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
+import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/auth";
 import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
@@ -118,6 +118,38 @@ router.get("/dashboard/client-status", requireAuth, async (req, res) => {
   }).from(clientsTable).groupBy(clientsTable.status);
 
   res.json(rows);
+});
+
+router.get("/dashboard/tasks", requireAuth, async (req, res) => {
+  const user = req.user!;
+  const now = new Date();
+  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const conditions = [
+    eq(clientNextActionsTable.isCompleted, false),
+    lte(clientNextActionsTable.actionDate, next24h),
+  ];
+
+  if (user.role === "branch_head" && user.branchId) {
+    conditions.push(eq(clientsTable.branchId, user.branchId));
+  }
+
+  const tasks = await db
+    .select({
+      id: clientNextActionsTable.id,
+      clientId: clientNextActionsTable.clientId,
+      clientName: clientsTable.fullName,
+      actionType: clientNextActionsTable.actionType,
+      actionDate: clientNextActionsTable.actionDate,
+      priority: clientNextActionsTable.priority,
+      description: clientNextActionsTable.description,
+    })
+    .from(clientNextActionsTable)
+    .innerJoin(clientsTable, eq(clientNextActionsTable.clientId, clientsTable.id))
+    .where(and(...conditions))
+    .orderBy(clientNextActionsTable.actionDate);
+
+  res.json(tasks);
 });
 
 export default router;

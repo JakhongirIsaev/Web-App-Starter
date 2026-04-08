@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fmtDate, fmtNum, getTashkentDateByMonthOffset } from "@/lib/format";
-import { Calculator as CalcIcon, ChevronDown, ChevronUp, Printer } from "lucide-react";
+import { Calculator as CalcIcon, ChevronDown, ChevronUp, Download, Printer } from "lucide-react";
 
 export default function CalculatorPage() {
   const { t } = useTranslation();
@@ -61,6 +61,41 @@ export default function CalculatorPage() {
 
   const getPaymentDate = (monthIndex: number) => {
     return fmtDate(getTashkentDateByMonthOffset(monthIndex));
+  };
+
+  const handleDownload = () => {
+    if (!result) return;
+    const lines: string[] = [];
+    lines.push("Credit Calculator Results");
+    lines.push("");
+    lines.push("Parameters");
+    lines.push(`Credit Type,${t(`calculator.creditTypes.${creditType}`)}`);
+    lines.push(`Product Cost,${formatWithSpaces(cost)} ${currency}`);
+    lines.push(`Down Payment,${dpPct}% (${formatWithSpaces(downPaymentAmount)} ${currency})`);
+    lines.push(`Loan Amount,${formatWithSpaces(loanAmount)} ${currency}`);
+    lines.push(`Interest Rate,${interestRate}% ${rateType === "annual" ? t("calculator.rateAnnual") : t("calculator.rateMonthly")}`);
+    lines.push(`Term,${termMonths} ${t("calculator.months")}`);
+    lines.push(`Repayment Type,${repaymentType === "annuity" ? t("calculator.annuity") : t("calculator.differentiated")}`);
+    lines.push("");
+    lines.push("Summary");
+    lines.push(`Monthly Payment,${formatWithSpaces(result.summary.totalPayment / parseInt(termMonths))} ${currency}`);
+    lines.push(`Total Payment,${formatWithSpaces(result.summary.totalPayment)} ${currency}`);
+    lines.push(`Total Interest,${formatWithSpaces(result.summary.totalInterest)} ${currency}`);
+    lines.push("");
+    lines.push("Payment Schedule");
+    lines.push("Month,Date,Balance,Principal,Interest,Total Payment");
+    result.schedule.forEach((row: any) => {
+      lines.push(
+        `${row.month},${getPaymentDate(row.month)},${formatWithSpaces(row.remaining + row.principal)},${formatWithSpaces(row.principal)},${formatWithSpaces(row.interest)},${formatWithSpaces(row.payment)}`
+      );
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${t("calculator.title")}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -239,6 +274,15 @@ export default function CalculatorPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Button
+            variant="outline"
+            className="w-full h-10 border-primary text-primary hover:bg-primary/10"
+            onClick={handleDownload}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {t("calculator.download")}
+          </Button>
 
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">

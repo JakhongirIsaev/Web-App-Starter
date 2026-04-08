@@ -549,10 +549,6 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
 
         const detailRows: PreferenceItem[] = [];
 
-        if (item.sapCode) {
-          detailRows.push({ label: copy.sapCode, value: item.sapCode });
-        }
-
         const segmentValue = getDisplayValueForLanguage(
           language,
           item.localizedSegment,

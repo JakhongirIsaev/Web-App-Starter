@@ -7,18 +7,27 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff, Phone, Calendar, FileText, Clock, AlertTriangle, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
+import { useLocation } from "wouter";
+
+const ACTION_TYPE_ICONS: Record<string, any> = {
+  follow_up: Phone,
+  meeting: Calendar,
+  proposal: FileText,
+  documents: FileText,
+};
 
 export default function Dashboard() {
   const { t } = useTranslation();
+  const [, navigate] = useLocation();
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
@@ -45,6 +54,19 @@ export default function Dashboard() {
     },
     refetchInterval: 60000,
     retry: false,
+  });
+
+  const { data: tasks, isLoading: isLoadingTasks } = useQuery({
+    queryKey: ["dashboard-tasks"],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(buildApiUrl("/api/dashboard/tasks"), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 120000,
   });
 
   const STATUS_COLORS: Record<string, string> = {
@@ -146,6 +168,70 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-sm border-border/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <CardTitle>{t("dashboard.todayTasks")}</CardTitle>
+          </div>
+          <CardDescription>{t("dashboard.todayTasksDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingTasks ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !tasks?.length ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-primary" />
+              <p className="text-sm">{t("dashboard.noTasks")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {tasks.slice(0, 8).map((task: any) => {
+                const Icon = ACTION_TYPE_ICONS[task.actionType] || Clock;
+                const isOverdue = new Date(task.actionDate) < new Date();
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => task.clientId && navigate(`/clients/${task.clientId}`)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${isOverdue ? "border-destructive/30 bg-destructive/5" : "border-border"}`}
+                  >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isOverdue ? "bg-destructive/10" : "bg-primary/10"}`}>
+                      <Icon className={`w-4 h-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {t(`dashboard.${task.actionType}`, { defaultValue: task.actionType })}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{task.clientName || "—"}</p>
+                    </div>
+                    {task.priority === "high" && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">!</Badge>
+                    )}
+                    {isOverdue && (
+                      <span className="text-[10px] text-destructive font-medium flex items-center gap-0.5">
+                        <AlertTriangle className="w-3 h-3" />
+                        {t("dashboard.overdue")}
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4 shadow-sm border-border/50">

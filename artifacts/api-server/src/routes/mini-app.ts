@@ -24,7 +24,6 @@ import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
-import { localizeProductPresentation } from "../ai/service";
 import {
   formatDateTimeInAppTimeZone,
   formatFileDate,
@@ -474,47 +473,17 @@ async function buildPdfPayload(
   const answers = await getLatestQuestionnaireAnswers(clientId);
   const profile = buildClientPreferenceProfile(answers, language);
   const preferenceSummary = summarizeClientPreferences(profile, language);
-  const localizedPresentation =
-    basketItems.length > 0
-      ? await localizeProductPresentation(
-          basketItems.map((item) => ({
-            productId: item.productType === "credit" ? item.id ?? item.productId ?? null : null,
-            productName: item.productName || item.name || "Product",
-            segment: item.segment ?? null,
-            purpose: item.purpose ?? null,
-            highlight: item.highlight ?? null,
-            loanAmount: item.loanAmount ?? null,
-            rateSummary: getRateSummary(item as ProductLike),
-            relevantTerm: getRelevantTerm(item as ProductLike, profile.loanPurpose),
-            disbursementForm: item.disbursementForm ?? null,
-            gracePeriod: item.gracePeriod ?? null,
-          })),
-          language,
-        )
-      : [];
-
-  const localizedMap = new Map(
-    localizedPresentation.map((item) => [
-      `${item.productId ?? "null"}:${item.productName}`,
-      item,
-    ]),
-  );
-
-  const localizedBasketItems = basketItems.map((item) => {
-    const key = `${item.productType === "credit" ? item.id ?? item.productId ?? null : "null"}:${item.productName || item.name || "Product"}`;
-    const localized = localizedMap.get(key);
-    return {
-      ...item,
-      localizedSegment: localized?.localizedSegment ?? null,
-      localizedPurpose: localized?.localizedPurpose ?? null,
-      localizedHighlight: localized?.localizedHighlight ?? null,
-      localizedLoanAmount: localized?.localizedLoanAmount ?? null,
-      localizedRate: localized?.localizedRate ?? null,
-      localizedRelevantTerm: localized?.localizedRelevantTerm ?? null,
-      localizedDisbursementForm: localized?.localizedDisbursementForm ?? null,
-      localizedGracePeriod: localized?.localizedGracePeriod ?? null,
-    };
-  });
+  const localizedBasketItems = basketItems.map((item) => ({
+    ...item,
+    localizedSegment: null,
+    localizedPurpose: null,
+    localizedHighlight: null,
+    localizedLoanAmount: null,
+    localizedRate: null,
+    localizedRelevantTerm: null,
+    localizedDisbursementForm: null,
+    localizedGracePeriod: null,
+  }));
 
   const calculations = [
     ...persistedCalculations,

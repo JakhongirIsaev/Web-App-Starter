@@ -114,7 +114,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
       status: p.status || "", productId: p.productId || "", name: p.name,
       productType: p.productType || "", categoryId: p.categoryId || "", categoryName: p.categoryName || "",
     }));
-    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

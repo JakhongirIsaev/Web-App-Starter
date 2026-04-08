@@ -138,7 +138,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
       termUntargeted: p.termUntargeted || "", rateUZS: p.rateUZS || "", rateUSD: p.rateUSD || "",
       rateEUR: p.rateEUR || "", gracePeriod: p.gracePeriod || "", purpose: p.purpose || "", highlight: p.highlight || "",
     }));
-    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

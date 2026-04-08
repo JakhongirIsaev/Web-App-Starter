@@ -33,7 +33,7 @@ export default function HomePage() {
 
   const quickActions = [
     { icon: Plus, label: t("home.newClient"), path: "/new-client", color: "bg-primary text-primary-foreground" },
-    { icon: Users, label: t("home.myClients"), path: "/clients", color: "bg-blue-500 text-white" },
+    { icon: Users, label: t("home.myClients"), path: "/clients", color: "bg-primary text-primary-foreground" },
     { icon: BookOpen, label: t("home.knowledgeBase"), path: "/knowledge", color: "bg-amber-500 text-white" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", color: "bg-purple-500 text-white" },
   ];
