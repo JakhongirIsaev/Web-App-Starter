@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import ru from "./ru.json";
 import uz from "./uz.json";
 
-const savedLang = localStorage.getItem("minerva_lang") || "ru";
+const savedLang = typeof window !== "undefined" ? localStorage.getItem("minerva_lang") || "uz" : "uz";
 
 i18n.use(initReactI18next).init({
   resources: {

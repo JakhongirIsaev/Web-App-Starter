@@ -35,6 +35,7 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
 
   useEffect(() => {
     if (!isLoading && error) {
+      localStorage.removeItem("auth_token");
       setLocation("/login");
     }
   }, [isLoading, error, setLocation]);
@@ -50,7 +51,9 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
     );
   }
 
-  if (error || !user) return null;
+  if (error || !user) {
+    return <Login />;
+  }
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
     return (

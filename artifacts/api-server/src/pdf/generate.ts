@@ -7,6 +7,11 @@ interface PdfData {
     phone: string | null;
     sessionId: string;
     createdAt: Date;
+    tin?: string | null;
+    gender?: string | null;
+    clientType?: string | null;
+    businessLocation?: string | null;
+    badges?: string[] | null;
   };
   basketItems: Array<{
     productName: string;
@@ -27,6 +32,8 @@ interface PdfData {
   }>;
   expertName: string;
   branchName: string;
+  aiSummary?: string;
+  keyHighlights?: string[];
 }
 
 function fmtNum(val: string | number | null | undefined): string {
@@ -39,6 +46,13 @@ function fmtNum(val: string | number | null | undefined): string {
 function fmtDate(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString("ru-RU", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function formatClientType(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value === "individual") return "Физлицо";
+  if (value === "legal") return "Юрлицо";
+  return value;
 }
 
 export function generateClientPdf(data: PdfData): Promise<Buffer> {
@@ -87,11 +101,16 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     doc.fontSize(13).fillColor(green).text("Информация о клиенте", 50, y);
     y += 22;
 
-    const clientInfo = [
+    const clientInfo: [string, string][] = [
       ["ФИО", data.client.fullName || "—"],
       ["Телефон", data.client.phone || "—"],
       ["Дата регистрации", fmtDate(data.client.createdAt)],
     ];
+
+    if (data.client.tin) clientInfo.push(["ИНН/СТИР", data.client.tin]);
+    if (data.client.clientType) clientInfo.push(["Тип клиента", formatClientType(data.client.clientType) || data.client.clientType]);
+    if (data.client.businessLocation) clientInfo.push(["Локация бизнеса", data.client.businessLocation]);
+    if (data.client.gender) clientInfo.push(["Пол", data.client.gender === "male" ? "Мужской" : "Женский"]);
 
     doc.fontSize(10);
     for (const [label, value] of clientInfo) {
@@ -100,7 +119,31 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       y += 18;
     }
 
+    if (data.client.badges && data.client.badges.length > 0) {
+      y += 5;
+      doc.fontSize(9).fillColor(gray).text("Метки: " + data.client.badges.join(", "), 50, y);
+      y += 16;
+    }
+
     y += 15;
+
+    if (data.aiSummary) {
+      doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
+      y += 15;
+      doc.fontSize(13).fillColor(green).text("AI-анализ клиента", 50, y);
+      y += 22;
+
+      doc.fontSize(10).fillColor(darkText).text(data.aiSummary, 50, y, { width: pageWidth });
+      y += doc.heightOfString(data.aiSummary, { width: pageWidth }) + 10;
+
+      if (data.keyHighlights && data.keyHighlights.length > 0) {
+        for (const highlight of data.keyHighlights) {
+          doc.fontSize(9).fillColor(gray).text("• " + highlight, 60, y, { width: pageWidth - 20 });
+          y += doc.heightOfString("• " + highlight, { width: pageWidth - 20 }) + 4;
+        }
+      }
+      y += 10;
+    }
 
     if (data.basketItems.length > 0) {
       doc.rect(50, y, pageWidth, 1).fill("#E0E0E0");
@@ -139,7 +182,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
 
         const rows = [
           ["Сумма кредита", `${fmtNum(calc.loanAmount)} ${calc.currency}`],
-          ["Процентная ставка", `${calc.interestRate}% годовых`],
+          ["Процентная ставка", "Определяется исходя из проекта заемщика"],
           ["Срок", `${calc.termMonths} мес.`],
           ["Тип погашения", calc.repaymentType === "annuity" ? "Аннуитетный" : "Дифференцированный"],
         ];
@@ -179,6 +222,8 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
 
     doc.fontSize(8).fillColor(gray);
     doc.text("Данное коммерческое предложение носит информационный характер и не является офертой.", 50, y, { width: pageWidth, align: "center" });
+    y += 14;
+    doc.text("Информация актуальна на дату формирования документа.", 50, y, { width: pageWidth, align: "center" });
     y += 14;
     doc.text("Окончательные условия кредитования определяются после рассмотрения заявки.", 50, y, { width: pageWidth, align: "center" });
     y += 14;

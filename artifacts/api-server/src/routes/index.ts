@@ -12,6 +12,7 @@ import sapCodesRouter from "./sap-codes";
 import creditLinesRouter from "./credit-lines";
 import miniAppRouter from "./mini-app";
 import storageRouter from "./storage";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(creditProductsRouter);
 router.use(sapCodesRouter);
 router.use(creditLinesRouter);
 router.use(miniAppRouter);
+router.use(aiRouter);
 
 export default router;

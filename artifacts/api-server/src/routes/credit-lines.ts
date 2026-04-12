@@ -2,11 +2,30 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { creditLinesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
+import XLSX from "xlsx";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
+
+function parseImportRows(file: Express.Multer.File) {
+  const ext = file.originalname.toLowerCase();
+  if (ext.endsWith(".xlsx") || ext.endsWith(".xls")) {
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+
+    return rows.map((row) =>
+      Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key.trim(), value === null || value === undefined ? "" : String(value).trim()]),
+      ),
+    );
+  }
+
+  return parseCsvBuffer(file.buffer);
+}
 
 router.get("/credit-lines", requireAuth, async (req, res) => {
   const { search, section, currency, page = "1", pageSize = "50" } = req.query as any;
@@ -92,7 +111,7 @@ router.delete("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_
 router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
+    const rows = parseImportRows(req.file);
     const skipped: number[] = [];
     let imported = 0;
     await db.transaction(async (tx) => {

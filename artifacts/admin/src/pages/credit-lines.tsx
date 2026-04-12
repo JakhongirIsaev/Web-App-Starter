@@ -1,6 +1,7 @@
 import { useState, useRef, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Search, Download, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { downloadCsv } from "@/lib/csv";
 import { localizeSection, localizeDepartment, localizeSpecialConditions, localizeNotes } from "@/lib/localize";
+import { API_BASE } from "@/lib/api-origin";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -24,11 +25,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const BASE = import.meta.env.BASE_URL;
 const getToken = () => localStorage.getItem("auth_token");
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(`${BASE}api${url}`, {
+  const res = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...options?.headers },
   });
@@ -65,9 +65,57 @@ function fmtNum(value: string | number | null | undefined): string {
   return decPart ? `${formatted}.${decPart}` : formatted;
 }
 
+function fmtPercent(value: string | number | null | undefined, locale: string): string {
+  if (value === null || value === undefined || value === "") return "-";
+
+  const raw = String(value).trim();
+  const normalized = raw
+    .replace(/\u00A0/g, "")
+    .replace(/\s+/g, "")
+    .replace(/%$/, "")
+    .replace(/,/g, ".");
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return raw;
+
+  const percentValue = raw.includes("%") ? parsed : Math.abs(parsed) < 1 ? parsed * 100 : parsed;
+  return `${percentValue.toLocaleString(locale, { maximumFractionDigits: 2 })}%`;
+}
+
+function getLineOperationalState(item: {
+  remainingBalance?: number | string | null;
+  section?: string | null;
+  notes?: string | null;
+  specialConditions?: string | null;
+}) {
+  const source = `${item.section || ""} ${item.notes || ""} ${item.specialConditions || ""}`.toLowerCase();
+  const remaining = typeof item.remainingBalance === "string"
+    ? Number.parseFloat(item.remainingBalance)
+    : item.remainingBalance;
+
+  if (
+    source.includes("стоп") ||
+    source.includes("stop") ||
+    source.includes("освоен") ||
+    source.includes("освоена") ||
+    source.includes("освоены") ||
+    source.includes("closed") ||
+    (remaining !== null && remaining !== undefined && Number.isFinite(remaining) && remaining <= 0)
+  ) {
+    return "stopped";
+  }
+
+  if (remaining !== null && remaining !== undefined && Number.isFinite(remaining) && remaining > 0) {
+    return "active";
+  }
+
+  return "neutral";
+}
+
 export default function CreditLines({ user }: { user?: { role: string } }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+  const locale = lang.startsWith("uz") ? "uz-UZ" : "ru-RU";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -142,7 +190,10 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
       remainingBalance: p.remainingBalance || "", projectCount: p.projectCount || "",
       specialConditions: p.specialConditions || "", notes: p.notes || "", section: p.section || "",
     }));
-    downloadCsv(rows, `credit_lines_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Credit Lines");
+    XLSX.writeFile(workbook, `credit_lines_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -150,9 +201,17 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const formData = new FormData();
-    formData.append("file", file);
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+      formData.append("file", new Blob([csv], { type: "text/csv;charset=utf-8" }), `${file.name.replace(/\.(xlsx|xls)$/i, "")}.csv`);
+    } else {
+      formData.append("file", file);
+    }
     try {
-      const res = await fetch(`${BASE}api/credit-lines/import`, {
+      const res = await fetch(`${API_BASE}/credit-lines/import`, {
         method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
@@ -188,14 +247,14 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
         <div className="flex gap-2">
           {canAdmin && (
             <>
-              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+              <input type="file" ref={importRef} accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
               <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-                <Upload className="h-4 w-4" />{t("common.import")}
+                <Upload className="h-4 w-4" />{t("creditLines.importExcel")}
               </Button>
             </>
           )}
           <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />{t("common.export")}
+            <Download className="h-4 w-4" />{t("creditLines.exportExcel")}
           </Button>
           {canWrite && (
             <Button className="gap-2" onClick={openCreate}>
@@ -249,13 +308,32 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                   <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">{t("creditLines.noLines")}</TableCell>
                 </TableRow>
               ) : (
-                items.map((item: any) => (
+                items.map((item: any) => {
+                  const lineState = getLineOperationalState(item);
+                  const rowClassName =
+                    lineState === "active"
+                      ? "cursor-pointer bg-emerald-50/60 hover:bg-emerald-50 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/25"
+                      : lineState === "stopped"
+                        ? "cursor-pointer bg-red-50/70 hover:bg-red-50 dark:bg-red-950/15 dark:hover:bg-red-950/25"
+                        : "cursor-pointer";
+
+                  return (
                   <Fragment key={item.id}>
-                    <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                    <TableRow className={rowClassName} onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                       <TableCell className="font-mono text-muted-foreground">{item.number}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-foreground max-w-[300px] truncate">{item.name}</div>
+                          {lineState === "active" && (
+                            <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800">
+                              {t("creditLines.lineActive")}
+                            </Badge>
+                          )}
+                          {lineState === "stopped" && (
+                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800">
+                              {t("creditLines.lineStopped")}
+                            </Badge>
+                          )}
                           {expandedId === item.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </div>
                       </TableCell>
@@ -285,7 +363,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{localizeDepartment(item.department, lang) || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{item.agreementDate || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1 tabular-nums">{fmtNum(item.receivedAmount)}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{item.interestRate || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{fmtPercent(item.interestRate, locale)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.projectCount")}:</span> <span className="ml-1">{item.projectCount || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.section")}:</span> <span className="ml-1">{localizeSection(item.section, lang) || "-"}</span></div>
                             {item.specialConditions && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.specialConditions")}:</span> <span className="ml-1">{localizeSpecialConditions(item.specialConditions, lang)}</span></div>}
@@ -295,7 +373,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                       </TableRow>
                     )}
                   </Fragment>
-                ))
+                )})
               )}
             </TableBody>
           </Table>

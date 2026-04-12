@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { API_BASE } from "@/lib/api-origin";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -148,7 +149,7 @@ export default function Products() {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/products/import`, {
+      const res = await fetch(`${API_BASE}/products/import`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

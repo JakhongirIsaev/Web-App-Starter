@@ -1,4 +1,5 @@
-const API_BASE = "/api";
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN?.replace(/\/+$/, "") || "";
+const API_BASE = `${API_ORIGIN}/api`;
 
 function getToken(): string | null {
   return localStorage.getItem("miniapp_auth_token");

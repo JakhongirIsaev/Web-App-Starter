@@ -93,3 +93,20 @@ export const clientDocumentsTable = pgTable("client_documents", {
   extractedData: jsonb("extracted_data"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const extractedDocumentDataTable = pgTable("extracted_document_data", {
+  id: serial("id").primaryKey(),
+  documentUploadId: integer("document_upload_id").notNull().references(() => clientDocumentsTable.id),
+  clientId: integer("client_id").notNull().references(() => clientsTable.id),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  extractedJson: jsonb("extracted_json").notNull(),
+  extractionMethod: text("extraction_method").notNull().default("ai_vision"),
+  extractionStatus: text("extraction_status").notNull().default("completed"),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }),
+  gender: text("gender"),
+  genderSource: text("gender_source"),
+  genderConfidence: numeric("gender_confidence", { precision: 4, scale: 3 }),
+  suggestedBadges: jsonb("suggested_badges").$type<string[]>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

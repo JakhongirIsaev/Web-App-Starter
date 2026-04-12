@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { Home, Users, Package, Calculator, BookOpen, LogOut, Globe } from "lucide-react";
+import { Home, Users, Package, Calculator, BookOpen, LogOut, Globe, Landmark } from "lucide-react";
 import { MinervaIcon } from "@/components/minerva-logo";
 
 interface Props {
@@ -24,6 +24,7 @@ export default function MiniAppLayout({ children }: Props) {
     { path: "/", icon: Home, label: t("nav.home") },
     { path: "/clients", icon: Users, label: t("nav.clients") },
     { path: "/products", icon: Package, label: t("nav.products") },
+    { path: "/credit-lines", icon: Landmark, label: t("nav.creditLines") },
     { path: "/calculator", icon: Calculator, label: t("nav.calculator") },
     { path: "/knowledge", icon: BookOpen, label: t("nav.knowledge") },
   ];
@@ -34,7 +35,8 @@ export default function MiniAppLayout({ children }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative isolate">
+      <PrivacyWatermark text={`MINERVA • ${user?.telegramId || user?.name || "PRIVATE"}`} />
       <header className="flex items-center justify-between px-4 py-2 bg-card border-b border-border sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <MinervaIcon size={24} />
@@ -80,6 +82,18 @@ export default function MiniAppLayout({ children }: Props) {
           })}
         </div>
       </nav>
+    </div>
+  );
+}
+
+function PrivacyWatermark({ text }: { text: string }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.045]" aria-hidden="true">
+      <div className="absolute inset-[-18%] rotate-[-24deg] grid grid-cols-2 gap-x-10 gap-y-16 text-[11px] font-semibold tracking-[0.28em] text-foreground whitespace-nowrap">
+        {Array.from({ length: 16 }).map((_, index) => (
+          <span key={index}>{text}</span>
+        ))}
+      </div>
     </div>
   );
 }

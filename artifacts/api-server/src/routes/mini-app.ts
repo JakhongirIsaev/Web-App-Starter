@@ -5,6 +5,7 @@ import {
   usersTable,
   branchesTable,
   creditProductsTable,
+  creditLinesTable,
   articlesTable,
   articleVisibilityTable,
   clientNotesTable,
@@ -20,6 +21,7 @@ import { eq, and, desc, sql, count, gte, lte, isNull, or } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
+import { buildPdfSummaryFallback } from "../lib/ai-fallbacks";
 
 const router: IRouter = Router();
 
@@ -33,6 +35,35 @@ async function verifyClientAccess(clientId: number, user: { id: number; role: st
   if (user.role === "superadmin" || user.role === "head_office_admin") return true;
   if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
   return client.assignedToId === user.id;
+}
+
+async function getLatestClientProfile(clientId: number) {
+  const answers = await db
+    .select({
+      questionKey: questionnaireAnswersTable.questionKey,
+      answer: questionnaireAnswersTable.answer,
+      createdAt: questionnaireAnswersTable.createdAt,
+    })
+    .from(questionnaireAnswersTable)
+    .innerJoin(questionnaireSessionsTable, eq(questionnaireAnswersTable.sessionId, questionnaireSessionsTable.id))
+    .where(eq(questionnaireSessionsTable.clientId, clientId))
+    .orderBy(desc(questionnaireAnswersTable.createdAt));
+
+  const profile: Record<string, string | null> = {};
+  for (const answer of answers) {
+    if (profile[answer.questionKey] === undefined) {
+      profile[answer.questionKey] = answer.answer;
+    }
+  }
+
+  return {
+    clientType: profile.client_type || null,
+    businessType: profile.business_type || null,
+    segment: profile.business_size || null,
+    desiredAmount: profile.desired_amount || null,
+    desiredTerm: profile.desired_term || null,
+    businessLocation: profile.business_location || null,
+  };
 }
 
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
@@ -338,7 +369,19 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
     .where(eq(calculationsTable.clientId, clientId))
     .orderBy(desc(calculationsTable.createdAt));
 
-  res.json({ client, notes, nextActions, basket: basket[0] || null, basketItems, calculations });
+  const profile = await getLatestClientProfile(clientId);
+  const businessLocationNote = notes.find((note) => note.type === "business_location");
+
+  res.json({
+    client,
+    notes,
+    nextActions,
+    basket: basket[0] || null,
+    basketItems,
+    calculations,
+    profile,
+    businessLocation: businessLocationNote?.content || profile.businessLocation || null,
+  });
 });
 
 router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
@@ -529,11 +572,19 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
     currency,
   } = req.body;
 
-  const principal = parseFloat(loanAmount) - (parseFloat(initialPayment) || 0);
-  const monthlyRate = parseFloat(interestRate) / 100 / 12;
-  const grace = parseInt(gracePeriodMonths) || 0;
+  const requestedAmount = parseFloat(loanAmount);
+  const initialPaymentValue = parseFloat(initialPayment) || 0;
+  const principal = requestedAmount - initialPaymentValue;
+  const normalizedRate = Number.isFinite(parseFloat(interestRate)) ? Math.max(0, parseFloat(interestRate)) : 0;
+  const monthlyRate = normalizedRate / 100 / 12;
+  const grace = Math.max(0, parseInt(gracePeriodMonths) || 0);
   const term = parseInt(termMonths);
   const paymentTerm = term - grace;
+
+  if (!Number.isFinite(principal) || principal <= 0 || !Number.isFinite(term) || term <= 0 || paymentTerm <= 0) {
+    res.status(400).json({ error: "Invalid calculation parameters" });
+    return;
+  }
 
   let monthlyPayment: number;
   let totalPayment: number;
@@ -553,7 +604,7 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
         totalInterest += interest;
         schedule.push({ month: i, principal: 0, interest: +interest.toFixed(2), payment: +interest.toFixed(2), remaining: +remaining.toFixed(2) });
       } else {
-        const interest = remaining * monthlyRate;
+        const interest = monthlyRate === 0 ? 0 : remaining * monthlyRate;
         const payment = principalPayment + interest;
         remaining -= principalPayment;
         totalPayment += payment;
@@ -576,11 +627,15 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
       }
     }
 
-    const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
-    monthlyPayment = principal * annuityCoeff;
+    if (monthlyRate === 0) {
+      monthlyPayment = principal / paymentTerm;
+    } else {
+      const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
+      monthlyPayment = principal * annuityCoeff;
+    }
 
     for (let i = grace + 1; i <= term; i++) {
-      const interest = remaining * monthlyRate;
+      const interest = monthlyRate === 0 ? 0 : remaining * monthlyRate;
       const principalPart = monthlyPayment - interest;
       remaining -= principalPart;
       totalPayment += monthlyPayment;
@@ -596,7 +651,7 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
       userId: req.user!.id,
       productName,
       loanAmount: principal.toString(),
-      interestRate: interestRate.toString(),
+      interestRate: normalizedRate.toString(),
       termMonths: term,
       repaymentType: repaymentType || "annuity",
       initialPayment: (parseFloat(initialPayment) || 0).toString(),
@@ -628,6 +683,23 @@ router.get("/mini-app/products", requireAuth, async (req, res) => {
     .orderBy(creditProductsTable.number);
 
   res.json(products);
+});
+
+router.get("/mini-app/credit-lines", requireAuth, async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(creditLinesTable)
+    .orderBy(creditLinesTable.number, creditLinesTable.id);
+
+  res.json(
+    rows.map((row) => ({
+      ...row,
+      agreementAmount: row.agreementAmount !== null ? Number(row.agreementAmount) : null,
+      receivedAmount: row.receivedAmount !== null ? Number(row.receivedAmount) : null,
+      disbursedAmount: row.disbursedAmount !== null ? Number(row.disbursedAmount) : null,
+      remainingBalance: row.remainingBalance !== null ? Number(row.remainingBalance) : null,
+    })),
+  );
 });
 
 router.get("/mini-app/articles", requireAuth, async (req, res) => {
@@ -821,14 +893,69 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
   const [branch] = client.branchId
     ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
     : [null];
+  const profile = await getLatestClientProfile(clientId);
+  const [businessLocationNote] = await db
+    .select({ content: clientNotesTable.content })
+    .from(clientNotesTable)
+    .where(and(eq(clientNotesTable.clientId, clientId), eq(clientNotesTable.type, "business_location")))
+    .orderBy(desc(clientNotesTable.createdAt))
+    .limit(1);
 
   try {
+    // Fetch AI summary if available
+    let aiSummary: string | undefined;
+    let keyHighlights: string[] | undefined;
+    const fallbackSummary = buildPdfSummaryFallback(
+      { fullName: client.fullName, phone: client.phone, tin: client.tin, badges: client.badges as string[] | null },
+      basketItems.map((i: any) => ({ productName: i.productName })),
+      calculations.map((c: any) => ({
+        productName: c.productName,
+        monthlyPayment: c.monthlyPayment,
+        totalPayment: c.totalPayment,
+        totalInterest: c.totalInterest,
+        currency: c.currency,
+        interestRate: c.interestRate,
+        termMonths: c.termMonths,
+      })),
+    );
+    try {
+      const { chatCompletion } = await import("../lib/ai-client");
+      const { PDF_SUMMARY_PROMPT } = await import("../lib/ai-prompts");
+      const aiResponse = await chatCompletion(PDF_SUMMARY_PROMPT, [{
+        role: "user",
+        content: `Client: ${JSON.stringify({ fullName: client.fullName, phone: client.phone })}
+Products in basket: ${JSON.stringify(basketItems.map((i: any) => i.productName))}
+Calculations: ${JSON.stringify(calculations.map((c: any) => ({ product: c.productName, amount: c.loanAmount, currency: c.currency, term: c.termMonths })))}`,
+      }]);
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiSummary = parsed.aiSummary || fallbackSummary.aiSummary;
+        keyHighlights = Array.isArray(parsed.keyHighlights) && parsed.keyHighlights.length > 0 ? parsed.keyHighlights : fallbackSummary.keyHighlights;
+      }
+    } catch (aiErr) {
+      console.warn("AI summary generation failed, using fallback summary:", aiErr);
+      aiSummary = fallbackSummary.aiSummary;
+      keyHighlights = fallbackSummary.keyHighlights;
+    }
+
+    if (!aiSummary) {
+      aiSummary = fallbackSummary.aiSummary;
+      keyHighlights = fallbackSummary.keyHighlights;
+    }
+
     const pdfBuffer = await generateClientPdf({
-      client,
+      client: {
+        ...client,
+        clientType: profile.clientType,
+        businessLocation: businessLocationNote?.content || profile.businessLocation || null,
+      },
       basketItems,
       calculations,
       expertName: expert?.name || "—",
       branchName: branch?.name || "—",
+      aiSummary,
+      keyHighlights,
     });
 
     let telegramSent = false;
@@ -903,14 +1030,48 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   const [branch] = client.branchId
     ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
     : [null];
+  const profile = await getLatestClientProfile(clientId);
+  const [businessLocationNote] = await db
+    .select({ content: clientNotesTable.content })
+    .from(clientNotesTable)
+    .where(and(eq(clientNotesTable.clientId, clientId), eq(clientNotesTable.type, "business_location")))
+    .orderBy(desc(clientNotesTable.createdAt))
+    .limit(1);
 
   try {
+    let aiSummary: string | undefined;
+    let keyHighlights: string[] | undefined;
+    try {
+      const { chatCompletion } = await import("../lib/ai-client");
+      const { PDF_SUMMARY_PROMPT } = await import("../lib/ai-prompts");
+      const aiResponse = await chatCompletion(PDF_SUMMARY_PROMPT, [{
+        role: "user",
+        content: `Client: ${JSON.stringify({ fullName: client.fullName, phone: client.phone })}
+Products in basket: ${JSON.stringify(basketItems.map((i: any) => i.productName))}
+Calculations: ${JSON.stringify(calculations.map((c: any) => ({ product: c.productName, amount: c.loanAmount, currency: c.currency, term: c.termMonths })))}`,
+      }]);
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiSummary = parsed.aiSummary;
+        keyHighlights = parsed.keyHighlights;
+      }
+    } catch (aiErr) {
+      console.warn("AI summary generation failed, continuing without it:", aiErr);
+    }
+
     const pdfBuffer = await generateClientPdf({
-      client,
+      client: {
+        ...client,
+        clientType: profile.clientType,
+        businessLocation: businessLocationNote?.content || profile.businessLocation || null,
+      },
       basketItems,
       calculations,
       expertName: expert?.name || "—",
       branchName: branch?.name || "—",
+      aiSummary,
+      keyHighlights,
     });
 
     const safeName = `KP_${client.id}_${new Date().toISOString().slice(0, 10)}.pdf`;

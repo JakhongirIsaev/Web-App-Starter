@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
 import { localizePurpose, localizeHighlight, localizeDisbursement, localizeMonthsField, localizeLoanAmount } from "@/lib/localize";
+import { API_BASE } from "@/lib/api-origin";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -24,11 +25,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const BASE = import.meta.env.BASE_URL;
 const getToken = () => localStorage.getItem("auth_token");
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(`${BASE}api${url}`, {
+  const res = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...options?.headers },
   });
@@ -148,7 +148,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch(`${BASE}api/credit-products/import`, {
+      const res = await fetch(`${API_BASE}/credit-products/import`, {
         method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

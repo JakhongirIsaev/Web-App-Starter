@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye, Sparkles, MapPin } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -29,9 +30,11 @@ export default function ClientDetailPage() {
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteContent, setNoteContent] = useState("");
   const [showActionForm, setShowActionForm] = useState(false);
+  const [showLocationForm, setShowLocationForm] = useState(false);
   const [actionType, setActionType] = useState("follow_up");
   const [actionDate, setActionDate] = useState("");
   const [actionPriority, setActionPriority] = useState("medium");
+  const [businessLocationDraft, setBusinessLocationDraft] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -42,6 +45,18 @@ export default function ClientDetailPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["client-documents", params.id],
     queryFn: () => api.get(`/mini-app/clients/${params.id}/documents`),
+  });
+
+  const { data: pdfSummary, isLoading: pdfSummaryLoading } = useQuery({
+    queryKey: ["mini-client-pdf-summary", params.id, data?.basketItems?.length, data?.calculations?.length],
+    queryFn: () =>
+      api.post("/ai/pdf-summary", {
+        client: data?.client,
+        basketItems: data?.basketItems || [],
+        calculations: data?.calculations || [],
+      }),
+    enabled: !!data?.client,
+    retry: false,
   });
 
   const deleteDocMutation = useMutation({
@@ -72,6 +87,18 @@ export default function ClientDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
       setShowActionForm(false);
       setActionDate("");
+    },
+  });
+
+  const saveBusinessLocationMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/mini-app/clients/${params.id}/notes`, {
+        content: businessLocationDraft,
+        type: "business_location",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      setShowLocationForm(false);
     },
   });
 
@@ -109,12 +136,15 @@ export default function ClientDetailPage() {
   if (!data?.client) return <p className="text-center py-8">{t("common.error")}</p>;
 
   const { client, notes, nextActions, basketItems, calculations } = data;
+  const businessLocationFromNotes = (notes || []).find((note: any) => note.type === "business_location")?.content || null;
+  const timelineNotes = (notes || []).filter((note: any) => note.type !== "business_location");
+  const businessLocation = data.businessLocation || businessLocationFromNotes;
   const currentIdx = statusFlow.indexOf(client.status);
 
   const getNextAction = () => {
     if (client.status === "draft") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
-    if (client.status === "questionnaire") return { label: t("recommendation.title"), path: `/recommendation/${client.id}` };
-    if (client.status === "recommendation") return { label: t("basket.title"), path: `/recommendation/${client.id}` };
+    if (client.status === "questionnaire") return { label: t("clientDetail.continueRecommendation"), path: `/recommendation/${client.id}` };
+    if (client.status === "recommendation") return { label: t("clientDetail.continueRecommendation"), path: `/recommendation/${client.id}` };
     return null;
   };
 
@@ -126,6 +156,8 @@ export default function ClientDetailPage() {
     return null;
   };
 
+  const formatBadge = (badge: string) => badge.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+
   return (
     <div className="space-y-4 pb-4">
       <button onClick={() => navigate("/clients")} className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -133,22 +165,39 @@ export default function ClientDetailPage() {
         {t("common.back")}
       </button>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-lg">{(client.fullName || "?")[0].toUpperCase()}</span>
+      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-emerald-50/70">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
+                <span className="text-lg font-bold">{(client.fullName || "?")[0].toUpperCase()}</span>
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-semibold truncate">{client.fullName || t("clients.anonymous")}</h2>
+                <p className="text-sm text-muted-foreground truncate">{client.phone || t("clients.noPhone")}</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="font-semibold">{client.fullName || t("clients.anonymous")}</h2>
-              <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
-            </div>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[client.status] || ""}`}>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border shrink-0 ${statusColors[client.status] || ""}`}>
               {t(`statuses.${client.status}`)}
             </span>
           </div>
 
-          <div className="flex gap-1 mb-3">
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="rounded-xl border border-white/70 bg-white/80 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("clientDetail.status")}</p>
+              <p className="mt-1 font-medium">{t(`statuses.${client.status}`)}</p>
+            </div>
+            <div className="rounded-xl border border-white/70 bg-white/80 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("clientDetail.createdDate")}</p>
+              <p className="mt-1 font-medium">{fmtDate(client.createdAt)}</p>
+            </div>
+            <div className="rounded-xl border border-white/70 bg-white/80 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("clientDetail.history")}</p>
+              <p className="mt-1 font-medium">{timelineNotes.length || 0}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-1">
             {statusFlow.map((s, i) => (
               <div
                 key={s}
@@ -157,7 +206,15 @@ export default function ClientDetailPage() {
             ))}
           </div>
 
-          <p className="text-xs text-muted-foreground">{t("clientDetail.status")}: {fmtDate(client.createdAt)}</p>
+          {client.badges && client.badges.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {client.badges.map((badge: string) => (
+                <Badge key={badge} variant="outline" className="rounded-full bg-white/80">
+                  {formatBadge(badge)}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -195,6 +252,18 @@ export default function ClientDetailPage() {
           <MessageSquare className="w-4 h-4" />
           {t("clientDetail.addNote")}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-1"
+          onClick={() => {
+            setBusinessLocationDraft(businessLocation || "");
+            setShowLocationForm(!showLocationForm);
+          }}
+        >
+          <MapPin className="w-4 h-4" />
+          {t("clientDetail.addBusinessLocation")}
+        </Button>
         <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setShowActionForm(!showActionForm)}>
           <Calendar className="w-4 h-4" />
           {t("clientDetail.addAction")}
@@ -203,6 +272,41 @@ export default function ClientDetailPage() {
           <Calculator className="w-4 h-4" />
         </Button>
       </div>
+
+      {(businessLocation || showLocationForm) && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <MapPin className="w-4 h-4" />
+              {t("clientDetail.businessLocation")}
+            </div>
+            {businessLocation && !showLocationForm && (
+              <p className="text-sm font-medium">{businessLocation}</p>
+            )}
+            {showLocationForm && (
+              <>
+                <Input
+                  value={businessLocationDraft}
+                  onChange={(e) => setBusinessLocationDraft(e.target.value)}
+                  placeholder={t("clientDetail.businessLocationPlaceholder")}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => saveBusinessLocationMutation.mutate()}
+                    disabled={!businessLocationDraft.trim() || saveBusinessLocationMutation.isPending}
+                  >
+                    {t("common.save")}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowLocationForm(false)}>
+                    {t("common.cancel")}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Button
         variant="outline"
@@ -343,6 +447,39 @@ export default function ClientDetailPage() {
         </div>
       )}
 
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-primary" />
+            {t("clientDetail.aiPdfSummary")}
+          </CardTitle>
+          <CardDescription>{t("clientDetail.aiPdfSummaryHint")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {pdfSummaryLoading ? (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              {t("questionnaire.aiThinking")}
+            </div>
+          ) : pdfSummary?.aiSummary ? (
+            <>
+              <p className="text-sm leading-relaxed">{pdfSummary.aiSummary}</p>
+              {Array.isArray(pdfSummary.keyHighlights) && pdfSummary.keyHighlights.length > 0 && (
+                <div className="space-y-1">
+                  {pdfSummary.keyHighlights.map((highlight: string) => (
+                    <div key={highlight} className="rounded-xl bg-white/80 border border-primary/10 px-3 py-2 text-xs">
+                      {highlight}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("common.error")}</p>
+          )}
+        </CardContent>
+      </Card>
+
       <div>
         {pdfResult ? (
           <Card className="border-green-200 bg-green-50">
@@ -404,7 +541,7 @@ export default function ClientDetailPage() {
                 <div className="flex gap-4 text-xs text-muted-foreground mt-1">
                   <span>{fmtNum(c.loanAmount)} {c.currency}</span>
                   <span>{c.termMonths} {t("calculator.months")}</span>
-                  <span>{c.interestRate}%</span>
+                  <span>{t("clientDetail.rateDependsOnProject")}</span>
                 </div>
                 <p className="text-sm font-semibold text-primary mt-1">{fmtNum(c.monthlyPayment)} / {t("calculator.months")}</p>
               </CardContent>
@@ -413,10 +550,10 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {notes?.length > 0 && (
+      {timelineNotes.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.history")}</h3>
-          {notes.map((n: any) => (
+          {timelineNotes.map((n: any) => (
             <Card key={n.id} className="mb-1.5">
               <CardContent className="p-3">
                 <p className="text-sm">{n.content}</p>

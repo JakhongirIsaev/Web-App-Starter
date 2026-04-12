@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { downloadCsv } from "@/lib/csv";
+import { API_BASE } from "@/lib/api-origin";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -84,7 +85,7 @@ export default function Branches() {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/branches/import`, {
+      const res = await fetch(`${API_BASE}/branches/import`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
