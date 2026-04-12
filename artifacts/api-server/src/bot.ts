@@ -53,6 +53,11 @@ export async function startBot(miniAppUrl: string) {
     return;
   }
 
+  if (process.env.ENABLE_TELEGRAM_BOT !== "true") {
+    logger.warn("ENABLE_TELEGRAM_BOT not set, bot disabled");
+    return;
+  }
+
   bot = new Bot(token);
 
   bot.command("start", async (ctx) => {

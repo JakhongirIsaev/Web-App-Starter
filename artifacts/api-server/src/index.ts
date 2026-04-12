@@ -27,10 +27,13 @@ app.listen(port, (err) => {
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
-
-  const domain = process.env["REPLIT_DEV_DOMAIN"] || process.env["REPLIT_DOMAINS"]?.split(",")[0];
+  const domain =
+    process.env["REPLIT_DEV_DOMAIN"] ||
+    process.env["REPLIT_DOMAINS"]?.split(",")[0] ||
+    process.env["RAILWAY_PUBLIC_DOMAIN"];
   const miniAppUrl = domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/";
+
+  logger.info({ port, miniAppUrl }, "Server listening");
   startBot(miniAppUrl).catch((err) => {
     logger.error({ err }, "Failed to start Telegram bot");
   });
