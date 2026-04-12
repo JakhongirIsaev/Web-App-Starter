@@ -19,12 +19,12 @@ run = "pnpm --filter @workspace/admin run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/admin", "run", "build" ]
-publicDir = "artifacts/admin/dist/public"
-serve = "static"
 
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+[services.production.run]
+args = [ "node", "scripts/serve-spa.mjs", "artifacts/admin/dist/public" ]
+
+[services.production.health.startup]
+path = "/api/healthz"
 
 [services.env]
 PORT = "23744"
