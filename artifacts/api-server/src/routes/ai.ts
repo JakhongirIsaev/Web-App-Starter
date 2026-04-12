@@ -17,6 +17,11 @@ import {
   DOCUMENT_EXTRACTION_PROMPT,
   PDF_SUMMARY_PROMPT,
 } from "../lib/ai-prompts";
+import {
+  buildQuestionnaireFallback,
+  buildRecommendationFactsFallback,
+  buildPdfSummaryFallback,
+} from "../lib/ai-fallbacks";
 
 const router: IRouter = Router();
 
@@ -50,6 +55,13 @@ router.post("/ai/questionnaire/next", requireAuth, async (req, res) => {
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { question: aiResponse, type: "input", key: "fallback", done: false };
     } catch {
       parsed = { question: aiResponse, type: "input", key: "fallback", done: false };
+    }
+
+    const fallback = buildQuestionnaireFallback(messages);
+    if (!parsed || typeof parsed.question !== "string" || typeof parsed.key !== "string") {
+      parsed = fallback;
+    } else if (parsed.done && !parsed.summary) {
+      parsed.summary = fallback.summary;
     }
 
     if (parsed.done && parsed.summary) {
@@ -93,8 +105,19 @@ router.post("/ai/questionnaire/next", requireAuth, async (req, res) => {
 
     res.json(parsed);
   } catch (err: any) {
-    console.error("AI questionnaire error:", err);
-    res.status(500).json({ error: "AI service error", details: err.message });
+    const { clientId, conversationHistory } = req.body;
+    if (!clientId) {
+      res.status(400).json({ error: "clientId is required" });
+      return;
+    }
+
+    const messages: Array<{ role: "user" | "assistant"; content: string }> = conversationHistory || [];
+    if (messages.length === 0) {
+      messages.push({ role: "user", content: "Начните анкетирование. Задайте первый вопрос." });
+    }
+
+    const fallback = buildQuestionnaireFallback(messages);
+    res.json(fallback);
   }
 });
 
@@ -102,9 +125,11 @@ router.post("/ai/questionnaire/next", requireAuth, async (req, res) => {
 router.post("/ai/recommend-facts", requireAuth, async (req, res) => {
   try {
     const { clientId, answers, recommendedProducts } = req.body;
+    const answerList = Array.isArray(answers) ? answers : [];
+    const productList = Array.isArray(recommendedProducts) ? recommendedProducts : [];
 
-    const prompt = `Client answers: ${JSON.stringify(answers)}
-Recommended products: ${JSON.stringify(recommendedProducts?.map((p: any) => ({ name: p.name, segment: p.segment, purpose: p.purpose })))}`;
+    const prompt = `Client answers: ${JSON.stringify(answerList)}
+Recommended products: ${JSON.stringify(productList.map((p: any) => ({ name: p.name, segment: p.segment, purpose: p.purpose })))}`;
 
     const aiResponse = await chatCompletion(RECOMMENDATION_FACTS_PROMPT, [
       { role: "user", content: prompt },
@@ -118,10 +143,19 @@ Recommended products: ${JSON.stringify(recommendedProducts?.map((p: any) => ({ n
       parsed = { clientProfile: aiResponse };
     }
 
+    if (!parsed?.clientProfile) {
+      parsed = buildRecommendationFactsFallback(answerList, productList);
+    }
+
     res.json(parsed);
   } catch (err: any) {
-    console.error("AI recommendation facts error:", err);
-    res.status(500).json({ error: "AI service error", details: err.message });
+    const { answers, recommendedProducts } = req.body;
+    res.json(
+      buildRecommendationFactsFallback(
+        Array.isArray(answers) ? answers : [],
+        Array.isArray(recommendedProducts) ? recommendedProducts : [],
+      ),
+    );
   }
 });
 
@@ -217,10 +251,18 @@ Calculations: ${JSON.stringify(calculations)}`;
       parsed = { aiSummary: aiResponse };
     }
 
+    const fallback = buildPdfSummaryFallback(client || {}, basketItems || [], calculations || []);
+    parsed = {
+      aiSummary: parsed?.aiSummary || fallback.aiSummary,
+      keyHighlights: Array.isArray(parsed?.keyHighlights) && parsed.keyHighlights.length > 0
+        ? parsed.keyHighlights
+        : fallback.keyHighlights,
+    };
+
     res.json(parsed);
   } catch (err: any) {
-    console.error("AI PDF summary error:", err);
-    res.status(500).json({ error: "AI service error", details: err.message });
+    const { client, basketItems, calculations } = req.body;
+    res.json(buildPdfSummaryFallback(client || {}, basketItems || [], calculations || []));
   }
 });
 

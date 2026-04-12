@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { downloadCsv } from "@/lib/csv";
+import { API_BASE } from "@/lib/api-origin";
 import * as XLSX from "xlsx";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -251,7 +252,7 @@ export default function Users() {
     setPreviewOpen(false);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import`, {
+      const res = await fetch(`${API_BASE}/users/import`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -273,7 +274,7 @@ export default function Users() {
   const handleDownloadTemplate = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/users/import-template`, {
+      const res = await fetch(`${API_BASE}/users/import-template`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(await res.text());

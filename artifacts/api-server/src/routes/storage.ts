@@ -1,12 +1,23 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import { spawn } from "child_process";
+import { existsSync } from "fs";
 import path from "path";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+function getPythonExecutable() {
+  const configuredPath = process.env["PYTHON_EXECUTABLE"];
+  if (configuredPath) {
+    return configuredPath;
+  }
+
+  const virtualEnvPython = path.resolve(process.cwd(), ".venv", "bin", "python");
+  return existsSync(virtualEnvPython) ? virtualEnvPython : "python3";
+}
 
 router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const { name, size, contentType } = req.body || {};
@@ -75,7 +86,7 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
     const result = await new Promise<any>((resolve, reject) => {
       const gccLibPath = "/nix/store/bmi5znnqk4kg2grkrhk6py0irc8phf6l-gcc-14.2.1.20250322-lib/lib";
       const existingLdPath = process.env["LD_LIBRARY_PATH"] || "";
-      const proc = spawn("python3", [scriptPath], {
+      const proc = spawn(getPythonExecutable(), [scriptPath], {
         env: {
           ...process.env,
           PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",

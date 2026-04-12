@@ -8,7 +8,8 @@
     "clients": "Клиенты",
     "products": "Продукты",
     "calculator": "Калькулятор",
-    "knowledge": "Знания"
+    "knowledge": "Знания",
+    "creditLines": "Линии"
   },
   "login": {
     "title": "Вход в Minerva",
@@ -62,6 +63,7 @@
     "fullName": "ФИО клиента",
     "phone": "Телефон",
     "status": "Статус",
+    "createdDate": "Дата создания",
     "notes": "Заметки",
     "addNote": "Добавить заметку",
     "notePlaceholder": "Введите заметку...",
@@ -80,7 +82,14 @@
     "continueFlow": "Продолжить",
     "history": "История",
     "markComplete": "Завершить",
-    "exportData": "Экспорт данных клиента"
+    "exportData": "Экспорт данных клиента",
+    "continueRecommendation": "Продолжить подбор",
+    "aiPdfSummary": "AI-резюме для КП",
+    "aiPdfSummaryHint": "Используется в PDF и при отправке в Telegram",
+    "addBusinessLocation": "Локация бизнеса",
+    "businessLocation": "Локация бизнеса",
+    "businessLocationPlaceholder": "Например: Ташкент, Юнусабад",
+    "rateDependsOnProject": "Ставка зависит от проекта заемщика"
   },
   "newClient": {
     "title": "Новый клиент",
@@ -96,6 +105,11 @@
   "questionnaire": {
     "title": "Анкета клиента",
     "subtitle": "Ответьте на вопросы для подбора продуктов",
+    "clientType": "Тип клиента",
+    "clientTypeOptions": {
+      "individual": "Физлицо",
+      "legal": "Юрлицо"
+    },
     "businessType": "Тип бизнеса",
     "businessTypeOptions": {
       "trade": "Торговля",
@@ -125,13 +139,22 @@
     },
     "desiredAmount": "Желаемая сумма (примерно)",
     "desiredAmountPlaceholder": "напр. 500 000 000",
+    "desiredAmountHint": "Допустимый диапазон: от {{min}} до {{max}}",
+    "amountRangeError": "Введите сумму в диапазоне от {{min}} до {{max}}",
     "desiredTerm": "Желаемый срок (месяцев)",
     "desiredTermPlaceholder": "напр. 36",
+    "businessLocation": "Локация бизнеса",
+    "businessLocationPlaceholder": "Например: Ташкент, Чиланзар",
     "submit": "Подобрать продукты",
     "submitting": "Анализ...",
     "aiSubtitle": "AI-помощник задаст вопросы для подбора продуктов",
     "aiThinking": "AI анализирует...",
-    "inputPlaceholder": "Введите ваш ответ..."
+    "inputPlaceholder": "Введите ваш ответ...",
+    "step": "Шаг {{current}} из {{total}}",
+    "summaryTitle": "Краткое резюме",
+    "summaryHint": "Проверьте данные перед переходом к рекомендациям",
+    "collateral": "Обеспечение",
+    "creditHistory": "Кредитная история"
   },
   "recommendation": {
     "title": "Рекомендованные продукты",
@@ -153,7 +176,8 @@
     "aiInsights": "AI-аналитика",
     "whyRecommended": "Почему рекомендуем",
     "riskNotes": "Обратите внимание",
-    "tips": "Советы"
+    "tips": "Советы",
+    "rateDependsOnProject": "Ставка зависит от проекта"
   },
   "basket": {
     "title": "Корзина",
@@ -235,6 +259,33 @@
       "credit_process": "Кредитный процесс",
       "faq": "Частые вопросы"
     }
+  },
+  "creditLines": {
+    "title": "Кредитные линии",
+    "subtitle": "Список кредитных линий и остатков по ним",
+    "searchPlaceholder": "Поиск по линии...",
+    "allCurrencies": "Все валюты",
+    "lineActive": "Активная",
+    "lineStopped": "Остановлена",
+    "number": "№",
+    "name": "Линия",
+    "department": "Отдел",
+    "agreementDate": "Дата соглашения",
+    "agreementAmount": "Сумма соглашения",
+    "receivedAmount": "Получено",
+    "currency": "Валюта",
+    "interestRate": "Ставка",
+    "disbursedAmount": "Освоено",
+    "remainingBalance": "Остаток",
+    "projectCount": "Проектов",
+    "section": "Раздел",
+    "specialConditions": "Особые условия",
+    "notes": "Примечания",
+    "noLines": "Кредитные линии не найдены"
+  },
+  "notFound": {
+    "title": "404 Страница не найдена",
+    "description": "Похоже, эта страница не существует."
   },
   "statuses": {
     "draft": "Черновик",

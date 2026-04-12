@@ -14,6 +14,7 @@ import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { downloadCsv } from "@/lib/csv";
+import { API_BASE } from "@/lib/api-origin";
 
 export function getStatusBadge(status: string, t: (key: string) => string) {
   const label = t(`statuses.${status}`);
@@ -89,7 +90,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
     formData.append("file", file);
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`${import.meta.env.BASE_URL}api/clients/import`, {
+      const res = await fetch(`${API_BASE}/clients/import`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

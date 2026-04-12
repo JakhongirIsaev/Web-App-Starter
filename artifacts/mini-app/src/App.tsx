@@ -15,6 +15,7 @@ import RecommendationPage from "@/pages/recommendation";
 import CalculatorPage from "@/pages/calculator";
 import KnowledgePage from "@/pages/knowledge";
 import ProductsPage from "@/pages/products";
+import CreditLinesPage from "@/pages/credit-lines";
 import ScanDocumentPage from "@/pages/scan-document";
 import NotFound from "@/pages/not-found";
 
@@ -47,6 +48,7 @@ function AuthGate() {
         <Route path="/calculator" component={CalculatorPage} />
         <Route path="/knowledge" component={KnowledgePage} />
         <Route path="/products" component={ProductsPage} />
+        <Route path="/credit-lines" component={CreditLinesPage} />
         <Route path="/scan/:clientId" component={ScanDocumentPage} />
         <Route component={NotFound} />
       </Switch>

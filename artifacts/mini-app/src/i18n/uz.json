@@ -8,7 +8,8 @@
     "clients": "Mijozlar",
     "products": "Mahsulotlar",
     "calculator": "Kalkulyator",
-    "knowledge": "Bilimlar"
+    "knowledge": "Bilimlar",
+    "creditLines": "Liniyalar"
   },
   "login": {
     "title": "Minerva ga kirish",
@@ -62,6 +63,7 @@
     "fullName": "Mijoz F.I.Sh.",
     "phone": "Telefon",
     "status": "Holat",
+    "createdDate": "Yaratilgan sana",
     "notes": "Izohlar",
     "addNote": "Izoh qo'shish",
     "notePlaceholder": "Izoh kiriting...",
@@ -80,7 +82,14 @@
     "continueFlow": "Davom etish",
     "history": "Tarix",
     "markComplete": "Yakunlash",
-    "exportData": "Mijoz ma'lumotlarini eksport qilish"
+    "exportData": "Mijoz ma'lumotlarini eksport qilish",
+    "continueRecommendation": "Tanlovni davom ettirish",
+    "aiPdfSummary": "KP uchun AI xulosa",
+    "aiPdfSummaryHint": "PDF va Telegramga yuborishda ishlatiladi",
+    "addBusinessLocation": "Biznes joylashuvi",
+    "businessLocation": "Biznes joylashuvi",
+    "businessLocationPlaceholder": "Masalan: Toshkent, Yunusobod",
+    "rateDependsOnProject": "Stavka qarzdor loyihasiga bog'liq"
   },
   "newClient": {
     "title": "Yangi mijoz",
@@ -96,6 +105,11 @@
   "questionnaire": {
     "title": "Mijoz so'rovnomasi",
     "subtitle": "Mahsulot tanlash uchun savollarga javob bering",
+    "clientType": "Mijoz turi",
+    "clientTypeOptions": {
+      "individual": "Jismoniy shaxs",
+      "legal": "Yuridik shaxs"
+    },
     "businessType": "Biznes turi",
     "businessTypeOptions": {
       "trade": "Savdo",
@@ -125,13 +139,22 @@
     },
     "desiredAmount": "Kerakli summa (taxminan)",
     "desiredAmountPlaceholder": "masalan, 500 000 000",
+    "desiredAmountHint": "Ruxsat etilgan oraliq: {{min}} dan {{max}} gacha",
+    "amountRangeError": "Summani {{min}} dan {{max}} gacha kiriting",
     "desiredTerm": "Kerakli muddat (oy)",
     "desiredTermPlaceholder": "masalan, 36",
+    "businessLocation": "Biznes joylashuvi",
+    "businessLocationPlaceholder": "Masalan: Toshkent, Chilonzor",
     "submit": "Mahsulotlarni tanlash",
     "submitting": "Tahlil...",
     "aiSubtitle": "AI yordamchi mahsulot tanlash uchun savollar beradi",
     "aiThinking": "AI tahlil qilmoqda...",
-    "inputPlaceholder": "Javobingizni kiriting..."
+    "inputPlaceholder": "Javobingizni kiriting...",
+    "step": "Bosqich {{current}} / {{total}}",
+    "summaryTitle": "Qisqa xulosa",
+    "summaryHint": "Tavsiyalarga o'tishdan oldin ma'lumotlarni tekshiring",
+    "collateral": "Ta'minot",
+    "creditHistory": "Kredit tarixi"
   },
   "recommendation": {
     "title": "Tavsiya etilgan mahsulotlar",
@@ -153,7 +176,8 @@
     "aiInsights": "AI tahlili",
     "whyRecommended": "Nima uchun tavsiya qilamiz",
     "riskNotes": "E'tibor bering",
-    "tips": "Maslahatlar"
+    "tips": "Maslahatlar",
+    "rateDependsOnProject": "Stavka loyiha asosida belgilanadi"
   },
   "basket": {
     "title": "Savat",
@@ -235,6 +259,33 @@
       "credit_process": "Kredit jarayoni",
       "faq": "Ko'p beriladigan savollar"
     }
+  },
+  "creditLines": {
+    "title": "Kredit liniyalari",
+    "subtitle": "Kredit liniyalari va qoldiqlar ro'yxati",
+    "searchPlaceholder": "Liniya bo'yicha qidirish...",
+    "allCurrencies": "Barcha valyutalar",
+    "lineActive": "Faol",
+    "lineStopped": "To'xtagan",
+    "number": "№",
+    "name": "Liniya",
+    "department": "Bo'lim",
+    "agreementDate": "Kelishuv sanasi",
+    "agreementAmount": "Kelishuv summasi",
+    "receivedAmount": "Olingan summa",
+    "currency": "Valyuta",
+    "interestRate": "Stavka",
+    "disbursedAmount": "O'zlashtirilgan",
+    "remainingBalance": "Qoldiq",
+    "projectCount": "Loyihalar",
+    "section": "Bo'lim",
+    "specialConditions": "Maxsus shartlar",
+    "notes": "Izohlar",
+    "noLines": "Kredit liniyalari topilmadi"
+  },
+  "notFound": {
+    "title": "404 Sahifa topilmadi",
+    "description": "Ko'rinib turibdiki, bu sahifa mavjud emas."
   },
   "statuses": {
     "draft": "Qoralama",

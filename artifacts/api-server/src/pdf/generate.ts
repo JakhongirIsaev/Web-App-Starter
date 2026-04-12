@@ -9,6 +9,8 @@ interface PdfData {
     createdAt: Date;
     tin?: string | null;
     gender?: string | null;
+    clientType?: string | null;
+    businessLocation?: string | null;
     badges?: string[] | null;
   };
   basketItems: Array<{
@@ -44,6 +46,13 @@ function fmtNum(val: string | number | null | undefined): string {
 function fmtDate(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString("ru-RU", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function formatClientType(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value === "individual") return "Физлицо";
+  if (value === "legal") return "Юрлицо";
+  return value;
 }
 
 export function generateClientPdf(data: PdfData): Promise<Buffer> {
@@ -99,6 +108,8 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     ];
 
     if (data.client.tin) clientInfo.push(["ИНН/СТИР", data.client.tin]);
+    if (data.client.clientType) clientInfo.push(["Тип клиента", formatClientType(data.client.clientType) || data.client.clientType]);
+    if (data.client.businessLocation) clientInfo.push(["Локация бизнеса", data.client.businessLocation]);
     if (data.client.gender) clientInfo.push(["Пол", data.client.gender === "male" ? "Мужской" : "Женский"]);
 
     doc.fontSize(10);
@@ -171,7 +182,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
 
         const rows = [
           ["Сумма кредита", `${fmtNum(calc.loanAmount)} ${calc.currency}`],
-          ["Процентная ставка", `${calc.interestRate}% годовых`],
+          ["Процентная ставка", "Определяется исходя из проекта заемщика"],
           ["Срок", `${calc.termMonths} мес.`],
           ["Тип погашения", calc.repaymentType === "annuity" ? "Аннуитетный" : "Дифференцированный"],
         ];
@@ -211,6 +222,8 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
 
     doc.fontSize(8).fillColor(gray);
     doc.text("Данное коммерческое предложение носит информационный характер и не является офертой.", 50, y, { width: pageWidth, align: "center" });
+    y += 14;
+    doc.text("Информация актуальна на дату формирования документа.", 50, y, { width: pageWidth, align: "center" });
     y += 14;
     doc.text("Окончательные условия кредитования определяются после рассмотрения заявки.", 50, y, { width: pageWidth, align: "center" });
     y += 14;
