@@ -7,7 +7,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 RUN corepack enable
 
-COPY ../.. .
+COPY . .
 
 RUN pnpm install --no-frozen-lockfile
 
@@ -23,4 +23,4 @@ RUN pnpm run build:api-server
 
 ENV NODE_ENV=production
 
-CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+CMD ["pnpm", "run", "start:railway"]
