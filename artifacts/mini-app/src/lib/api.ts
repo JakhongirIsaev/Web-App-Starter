@@ -1,4 +1,5 @@
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN?.replace(/\/+$/, "") || "";
+// The deployed mini-app is served by scripts/serve-spa.mjs, which proxies /api when needed.
 const API_BASE = `${API_ORIGIN}/api`;
 
 function getToken(): string | null {
