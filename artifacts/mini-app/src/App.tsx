@@ -57,6 +57,7 @@ function AuthGate() {
 }
 
 function App() {
+  // Production uses the SPA proxy server so /api health checks stay local.
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
