@@ -1,0 +1,4 @@
+providers = ["node", "python"]
+
+[phases.install]
+cmds = ["corepack enable", "..."]
