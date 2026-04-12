@@ -81,6 +81,16 @@ function shouldProxyApi(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
+function shouldServeHealthz(pathname) {
+  return pathname === "/api/healthz";
+}
+
+function sendHealthz(res) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify({ status: "ok" }));
+}
+
 async function proxyApiRequest(req, res, requestUrl) {
   if (!apiOrigin) {
     res.statusCode = 502;
@@ -133,6 +143,11 @@ createServer(async (req, res) => {
   }
 
   const requestUrl = new URL(req.url, "http://127.0.0.1");
+
+  if (shouldServeHealthz(requestUrl.pathname)) {
+    sendHealthz(res);
+    return;
+  }
 
   if (shouldProxyApi(requestUrl.pathname)) {
     try {
