@@ -12,6 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
+// Local Vite preview uses this proxy target; production serves through scripts/serve-spa.mjs.
 const apiProxyTarget =
   process.env.API_PROXY_TARGET ??
   process.env.API_ORIGIN ??
