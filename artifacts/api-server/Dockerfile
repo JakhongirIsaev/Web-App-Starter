@@ -4,29 +4,23 @@ WORKDIR /app
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  libgdk-pixbuf2.0-0 \
-  libgl1 \
-  libglib2.0-0 \
-  libpango-1.0-0 \
-  libpangocairo-1.0-0 \
-  libsm6 \
-  libxext6 \
-  libxrender1 \
-  python3 \
-  python3-pip \
-  python3-venv \
-  shared-mime-info \
-  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable
 
-RUN corepack enable && python3 -m pip install --no-cache-dir --break-system-packages uv
+COPY ../.. .
 
-COPY . .
+RUN pnpm install --no-frozen-lockfile
 
-RUN uv sync --locked --no-dev --no-install-project && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server build
+ENV PORT=3000
+ENV BASE_PATH=/
+RUN pnpm run build:admin
+
+ENV PORT=3001
+ENV BASE_PATH=/mini-app/
+RUN pnpm run build:mini-app
+
+RUN pnpm run build:api-server
 
 ENV NODE_ENV=production
 
-CMD ["pnpm", "run", "start:api-server"]
+CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]

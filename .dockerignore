@@ -1,0 +1,11 @@
+node_modules
+.git
+attached_assets
+*.pdf
+*.png
+*.jpg
+*.xlsx
+.omc
+.claude
+.dist
+.replit
