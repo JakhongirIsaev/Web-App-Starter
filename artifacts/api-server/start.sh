@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# Keep deploys touching this service under artifacts/api-server so Railway's
+# watched-path deploys pick up backend changes consistently.
+
 # Tailscale sidecar: joins the container to the user's private tailnet so the
 # api-server can reach a self-hosted Ollama over WireGuard — without exposing
 # it publicly and without client data ever leaving the tailnet.
