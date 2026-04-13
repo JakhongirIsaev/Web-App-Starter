@@ -29,7 +29,14 @@ ENV NODE_ENV=production
 ENV TZ=Asia/Tashkent
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 libglib2.0-0 libgl1 fonts-dejavu-core \
+  && apt-get install -y --no-install-recommends \
+     ca-certificates curl gnupg iptables \
+     python3 libglib2.0-0 libgl1 fonts-dejavu-core \
+  && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg \
+       -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
+  && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list \
+       -o /etc/apt/sources.list.d/tailscale.list \
+  && apt-get update && apt-get install -y --no-install-recommends tailscale \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
@@ -47,4 +54,6 @@ COPY --from=build /app/artifacts /app/artifacts
 COPY --from=build /app/lib /app/lib
 COPY --from=build /app/attached_assets /app/attached_assets
 
-CMD ["pnpm", "run", "start:api-server"]
+RUN chmod +x /app/artifacts/api-server/start.sh
+
+CMD ["/app/artifacts/api-server/start.sh"]
