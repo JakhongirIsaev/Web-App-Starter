@@ -1,3 +1,12 @@
+import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+
+// Route Node's global fetch through HTTP_PROXY/HTTPS_PROXY when set so that
+// outbound requests (notably to Ollama on the user's tailnet) traverse the
+// Tailscale userspace proxy started by start.sh. Safe no-op when unset.
+if (process.env.HTTP_PROXY || process.env.HTTPS_PROXY) {
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+}
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./seed";
