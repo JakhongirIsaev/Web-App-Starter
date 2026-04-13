@@ -73,6 +73,10 @@ export const env = {
   bootstrapSuperadminPassword: process.env.BOOTSTRAP_SUPERADMIN_PASSWORD?.trim() || null,
   bootstrapSuperadminPasswordHash: process.env.BOOTSTRAP_SUPERADMIN_PASSWORD_HASH?.trim() || null,
   allowedCorsOrigins: collectAllowedOrigins(),
+  objectStorageEnabled: Boolean(
+    process.env.PUBLIC_OBJECT_SEARCH_PATHS && process.env.PRIVATE_OBJECT_DIR,
+  ),
+  ocrEnabled: parseBoolean(process.env.ENABLE_OCR),
 };
 
 export function validateRuntimeEnv() {

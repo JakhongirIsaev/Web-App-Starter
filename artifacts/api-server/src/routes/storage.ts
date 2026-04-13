@@ -1,13 +1,43 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { Readable } from "stream";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import path from "path";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middleware/auth";
+import { env } from "../lib/env";
 
 const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
+
+function requireObjectStorage(_req: Request, res: Response, next: NextFunction) {
+  if (!env.objectStorageEnabled) {
+    res.status(503).json({
+      error: "Object storage not configured",
+      details: "Set PUBLIC_OBJECT_SEARCH_PATHS and PRIVATE_OBJECT_DIR, and provide a GCS backend or alternative.",
+    });
+    return;
+  }
+  next();
+}
+
+function requireOcr(_req: Request, res: Response, next: NextFunction) {
+  if (!env.ocrEnabled) {
+    res.status(503).json({
+      error: "OCR not configured",
+      details: "PaddleOCR requires a Python runtime. Set ENABLE_OCR=true only on environments with Python + PaddleOCR installed.",
+    });
+    return;
+  }
+  next();
+}
+
+let objectStorageService: ObjectStorageService | null = null;
+function getObjectStorage(): ObjectStorageService {
+  if (!objectStorageService) {
+    objectStorageService = new ObjectStorageService();
+  }
+  return objectStorageService;
+}
 
 function getPythonExecutable() {
   const configuredPath = process.env["PYTHON_EXECUTABLE"];
@@ -19,7 +49,7 @@ function getPythonExecutable() {
   return existsSync(virtualEnvPython) ? virtualEnvPython : "python3";
 }
 
-router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, requireObjectStorage, async (req: Request, res: Response) => {
   const { name, size, contentType } = req.body || {};
   if (!name || !contentType) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -27,8 +57,9 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
   }
 
   try {
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    const svc = getObjectStorage();
+    const uploadURL = await svc.getObjectEntityUploadURL();
+    const objectPath = svc.normalizeObjectEntityPath(uploadURL);
 
     res.json({ uploadURL, objectPath, metadata: { name, size, contentType } });
   } catch (error) {
@@ -37,7 +68,7 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
   }
 });
 
-router.get("/storage/objects/:objectPath", requireAuth, async (req: Request, res: Response) => {
+router.get("/storage/objects/:objectPath", requireAuth, requireObjectStorage, async (req: Request, res: Response) => {
   const objectPath = req.params.objectPath;
   if (!objectPath) {
     res.status(400).json({ error: "Missing object path" });
@@ -45,8 +76,9 @@ router.get("/storage/objects/:objectPath", requireAuth, async (req: Request, res
   }
 
   try {
-    const readStream = await objectStorageService.getObjectEntityReadStream(objectPath);
-    const metadata = await objectStorageService.getObjectEntityMetadata(objectPath);
+    const svc = getObjectStorage();
+    const readStream = await svc.getObjectEntityReadStream(objectPath);
+    const metadata = await svc.getObjectEntityMetadata(objectPath);
 
     if (metadata.contentType) {
       res.setHeader("Content-Type", metadata.contentType);
@@ -68,7 +100,7 @@ router.get("/storage/objects/:objectPath", requireAuth, async (req: Request, res
   }
 });
 
-router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) => {
+router.post("/ocr/recognize", requireAuth, requireOcr, async (req: Request, res: Response) => {
   const { image } = req.body || {};
   if (!image || typeof image !== "string") {
     res.status(400).json({ error: "Missing image data (base64)" });

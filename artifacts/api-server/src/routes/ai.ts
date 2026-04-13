@@ -225,8 +225,16 @@ router.post("/ai/extract-document", requireAuth, async (req, res) => {
 
     res.json(extracted);
   } catch (err: any) {
+    const message = err?.message || String(err);
+    if (message.includes("OLLAMA_VISION_MODEL")) {
+      res.status(503).json({
+        error: "Vision extraction not configured",
+        details: "Set OLLAMA_VISION_MODEL (e.g. gemma3:4b) or switch to AI_PROVIDER=anthropic",
+      });
+      return;
+    }
     console.error("AI document extraction error:", err);
-    res.status(500).json({ error: "AI service error", details: err.message });
+    res.status(500).json({ error: "AI service error", details: message });
   }
 });
 

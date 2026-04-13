@@ -4,6 +4,7 @@ import { seedDatabase } from "./seed";
 import { validateRuntimeEnv } from "./lib/env";
 import { ensureRuntimeSchema } from "./lib/runtime-schema";
 import { pruneExpiredSessions } from "./lib/sessions";
+import { aiHealthCheck, logAiConfig } from "./lib/ai-client";
 
 const rawPort = process.env["PORT"] ?? "8001";
 
@@ -57,6 +58,16 @@ function shutdown() {
 
 async function main() {
   validateRuntimeEnv();
+  logAiConfig();
+  aiHealthCheck()
+    .then((result) => {
+      if (!result.ok) {
+        logger.warn({ ...result }, "AI provider unreachable — endpoints will error until fixed");
+      } else {
+        logger.info({ ...result }, "AI provider reachable");
+      }
+    })
+    .catch((err) => logger.warn({ err }, "AI health check failed"));
   await ensureRuntimeSchema();
   await pruneExpiredSessions();
   await seedDatabase();
