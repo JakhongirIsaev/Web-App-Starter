@@ -14,7 +14,8 @@ set -eu
 if [ -n "${TS_AUTHKEY:-}" ]; then
   mkdir -p /var/run/tailscale /var/lib/tailscale /var/log/tailscale
 
-  TS_HOSTNAME="${TS_HOSTNAME:-railway-api-${RAILWAY_ENVIRONMENT_NAME:-unknown}-${RAILWAY_SERVICE_NAME:-api}}"
+  RAW_HOSTNAME="${TS_HOSTNAME:-railway-api-${RAILWAY_ENVIRONMENT_NAME:-unknown}-${RAILWAY_SERVICE_NAME:-api}}"
+  TS_HOSTNAME=$(printf '%s' "$RAW_HOSTNAME" | tr -c 'A-Za-z0-9-' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
 
   /usr/sbin/tailscaled \
     --tun=userspace-networking \
