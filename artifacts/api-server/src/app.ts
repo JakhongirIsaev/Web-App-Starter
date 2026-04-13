@@ -3,11 +3,34 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { env } from "./lib/env";
 
 const app: Express = express();
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: "Too many authentication attempts" });
+  },
+});
+
+const expensiveRouteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({ error: "Too many expensive requests" });
+  },
+});
 
 const artifactRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const adminPublicDir = path.join(artifactRoot, "admin", "dist", "public");
@@ -18,6 +41,9 @@ const miniAppIndexPath = path.join(miniAppPublicDir, "index.html");
 function isSpaRoute(pathname: string) {
   return path.extname(pathname) === "";
 }
+
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
 
 app.use(
   pinoHttp({
@@ -38,7 +64,33 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  }),
+);
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (env.allowedCorsOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
+  }),
+);
+app.use("/api/auth", authLimiter);
+app.use("/api/ai", expensiveRouteLimiter);
+app.use("/api/ocr", expensiveRouteLimiter);
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 

@@ -67,15 +67,23 @@ type BranchOption = {
   name: string;
 };
 
-const STATUS_ORDER = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"];
-const STATUS_COLORS: Record<string, string> = {
-  draft: "hsl(215 16% 52%)",
-  questionnaire: "hsl(215 90% 52%)",
-  recommendation: "hsl(38 95% 52%)",
-  basket: "hsl(270 80% 58%)",
-  pdf_generated: "hsl(174 72% 40%)",
-  completed: "hsl(142 65% 42%)",
+const STAGE_ORDER = ["new_application", "in_processing", "cc_review", "approved", "rejected", "completed"] as const;
+const STAGE_COLORS: Record<(typeof STAGE_ORDER)[number], string> = {
+  new_application: "hsl(215 16% 52%)",
+  in_processing: "hsl(215 90% 52%)",
+  cc_review: "hsl(38 95% 52%)",
+  approved: "hsl(174 72% 40%)",
   rejected: "hsl(0 80% 58%)",
+  completed: "hsl(142 65% 42%)",
+};
+const STATUS_TO_STAGE: Record<string, (typeof STAGE_ORDER)[number]> = {
+  draft: "new_application",
+  questionnaire: "in_processing",
+  recommendation: "in_processing",
+  basket: "cc_review",
+  pdf_generated: "approved",
+  rejected: "rejected",
+  completed: "completed",
 };
 
 const initialFilters: DashboardFilters = {
@@ -148,10 +156,10 @@ function FunnelCard({
                   <div className="flex justify-center">
                     <div
                       className="min-h-11 rounded-2xl text-white px-4 py-3 flex items-center justify-between gap-4 shadow-sm"
-                      style={{
-                        width: `${width}%`,
-                        background: STATUS_COLORS[row.status],
-                      }}
+                        style={{
+                          width: `${width}%`,
+                          background: STAGE_COLORS[row.status as keyof typeof STAGE_COLORS],
+                        }}
                     >
                       <span className="text-sm font-medium truncate">{row.label}</span>
                       <span className="text-sm font-bold shrink-0">{row.count}</span>
@@ -197,13 +205,18 @@ export default function Dashboard({ user }: { user?: { role: string } }) {
     queryFn: () => dashboardFetch<ActivityRow[]>("/dashboard/activity", initialFilters, { limit: 10 }),
   });
 
-  const statusData = STATUS_ORDER.map((status) => {
-    const row = statusBreakdown?.find((entry) => entry.status === status);
+  const aggregatedStageCounts = (statusBreakdown || []).reduce<Record<string, number>>((acc, entry) => {
+    const stage = STATUS_TO_STAGE[entry.status] || "in_processing";
+    acc[stage] = (acc[stage] || 0) + entry.count;
+    return acc;
+  }, {});
+
+  const statusData = STAGE_ORDER.map((stage) => {
     return {
-      status,
-      label: t(`statuses.${status}`),
-      count: row?.count ?? 0,
-      fill: STATUS_COLORS[status],
+      status: stage,
+      label: t(`dashboard.${stage}`),
+      count: aggregatedStageCounts[stage] ?? 0,
+      fill: STAGE_COLORS[stage],
     };
   });
 

@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { LoginBody } from "@workspace/api-zod";
+import { requireAuth } from "../middleware/auth";
+import { createSession, revokeSession } from "../lib/sessions";
 
 const router: IRouter = Router();
 
@@ -40,19 +42,7 @@ function validateTelegramInitData(initData: string, botToken: string): { valid: 
   }
 }
 
-router.get("/auth/me", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const userId = req.app.locals.sessions?.get(token);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
+router.get("/auth/me", requireAuth, async (req, res) => {
   const users = await db
     .select({
       id: usersTable.id,
@@ -69,7 +59,7 @@ router.get("/auth/me", async (req, res) => {
     })
     .from(usersTable)
     .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
-    .where(eq(usersTable.id, userId))
+    .where(eq(usersTable.id, req.user!.id))
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
@@ -127,11 +117,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-  if (!req.app.locals.sessions) {
-    req.app.locals.sessions = new Map<string, number>();
-  }
-  req.app.locals.sessions.set(token, user.id);
+  const token = await createSession(user.id);
 
   let branch = null;
   if (user.branchId) {
@@ -191,11 +177,7 @@ router.post("/auth/telegram", async (req, res) => {
   }
 
   const user = users[0];
-  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-  if (!req.app.locals.sessions) {
-    req.app.locals.sessions = new Map<string, number>();
-  }
-  req.app.locals.sessions.set(token, user.id);
+  const token = await createSession(user.id);
 
   let branch = null;
   if (user.branchId) {
@@ -219,10 +201,10 @@ router.post("/auth/telegram", async (req, res) => {
   });
 });
 
-router.post("/auth/logout", (req, res) => {
+router.post("/auth/logout", async (req, res) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
-  if (token && req.app.locals.sessions) {
-    req.app.locals.sessions.delete(token);
+  if (token) {
+    await revokeSession(token);
   }
   res.json({ success: true });
 });

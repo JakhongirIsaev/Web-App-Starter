@@ -1,23 +1,68 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fmtNum } from "@/lib/format";
-import { Calculator as CalcIcon, ChevronDown, ChevronUp, Printer } from "lucide-react";
+import { Calculator as CalcIcon, ChevronDown, ChevronUp } from "lucide-react";
+
+type CreditProduct = {
+  id: number;
+  number: number | null;
+  name: string;
+  segment: string | null;
+  rateUZS: string | null;
+  rateUSD: string | null;
+  rateEUR: string | null;
+  gracePeriod: string | null;
+  termWorkingCapital: string | null;
+  termFixedAssets: string | null;
+  termUntargeted: string | null;
+};
+
+type ProductGroup = {
+  number: number;
+  name: string;
+  segments: Record<string, CreditProduct>;
+};
+
+const segmentOrder = ["микро", "малый", "средний"];
+
+function parseRateNumber(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const matches = value.match(/\d+(?:[.,]\d+)?/g);
+  if (!matches?.length) return null;
+  const parsed = Number.parseFloat(matches[0].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseGraceMonths(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const matches = value.match(/\d+/g);
+  if (!matches?.length) return null;
+  const parsed = Number.parseInt(matches[matches.length - 1], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getRateText(product: CreditProduct | null, currency: string): string | null {
+  if (!product) return null;
+  if (currency === "USD") return product.rateUSD || null;
+  if (currency === "EUR") return product.rateEUR || null;
+  return product.rateUZS || null;
+}
 
 export default function CalculatorPage() {
   const { t } = useTranslation();
   const urlParams = new URLSearchParams(window.location.search);
   const clientId = urlParams.get("clientId");
 
-  const [creditType, setCreditType] = useState("consumer");
+  const [selectedProductNumber, setSelectedProductNumber] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
   const [productCost, setProductCost] = useState("");
   const [downPaymentPct, setDownPaymentPct] = useState("0");
   const [interestRate, setInterestRate] = useState("");
-  const [rateType, setRateType] = useState("annual");
   const [termMonths, setTermMonths] = useState("");
   const [repaymentType, setRepaymentType] = useState("annuity");
   const [gracePeriod, setGracePeriod] = useState("0");
@@ -25,22 +70,93 @@ export default function CalculatorPage() {
   const [result, setResult] = useState<any>(null);
   const [showFullSchedule, setShowFullSchedule] = useState(false);
 
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["calculator-products"],
+    queryFn: () => api.get("/mini-app/products"),
+  });
+
+  const groupedProducts = useMemo(() => {
+    const map = new Map<number, ProductGroup>();
+
+    for (const rawProduct of products as CreditProduct[]) {
+      const number = rawProduct.number || rawProduct.id;
+      if (!map.has(number)) {
+        map.set(number, {
+          number,
+          name: rawProduct.name,
+          segments: {},
+        });
+      }
+
+      const segmentKey = rawProduct.segment || "__default";
+      map.get(number)!.segments[segmentKey] = rawProduct;
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.number - b.number);
+  }, [products]);
+
+  const selectedGroup = groupedProducts.find((group) => String(group.number) === selectedProductNumber) || null;
+  const availableSegments = selectedGroup
+    ? [...segmentOrder.filter((segment) => selectedGroup.segments[segment]), ...Object.keys(selectedGroup.segments).filter((segment) => !segmentOrder.includes(segment))]
+    : [];
+  const effectiveSegment = selectedGroup
+    ? (selectedSegment && selectedGroup.segments[selectedSegment] ? selectedSegment : availableSegments[0] || "__default")
+    : "";
+  const selectedProduct = selectedGroup ? selectedGroup.segments[effectiveSegment] : null;
+  const selectedRateText = getRateText(selectedProduct, currency);
+  const selectedRateValue = parseRateNumber(selectedRateText);
+  const termHints = selectedProduct
+    ? [
+        selectedProduct.termWorkingCapital ? { label: t("products.termWC"), value: selectedProduct.termWorkingCapital } : null,
+        selectedProduct.termFixedAssets ? { label: t("products.termFA"), value: selectedProduct.termFixedAssets } : null,
+        selectedProduct.termUntargeted ? { label: t("products.termUntargeted"), value: selectedProduct.termUntargeted } : null,
+      ].filter(Boolean) as Array<{ label: string; value: string }>
+    : [];
+
   const cost = parseFloat(productCost) || 0;
   const dpPct = parseFloat(downPaymentPct) || 0;
   const downPaymentAmount = cost * (dpPct / 100);
   const loanAmount = cost - downPaymentAmount;
 
+  useEffect(() => {
+    if (!selectedGroup) {
+      setSelectedSegment("");
+      return;
+    }
+
+    if (!selectedSegment || !selectedGroup.segments[selectedSegment]) {
+      setSelectedSegment(availableSegments[0] || "__default");
+    }
+  }, [availableSegments, selectedGroup, selectedSegment]);
+
+  useEffect(() => {
+    if (selectedRateValue !== null) {
+      setInterestRate(selectedRateValue.toString());
+    } else if (selectedProduct) {
+      setInterestRate("");
+    }
+  }, [selectedRateValue, selectedProduct?.id, currency]);
+
+  useEffect(() => {
+    const suggestedGracePeriod = parseGraceMonths(selectedProduct?.gracePeriod);
+    if (selectedProduct && suggestedGracePeriod !== null) {
+      setGracePeriod(String(suggestedGracePeriod));
+    } else if (selectedProduct) {
+      setGracePeriod("0");
+    }
+  }, [selectedProduct?.id]);
+
   const calcMutation = useMutation({
     mutationFn: () => {
-      const effectiveRate = rateType === "monthly"
-        ? (parseFloat(interestRate) * 12)
-        : parseFloat(interestRate);
       return api.post("/mini-app/calculate", {
         clientId: clientId ? parseInt(clientId) : null,
-        productName: t(`calculator.creditTypes.${creditType}`),
+        productId: selectedProduct?.id ?? null,
+        productName: selectedProduct
+          ? `${selectedProduct.name}${selectedProduct.segment ? ` (${selectedProduct.segment})` : ""}`
+          : t("calculator.product"),
         loanAmount: loanAmount,
         initialPayment: downPaymentAmount,
-        interestRate: effectiveRate,
+        interestRate: parseFloat(interestRate),
         termMonths: parseInt(termMonths),
         repaymentType,
         gracePeriodMonths: parseInt(gracePeriod) || 0,
@@ -52,7 +168,7 @@ export default function CalculatorPage() {
     onSuccess: (data) => setResult(data),
   });
 
-  const canCalc = cost > 0 && interestRate && termMonths && loanAmount > 0;
+  const canCalc = Boolean(selectedProduct) && cost > 0 && interestRate && termMonths && loanAmount > 0;
   const schedulePreview = result?.schedule?.slice(0, showFullSchedule ? undefined : 6) || [];
 
   const formatWithSpaces = (n: number) => {
@@ -79,19 +195,38 @@ export default function CalculatorPage() {
       <Card>
         <CardContent className="p-4 space-y-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">{t("calculator.creditType")}</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("calculator.product")}</label>
             <select
-              value={creditType}
-              onChange={(e) => setCreditType(e.target.value)}
+              value={selectedProductNumber}
+              onChange={(e) => setSelectedProductNumber(e.target.value)}
               className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
+              disabled={isLoadingProducts}
             >
-              <option value="consumer">{t("calculator.creditTypes.consumer")}</option>
-              <option value="business">{t("calculator.creditTypes.business")}</option>
-              <option value="micro">{t("calculator.creditTypes.micro")}</option>
-              <option value="mortgage">{t("calculator.creditTypes.mortgage")}</option>
-              <option value="auto">{t("calculator.creditTypes.auto")}</option>
+              <option value="">{isLoadingProducts ? t("common.loading") : t("calculator.selectProduct")}</option>
+              {groupedProducts.map((group) => (
+                <option key={group.number} value={String(group.number)}>
+                  #{group.number} {group.name}
+                </option>
+              ))}
             </select>
           </div>
+
+          {selectedGroup && availableSegments.length > 1 && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t("calculator.productSegment")}</label>
+              <select
+                value={effectiveSegment}
+                onChange={(e) => setSelectedSegment(e.target.value)}
+                className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
+              >
+                {availableSegments.map((segment) => (
+                  <option key={segment} value={segment}>
+                    {segment === "микро" ? t("products.micro") : segment === "малый" ? t("products.small") : segment === "средний" ? t("products.medium") : segment}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2">
@@ -161,24 +296,40 @@ export default function CalculatorPage() {
                 <Input type="number" value={gracePeriod} onChange={(e) => setGracePeriod(e.target.value)} min="0" />
                 <span className="text-xs text-muted-foreground self-center whitespace-nowrap">{t("calculator.months")}</span>
               </div>
+              {selectedProduct?.gracePeriod && (
+                <p className="mt-1 text-xs text-muted-foreground">{t("calculator.graceHint", { value: selectedProduct.gracePeriod })}</p>
+              )}
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">{t("calculator.interestRate")}</label>
+            <Input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} className="mt-1" />
+            {selectedRateText ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("calculator.productRateSource", { value: selectedRateText })}
+              </p>
+            ) : selectedProduct ? (
+              <p className="mt-1 text-xs text-amber-700">{t("calculator.rateUnavailable")}</p>
+            ) : null}
+            <p className="mt-1 text-xs text-muted-foreground">{t("calculator.rateProjectHint")}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.interestRate")}</label>
-              <Input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} className="mt-1" />
+              <label className="text-xs font-medium text-muted-foreground">{t("calculator.loanTerm")}</label>
+              <Input type="number" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} className="mt-1" />
+              {termHints.length > 0 && (
+                <div className="mt-1 space-y-1">
+                  {termHints.map((hint) => (
+                    <p key={hint.label} className="text-xs text-muted-foreground">{hint.label}: {hint.value}</p>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">&nbsp;</label>
-              <select
-                value={rateType}
-                onChange={(e) => setRateType(e.target.value)}
-                className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
-              >
-                <option value="annual">{t("calculator.rateAnnual")}</option>
-                <option value="monthly">{t("calculator.rateMonthly")}</option>
-              </select>
+              <div className="mt-1 p-2 text-sm text-muted-foreground">{t("calculator.months")}</div>
             </div>
           </div>
 
@@ -192,17 +343,6 @@ export default function CalculatorPage() {
               <option value="annuity">{t("calculator.annuity")}</option>
               <option value="differentiated">{t("calculator.differentiated")}</option>
             </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.loanTerm")}</label>
-              <Input type="number" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">&nbsp;</label>
-              <div className="mt-1 p-2 text-sm text-muted-foreground">{t("calculator.months")}</div>
-            </div>
           </div>
 
           <Button
@@ -223,11 +363,12 @@ export default function CalculatorPage() {
                 <div>
                   <h3 className="text-sm font-semibold mb-2">{t("calculator.loanParams")}</h3>
                   <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>{t("calculator.product")}: <span className="text-foreground font-medium">{selectedProduct ? `${selectedProduct.name}${selectedProduct.segment ? ` (${selectedProduct.segment})` : ""}` : "—"}</span></p>
                     <p>{t("calculator.productCost")}: <span className="text-foreground font-medium">{formatWithSpaces(cost)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
                     <p>{t("calculator.downPaymentPct")}: <span className="text-foreground font-medium">{dpPct} %</span></p>
                     <p>{t("calculator.loanAmount")}: <span className="text-foreground font-medium">{formatWithSpaces(loanAmount)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
                     <p>{t("calculator.loanTerm")}: <span className="text-foreground font-medium">{termMonths} {t("calculator.months")}</span></p>
-                    <p>{t("calculator.interestRate")}: <span className="text-foreground font-medium">{interestRate}% {rateType === "annual" ? t("calculator.rateAnnual") : t("calculator.rateMonthly")}</span></p>
+                    <p>{t("calculator.interestRate")}: <span className="text-foreground font-medium">{interestRate}% {t("calculator.rateAnnual")}</span></p>
                     <p>{t("calculator.repaymentType")}: <span className="text-foreground font-medium">{repaymentType === "annuity" ? t("calculator.annuity") : t("calculator.differentiated")}</span></p>
                   </div>
                 </div>

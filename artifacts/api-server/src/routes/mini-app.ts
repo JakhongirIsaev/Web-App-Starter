@@ -66,6 +66,28 @@ async function getLatestClientProfile(clientId: number) {
   };
 }
 
+function getCreditProductRateText(
+  product: {
+    rateUZS: string | null;
+    rateUSD: string | null;
+    rateEUR: string | null;
+  },
+  currency: string | null | undefined,
+) {
+  const code = currency?.toUpperCase() || "UZS";
+  if (code === "USD") return product.rateUSD;
+  if (code === "EUR") return product.rateEUR;
+  return product.rateUZS;
+}
+
+function parseRateNumber(value: string | null | undefined) {
+  if (!value) return null;
+  const matches = value.match(/\d+(?:[.,]\d+)?/g);
+  if (!matches?.length) return null;
+  const parsed = Number.parseFloat(matches[0].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const branchId = req.user!.branchId;
@@ -560,8 +582,9 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/calculate", requireAuth, async (req, res) => {
-  const {
+  let {
     clientId,
+    productId,
     productName,
     loanAmount,
     interestRate,
@@ -574,17 +597,53 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
 
   const requestedAmount = parseFloat(loanAmount);
   const initialPaymentValue = parseFloat(initialPayment) || 0;
-  const principal = requestedAmount - initialPaymentValue;
-  const normalizedRate = Number.isFinite(parseFloat(interestRate)) ? Math.max(0, parseFloat(interestRate)) : 0;
-  const monthlyRate = normalizedRate / 100 / 12;
+  const principal = requestedAmount;
+  const explicitRate = Number.isFinite(parseFloat(interestRate)) ? Math.max(0, parseFloat(interestRate)) : null;
+  let normalizedRate = explicitRate;
+
+  const parsedProductId = Number.parseInt(String(productId), 10);
+  if (Number.isFinite(parsedProductId) && parsedProductId > 0) {
+    const [product] = await db
+      .select({
+        id: creditProductsTable.id,
+        name: creditProductsTable.name,
+        segment: creditProductsTable.segment,
+        rateUZS: creditProductsTable.rateUZS,
+        rateUSD: creditProductsTable.rateUSD,
+        rateEUR: creditProductsTable.rateEUR,
+      })
+      .from(creditProductsTable)
+      .where(eq(creditProductsTable.id, parsedProductId))
+      .limit(1);
+
+    if (product) {
+      const derivedRate = parseRateNumber(getCreditProductRateText(product, currency));
+      if (derivedRate !== null) {
+        normalizedRate = derivedRate;
+      }
+      if (!productName) {
+        productName = product.segment ? `${product.name} (${product.segment})` : product.name;
+      }
+    }
+  }
+
   const grace = Math.max(0, parseInt(gracePeriodMonths) || 0);
   const term = parseInt(termMonths);
   const paymentTerm = term - grace;
 
-  if (!Number.isFinite(principal) || principal <= 0 || !Number.isFinite(term) || term <= 0 || paymentTerm <= 0) {
+  if (
+    !Number.isFinite(principal) ||
+    principal <= 0 ||
+    !Number.isFinite(term) ||
+    term <= 0 ||
+    paymentTerm <= 0 ||
+    normalizedRate === null
+  ) {
     res.status(400).json({ error: "Invalid calculation parameters" });
     return;
   }
+
+  const monthlyRate = normalizedRate / 100 / 12;
 
   let monthlyPayment: number;
   let totalPayment: number;

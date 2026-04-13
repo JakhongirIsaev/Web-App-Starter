@@ -1,6 +1,9 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./seed";
+import { validateRuntimeEnv } from "./lib/env";
+import { ensureRuntimeSchema } from "./lib/runtime-schema";
+import { pruneExpiredSessions } from "./lib/sessions";
 
 const rawPort = process.env["PORT"] ?? "8001";
 
@@ -52,21 +55,29 @@ function shutdown() {
   process.exit(0);
 }
 
-seedDatabase().catch((err) => {
-  logger.error({ err }, "Failed to seed database");
-});
+async function main() {
+  validateRuntimeEnv();
+  await ensureRuntimeSchema();
+  await pruneExpiredSessions();
+  await seedDatabase();
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
 
-  logger.info({ port, miniAppUrl: getMiniAppUrl() }, "Server listening");
+    logger.info({ port, miniAppUrl: getMiniAppUrl() }, "Server listening");
 
-  startTelegramBot().catch((err) => {
-    logger.error({ err }, "Failed to start Telegram bot");
+    startTelegramBot().catch((err) => {
+      logger.error({ err }, "Failed to start Telegram bot");
+    });
   });
+}
+
+main().catch((err) => {
+  logger.error({ err }, "Failed to start server");
+  process.exit(1);
 });
 
 process.on("SIGTERM", () => {

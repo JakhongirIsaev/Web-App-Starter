@@ -5,8 +5,34 @@ import {
 } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 import { logger } from "./lib/logger";
+import { env } from "./lib/env";
+
+async function createBootstrapSuperadmin() {
+  const telegramId = env.bootstrapSuperadminTelegramId;
+  const name = env.bootstrapSuperadminName;
+  const passwordHash = env.bootstrapSuperadminPasswordHash;
+  const password = env.bootstrapSuperadminPassword;
+
+  if (!telegramId || !name || (!passwordHash && !password)) {
+    return false;
+  }
+
+  const resolvedPasswordHash = passwordHash ?? (await bcrypt.hash(password!, 12));
+
+  await db.insert(usersTable).values({
+    telegramId,
+    name,
+    role: "superadmin",
+    branchId: null,
+    passwordHash: resolvedPasswordHash,
+    isActive: true,
+  });
+
+  logger.warn({ telegramId }, "Bootstrapped superadmin user from environment");
+  return true;
+}
 
 export async function seedDatabase() {
   const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
@@ -15,9 +41,29 @@ export async function seedDatabase() {
     return;
   }
 
+  if (await createBootstrapSuperadmin()) {
+    logger.info("Bootstrap user created, skipping demo seed");
+    return;
+  }
+
+  if (env.isProduction && !env.allowDemoSeed) {
+    logger.warn("Database is empty, but demo seed is disabled in production");
+    return;
+  }
+
+  if (env.isProduction && env.allowDemoSeed && !env.demoSeedPassword) {
+    throw new Error("DEMO_SEED_PASSWORD must be set when ALLOW_DEMO_SEED=true in production");
+  }
+
   logger.info("Seeding database with demo data...");
 
-  const passwordHash = await bcrypt.hash("password", 10);
+  const demoPassword = env.demoSeedPassword ?? randomBytes(18).toString("base64url");
+  const passwordHash = await bcrypt.hash(demoPassword, 10);
+  if (env.isProduction) {
+    logger.warn("Demo seed password loaded from environment");
+  } else {
+    logger.warn({ demoPassword }, "Demo seed password initialized");
+  }
 
   const branches = await db.insert(branchesTable).values([
     { name: "Головной офис", city: "Алматы", isActive: true },
@@ -26,8 +72,8 @@ export async function seedDatabase() {
   ]).returning();
 
   const users = await db.insert(usersTable).values([
-    { telegramId: "399083740", name: "Owner", role: "superadmin", branchId: null, passwordHash, isActive: true },
-    { telegramId: "100000001", name: "Алибек Джаксыбеков", role: "superadmin", branchId: null, passwordHash, isActive: true },
+    { telegramId: "700000001", name: "Demo Owner", role: "superadmin", branchId: null, passwordHash, isActive: true },
+    { telegramId: "700000002", name: "Алибек Джаксыбеков", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000002", name: "Дана Сейтова", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
     { telegramId: "100000003", name: "Руслан Берекетов", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
     { telegramId: "100000004", name: "Айгерим Нурланова", role: "hunter", branchId: branches[1].id, passwordHash, isActive: true },
