@@ -89,15 +89,6 @@ export function validateRuntimeEnv() {
     return;
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    missing.push("ANTHROPIC_API_KEY");
-  }
-  if (!process.env.PUBLIC_OBJECT_SEARCH_PATHS) {
-    missing.push("PUBLIC_OBJECT_SEARCH_PATHS");
-  }
-  if (!process.env.PRIVATE_OBJECT_DIR) {
-    missing.push("PRIVATE_OBJECT_DIR");
-  }
   if (
     !hasAnyUrl(
       process.env.ADMIN_URL,
