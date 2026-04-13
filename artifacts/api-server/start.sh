@@ -20,7 +20,7 @@ if [ -n "${TS_AUTHKEY:-}" ]; then
   /usr/sbin/tailscaled \
     --tun=userspace-networking \
     --socks5-server=localhost:1055 \
-    --outbound-http-proxy-listen=localhost:1055 \
+    --outbound-http-proxy-listen=localhost:1056 \
     --state=/var/lib/tailscale/tailscaled.state \
     --socket=/var/run/tailscale/tailscaled.sock \
     >/var/log/tailscale/tailscaled.log 2>&1 &
@@ -37,14 +37,16 @@ if [ -n "${TS_AUTHKEY:-}" ]; then
     --accept-dns=true \
     ${TS_EXTRA_ARGS:-}
 
-  # Route outbound HTTP from Node fetch through the tailscaled proxy on :1055.
+  # tailscaled serves SOCKS5 on :1055 and HTTP CONNECT on :1056. They must be
+  # distinct ports or the mixed listener degrades to SOCKS-only and HTTP
+  # proxy clients (Node fetch, curl -x http://...) hang indefinitely.
   # NODE_USE_ENV_PROXY=1 (Node 22.15+/24+) makes global fetch honor HTTP_PROXY.
-  export HTTP_PROXY="http://localhost:1055"
-  export HTTPS_PROXY="http://localhost:1055"
+  export HTTP_PROXY="http://localhost:1056"
+  export HTTPS_PROXY="http://localhost:1056"
   export NO_PROXY="localhost,127.0.0.1,::1,.railway.app,.railway.internal"
   export NODE_USE_ENV_PROXY=1
 
-  echo "tailscale up — hostname=${TS_HOSTNAME} proxy=localhost:1055"
+  echo "tailscale up — hostname=${TS_HOSTNAME} http-proxy=localhost:1056 socks5=localhost:1055"
 else
   echo "TS_AUTHKEY not set — starting without Tailscale (tailnet hosts unreachable)"
 fi
