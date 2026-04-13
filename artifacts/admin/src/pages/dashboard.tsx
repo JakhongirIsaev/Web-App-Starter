@@ -85,6 +85,7 @@ const STATUS_TO_STAGE: Record<string, (typeof STAGE_ORDER)[number]> = {
   rejected: "rejected",
   completed: "completed",
 };
+// Dashboard stages are grouped to match the business-facing funnel from feedback.
 
 const initialFilters: DashboardFilters = {
   branchId: "all",
