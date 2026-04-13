@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Activity, Building2, CheckCircle2, FilterX, Users } from "lucide-react";
+import { Activity, Building2, FilterX, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  LabelList,
   Legend,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
@@ -124,17 +124,84 @@ async function dashboardFetch<T>(path: string, filters: DashboardFilters, extraP
 function FunnelCard({
   title,
   description,
+  totalCount,
+  rows,
+}: {
+  title: string;
+  description: string;
+  totalCount: number;
+  rows: Array<{ status: string; label: string; count: number }>;
+}) {
+  const hasData = rows.some((row) => row.count > 0);
+
+  const formatCount = (count: number) => new Intl.NumberFormat("ru-RU").format(count);
+
+  return (
+    <Card className="shadow-sm border-border/50 bg-muted/20">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!hasData ? (
+          <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">
+            {description}
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div className="rounded-3xl border border-border/60 bg-background px-5 py-4 shadow-sm md:col-span-2 xl:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-primary">{title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                </div>
+                <Users className="h-5 w-5 text-primary/60" />
+              </div>
+              <div className="mt-8 text-5xl font-light tracking-tight text-slate-500">
+                {formatCount(totalCount)}
+              </div>
+            </div>
+
+            {rows.map((row) => {
+              return (
+                <div key={row.status} className="rounded-3xl border border-border/60 bg-background px-4 py-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium leading-snug text-primary">{row.label}</p>
+                    <span
+                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: STAGE_COLORS[row.status as keyof typeof STAGE_COLORS] }}
+                    />
+                  </div>
+                  <div className="mt-8 text-4xl font-light tracking-tight text-slate-500">
+                    {formatCount(row.count)}
+                  </div>
+                  <div
+                    className="mt-3 h-1.5 rounded-full"
+                    style={{ background: STAGE_COLORS[row.status as keyof typeof STAGE_COLORS] }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StageBarChart({
+  title,
+  description,
   rows,
 }: {
   title: string;
   description: string;
   rows: Array<{ status: string; label: string; count: number }>;
 }) {
-  const maxCount = Math.max(...rows.map((row) => row.count), 1);
   const hasData = rows.some((row) => row.count > 0);
 
   return (
-    <Card className="shadow-sm border-border/50">
+    <Card className="shadow-sm border-border/50 bg-muted/20">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -145,30 +212,27 @@ function FunnelCard({
             {description}
           </div>
         ) : (
-          <div className="h-[360px] flex flex-col justify-center gap-3">
-            {rows.map((row) => {
-              const width = 34 + (row.count / maxCount) * 66;
-              return (
-                <div key={row.status} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{row.label}</span>
-                    <span className="font-semibold text-foreground">{row.count}</span>
-                  </div>
-                  <div className="flex justify-center">
-                    <div
-                      className="min-h-11 rounded-2xl text-white px-4 py-3 flex items-center justify-between gap-4 shadow-sm"
-                        style={{
-                          width: `${width}%`,
-                          background: STAGE_COLORS[row.status as keyof typeof STAGE_COLORS],
-                        }}
-                    >
-                      <span className="text-sm font-medium truncate">{row.label}</span>
-                      <span className="text-sm font-bold shrink-0">{row.count}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="h-[360px] rounded-3xl border border-border/60 bg-background p-4 shadow-sm">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={rows} layout="vertical" margin={{ top: 6, right: 18, left: 18, bottom: 6 }}>
+                <XAxis type="number" hide />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={190}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                />
+                <RechartsTooltip
+                  formatter={(value: number, _name, payload: { payload?: { label?: string } }) => [value, payload?.payload?.label || ""]}
+                  contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}
+                />
+                <Bar dataKey="count" fill="hsl(210 58% 60%)" radius={[0, 8, 8, 0]} barSize={38}>
+                  <LabelList dataKey="count" position="insideRight" fill="hsl(215 25% 18%)" fontSize={12} formatter={(value: number) => new Intl.NumberFormat("ru-RU").format(value)} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </CardContent>
@@ -222,7 +286,7 @@ export default function Dashboard({ user }: { user?: { role: string } }) {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-8 animate-in fade-in duration-500">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.title")}</h2>
         <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
@@ -304,123 +368,30 @@ export default function Dashboard({ user }: { user?: { role: string } }) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalApplications")}</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : <div className="text-3xl font-bold">{summary?.totalClients || 0}</div>}
-          </CardContent>
+      {isLoadingStatus || isLoadingSummary ? (
+        <Card className="shadow-sm border-border/50 bg-muted/20">
+          <CardContent className="p-6"><Skeleton className="h-[260px] w-full" /></CardContent>
         </Card>
+      ) : (
+        <FunnelCard
+          title={t("dashboard.applicationsFunnel")}
+          description={t("dashboard.applicationsFunnelDesc")}
+          totalCount={summary?.totalClients || 0}
+          rows={statusData}
+        />
+      )}
 
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.activeClients")}</CardTitle>
-            <Users className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalActiveClients || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.outOf", { total: summary?.totalClients || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
+      {isLoadingStatus ? (
+        <Card className="shadow-sm border-border/50 bg-muted/20">
+          <CardContent className="p-6"><Skeleton className="h-[360px] w-full" /></CardContent>
         </Card>
-
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.completedToday")}</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalCompletedToday || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.thisMonth", { count: summary?.completedThisMonth || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.activeBranches")}</CardTitle>
-            <Building2 className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalBranches || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.withHunters", { count: summary?.totalHunters || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {isLoadingStatus ? (
-          <Card className="lg:col-span-4 shadow-sm border-border/50">
-            <CardContent className="p-6"><Skeleton className="h-[360px] w-full" /></CardContent>
-          </Card>
-        ) : (
-          <div className="lg:col-span-4">
-            <FunnelCard
-              title={t("dashboard.applicationsFunnel")}
-              description={t("dashboard.applicationsFunnelDesc")}
-              rows={statusData}
-            />
-          </div>
-        )}
-
-        <Card className="lg:col-span-3 shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle>{t("dashboard.applicationsByStage")}</CardTitle>
-            <CardDescription>{t("dashboard.applicationsByStageDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStatus ? (
-              <div className="flex h-[360px] items-center justify-center">
-                <Skeleton className="h-[320px] w-full" />
-              </div>
-            ) : (
-              <div className="h-[360px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statusData} margin={{ top: 16, right: 8, left: 0, bottom: 48 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" angle={-24} textAnchor="end" height={72} tickLine={false} axisLine={false} fontSize={11} />
-                    <YAxis tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
-                    <RechartsTooltip
-                      formatter={(value: number, _name, payload: { payload?: { label?: string } }) => [value, payload?.payload?.label || ""]}
-                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}
-                    />
-                    <Bar dataKey="count" name={t("dashboard.totalApplications")} radius={[8, 8, 0, 0]}>
-                      {statusData.map((entry) => (
-                        <Cell key={entry.status} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <StageBarChart
+          title={t("dashboard.applicationsByStage")}
+          description={t("dashboard.applicationsByStageDesc")}
+          rows={statusData}
+        />
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4 shadow-sm border-border/50">

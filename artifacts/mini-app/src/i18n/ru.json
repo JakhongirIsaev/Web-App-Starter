@@ -89,6 +89,8 @@
     "addBusinessLocation": "Локация бизнеса",
     "businessLocation": "Локация бизнеса",
     "businessLocationPlaceholder": "Например: Ташкент, Юнусабад",
+    "businessLocationMap": "Карта локации бизнеса",
+    "openInMaps": "Открыть карту",
     "rateDependsOnProject": "Ставка зависит от проекта заемщика"
   },
   "newClient": {

@@ -89,6 +89,8 @@
     "addBusinessLocation": "Biznes joylashuvi",
     "businessLocation": "Biznes joylashuvi",
     "businessLocationPlaceholder": "Masalan: Toshkent, Yunusobod",
+    "businessLocationMap": "Biznes joylashuvi xaritasi",
+    "openInMaps": "Xaritada ochish",
     "rateDependsOnProject": "Stavka qarzdor loyihasiga bog'liq"
   },
   "newClient": {

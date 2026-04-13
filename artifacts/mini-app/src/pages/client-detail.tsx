@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye, Sparkles, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye, Sparkles, MapPin, ExternalLink } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -21,6 +21,16 @@ const statusColors: Record<string, string> = {
 };
 
 const statusFlow = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed"];
+
+function buildMapLinks(query: string | null) {
+  if (!query) return null;
+
+  const encodedQuery = encodeURIComponent(query);
+  return {
+    embedUrl: `https://www.google.com/maps?q=${encodedQuery}&z=15&output=embed`,
+    externalUrl: `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`,
+  };
+}
 
 export default function ClientDetailPage() {
   const { t } = useTranslation();
@@ -139,6 +149,8 @@ export default function ClientDetailPage() {
   const businessLocationFromNotes = (notes || []).find((note: any) => note.type === "business_location")?.content || null;
   const timelineNotes = (notes || []).filter((note: any) => note.type !== "business_location");
   const businessLocation = data.businessLocation || businessLocationFromNotes;
+  const mapQuery = (showLocationForm ? businessLocationDraft : businessLocation)?.trim() || null;
+  const mapLinks = useMemo(() => buildMapLinks(mapQuery), [mapQuery]);
   const currentIdx = statusFlow.indexOf(client.status);
 
   const getNextAction = () => {
@@ -276,9 +288,23 @@ export default function ClientDetailPage() {
       {(businessLocation || showLocationForm) && (
         <Card>
           <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              {t("clientDetail.businessLocation")}
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                {t("clientDetail.businessLocation")}
+              </div>
+              {mapLinks && !showLocationForm && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-xs"
+                  onClick={() => window.open(mapLinks.externalUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {t("clientDetail.openInMaps")}
+                </Button>
+              )}
             </div>
             {businessLocation && !showLocationForm && (
               <p className="text-sm font-medium">{businessLocation}</p>
@@ -303,6 +329,18 @@ export default function ClientDetailPage() {
                   </Button>
                 </div>
               </>
+            )}
+            {mapLinks && (
+              <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+                <iframe
+                  key={mapLinks.embedUrl}
+                  src={mapLinks.embedUrl}
+                  title={t("clientDetail.businessLocationMap")}
+                  className="h-52 w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
             )}
           </CardContent>
         </Card>
