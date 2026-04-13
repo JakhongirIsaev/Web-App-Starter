@@ -9,7 +9,7 @@
     "build:api-server": "pnpm --filter @workspace/api-server run build",
     "build:admin": "pnpm --filter @workspace/admin run build",
     "build:mini-app": "pnpm --filter @workspace/mini-app run build",
-    "start:api-server": "pnpm --filter @workspace/api-server run start",
+    "start:api-server": "sh ./artifacts/api-server/start.sh",
     "start:admin": "pnpm --filter @workspace/admin run start",
     "start:mini-app": "pnpm --filter @workspace/mini-app run start",
     "reseed:api-server-demo": "pnpm exec tsx artifacts/api-server/src/reseed-demo.ts",

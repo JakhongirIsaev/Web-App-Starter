@@ -48,4 +48,4 @@ else
   echo "TS_AUTHKEY not set — starting without Tailscale (tailnet hosts unreachable)"
 fi
 
-exec pnpm run start:api-server
+exec pnpm --filter @workspace/api-server run start
