@@ -5,12 +5,30 @@ import { Readable } from "node:stream";
 
 const rawPort = process.env.PORT ?? "8080";
 const port = Number(rawPort);
+const basePath = (process.env.BASE_PATH ?? "/").replace(/\/+$/, "") || "/";
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: ${rawPort}`);
 }
 
-const publicDir = path.resolve(process.cwd(), process.argv[2] ?? "dist/public");
+function resolvePublicDir() {
+  const requestedDir = process.argv[2] ?? "dist/public";
+  const serviceName = process.env.RAILWAY_SERVICE_NAME;
+
+  if (requestedDir === "dist/public") {
+    if (serviceName === "@workspace/admin") {
+      return path.resolve(process.cwd(), "artifacts", "admin", "dist", "public");
+    }
+
+    if (serviceName === "@workspace/mini-app") {
+      return path.resolve(process.cwd(), "artifacts", "mini-app", "dist", "public");
+    }
+  }
+
+  return path.resolve(process.cwd(), requestedDir);
+}
+
+const publicDir = resolvePublicDir();
 const indexPath = path.join(publicDir, "index.html");
 const apiOrigin =
   process.env.API_ORIGIN?.replace(/\/+$/, "") ||
@@ -41,7 +59,12 @@ const contentTypes = new Map([
 ]);
 
 function resolveRequestPath(pathname) {
-  const normalizedPath = path.posix.normalize(pathname);
+  let normalizedPath = path.posix.normalize(pathname);
+
+  if (basePath !== "/" && normalizedPath.startsWith(basePath)) {
+    normalizedPath = normalizedPath.slice(basePath.length) || "/";
+  }
+
   const relativePath = normalizedPath.replace(/^\/+/, "");
   const absolutePath = path.resolve(publicDir, relativePath);
 
