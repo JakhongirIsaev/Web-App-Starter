@@ -19,8 +19,10 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.1",
     "prettier": "^3.8.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.4"
   },
   "dependencies": {
     "tsx": "catalog:"
