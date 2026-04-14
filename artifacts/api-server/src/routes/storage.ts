@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middleware/auth";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -21,7 +22,7 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
 
     res.json({ uploadURL, objectPath, metadata: { name, size, contentType } });
   } catch (error) {
-    console.error("Error generating upload URL:", error);
+    logger.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });
@@ -54,7 +55,7 @@ router.get("/storage/file", requireAuth, async (req: Request, res: Response) => 
       res.status(404).json({ error: "Object not found" });
       return;
     }
-    console.error("Error serving object:", error);
+    logger.error({ err: error, objectPath }, "Error serving object");
     res.status(500).json({ error: "Failed to serve object" });
   }
 });
@@ -93,7 +94,7 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
 
       proc.on("close", (code: number) => {
         if (code !== 0) {
-          console.error("PaddleOCR stderr:", stderr);
+          logger.error({ stderr }, "PaddleOCR stderr");
           reject(new Error(`PaddleOCR exited with code ${code}: ${stderr.slice(-500)}`));
         } else {
           try {
@@ -115,7 +116,7 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
       res.status(500).json({ error: result.error || "OCR failed" });
     }
   } catch (error: any) {
-    console.error("OCR error:", error);
+    logger.error({ err: error }, "OCR error");
     res.status(500).json({ error: error.message || "OCR processing failed" });
   }
 });

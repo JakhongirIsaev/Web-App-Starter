@@ -34,6 +34,11 @@ app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use("/api", router);
 
+app.use("/api", (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err }, "Unhandled route error");
+  res.status(500).json({ error: err?.message || "Internal server error" });
+});
+
 // Static SPAs (mini-app + admin) bundled alongside the server image so the
 // Telegram mini-app URL can stay on a single origin. Vite builds them with
 // BASE_PATH=/mini-app/ and /admin/ so asset URLs resolve correctly.

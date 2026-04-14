@@ -118,179 +118,43 @@ router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin",
   res.json(users);
 });
 
-router.get("/users/import-template", requireAuth, requireRole("superadmin", "head_office_admin"), async (_req, res) => {
-  const branches = await db.select({ id: branchesTable.id, name: branchesTable.name, city: branchesTable.city }).from(branchesTable);
-
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Пользователи");
-
-  sheet.columns = [
-    { header: "ФИО", key: "name", width: 30 },
-    { header: "Telegram ID", key: "telegramId", width: 20 },
-    { header: "Роль", key: "role", width: 20 },
-    { header: "Филиал", key: "branch", width: 30 },
-    { header: "Телефон", key: "phone", width: 20 },
+router.get("/users/import-template", requireAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {
+  const templateData = [
+    {
+      "ФИО": "Иванов Иван Иванович",
+      "Telegram ID": "100000001",
+      "Роль": "branch_head",
+      "Филиал": "Главный офис",
+      "Телефон": "+998901234567",
+    },
+    {
+      "ФИО": "Петров Пётр Петрович",
+      "Telegram ID": "100000002",
+      "Роль": "hunter",
+      "Филиал": "Ташкент",
+      "Телефон": "+998907654321",
+    },
   ];
 
-  sheet.getRow(1).font = { bold: true };
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(templateData);
 
-  sheet.addRow({
-    name: "Иванов Иван Иванович",
-    telegramId: "123456789",
-    role: "hunter",
-    branch: branches[0]?.name || "Головной офис",
-    phone: "+998901234567",
-  });
-
-  const rolesSheet = workbook.addWorksheet("Справочник");
-  rolesSheet.columns = [
-    { header: "Доступные роли", key: "role", width: 25 },
-    { header: "Описание", key: "desc", width: 40 },
-    { header: "Доступные филиалы", key: "branch", width: 30 },
+  const colWidths = [
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 25 },
+    { wch: 18 },
   ];
-  rolesSheet.getRow(1).font = { bold: true };
+  ws["!cols"] = colWidths;
 
-  const roleDescriptions = [
-    { role: "superadmin", desc: "Суперадминистратор" },
-    { role: "head_office_admin", desc: "Админ главного офиса" },
-    { role: "editor", desc: "Редактор" },
-    { role: "branch_head", desc: "Начальник филиала" },
-    { role: "hunter", desc: "Кредитный эксперт" },
-  ];
+  XLSX.utils.book_append_sheet(wb, ws, "Users");
 
-  roleDescriptions.forEach((r, i) => {
-    rolesSheet.addRow({
-      role: r.role,
-      desc: r.desc,
-      branch: branches[i]?.name || "",
-    });
-  });
-
-  branches.forEach((b, i) => {
-    if (i >= roleDescriptions.length) {
-      rolesSheet.addRow({ role: "", desc: "", branch: b.name });
-    }
-  });
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", "attachment; filename=import_template.xlsx");
-
-  await workbook.xlsx.write(res);
-  res.end();
-});
-
-router.post("/users/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-
-    const fileName = req.file.originalname || "";
-    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls") ||
-      req.file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      req.file.mimetype === "application/vnd.ms-excel";
-
-    let rows: Record<string, string>[] = [];
-
-    if (isExcel) {
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(req.file.buffer);
-      const sheet = workbook.worksheets[0];
-      if (!sheet) { res.status(400).json({ error: "Empty spreadsheet" }); return; }
-
-      const headerRow = sheet.getRow(1);
-      const headers: string[] = [];
-      headerRow.eachCell((cell, colNumber) => {
-        const val = String(cell.value || "").trim().toLowerCase();
-        const mapping: Record<string, string> = {
-          "фио": "name", "имя": "name", "name": "name", "fullname": "name", "full name": "name",
-          "telegram id": "telegramId", "telegramid": "telegramId", "telegram": "telegramId", "тг id": "telegramId",
-          "роль": "role", "role": "role",
-          "филиал": "branch", "branch": "branch", "отделение": "branch",
-          "телефон": "phone", "phone": "phone", "тел": "phone",
-        };
-        headers[colNumber] = mapping[val] || val;
-      });
-
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        const obj: Record<string, string> = {};
-        let hasData = false;
-        row.eachCell((cell, colNumber) => {
-          const key = headers[colNumber];
-          if (key) {
-            const cellVal = String(cell.value || "").trim();
-            if (cellVal) hasData = true;
-            obj[key] = cellVal;
-          }
-        });
-        if (hasData) rows.push(obj);
-      });
-    } else {
-      rows = parseCsvBuffer(req.file.buffer);
-    }
-
-    const branches = await db.select({ id: branchesTable.id, name: branchesTable.name }).from(branchesTable);
-    const branchMap = new Map<string, number>();
-    branches.forEach(b => {
-      branchMap.set(b.name.toLowerCase(), b.id);
-      branchMap.set(b.name, b.id);
-    });
-
-    const existingUsers = await db.select({ telegramId: usersTable.telegramId }).from(usersTable);
-    const existingIds = new Set(existingUsers.map(u => u.telegramId));
-
-    const validRoles = ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"];
-    const created: { name: string; telegramId: string; role: string; branch: string; password: string }[] = [];
-    const skipped: { row: number; name: string; reason: string }[] = [];
-
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const name = row.name || row["фио"] || row["имя"] || "";
-        const telegramId = row.telegramId || row["telegram id"] || row["telegram"] || "";
-        const roleRaw = row.role || row["роль"] || "";
-        const branchRaw = row.branch || row["филиал"] || "";
-
-        if (!name.trim()) { skipped.push({ row: i + 2, name: name || "—", reason: "Не указано ФИО" }); continue; }
-        if (!telegramId.trim()) { skipped.push({ row: i + 2, name, reason: "Не указан Telegram ID" }); continue; }
-        if (existingIds.has(telegramId.trim())) { skipped.push({ row: i + 2, name, reason: "Telegram ID уже существует" }); continue; }
-
-        const role = validRoles.includes(roleRaw.trim().toLowerCase()) ? roleRaw.trim().toLowerCase() : "hunter";
-
-        let branchId: number | null = null;
-        if (branchRaw.trim()) {
-          const found = branchMap.get(branchRaw.trim().toLowerCase()) || branchMap.get(branchRaw.trim());
-          if (found) branchId = found;
-          else { skipped.push({ row: i + 2, name, reason: `Филиал "${branchRaw}" не найден` }); continue; }
-        }
-
-        const password = Math.random().toString(36).substring(2, 10);
-        const passwordHash = await bcrypt.hash(password, 10);
-
-        await tx.insert(usersTable).values({
-          telegramId: telegramId.trim(),
-          name: name.trim(),
-          role: role as any,
-          branchId,
-          passwordHash,
-          isActive: true,
-        });
-
-        existingIds.add(telegramId.trim());
-        created.push({
-          name: name.trim(),
-          telegramId: telegramId.trim(),
-          role,
-          branch: branchRaw.trim(),
-          password,
-        });
-      }
-    });
-
-    await logActivity({ type: "users_imported", description: `Imported ${created.length} users (${skipped.length} skipped)`, entityType: "user", user: req.user });
-    res.json({ imported: created.length, skipped, created });
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-  }
+  res.setHeader("Content-Disposition", 'attachment; filename="users_import_template.xlsx"');
+  res.send(Buffer.from(buffer));
 });
 
 router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
@@ -576,45 +440,6 @@ router.post("/users/import", requireAuth, requireRole("superadmin", "head_office
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
-});
-
-router.get("/users/import-template", requireAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {
-  const templateData = [
-    {
-      "ФИО": "Иванов Иван Иванович",
-      "Telegram ID": "100000001",
-      "Роль": "branch_head",
-      "Филиал": "Главный офис",
-      "Телефон": "+998901234567",
-    },
-    {
-      "ФИО": "Петров Пётр Петрович",
-      "Telegram ID": "100000002",
-      "Роль": "hunter",
-      "Филиал": "Ташкент",
-      "Телефон": "+998907654321",
-    },
-  ];
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(templateData);
-
-  const colWidths = [
-    { wch: 30 },
-    { wch: 15 },
-    { wch: 20 },
-    { wch: 25 },
-    { wch: 18 },
-  ];
-  ws["!cols"] = colWidths;
-
-  XLSX.utils.book_append_sheet(wb, ws, "Users");
-
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", 'attachment; filename="users_import_template.xlsx"');
-  res.send(Buffer.from(buffer));
 });
 
 export default router;

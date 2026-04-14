@@ -1079,6 +1079,7 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/calculate", requireAuth, async (req, res) => {
+  try {
   const {
     clientId,
     productName,
@@ -1091,11 +1092,18 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
     currency,
   } = req.body;
 
-  const principal = parseFloat(loanAmount) - (parseFloat(initialPayment) || 0);
+  const principal = parseFloat(loanAmount);
+  const initialPay = parseFloat(initialPayment) || 0;
+  const effectivePrincipal = Math.max(0, principal - initialPay);
   const monthlyRate = parseFloat(interestRate) / 100 / 12;
-  const grace = parseInt(gracePeriodMonths) || 0;
+  const grace = Math.min(parseInt(gracePeriodMonths) || 0, (parseInt(termMonths) || 1) - 1);
   const term = parseInt(termMonths);
-  const paymentTerm = term - grace;
+  const paymentTerm = Math.max(1, term - grace);
+
+  if (!principal || principal <= 0 || !term || term <= 0) {
+    res.status(400).json({ error: "Invalid loan parameters" });
+    return;
+  }
 
   let monthlyPayment: number;
   let totalPayment: number;
@@ -1103,8 +1111,8 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
   const schedule: any[] = [];
 
   if (repaymentType === "differentiated") {
-    const principalPayment = principal / paymentTerm;
-    let remaining = principal;
+    const principalPayment = effectivePrincipal / paymentTerm;
+    let remaining = effectivePrincipal;
     totalPayment = 0;
     totalInterest = 0;
 
@@ -1123,9 +1131,9 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
         schedule.push({ month: i, principal: +principalPayment.toFixed(2), interest: +interest.toFixed(2), payment: +payment.toFixed(2), remaining: +Math.max(0, remaining).toFixed(2) });
       }
     }
-    monthlyPayment = principalPayment + principal * monthlyRate;
+    monthlyPayment = principalPayment + effectivePrincipal * monthlyRate;
   } else {
-    let remaining = principal;
+    let remaining = effectivePrincipal;
     totalPayment = 0;
     totalInterest = 0;
 
@@ -1139,7 +1147,7 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
     }
 
     const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
-    monthlyPayment = principal * annuityCoeff;
+    monthlyPayment = effectivePrincipal * annuityCoeff;
 
     for (let i = grace + 1; i <= term; i++) {
       const interest = remaining * monthlyRate;
@@ -1157,11 +1165,11 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
       clientId: clientId || null,
       userId: req.user!.id,
       productName,
-      loanAmount: principal.toString(),
+      loanAmount: effectivePrincipal.toString(),
       interestRate: interestRate.toString(),
       termMonths: term,
       repaymentType: repaymentType || "annuity",
-      initialPayment: (parseFloat(initialPayment) || 0).toString(),
+      initialPayment: initialPay.toString(),
       gracePeriodMonths: grace,
       monthlyPayment: monthlyPayment.toFixed(2),
       totalPayment: totalPayment.toFixed(2),
@@ -1177,9 +1185,12 @@ router.post("/mini-app/calculate", requireAuth, async (req, res) => {
       monthlyPayment: +monthlyPayment.toFixed(2),
       totalPayment: +totalPayment.toFixed(2),
       totalInterest: +totalInterest.toFixed(2),
-      principal: +principal.toFixed(2),
+      principal: +effectivePrincipal.toFixed(2),
     },
   });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Calculation failed" });
+  }
 });
 
 router.get("/mini-app/products", requireAuth, async (req, res) => {
