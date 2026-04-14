@@ -42,12 +42,21 @@ async function requestBlob(path: string, options: RequestInit = {}) {
     ...(options.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (options.body && typeof options.body === "string") {
+    headers["Content-Type"] = "application/json";
+  }
 
   const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
   if (!res.ok) {
     throw new Error("Request failed");
   }
   return res.blob();
+}
+
+export function getAuthImageUrl(path: string): string {
+  const token = getToken();
+  const base = buildApiUrl(`${API_BASE}${path}`);
+  return token ? `${base}${base.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : base;
 }
 
 export const api = {
@@ -58,6 +67,8 @@ export const api = {
     request(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
   delete: (path: string) => request(path, { method: "DELETE" }),
   getBlob: (path: string) => requestBlob(path),
+  postBlob: (path: string, body?: any) =>
+    requestBlob(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
 };
 
 export async function login(telegramId: string, password: string) {

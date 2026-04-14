@@ -586,7 +586,7 @@ export default function QuestionnairePage() {
                   let val = event.target.value;
                   if (currentQuestion.key === "desired_amount") {
                     const raw = val.replace(/\D/g, "");
-                    val = raw ? Number(raw).toLocaleString('ru-RU').replace(/,/g, ' ') : "";
+                    val = raw ? Number(raw).toLocaleString().replace(/,/g, ' ') : "";
                   }
                   setAnswer(val);
                 }}

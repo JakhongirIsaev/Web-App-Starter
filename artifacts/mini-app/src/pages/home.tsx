@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { Users, Plus, BookOpen, Calculator, Phone, Calendar, FileText, Clock, AlertTriangle, Check, ChevronRight } from "lucide-react";
+import { Users, Plus, BookOpen, Calculator, Phone, Calendar, FileText, Clock, AlertTriangle, Check, ChevronRight, Loader2 } from "lucide-react";
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -15,12 +15,12 @@ export default function HomePage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  const { data: dashboard } = useQuery({
+  const { data: dashboard, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["mini-dashboard"],
     queryFn: () => api.get("/mini-app/dashboard"),
   });
 
-  const { data: todo } = useQuery({
+  const { data: todo, isLoading: todoLoading, error: todoError } = useQuery({
     queryKey: ["mini-todo"],
     queryFn: () => api.get("/mini-app/todo"),
   });
@@ -92,6 +92,14 @@ export default function HomePage() {
         </div>
       </div>
 
+      {dashboardLoading && (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {dashboardError && (
+        <p className="text-xs text-destructive text-center">{t("common.error")}</p>
+      )}
       {dashboard && (
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground mb-2 px-1">{t("home.myStats")}</h2>

@@ -108,7 +108,22 @@
     "documents": "Документы",
     "overdue": "Просрочено",
     "taskClient": "Клиент",
-    "viewAll": "Показать все"
+    "viewAll": "Показать все",
+    "filterBranch": "Филиал (ID)",
+    "filterBranchPlaceholder": "ID филиала",
+    "filterPeriodFrom": "Период С",
+    "filterPeriodTo": "Период ПО",
+    "clientTypeFilter": "Тип клиента",
+    "clientTypeIndividual": "Физическое лицо",
+    "clientTypeLegal": "Юридическое лицо",
+    "segmentFilter": "Сегмент",
+    "segmentMicro": "Микро",
+    "segmentSmall": "Малый",
+    "segmentMedium": "Средний",
+    "genderFilter": "Пол",
+    "genderMale": "Мужской",
+    "genderFemale": "Женский",
+    "all": "Все"
   },
   "clients": {
     "title": "Клиенты",

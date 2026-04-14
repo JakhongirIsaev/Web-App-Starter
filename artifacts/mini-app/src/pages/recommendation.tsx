@@ -92,9 +92,18 @@ export default function RecommendationPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const answersStr = urlParams.get("answers");
-  const queryAnswers: RecommendationAnswer[] = answersStr
-    ? JSON.parse(decodeURIComponent(answersStr))
-    : [];
+  const queryAnswers: RecommendationAnswer[] = (() => {
+    if (!answersStr) return [];
+    try {
+      return JSON.parse(answersStr);
+    } catch {
+      try {
+        return JSON.parse(decodeURIComponent(answersStr));
+      } catch {
+        return [];
+      }
+    }
+  })();
 
   const savedQuestionnaireQuery = useQuery({
     queryKey: ["mini-client-questionnaire", params.clientId],

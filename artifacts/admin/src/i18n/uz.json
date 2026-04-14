@@ -108,7 +108,22 @@
     "documents": "Hujjatlar",
     "overdue": "Muddati o'tgan",
     "taskClient": "Mijoz",
-    "viewAll": "Hammasini ko'rsatish"
+    "viewAll": "Hammasini ko'rsatish",
+    "filterBranch": "Filial (ID)",
+    "filterBranchPlaceholder": "Filial ID",
+    "filterPeriodFrom": "Davr (boshlanish)",
+    "filterPeriodTo": "Davr (tugash)",
+    "clientTypeFilter": "Mijoz turi",
+    "clientTypeIndividual": "Jismoniy shaxs",
+    "clientTypeLegal": "Yuridik shaxs",
+    "segmentFilter": "Segment",
+    "segmentMicro": "Mikro",
+    "segmentSmall": "Kichik",
+    "segmentMedium": "O'rta",
+    "genderFilter": "Jins",
+    "genderMale": "Erkak",
+    "genderFemale": "Ayol",
+    "all": "Barchasi"
   },
   "clients": {
     "title": "Mijozlar",

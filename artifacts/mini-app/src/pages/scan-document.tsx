@@ -167,26 +167,12 @@ export default function ScanDocumentPage() {
 
   const exportAutoMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem("miniapp_auth_token");
-      const response = await fetch(buildApiUrl("/api/mini-app/exports/auto-excel"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          clientId: parseInt(params.clientId),
-          extractedData: extractedFields,
-          ocrText,
-          imageCount: photos.length,
-        }),
+      const blob = await api.postBlob("/mini-app/exports/auto-excel", {
+        clientId: parseInt(params.clientId),
+        extractedData: extractedFields,
+        ocrText,
+        imageCount: photos.length,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to export Excel");
-      }
-
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

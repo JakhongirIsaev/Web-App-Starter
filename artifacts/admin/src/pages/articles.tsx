@@ -9,6 +9,7 @@ import { Plus, BookOpen, Globe2, Building2, Pencil, Trash2, Download, Upload } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -266,15 +267,16 @@ export default function Articles({ user }: { user?: { role: string } }) {
             </div>
             <div className="space-y-2">
               <Label>{t("articles.categoryLabel")}</Label>
-              <select
-                value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {ARTICLE_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{t(`articles.categories.${cat}`)}</option>
-                ))}
-              </select>
+              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ARTICLE_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{t(`articles.categories.${cat}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>{t("articles.contentLabel")}</Label>

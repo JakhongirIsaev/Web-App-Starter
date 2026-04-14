@@ -17,12 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTranslation } from "react-i18next";
-import { formatAdminDateTime } from "@/lib/time";
-import { useLocation } from "wouter";
 
 const ACTION_TYPE_ICONS: Record<string, any> = {
   follow_up: Phone,
@@ -34,13 +31,8 @@ const ACTION_TYPE_ICONS: Record<string, any> = {
 export default function Dashboard() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({
-    query: { queryKey: getGetDashboardSummaryQueryKey() }
-  });
-  
-  const { data: branchStats, isLoading: isLoadingBranch } = useGetBranchStats({
-    query: { queryKey: getGetBranchStatsQueryKey() }
-  });
+  const token = localStorage.getItem("auth_token");
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   const [filters, setFilters] = useState({
     branchId: "",
@@ -51,23 +43,51 @@ export default function Dashboard() {
     gender: "all"
   });
 
-  const queryParams = {
-    ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),
-    ...(filters.periodStart ? { periodStart: filters.periodStart } : {}),
-    ...(filters.periodEnd ? { periodEnd: filters.periodEnd } : {}),
-    ...(filters.clientType !== "all" ? { clientType: filters.clientType } : {}),
-    ...(filters.clientSegment !== "all" ? { clientSegment: filters.clientSegment } : {}),
-    ...(filters.gender !== "all" ? { gender: filters.gender } : {})
-  };
+  const filterParams = new URLSearchParams();
+  if (filters.branchId) filterParams.set("branchId", filters.branchId);
+  if (filters.periodStart) filterParams.set("createdFrom", filters.periodStart);
+  if (filters.periodEnd) filterParams.set("createdTo", filters.periodEnd);
+  if (filters.clientType !== "all") filterParams.set("clientType", filters.clientType);
+  if (filters.clientSegment !== "all") filterParams.set("segment", filters.clientSegment);
+  if (filters.gender !== "all") filterParams.set("gender", filters.gender);
+  const filterQs = filterParams.toString();
+  const filterKey = filterQs || "none";
 
-  const { data: statusBreakdown, isLoading: isLoadingStatus } = useGetClientStatusBreakdown({
-    query: { queryKey: [...getGetClientStatusBreakdownQueryKey(), ...Object.values(queryParams)] }
+  const { data: summary, isLoading: isLoadingSummary } = useQuery({
+    queryKey: ["dashboard-summary", filterKey],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl(`/api/dashboard/summary${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
   });
 
-  const { data: activities, isLoading: isLoadingActivity } = useGetRecentActivity(
-    { limit: 10 },
-    { query: { queryKey: getGetRecentActivityQueryKey({ limit: 10 }) } }
-  );
+  const { data: branchStats, isLoading: isLoadingBranch } = useQuery({
+    queryKey: ["dashboard-branch-stats", filterKey],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl(`/api/dashboard/branch-stats${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const { data: statusBreakdown, isLoading: isLoadingStatus } = useQuery({
+    queryKey: ["dashboard-client-status", filterKey],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl(`/api/dashboard/client-status${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const { data: activities, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ["dashboard-activity", filterKey],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl(`/api/dashboard/activity${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
 
   const { data: aiHealth } = useQuery({
     queryKey: ["ai-health"],
@@ -112,48 +132,48 @@ export default function Dashboard() {
 
       <div className="bg-card border border-border/50 rounded-lg p-4 shadow-sm grid grid-cols-2 lg:grid-cols-6 gap-4">
         <div>
-           <p className="text-xs font-semibold mb-1">Филиал (ID)</p>
-           <Input placeholder="ID филиала" value={filters.branchId} onChange={e => setFilters(f => ({...f, branchId: e.target.value}))} />
+           <p className="text-xs font-semibold mb-1">{t("dashboard.filterBranch")}</p>
+           <Input placeholder={t("dashboard.filterBranchPlaceholder")} value={filters.branchId} onChange={e => setFilters(f => ({...f, branchId: e.target.value}))} />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">Период С</p>
+           <p className="text-xs font-semibold mb-1">{t("dashboard.filterPeriodFrom")}</p>
            <Input type="date" value={filters.periodStart} onChange={e => setFilters(f => ({...f, periodStart: e.target.value}))} />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">Период ПО</p>
+           <p className="text-xs font-semibold mb-1">{t("dashboard.filterPeriodTo")}</p>
            <Input type="date" value={filters.periodEnd} onChange={e => setFilters(f => ({...f, periodEnd: e.target.value}))} />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">Тип клиента</p>
+           <p className="text-xs font-semibold mb-1">{t("dashboard.clientTypeFilter")}</p>
            <Select value={filters.clientType} onValueChange={v => setFilters(f => ({...f, clientType: v}))}>
              <SelectTrigger><SelectValue/></SelectTrigger>
              <SelectContent>
-               <SelectItem value="all">Все</SelectItem>
-               <SelectItem value="individual">Физ.лицо</SelectItem>
-               <SelectItem value="corporate">Юр.лицо</SelectItem>
+              <SelectItem value="all">{t("dashboard.all")}</SelectItem>
+              <SelectItem value="individual">{t("dashboard.clientTypeIndividual")}</SelectItem>
+              <SelectItem value="corporate">{t("dashboard.clientTypeLegal")}</SelectItem>
              </SelectContent>
            </Select>
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">Сегмент</p>
+           <p className="text-xs font-semibold mb-1">{t("dashboard.segmentFilter")}</p>
            <Select value={filters.clientSegment} onValueChange={v => setFilters(f => ({...f, clientSegment: v}))}>
              <SelectTrigger><SelectValue/></SelectTrigger>
              <SelectContent>
-               <SelectItem value="all">Все</SelectItem>
-               <SelectItem value="micro">Микро</SelectItem>
-               <SelectItem value="small">Малый</SelectItem>
-               <SelectItem value="medium">Средний</SelectItem>
+              <SelectItem value="all">{t("dashboard.all")}</SelectItem>
+              <SelectItem value="micro">{t("dashboard.segmentMicro")}</SelectItem>
+              <SelectItem value="small">{t("dashboard.segmentSmall")}</SelectItem>
+              <SelectItem value="medium">{t("dashboard.segmentMedium")}</SelectItem>
              </SelectContent>
            </Select>
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">Пол</p>
+           <p className="text-xs font-semibold mb-1">{t("dashboard.genderFilter")}</p>
            <Select value={filters.gender} onValueChange={v => setFilters(f => ({...f, gender: v}))}>
              <SelectTrigger><SelectValue/></SelectTrigger>
              <SelectContent>
-               <SelectItem value="all">Все</SelectItem>
-               <SelectItem value="male">Мужской</SelectItem>
-               <SelectItem value="female">Женский</SelectItem>
+                <SelectItem value="all">{t("dashboard.all")}</SelectItem>
+                <SelectItem value="male">{t("dashboard.genderMale")}</SelectItem>
+                <SelectItem value="female">{t("dashboard.genderFemale")}</SelectItem>
              </SelectContent>
            </Select>
         </div>
@@ -357,7 +377,7 @@ export default function Dashboard() {
                       contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
                     />
                     <Funnel
-                      data={statusBreakdown?.map(item => ({...item, name: item.status })) || []}
+                      data={[...(statusBreakdown || [])].sort((a: any, b: any) => b.count - a.count).map(item => ({...item, name: item.status }))}
                       dataKey="count"
                       nameKey="status"
                     >

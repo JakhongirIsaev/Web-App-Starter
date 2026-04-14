@@ -28,20 +28,10 @@ export default function LoginPage() {
       return;
     }
 
-    if (isTelegram && (manualTelegramLogin || telegramError)) {
-      setTelegramId("10000001");
-      return;
-    }
-
     if (detectedTelegramId) {
       setTelegramId(detectedTelegramId);
     }
-  }, [detectedTelegramId, isTelegram, manualTelegramLogin, telegramError, telegramId]);
-
-  const demoHint =
-    i18n.language === "ru"
-      ? "Для демо: войдите как 10000001 / password. PDF все равно придет в ваш текущий Telegram."
-      : "Demo uchun: 10000001 / password bilan kiring. PDF baribir sizning joriy Telegram akkauntingizga yuboriladi.";
+  }, [detectedTelegramId, telegramId]);
 
   const useTelegramAccountLabel =
     i18n.language === "ru"
@@ -112,22 +102,19 @@ export default function LoginPage() {
           </Card>
         )}
 
-        {isTelegram && (
+        {isTelegram && manualTelegramLogin && detectedTelegramId && (
           <Card className="mb-4 border-primary/30 bg-primary/5">
             <CardContent className="pt-4 space-y-3">
-              <p className="text-xs leading-5 text-foreground">{demoHint}</p>
-              {manualTelegramLogin && detectedTelegramId && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => void resumeTelegramAutoLogin()}
-                  disabled={loading || authLoading}
-                >
-                  {useTelegramAccountLabel}
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => void resumeTelegramAutoLogin()}
+                disabled={loading || authLoading}
+              >
+                {useTelegramAccountLabel}
+              </Button>
             </CardContent>
           </Card>
         )}
