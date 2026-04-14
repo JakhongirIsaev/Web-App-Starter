@@ -22,7 +22,10 @@ RUN pnpm install --frozen-lockfile
 
 # Build the two SPAs with the base paths the api-server mounts them under,
 # so asset URLs like /mini-app/assets/*.js resolve correctly behind the
-# single-origin Express static handler.
+# single-origin Express static handler. PORT is a no-op at build time but
+# the vite config throws if the env var is unset (it validates it up-front
+# for dev/preview). Any positive integer satisfies that check.
+ENV PORT=3001
 ENV BASE_PATH=/mini-app/
 RUN pnpm --filter @workspace/mini-app run build
 ENV BASE_PATH=/admin/
