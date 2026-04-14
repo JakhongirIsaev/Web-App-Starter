@@ -8,7 +8,31 @@
     "clients": "Клиенты",
     "products": "Продукты",
     "calculator": "Калькулятор",
-    "knowledge": "Знания"
+    "knowledge": "Знания",
+    "creditLines": "Линии"
+  },
+  "creditLines": {
+    "title": "Кредитные линии",
+    "subtitle": "Список кредитных линий и остатков по ним",
+    "searchPlaceholder": "Поиск по линии...",
+    "allCurrencies": "Все валюты",
+    "lineActive": "Активная",
+    "lineStopped": "Остановлена",
+    "number": "№",
+    "name": "Линия",
+    "department": "Отдел",
+    "agreementDate": "Дата соглашения",
+    "agreementAmount": "Сумма соглашения",
+    "receivedAmount": "Получено",
+    "currency": "Валюта",
+    "interestRate": "Ставка",
+    "disbursedAmount": "Освоено",
+    "remainingBalance": "Остаток",
+    "projectCount": "Проектов",
+    "section": "Раздел",
+    "specialConditions": "Особые условия",
+    "notes": "Примечания",
+    "noLines": "Кредитные линии не найдены"
   },
   "login": {
     "title": "Вход в Minerva",

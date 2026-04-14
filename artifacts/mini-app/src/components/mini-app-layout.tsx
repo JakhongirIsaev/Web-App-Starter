@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { Home, Users, Package, Calculator, BookOpen, LogOut, Globe } from "lucide-react";
+import { Home, Users, Package, Calculator, BookOpen, Landmark, LogOut, Globe } from "lucide-react";
 import { MinervaIcon } from "@/components/minerva-logo";
 
 interface Props {
@@ -24,6 +24,7 @@ export default function MiniAppLayout({ children }: Props) {
     { path: "/", icon: Home, label: t("nav.home") },
     { path: "/clients", icon: Users, label: t("nav.clients") },
     { path: "/products", icon: Package, label: t("nav.products") },
+    { path: "/credit-lines", icon: Landmark, label: t("nav.creditLines") },
     { path: "/calculator", icon: Calculator, label: t("nav.calculator") },
     { path: "/knowledge", icon: BookOpen, label: t("nav.knowledge") },
   ];

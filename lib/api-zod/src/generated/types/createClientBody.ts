@@ -5,10 +5,18 @@
  * Minerva Credit Hunter API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateClientBodyClientType } from "./createClientBodyClientType";
+import type { CreateClientBodyGender } from "./createClientBodyGender";
 
 export interface CreateClientBody {
   fullName?: string;
   phone?: string;
   branchId: number;
   assignedToId?: number;
+  clientType?: CreateClientBodyClientType;
+  clientSegment?: string;
+  gender?: CreateClientBodyGender;
+  latitude?: number;
+  longitude?: number;
+  rejectionReason?: string;
 }

@@ -5,6 +5,8 @@
  * Minerva Credit Hunter API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateClientBodyClientType } from "./updateClientBodyClientType";
+import type { UpdateClientBodyGender } from "./updateClientBodyGender";
 import type { UpdateClientBodyStatus } from "./updateClientBodyStatus";
 
 export interface UpdateClientBody {
@@ -12,4 +14,10 @@ export interface UpdateClientBody {
   phone?: string;
   status?: UpdateClientBodyStatus;
   assignedToId?: number;
+  clientType?: UpdateClientBodyClientType;
+  clientSegment?: string;
+  gender?: UpdateClientBodyGender;
+  latitude?: number;
+  longitude?: number;
+  rejectionReason?: string;
 }

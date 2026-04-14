@@ -7,6 +7,7 @@ import {
   usersTable,
   branchesTable,
   creditProductsTable,
+  creditLinesTable,
   productsTable,
   articlesTable,
   articleVisibilityTable,
@@ -1187,6 +1188,15 @@ router.get("/mini-app/products", requireAuth, async (req, res) => {
   const products = await getRecommendationCatalog("uz", needType);
 
   res.json(products);
+});
+
+router.get("/mini-app/credit-lines", requireAuth, async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(creditLinesTable)
+    .orderBy(creditLinesTable.number, creditLinesTable.id);
+
+  res.json(rows);
 });
 
 router.get("/mini-app/articles", requireAuth, async (req, res) => {

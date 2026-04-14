@@ -8,6 +8,24 @@ import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 
 const router: IRouter = Router();
 
+function getClientFilters(req: any, user: any) {
+  const conditions: any[] = [];
+  if (user.role === "branch_head" && user.branchId) {
+    conditions.push(eq(clientsTable.branchId, user.branchId));
+  } else if (req.query.branchId) {
+    conditions.push(eq(clientsTable.branchId, Number(req.query.branchId)));
+  }
+
+  if (req.query.clientType) conditions.push(eq(clientsTable.clientType, req.query.clientType as any));
+  if (req.query.clientSegment) conditions.push(eq(clientsTable.clientSegment, req.query.clientSegment as string));
+  if (req.query.gender) conditions.push(eq(clientsTable.gender, req.query.gender as any));
+  
+  if (req.query.periodStart) conditions.push(gte(clientsTable.createdAt, new Date(req.query.periodStart as string)));
+  if (req.query.periodEnd) conditions.push(lte(clientsTable.createdAt, new Date(req.query.periodEnd as string)));
+
+  return conditions;
+}
+
 router.get("/dashboard/summary", requireAuth, async (req, res) => {
   const user = req.user!;
   const branchScoped = user.role === "branch_head" && user.branchId;
@@ -100,22 +118,31 @@ router.get("/dashboard/branch-stats", requireAuth, async (req, res) => {
 
 router.get("/dashboard/client-status", requireAuth, async (req, res) => {
   const user = req.user!;
-
-  if (user.role === "branch_head" && user.branchId) {
-    const rows = await db.select({
-      status: clientsTable.status,
-      count: sql<number>`count(*)::int`,
-    }).from(clientsTable)
-      .where(eq(clientsTable.branchId, user.branchId))
-      .groupBy(clientsTable.status);
-    res.json(rows);
-    return;
-  }
+  const conditions = getClientFilters(req, user);
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const rows = await db.select({
     status: clientsTable.status,
     count: sql<number>`count(*)::int`,
-  }).from(clientsTable).groupBy(clientsTable.status);
+  }).from(clientsTable)
+    .where(whereClause)
+    .groupBy(clientsTable.status);
+
+  res.json(rows);
+});
+
+router.get("/dashboard/rejection-reasons", requireAuth, async (req, res) => {
+  const user = req.user!;
+  const conditions = getClientFilters(req, user);
+  conditions.push(eq(clientsTable.status, "rejected"));
+  
+  const rows = await db.select({
+    reason: sql<string>`COALESCE(${clientsTable.rejectionReason}, 'Не указано')`,
+    count: sql<number>`count(*)::int`,
+  }).from(clientsTable)
+    .where(and(...conditions))
+    .groupBy(sql`COALESCE(${clientsTable.rejectionReason}, 'Не указано')`)
+    .orderBy(desc(sql<number>`count(*)::int`));
 
   res.json(rows);
 });

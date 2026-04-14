@@ -249,9 +249,15 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                   <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">{t("creditLines.noLines")}</TableCell>
                 </TableRow>
               ) : (
-                items.map((item: any) => (
+                items.map((item: any) => {
+                  const isStopped = Number(item.remainingBalance) <= 0 || item.notes?.toLowerCase().includes("stop") || item.notes?.toLowerCase().includes("стоп");
+                  const rowClass = isStopped
+                    ? "bg-red-500/10 hover:bg-red-500/20"
+                    : "bg-green-500/10 hover:bg-green-500/20";
+                  
+                  return (
                   <Fragment key={item.id}>
-                    <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                    <TableRow className={`cursor-pointer ${rowClass}`} onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                       <TableCell className="font-mono text-muted-foreground">{item.number}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -295,7 +301,8 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                       </TableRow>
                     )}
                   </Fragment>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

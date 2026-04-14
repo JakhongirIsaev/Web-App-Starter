@@ -5,6 +5,11 @@
  * Minerva Credit Hunter API
  * OpenAPI spec version: 0.1.0
  */
+export interface RejectionReasonCount {
+  reason: string;
+  count: number;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -112,6 +117,24 @@ export const ClientStatus = {
   rejected: "rejected",
 } as const;
 
+export type ClientClientType =
+  | (typeof ClientClientType)[keyof typeof ClientClientType]
+  | null;
+
+export const ClientClientType = {
+  individual: "individual",
+  corporate: "corporate",
+} as const;
+
+export type ClientGender =
+  | (typeof ClientGender)[keyof typeof ClientGender]
+  | null;
+
+export const ClientGender = {
+  male: "male",
+  female: "female",
+} as const;
+
 export interface Client {
   id: number;
   sessionId: string;
@@ -122,6 +145,12 @@ export interface Client {
   branch?: Branch | null;
   assignedToId?: number | null;
   assignedTo?: User | null;
+  clientType?: ClientClientType;
+  clientSegment?: string | null;
+  gender?: ClientGender;
+  latitude?: number | null;
+  longitude?: number | null;
+  rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -133,11 +162,33 @@ export interface ClientListResponse {
   pageSize: number;
 }
 
+export type CreateClientBodyClientType =
+  (typeof CreateClientBodyClientType)[keyof typeof CreateClientBodyClientType];
+
+export const CreateClientBodyClientType = {
+  individual: "individual",
+  corporate: "corporate",
+} as const;
+
+export type CreateClientBodyGender =
+  (typeof CreateClientBodyGender)[keyof typeof CreateClientBodyGender];
+
+export const CreateClientBodyGender = {
+  male: "male",
+  female: "female",
+} as const;
+
 export interface CreateClientBody {
   fullName?: string;
   phone?: string;
   branchId: number;
   assignedToId?: number;
+  clientType?: CreateClientBodyClientType;
+  clientSegment?: string;
+  gender?: CreateClientBodyGender;
+  latitude?: number;
+  longitude?: number;
+  rejectionReason?: string;
 }
 
 export type UpdateClientBodyStatus =
@@ -153,11 +204,33 @@ export const UpdateClientBodyStatus = {
   rejected: "rejected",
 } as const;
 
+export type UpdateClientBodyClientType =
+  (typeof UpdateClientBodyClientType)[keyof typeof UpdateClientBodyClientType];
+
+export const UpdateClientBodyClientType = {
+  individual: "individual",
+  corporate: "corporate",
+} as const;
+
+export type UpdateClientBodyGender =
+  (typeof UpdateClientBodyGender)[keyof typeof UpdateClientBodyGender];
+
+export const UpdateClientBodyGender = {
+  male: "male",
+  female: "female",
+} as const;
+
 export interface UpdateClientBody {
   fullName?: string;
   phone?: string;
   status?: UpdateClientBodyStatus;
   assignedToId?: number;
+  clientType?: UpdateClientBodyClientType;
+  clientSegment?: string;
+  gender?: UpdateClientBodyGender;
+  latitude?: number;
+  longitude?: number;
+  rejectionReason?: string;
 }
 
 export interface ProductCategory {
@@ -332,4 +405,22 @@ export type ListArticlesParams = {
 
 export type GetRecentActivityParams = {
   limit?: number;
+};
+
+export type GetClientStatusBreakdownParams = {
+  branchId?: number;
+  periodStart?: string;
+  periodEnd?: string;
+  clientType?: string;
+  clientSegment?: string;
+  gender?: string;
+};
+
+export type GetRejectionReasonsParams = {
+  branchId?: number;
+  periodStart?: string;
+  periodEnd?: string;
+  clientType?: string;
+  clientSegment?: string;
+  gender?: string;
 };

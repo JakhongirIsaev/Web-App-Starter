@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
@@ -9,6 +9,12 @@ export const clientStatusEnum = [
 ] as const;
 export type ClientStatus = typeof clientStatusEnum[number];
 
+export const clientTypeEnum = ["individual", "corporate"] as const;
+export type ClientType = typeof clientTypeEnum[number];
+
+export const genderEnum = ["male", "female"] as const;
+export type Gender = typeof genderEnum[number];
+
 export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   sessionId: text("session_id").notNull().unique(),
@@ -17,6 +23,12 @@ export const clientsTable = pgTable("clients", {
   status: text("status").notNull().$type<ClientStatus>().default("draft"),
   branchId: integer("branch_id").notNull().references(() => branchesTable.id),
   assignedToId: integer("assigned_to_id").references(() => usersTable.id),
+  clientType: text("client_type").$type<ClientType>(),
+  clientSegment: text("client_segment"),
+  gender: text("gender").$type<Gender>(),
+  rejectionReason: text("rejection_reason"),
+  latitude: numeric("latitude", { precision: 10, scale: 7 }),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

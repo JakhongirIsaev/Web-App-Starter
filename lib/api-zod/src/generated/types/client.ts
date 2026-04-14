@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Branch } from "./branch";
+import type { ClientClientType } from "./clientClientType";
+import type { ClientGender } from "./clientGender";
 import type { ClientStatus } from "./clientStatus";
 import type { User } from "./user";
 
@@ -19,6 +21,12 @@ export interface Client {
   branch?: Branch | null;
   assignedToId?: number | null;
   assignedTo?: User | null;
+  clientType?: ClientClientType;
+  clientSegment?: string | null;
+  gender?: ClientGender;
+  latitude?: number | null;
+  longitude?: number | null;
+  rejectionReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

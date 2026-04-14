@@ -29,21 +29,47 @@ function getLocale() {
   return getMiniAppLanguage() === "ru" ? "ru-RU" : "uz-UZ";
 }
 
+function resolveLocale(override?: string) {
+  if (!override) return getLocale();
+  return override.startsWith("uz") ? "uz-UZ" : "ru-RU";
+}
+
 function getEmptyPlaceholder() {
   return "—";
 }
 
-export function fmtNum(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === "") {
-    return getEmptyPlaceholder();
+function parseLooseNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+
+  const normalized = value
+    .trim()
+    .replace(/\u00A0/g, "")
+    .replace(/\s+/g, "")
+    .replace(/%$/, "")
+    .replace(/,/g, ".");
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function fmtNum(value: string | number | null | undefined, locale?: string): string {
+  const num = parseLooseNumber(value);
+  if (num === null) {
+    return value === null || value === undefined || value === "" ? getEmptyPlaceholder() : String(value);
   }
+  return num.toLocaleString(resolveLocale(locale), { maximumFractionDigits: 2 });
+}
 
-  const numericValue = typeof value === "string" ? Number.parseFloat(value) : value;
-  if (Number.isNaN(numericValue)) return String(value);
+export function fmtPercent(value: string | number | null | undefined, locale?: string): string {
+  const raw = value === null || value === undefined ? "" : String(value).trim();
+  if (!raw) return getEmptyPlaceholder();
 
-  return numericValue.toLocaleString(getLocale(), {
-    maximumFractionDigits: 2,
-  });
+  const parsed = parseLooseNumber(raw);
+  if (parsed === null) return raw;
+
+  const percentValue = raw.includes("%") ? parsed : Math.abs(parsed) < 1 ? parsed * 100 : parsed;
+  return `${percentValue.toLocaleString(resolveLocale(locale), { maximumFractionDigits: 2 })}%`;
 }
 
 export function fmtDate(date: string | Date | null | undefined): string {

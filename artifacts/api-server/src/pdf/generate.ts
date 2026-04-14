@@ -243,7 +243,8 @@ function getPdfCopy(language: PdfLanguage) {
       scheduleInterest: "Проценты",
       scheduleRemaining: "Остаток",
       footerNote:
-        "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа.",
+        "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа. *Информация актуальна на дату формирования документа.",
+      interestRatePlaceholder: "Процентная ставка определяется исходя из проекта заемщика",
       footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`,
     } as const;
   }
@@ -294,7 +295,8 @@ function getPdfCopy(language: PdfLanguage) {
       scheduleInterest: "Interest",
       scheduleRemaining: "Balance",
       footerNote:
-        "This document is prepared for preliminary discussion. Final financing terms are confirmed by the bank after document review and risk analysis.",
+        "This document is prepared for preliminary discussion. Final financing terms are confirmed by the bank after document review and risk analysis. *Information is current as of the document generation date.",
+      interestRatePlaceholder: "Interest rate is determined based on the borrower's project",
       footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. All rights reserved.`,
     } as const;
   }
@@ -344,7 +346,8 @@ function getPdfCopy(language: PdfLanguage) {
     scheduleInterest: "Foiz",
     scheduleRemaining: "Qoldiq",
     footerNote:
-      "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi.",
+      "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi. *Ma'lumotlar hujjat shakllantirilgan sana holatiga dolzarbdir.",
+    interestRatePlaceholder: "Foiz stavkasi qarz oluvchining loyihasidan kelib chiqqan holda belgilanadi",
     footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
   } as const;
 }
@@ -657,7 +660,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
           );
           y = drawRow(
             copy.interestRate,
-            `${calculation.interestRate}%`,
+            copy.interestRatePlaceholder,
             y,
           );
           y = drawRow(

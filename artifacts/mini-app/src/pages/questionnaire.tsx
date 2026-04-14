@@ -357,7 +357,11 @@ export default function QuestionnairePage() {
     : "";
   const isFollowUpStep = step >= baseQuestions.length;
   const isLastStep = step === allQuestions.length - 1;
-  const canProceed = currentAnswer.trim() !== "";
+  let canProceed = currentAnswer.trim() !== "";
+  if (currentQuestion && currentQuestion.key === "desired_amount" && currentAnswer) {
+    const val = Number(currentAnswer.replace(/\D/g, ""));
+    canProceed = val >= 1000000 && val <= 100000000000;
+  }
 
   const clearFollowUps = () => {
     if (aiQuestions.length === 0) return;
@@ -575,12 +579,27 @@ export default function QuestionnairePage() {
               ))}
             </div>
           ) : (
-            <Input
-              value={currentAnswer}
-              onChange={(event) => setAnswer(event.target.value)}
-              placeholder={currentQuestion.placeholder}
-              className="text-base"
-            />
+            <div>
+              <Input
+                value={currentAnswer}
+                onChange={(event) => {
+                  let val = event.target.value;
+                  if (currentQuestion.key === "desired_amount") {
+                    const raw = val.replace(/\D/g, "");
+                    val = raw ? Number(raw).toLocaleString('ru-RU').replace(/,/g, ' ') : "";
+                  }
+                  setAnswer(val);
+                }}
+                placeholder={currentQuestion.placeholder}
+                className="text-base"
+                inputMode={currentQuestion.key === "desired_amount" || currentQuestion.key === "desired_term" ? "numeric" : "text"}
+              />
+              {currentQuestion.key === "desired_amount" && currentAnswer && !canProceed && (
+                <p className="text-xs text-destructive mt-2">
+                  Сумма должна быть не менее 1 000 000
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

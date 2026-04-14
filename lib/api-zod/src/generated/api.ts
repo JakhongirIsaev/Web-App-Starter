@@ -430,6 +430,12 @@ export const ListClientsResponse = zod.object({
           updatedAt: zod.coerce.date(),
         })
         .nullish(),
+      clientType: zod.enum(["individual", "corporate"]).nullish(),
+      clientSegment: zod.string().nullish(),
+      gender: zod.enum(["male", "female"]).nullish(),
+      latitude: zod.number().nullish(),
+      longitude: zod.number().nullish(),
+      rejectionReason: zod.string().nullish(),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     }),
@@ -447,6 +453,12 @@ export const CreateClientBody = zod.object({
   phone: zod.string().optional(),
   branchId: zod.number(),
   assignedToId: zod.number().optional(),
+  clientType: zod.enum(["individual", "corporate"]).optional(),
+  clientSegment: zod.string().optional(),
+  gender: zod.enum(["male", "female"]).optional(),
+  latitude: zod.number().optional(),
+  longitude: zod.number().optional(),
+  rejectionReason: zod.string().optional(),
 });
 
 /**
@@ -510,6 +522,12 @@ export const GetClientResponse = zod.object({
       updatedAt: zod.coerce.date(),
     })
     .nullish(),
+  clientType: zod.enum(["individual", "corporate"]).nullish(),
+  clientSegment: zod.string().nullish(),
+  gender: zod.enum(["male", "female"]).nullish(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
+  rejectionReason: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -536,6 +554,12 @@ export const UpdateClientBody = zod.object({
     ])
     .optional(),
   assignedToId: zod.number().optional(),
+  clientType: zod.enum(["individual", "corporate"]).optional(),
+  clientSegment: zod.string().optional(),
+  gender: zod.enum(["male", "female"]).optional(),
+  latitude: zod.number().optional(),
+  longitude: zod.number().optional(),
+  rejectionReason: zod.string().optional(),
 });
 
 export const UpdateClientResponse = zod.object({
@@ -592,6 +616,12 @@ export const UpdateClientResponse = zod.object({
       updatedAt: zod.coerce.date(),
     })
     .nullish(),
+  clientType: zod.enum(["individual", "corporate"]).nullish(),
+  clientSegment: zod.string().nullish(),
+  gender: zod.enum(["male", "female"]).nullish(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
+  rejectionReason: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -970,10 +1000,39 @@ export const GetBranchStatsResponse = zod.array(GetBranchStatsResponseItem);
 /**
  * @summary Get client status breakdown counts
  */
+export const GetClientStatusBreakdownQueryParams = zod.object({
+  branchId: zod.coerce.number().optional(),
+  periodStart: zod.coerce.string().optional(),
+  periodEnd: zod.coerce.string().optional(),
+  clientType: zod.coerce.string().optional(),
+  clientSegment: zod.coerce.string().optional(),
+  gender: zod.coerce.string().optional(),
+});
+
 export const GetClientStatusBreakdownResponseItem = zod.object({
   status: zod.string(),
   count: zod.number(),
 });
 export const GetClientStatusBreakdownResponse = zod.array(
   GetClientStatusBreakdownResponseItem,
+);
+
+/**
+ * @summary Get rejection reasons counts
+ */
+export const GetRejectionReasonsQueryParams = zod.object({
+  branchId: zod.coerce.number().optional(),
+  periodStart: zod.coerce.string().optional(),
+  periodEnd: zod.coerce.string().optional(),
+  clientType: zod.coerce.string().optional(),
+  clientSegment: zod.coerce.string().optional(),
+  gender: zod.coerce.string().optional(),
+});
+
+export const GetRejectionReasonsResponseItem = zod.object({
+  reason: zod.string(),
+  count: zod.number(),
+});
+export const GetRejectionReasonsResponse = zod.array(
+  GetRejectionReasonsResponseItem,
 );

@@ -30,7 +30,9 @@ import type {
   CreateProductCategoryBody,
   CreateUserBody,
   DashboardSummary,
+  GetClientStatusBreakdownParams,
   GetRecentActivityParams,
+  GetRejectionReasonsParams,
   HealthStatus,
   ListArticlesParams,
   ListClientsParams,
@@ -40,6 +42,7 @@ import type {
   LoginResponse,
   Product,
   ProductCategory,
+  RejectionReasonCount,
   StatusCount,
   UpdateArticleBody,
   UpdateBranchBody,
@@ -3014,42 +3017,63 @@ export function useGetBranchStats<
 /**
  * @summary Get client status breakdown counts
  */
-export const getGetClientStatusBreakdownUrl = () => {
-  return `/api/dashboard/client-status`;
+export const getGetClientStatusBreakdownUrl = (
+  params?: GetClientStatusBreakdownParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/dashboard/client-status?${stringifiedParams}`
+    : `/api/dashboard/client-status`;
 };
 
 export const getClientStatusBreakdown = async (
+  params?: GetClientStatusBreakdownParams,
   options?: RequestInit,
 ): Promise<StatusCount[]> => {
-  return customFetch<StatusCount[]>(getGetClientStatusBreakdownUrl(), {
+  return customFetch<StatusCount[]>(getGetClientStatusBreakdownUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetClientStatusBreakdownQueryKey = () => {
-  return [`/api/dashboard/client-status`] as const;
+export const getGetClientStatusBreakdownQueryKey = (
+  params?: GetClientStatusBreakdownParams,
+) => {
+  return [`/api/dashboard/client-status`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetClientStatusBreakdownQueryOptions = <
   TData = Awaited<ReturnType<typeof getClientStatusBreakdown>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getClientStatusBreakdown>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetClientStatusBreakdownParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientStatusBreakdown>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetClientStatusBreakdownQueryKey();
+    queryOptions?.queryKey ?? getGetClientStatusBreakdownQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getClientStatusBreakdown>>
-  > = ({ signal }) => getClientStatusBreakdown({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    getClientStatusBreakdown(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getClientStatusBreakdown>>,
@@ -3070,15 +3094,124 @@ export type GetClientStatusBreakdownQueryError = ErrorType<unknown>;
 export function useGetClientStatusBreakdown<
   TData = Awaited<ReturnType<typeof getClientStatusBreakdown>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getClientStatusBreakdown>>,
+>(
+  params?: GetClientStatusBreakdownParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientStatusBreakdown>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClientStatusBreakdownQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get rejection reasons counts
+ */
+export const getGetRejectionReasonsUrl = (
+  params?: GetRejectionReasonsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/dashboard/rejection-reasons?${stringifiedParams}`
+    : `/api/dashboard/rejection-reasons`;
+};
+
+export const getRejectionReasons = async (
+  params?: GetRejectionReasonsParams,
+  options?: RequestInit,
+): Promise<RejectionReasonCount[]> => {
+  return customFetch<RejectionReasonCount[]>(
+    getGetRejectionReasonsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetRejectionReasonsQueryKey = (
+  params?: GetRejectionReasonsParams,
+) => {
+  return [
+    `/api/dashboard/rejection-reasons`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetRejectionReasonsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRejectionReasons>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRejectionReasonsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRejectionReasons>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRejectionReasonsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRejectionReasons>>
+  > = ({ signal }) =>
+    getRejectionReasons(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRejectionReasons>>,
     TError,
     TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetClientStatusBreakdownQueryOptions(options);
+  > & { queryKey: QueryKey };
+};
+
+export type GetRejectionReasonsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRejectionReasons>>
+>;
+export type GetRejectionReasonsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get rejection reasons counts
+ */
+
+export function useGetRejectionReasons<
+  TData = Awaited<ReturnType<typeof getRejectionReasons>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRejectionReasonsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRejectionReasons>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRejectionReasonsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -706,6 +706,37 @@ paths:
       operationId: getClientStatusBreakdown
       tags: [dashboard]
       summary: Get client status breakdown counts
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: periodStart
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: periodEnd
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientSegment
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gender
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Client status breakdown
@@ -716,8 +747,63 @@ paths:
                 items:
                   $ref: "#/components/schemas/StatusCount"
 
+  /dashboard/rejection-reasons:
+    get:
+      operationId: getRejectionReasons
+      tags: [dashboard]
+      summary: Get rejection reasons counts
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: periodStart
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: periodEnd
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientSegment
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gender
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rejection reasons breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RejectionReasonCount"
+
 components:
   schemas:
+    RejectionReasonCount:
+      type: object
+      properties:
+        reason:
+          type: string
+        count:
+          type: integer
+      required: [reason, count]
+
     HealthStatus:
       type: object
       properties:
@@ -871,6 +957,26 @@ components:
         assignedTo:
           $ref: "#/components/schemas/User"
           nullable: true
+        clientType:
+          type: string
+          enum: [individual, corporate]
+          nullable: true
+        clientSegment:
+          type: string
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female]
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -905,6 +1011,20 @@ components:
           type: integer
         assignedToId:
           type: integer
+        clientType:
+          type: string
+          enum: [individual, corporate]
+        clientSegment:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        latitude:
+          type: number
+        longitude:
+          type: number
+        rejectionReason:
+          type: string
       required: [branchId]
 
     UpdateClientBody:
@@ -919,6 +1039,20 @@ components:
           enum: [draft, questionnaire, recommendation, basket, pdf_generated, completed, rejected]
         assignedToId:
           type: integer
+        clientType:
+          type: string
+          enum: [individual, corporate]
+        clientSegment:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        latitude:
+          type: number
+        longitude:
+          type: number
+        rejectionReason:
+          type: string
 
     ProductCategory:
       type: object

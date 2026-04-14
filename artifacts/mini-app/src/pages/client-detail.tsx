@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye, MapPin } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -85,6 +85,7 @@ export default function ClientDetailPage() {
   });
 
   const [pdfResult, setPdfResult] = useState<{ success: boolean; telegramSent: boolean } | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const generatePdfMutation = useMutation({
     mutationFn: () =>
@@ -93,9 +94,15 @@ export default function ClientDetailPage() {
         telegramInitData: getTelegramInitData(),
         language: i18n.language === "ru" ? "ru" : "uz",
       }),
+    onMutate: () => {
+      setPdfError(null);
+    },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setPdfResult(result);
+    },
+    onError: (err: any) => {
+      setPdfError(err?.message || String(err) || "Failed to generate PDF");
     },
   });
 
@@ -207,11 +214,24 @@ export default function ClientDetailPage() {
           <MessageSquare className="w-4 h-4" />
           {t("clientDetail.addNote")}
         </Button>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => alert(`Локация получена: ${pos.coords.latitude}, ${pos.coords.longitude}`),
+              (err) => alert("Ошибка получения локации: " + err.message)
+            );
+          } else {
+            alert("Геолокация не поддерживается вашим браузером");
+          }
+        }}>
+          <MapPin className="w-4 h-4" />
+          Локация бизнеса
+        </Button>
         <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowActionForm(!showActionForm)}>
           <Calendar className="w-4 h-4" />
           {t("clientDetail.addAction")}
         </Button>
-        <Button variant="outline" size="sm" className="col-span-2 gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
           <Calculator className="w-4 h-4" />
           {t("nav.calculator")}
         </Button>
@@ -400,17 +420,14 @@ export default function ClientDetailPage() {
             )}
           </Button>
         )}
+        {pdfError && !generatePdfMutation.isPending && (
+          <p className="mt-2 text-xs text-red-600 break-words">
+            {t("common.error")}: {pdfError}
+          </p>
+        )}
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full gap-2"
-        onClick={() => exportMutation.mutate()}
-        disabled={exportMutation.isPending}
-      >
-        <Download className="w-4 h-4" />
-        {exportMutation.isPending ? t("common.loading") : t("clientDetail.exportData")}
-      </Button>
+
 
       {calculations?.length > 0 && (
         <div>

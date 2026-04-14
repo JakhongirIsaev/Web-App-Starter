@@ -11,9 +11,15 @@ import { Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, Wifi
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  FunnelChart, Funnel, Cell, Legend, LabelList
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "react-i18next";
+import { formatAdminDateTime } from "@/lib/time";
+import { useLocation } from "wouter";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
 import { useLocation } from "wouter";
@@ -36,8 +42,26 @@ export default function Dashboard() {
     query: { queryKey: getGetBranchStatsQueryKey() }
   });
 
+  const [filters, setFilters] = useState({
+    branchId: "",
+    periodStart: "",
+    periodEnd: "",
+    clientType: "all",
+    clientSegment: "all",
+    gender: "all"
+  });
+
+  const queryParams = {
+    ...(filters.branchId ? { branchId: Number(filters.branchId) } : {}),
+    ...(filters.periodStart ? { periodStart: filters.periodStart } : {}),
+    ...(filters.periodEnd ? { periodEnd: filters.periodEnd } : {}),
+    ...(filters.clientType !== "all" ? { clientType: filters.clientType } : {}),
+    ...(filters.clientSegment !== "all" ? { clientSegment: filters.clientSegment } : {}),
+    ...(filters.gender !== "all" ? { gender: filters.gender } : {})
+  };
+
   const { data: statusBreakdown, isLoading: isLoadingStatus } = useGetClientStatusBreakdown({
-    query: { queryKey: getGetClientStatusBreakdownQueryKey() }
+    query: { queryKey: [...getGetClientStatusBreakdownQueryKey(), ...Object.values(queryParams)] }
   });
 
   const { data: activities, isLoading: isLoadingActivity } = useGetRecentActivity(
@@ -84,6 +108,55 @@ export default function Dashboard() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.title")}</h2>
         <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
+      </div>
+
+      <div className="bg-card border border-border/50 rounded-lg p-4 shadow-sm grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div>
+           <p className="text-xs font-semibold mb-1">Филиал (ID)</p>
+           <Input placeholder="ID филиала" value={filters.branchId} onChange={e => setFilters(f => ({...f, branchId: e.target.value}))} />
+        </div>
+        <div>
+           <p className="text-xs font-semibold mb-1">Период С</p>
+           <Input type="date" value={filters.periodStart} onChange={e => setFilters(f => ({...f, periodStart: e.target.value}))} />
+        </div>
+        <div>
+           <p className="text-xs font-semibold mb-1">Период ПО</p>
+           <Input type="date" value={filters.periodEnd} onChange={e => setFilters(f => ({...f, periodEnd: e.target.value}))} />
+        </div>
+        <div>
+           <p className="text-xs font-semibold mb-1">Тип клиента</p>
+           <Select value={filters.clientType} onValueChange={v => setFilters(f => ({...f, clientType: v}))}>
+             <SelectTrigger><SelectValue/></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Все</SelectItem>
+               <SelectItem value="individual">Физ.лицо</SelectItem>
+               <SelectItem value="corporate">Юр.лицо</SelectItem>
+             </SelectContent>
+           </Select>
+        </div>
+        <div>
+           <p className="text-xs font-semibold mb-1">Сегмент</p>
+           <Select value={filters.clientSegment} onValueChange={v => setFilters(f => ({...f, clientSegment: v}))}>
+             <SelectTrigger><SelectValue/></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Все</SelectItem>
+               <SelectItem value="micro">Микро</SelectItem>
+               <SelectItem value="small">Малый</SelectItem>
+               <SelectItem value="medium">Средний</SelectItem>
+             </SelectContent>
+           </Select>
+        </div>
+        <div>
+           <p className="text-xs font-semibold mb-1">Пол</p>
+           <Select value={filters.gender} onValueChange={v => setFilters(f => ({...f, gender: v}))}>
+             <SelectTrigger><SelectValue/></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Все</SelectItem>
+               <SelectItem value="male">Мужской</SelectItem>
+               <SelectItem value="female">Женский</SelectItem>
+             </SelectContent>
+           </Select>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -278,32 +351,22 @@ export default function Dashboard() {
             ) : (
               <div className="h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusBreakdown}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={120}
-                      paddingAngle={2}
+                  <FunnelChart>
+                    <RechartsTooltip 
+                      formatter={(value: number, name: string) => [value, t(`statuses.${name}`, { defaultValue: name })]}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
+                    />
+                    <Funnel
+                      data={statusBreakdown?.map(item => ({...item, name: item.status })) || []}
                       dataKey="count"
                       nameKey="status"
                     >
+                      <LabelList position="right" fill="#888" stroke="none" dataKey="status" formatter={(val: string) => t(`statuses.${val}`, { defaultValue: val })} />
                       {statusBreakdown?.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || STATUS_COLORS.draft} />
                       ))}
-                    </Pie>
-                    <RechartsTooltip 
-                      formatter={(value: number, name: string) => [value, t(`statuses.${name}`)]}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
-                    />
-                    <Legend 
-                      formatter={(value) => <span className="text-xs font-medium">{t(`statuses.${value}`)}</span>}
-                      layout="horizontal" 
-                      verticalAlign="bottom"
-                      align="center"
-                    />
-                  </PieChart>
+                    </Funnel>
+                  </FunnelChart>
                 </ResponsiveContainer>
               </div>
             )}

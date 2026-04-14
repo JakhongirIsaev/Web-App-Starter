@@ -8,7 +8,31 @@
     "clients": "Mijozlar",
     "products": "Mahsulotlar",
     "calculator": "Kalkulyator",
-    "knowledge": "Bilimlar"
+    "knowledge": "Bilimlar",
+    "creditLines": "Liniyalar"
+  },
+  "creditLines": {
+    "title": "Kredit liniyalari",
+    "subtitle": "Kredit liniyalari va qoldiqlar ro'yxati",
+    "searchPlaceholder": "Liniya bo'yicha qidirish...",
+    "allCurrencies": "Barcha valyutalar",
+    "lineActive": "Faol",
+    "lineStopped": "To'xtagan",
+    "number": "№",
+    "name": "Liniya",
+    "department": "Bo'lim",
+    "agreementDate": "Kelishuv sanasi",
+    "agreementAmount": "Kelishuv summasi",
+    "receivedAmount": "Olingan summa",
+    "currency": "Valyuta",
+    "interestRate": "Stavka",
+    "disbursedAmount": "O'zlashtirilgan",
+    "remainingBalance": "Qoldiq",
+    "projectCount": "Loyihalar",
+    "section": "Bo'lim",
+    "specialConditions": "Maxsus shartlar",
+    "notes": "Izohlar",
+    "noLines": "Kredit liniyalari topilmadi"
   },
   "login": {
     "title": "Minerva ga kirish",
