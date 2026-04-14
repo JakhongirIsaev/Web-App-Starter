@@ -42,7 +42,8 @@
     "signIn": "Kirish",
     "authenticating": "Kirish...",
     "telegramAuthFailed": "Telegram orqali avtomatik kirish amalga oshmadi",
-    "telegramAuthHint": "Sizning Telegram ID tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling."
+    "telegramAuthHint": "Sizning Telegram ID tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling.",
+    "backToTelegram": "Telegram akkauntiga qaytish"
   },
   "home": {
     "greeting": "Assalomu alaykum, {{name}}!",
@@ -350,5 +351,139 @@
     "disbursement": "Berish shakli",
     "purpose": "Maqsad",
     "sapCode": "SAP kod"
+  },
+  "clientDetail": {
+    "locationReceived": "Joylashuv olindi: {{lat}}, {{lng}}",
+    "locationError": "Joylashuv olish xatosi: ",
+    "locationNotSupported": "Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi",
+    "businessLocation": "Biznes joylashuvi"
+  },
+  "questionnaire": {
+    "title": "Mijoz so'rovnomasi",
+    "subtitle": "Mahsulot tanlash uchun savollarga javob bering",
+    "businessType": "Biznes turi",
+    "businessTypeOptions": {
+      "trade": "Savdo",
+      "services": "Xizmatlar",
+      "production": "Ishlab chiqarish",
+      "agriculture": "Qishloq xo'jaligi",
+      "other": "Boshqa"
+    },
+    "businessSize": "Biznes hajmi",
+    "businessSizeOptions": {
+      "micro": "Mikro (5 tagacha xodim)",
+      "small": "Kichik (5-50 xodim)",
+      "medium": "O'rta (50-200 xodim)"
+    },
+    "needType": "Mijozga nima kerak?",
+    "needTypeOptions": {
+      "credit": "Kredit",
+      "non_credit": "Nokredit mahsulot",
+      "both": "Kredit va boshqa mahsulotlar"
+    },
+    "loanPurpose": "Kredit maqsadi",
+    "loanPurposeOptions": {
+      "working_capital": "Aylanma mablag'larni to'ldirish",
+      "fixed_assets": "Asosiy vositalarni sotib olish",
+      "untargeted": "Maqsadsiz foydalanish",
+      "not_sure": "Aniqlanmagan"
+    },
+    "desiredAmount": "Kerakli summa (taxminan)",
+    "desiredAmountPlaceholder": "masalan, 500 000 000",
+    "desiredTerm": "Kerakli muddat (oy)",
+    "desiredTermPlaceholder": "masalan, 36",
+    "submit": "Mahsulotlarni tanlash",
+    "submitting": "Tahlil...",
+    "amountMinError": "Summa kamida 1 000 000 bo'lishi kerak",
+    "aiHeading": "AI mijoz profilini aniqlashtirmoqda",
+    "aiDescription": "Qo'shimcha savollar mahsulot, muddat va qulay oylik to'lovni aniqroq tanlashga yordam beradi.",
+    "fallbackDescription": "AI vaqtincha band, shu sababli ichki aniqlashtiruvchi savollar ishlatilmoqda.",
+    "getFollowUpQuestions": "Aniqlashtiruvchi savollarni olish",
+    "nonCreditServiceLabel": "Mijozga qanday nokredit xizmat birinchi navbatda kerak?",
+    "nonCreditServiceOptions": {
+      "rko": "Hisob-kesish va kassa xizmati",
+      "pos": "POS-terminal va ekvayring",
+      "salary": "Ish haqi loyihasi",
+      "forex": "Valyuta va xalqaro to'lovlar"
+    },
+    "monthlyTurnoverLabel": "Hisob bo'yicha kutilgan oylik aylanma qanday?",
+    "monthlyTurnoverOptions": {
+      "under100m": "100 mln so'mgacha",
+      "100to500m": "100-500 mln so'm",
+      "over500m": "500 mln so'mdan ortiq",
+      "unclear": "Hali aniq emas"
+    },
+    "posNeededLabel": "Mijozga karta va QR orqali to'lov qabul qilish kerakmi?",
+    "posNeededOptions": {
+      "yes": "Ha, albatta",
+      "maybe": "Keyinroq kerak bo'lishi mumkin",
+      "no": "Yo'q"
+    },
+    "intlPaymentsLabel": "Valyuta yoki xalqaro o'tkazmalar ehtiyoji bormi?",
+    "intlPaymentsOptions": {
+      "yes": "Ha",
+      "no": "Yo'q",
+      "unclear": "Hali aniq emas"
+    },
+    "currencyLabel": "Mijozga qaysi valyutada mahsulot rasmiylashtirish qulayroq?",
+    "currencyHelper": "Bu darhol mos kelmaydigan valyuta variantlarini chiqarib tashlaydi.",
+    "currencyOptions": {
+      "uzs": "So'm",
+      "usd": "AQSH dollari",
+      "eur": "Yevro",
+      "unclear": "Hali aniq emas"
+    },
+    "comfortPaymentLabel": "Mijozga qanday oylik to'lov qulay?",
+    "comfortPaymentHelper": "Bu summa va muddatni aniqroq tanlashga yordam beradi.",
+    "comfortPaymentOptions": {
+      "under10m": "10 mln so'mgacha",
+      "10to30m": "10-30 mln so'm",
+      "over30m": "30 mln so'mdan ortiq",
+      "unclear": "Hali aniq emas"
+    },
+    "repaymentScheduleLabel": "Qanday to'lov jadvali qulayroq?",
+    "repaymentScheduleOptions": {
+      "equal": "Har oy teng to'lov",
+      "decreasing": "Avval yuqori, keyin past",
+      "expert": "Mutaxassis maslahat bersin"
+    }
+  },
+  "recommendation": {
+    "title": "Tavsiya etilgan mahsulotlar",
+    "subtitle": "Mijoz so'rovnomasi asosida",
+    "found": "{{count}} ta mos mahsulot topildi",
+    "noProducts": "Mos mahsulotlar topilmadi",
+    "addToBasket": "Savatga",
+    "removeFromBasket": "Olib tashlash",
+    "inBasket": "Savatda",
+    "goToBasket": "Savatga o'tish",
+    "selectedCount": "Tanlangan: {{count}}",
+    "segment": "Segment",
+    "rate": "Stavka",
+    "term": "Muddat",
+    "amount": "Summa",
+    "allProducts": "Barcha mahsulotlar",
+    "recommended": "Tavsiya etilgan",
+    "aiRank": "AI #{{rank}}",
+    "aiConfidence": "Ishonch {{value}}%",
+    "aiHint": "Mos mahsulotlar fon rejimida yana bir bor tekshirilmoqda...",
+    "fillQuestionnaireFirst": "Avval mijoz anketasini to'ldiring, shunda Minerva aniqlashtiruvchi savollar berib, mos mahsulotlarni tavsiya qiladi.",
+    "backToQuestionnaire": "So'rovnomaga qaytish",
+    "aiConsideredAnswers": "AI so'rovnoma javoblarini hisobga oldi",
+    "aiSortedDescription": "Quyidagi kartalar yakuniy ustuvorlik bo'yicha saralangan va tavsiflar faqat tanlangan tilda ko'rsatiladi.",
+    "keyAdvantage": "Asosiy afzallik",
+    "clientDescription": "Mijoz uchun qisqa tavsif",
+    "amountLabel": "Summa: {{value}}.",
+    "rateLabel": "Stavka: {{value}}."
+  },
+  "scanDoc": {
+    "title": "Hujjatni skanerlash",
+    "subtitle": "Ma'lumotlarni olish uchun hujjatni suratga oling",
+    "tooManyPhotos": "{{max}} tadan ko'p surat biriktirib bo'lmaydi.",
+    "invalidImage": "Faqat rasm fayllarini yuklang.",
+    "translateFailed": "Tarjimani hozir olib bo'lmadi. Qayta urinib ko'ring.",
+    "extractFailed": "AI avtomobil ma'lumotlarini to'liq ajratib ololmadi. OCR natijasi saqlandi.",
+    "exportFailed": "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
+    "excelExport": "Excel eksport"
   }
 }

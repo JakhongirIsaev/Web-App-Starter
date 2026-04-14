@@ -20,37 +20,20 @@ import {
 
 const adminRoles = ["superadmin", "head_office_admin", "editor"];
 
-const QUESTION_LABELS: Record<string, Record<string, string>> = {
-  ru: {
-    business_type: "Тип бизнеса",
-    business_size: "Размер бизнеса",
-    need_type: "Потребность",
-    loan_purpose: "Цель кредита",
-    desired_amount: "Желаемая сумма",
-    desired_term: "Желаемый срок",
-    preferred_currency: "Валюта",
-    monthly_payment_comfort: "Комфортный платёж",
-    repayment_preference: "Тип погашения",
-    service_goal: "Цель сервиса",
-    monthly_turnover_band: "Ежемесячный оборот",
-    has_pos_need: "Нужен POS-терминал",
-    foreign_payments_need: "Международные платежи",
-  },
-  uz: {
-    business_type: "Biznes turi",
-    business_size: "Biznes hajmi",
-    need_type: "Ehtiyoj",
-    loan_purpose: "Kredit maqsadi",
-    desired_amount: "Kerakli summa",
-    desired_term: "Kerakli muddat",
-    preferred_currency: "Valyuta",
-    monthly_payment_comfort: "Qulay to'lov",
-    repayment_preference: "To'lov turi",
-    service_goal: "Xizmat maqsadi",
-    monthly_turnover_band: "Oylik aylanma",
-    has_pos_need: "POS-terminal kerak",
-    foreign_payments_need: "Xalqaro to'lovlar",
-  },
+const QUESTION_LABEL_KEYS: Record<string, string> = {
+  business_type: "clientDetail.questionBusinessType",
+  business_size: "clientDetail.questionBusinessSize",
+  need_type: "clientDetail.questionNeedType",
+  loan_purpose: "clientDetail.questionLoanPurpose",
+  desired_amount: "clientDetail.questionDesiredAmount",
+  desired_term: "clientDetail.questionDesiredTerm",
+  preferred_currency: "clientDetail.questionCurrency",
+  monthly_payment_comfort: "clientDetail.questionComfortPayment",
+  repayment_preference: "clientDetail.questionRepaymentType",
+  service_goal: "clientDetail.questionServiceGoal",
+  monthly_turnover_band: "clientDetail.questionMonthlyTurnover",
+  has_pos_need: "clientDetail.questionPosNeeded",
+  foreign_payments_need: "clientDetail.questionIntlPayments",
 };
 
 function fmtNum(val: string | number | null | undefined): string {
@@ -255,7 +238,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   {questionnaireAnswers.map((qa) => (
                     <div key={qa.questionKey} className="flex flex-col p-3 rounded-lg bg-muted/50 border border-border/30">
                       <span className="text-xs font-medium text-muted-foreground">
-                        {QUESTION_LABELS[lang]?.[qa.questionKey] || qa.questionKey}
+                        {t(QUESTION_LABEL_KEYS[qa.questionKey] || qa.questionKey, qa.questionKey)}
                       </span>
                       <span className="text-sm font-semibold text-foreground mt-0.5">
                         {qa.answer}

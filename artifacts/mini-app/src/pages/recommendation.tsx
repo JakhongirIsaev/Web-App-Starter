@@ -61,14 +61,10 @@ function buildClientFacingSummary(
     values.purpose?.trim() || null,
     values.highlight?.trim() || null,
     values.amount?.trim()
-      ? language === "ru"
-        ? `Сумма: ${values.amount.trim()}.`
-        : `Summa: ${values.amount.trim()}.`
+      ? t("recommendation.amountLabel", { value: values.amount.trim() })
       : null,
     values.rate?.trim()
-      ? language === "ru"
-        ? `Ставка: ${values.rate.trim()}.`
-        : `Stavka: ${values.rate.trim()}.`
+      ? t("recommendation.rateLabel", { value: values.rate.trim() })
       : null,
   ].filter(Boolean);
 
@@ -348,14 +344,10 @@ export default function RecommendationPage() {
         <Card>
           <CardContent className="space-y-3 p-6 text-sm text-muted-foreground">
             <p>
-              {currentLanguage === "ru"
-                ? "Сначала заполните анкету клиента, чтобы Minerva смогла задать уточняющие вопросы и подобрать подходящие продукты."
-                : "Avval mijoz anketasini to'ldiring, shunda Minerva aniqlashtiruvchi savollar berib, mos mahsulotlarni tavsiya qiladi."}
+              {t("recommendation.fillQuestionnaireFirst")}
             </p>
             <Button onClick={() => navigate(`/questionnaire/${params.clientId}`)}>
-              {currentLanguage === "ru"
-                ? "Вернуться к анкете"
-                : "So'rovnomaga qaytish"}
+              {t("recommendation.backToQuestionnaire")}
             </Button>
           </CardContent>
         </Card>
@@ -389,14 +381,10 @@ export default function RecommendationPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-primary">
-                  {currentLanguage === "ru"
-                    ? "AI учёл ответы анкеты"
-                    : "AI so'rovnoma javoblarini hisobga oldi"}
+                  {t("recommendation.aiConsideredAnswers")}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {currentLanguage === "ru"
-                    ? "Карточки ниже отсортированы по итоговому приоритету, а описания показываются только на выбранном языке."
-                    : "Quyidagi kartalar yakuniy ustuvorlik bo'yicha saralangan va tavsiflar faqat tanlangan tilda ko'rsatiladi."}
+                  {t("recommendation.aiSortedDescription")}
                 </p>
               </div>
             </CardContent>
@@ -521,9 +509,7 @@ export default function RecommendationPage() {
                       {product.displayHighlight && (
                         <div className="rounded-2xl border border-primary/10 bg-primary/5 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide text-primary/70">
-                            {currentLanguage === "ru"
-                              ? "Ключевое преимущество"
-                              : "Asosiy afzallik"}
+                            {t("recommendation.keyAdvantage")}
                           </p>
                           <p className="mt-1 text-sm leading-6 text-primary">
                             {product.displayHighlight}
@@ -534,9 +520,7 @@ export default function RecommendationPage() {
                       {product.clientFacingSummary && (
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide text-emerald-700">
-                            {currentLanguage === "ru"
-                              ? "Клиентское описание"
-                              : "Mijoz uchun qisqa tavsif"}
+                            {t("recommendation.clientDescription")}
                           </p>
                           <p className="mt-1 line-clamp-4 text-sm leading-6 text-emerald-800">
                             {product.clientFacingSummary}

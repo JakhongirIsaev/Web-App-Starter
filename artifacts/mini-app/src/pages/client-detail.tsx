@@ -217,15 +217,15 @@ export default function ClientDetailPage() {
         <Button variant="outline" size="sm" className="gap-1" onClick={() => {
           if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-              (pos) => alert(`Локация получена: ${pos.coords.latitude}, ${pos.coords.longitude}`),
-              (err) => alert("Ошибка получения локации: " + err.message)
+              (pos) => alert(t("clientDetail.locationReceived", { lat: pos.coords.latitude, lng: pos.coords.longitude })),
+              (err) => alert(t("clientDetail.locationError") + err.message)
             );
           } else {
-            alert("Геолокация не поддерживается вашим браузером");
+            alert(t("clientDetail.locationNotSupported"));
           }
         }}>
           <MapPin className="w-4 h-4" />
-          Локация бизнеса
+          {t("clientDetail.businessLocation")}
         </Button>
         <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowActionForm(!showActionForm)}>
           <Calendar className="w-4 h-4" />

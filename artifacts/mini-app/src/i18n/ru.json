@@ -42,7 +42,8 @@
     "signIn": "Войти",
     "authenticating": "Вход...",
     "telegramAuthFailed": "Автоматический вход через Telegram не удался",
-    "telegramAuthHint": "Ваш Telegram ID не зарегистрирован в системе. Войдите вручную или обратитесь к администратору."
+    "telegramAuthHint": "Ваш Telegram ID не зарегистрирован в системе. Войдите вручную или обратитесь к администратору.",
+    "backToTelegram": "Вернуться ко входу через Telegram"
   },
   "home": {
     "greeting": "Здравствуйте, {{name}}!",
@@ -350,5 +351,139 @@
     "disbursement": "Форма выдачи",
     "purpose": "Назначение",
     "sapCode": "SAP код"
+  },
+  "clientDetail": {
+    "locationReceived": "Локация получена: {{lat}}, {{lng}}",
+    "locationError": "Ошибка получения локации: ",
+    "locationNotSupported": "Геолокация не поддерживается вашим браузером",
+    "businessLocation": "Локация бизнеса"
+  },
+  "questionnaire": {
+    "title": "Анкета клиента",
+    "subtitle": "Ответьте на вопросы для подбора продуктов",
+    "businessType": "Тип бизнеса",
+    "businessTypeOptions": {
+      "trade": "Торговля",
+      "services": "Услуги",
+      "production": "Производство",
+      "agriculture": "Сельское хозяйство",
+      "other": "Другое"
+    },
+    "businessSize": "Размер бизнеса",
+    "businessSizeOptions": {
+      "micro": "Микро (до 5 сотрудников)",
+      "small": "Малый (5-50 сотрудников)",
+      "medium": "Средний (50-200 сотрудников)"
+    },
+    "needType": "Что нужно клиенту?",
+    "needTypeOptions": {
+      "credit": "Кредит",
+      "non_credit": "Некредитный продукт",
+      "both": "И кредит и другие продукты"
+    },
+    "loanPurpose": "Цель кредита",
+    "loanPurposeOptions": {
+      "working_capital": "Пополнение оборотных средств",
+      "fixed_assets": "Приобретение основных средств",
+      "untargeted": "Нецелевое использование",
+      "not_sure": "Не определено"
+    },
+    "desiredAmount": "Желаемая сумма (примерно)",
+    "desiredAmountPlaceholder": "напр. 500 000 000",
+    "desiredTerm": "Желаемый срок (месяцев)",
+    "desiredTermPlaceholder": "напр. 36",
+    "submit": "Подобрать продукты",
+    "submitting": "Анализ...",
+    "amountMinError": "Сумма должна быть не менее 1 000 000",
+    "aiHeading": "AI уточняет профиль клиента",
+    "aiDescription": "Дополнительные вопросы помогают точнее подобрать продукт, срок и комфортный ежемесячный платёж.",
+    "fallbackDescription": "AI временно недоступен, поэтому используются встроенные уточняющие вопросы.",
+    "getFollowUpQuestions": "Получить уточняющие вопросы",
+    "nonCreditServiceLabel": "Какой некредитный сервис клиенту нужен в первую очередь?",
+    "nonCreditServiceOptions": {
+      "rko": "Расчётно-кассовое обслуживание",
+      "pos": "POS-терминал и эквайринг",
+      "salary": "Зарплатный проект",
+      "forex": "Валютные и международные платежи"
+    },
+    "monthlyTurnoverLabel": "Какой ожидаемый ежемесячный оборот по счёту?",
+    "monthlyTurnoverOptions": {
+      "under100m": "До 100 млн сум",
+      "100to500m": "100–500 млн сум",
+      "over500m": "Свыше 500 млн сум",
+      "unclear": "Пока неясно"
+    },
+    "posNeededLabel": "Нужно ли клиенту принимать оплату картами и QR?",
+    "posNeededOptions": {
+      "yes": "Да, обязательно",
+      "maybe": "Позже может понадобиться",
+      "no": "Нет"
+    },
+    "intlPaymentsLabel": "Есть ли потребность в валютных или международных переводах?",
+    "intlPaymentsOptions": {
+      "yes": "Да",
+      "no": "Нет",
+      "unclear": "Пока не определено"
+    },
+    "currencyLabel": "В какой валюте клиенту удобнее оформить продукт?",
+    "currencyHelper": "Это сразу сокращает неподходящие валютные варианты.",
+    "currencyOptions": {
+      "uzs": "Сум",
+      "usd": "Доллар США",
+      "eur": "Евро",
+      "unclear": "Пока не определено"
+    },
+    "comfortPaymentLabel": "Какой ежемесячный платёж для клиента комфортен?",
+    "comfortPaymentHelper": "Это помогает точнее подобрать сумму и срок.",
+    "comfortPaymentOptions": {
+      "under10m": "До 10 млн сум",
+      "10to30m": "10-30 млн сум",
+      "over30m": "Свыше 30 млн сум",
+      "unclear": "Пока неясно"
+    },
+    "repaymentScheduleLabel": "Какой график погашения клиенту удобнее?",
+    "repaymentScheduleOptions": {
+      "equal": "Равный платёж каждый месяц",
+      "decreasing": "Сначала выше, потом ниже",
+      "expert": "Пусть эксперт подскажет"
+    }
+  },
+  "recommendation": {
+    "title": "Рекомендованные продукты",
+    "subtitle": "На основе анкеты клиента",
+    "found": "Найдено {{count}} подходящих продуктов",
+    "noProducts": "Нет подходящих продуктов",
+    "addToBasket": "В корзину",
+    "removeFromBasket": "Убрать",
+    "inBasket": "В корзине",
+    "goToBasket": "Перейти к корзине",
+    "selectedCount": "Выбрано: {{count}}",
+    "segment": "Сегмент",
+    "rate": "Ставка",
+    "term": "Срок",
+    "amount": "Сумма",
+    "allProducts": "Все продукты",
+    "recommended": "Рекомендованные",
+    "aiRank": "AI #{{rank}}",
+    "aiConfidence": "Уверенность {{value}}%",
+    "aiHint": "Система в фоне уточняет финальные рекомендации по каталогу...",
+    "fillQuestionnaireFirst": "Сначала заполните анкету клиента, чтобы Minerva смогла задать уточняющие вопросы и подобрать подходящие продукты.",
+    "backToQuestionnaire": "Вернуться к анкете",
+    "aiConsideredAnswers": "AI учёл ответы анкеты",
+    "aiSortedDescription": "Карточки ниже отсортированы по итоговому приоритету, а описания показываются только на выбранном языке.",
+    "keyAdvantage": "Ключевое преимущество",
+    "clientDescription": "Клиентское описание",
+    "amountLabel": "Сумма: {{value}}.",
+    "rateLabel": "Ставка: {{value}}."
+  },
+  "scanDoc": {
+    "title": "Сканирование документа",
+    "subtitle": "Сфотографируйте документ для извлечения данных",
+    "tooManyPhotos": "Можно добавить не более {{max}} фотографий за раз.",
+    "invalidImage": "Добавляйте только изображения.",
+    "translateFailed": "Перевод сейчас не удалось получить. Попробуйте еще раз.",
+    "extractFailed": "AI не смог полноценно извлечь данные по авто. OCR результат сохранен.",
+    "exportFailed": "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
+    "excelExport": "Excel выгрузка"
   }
 }

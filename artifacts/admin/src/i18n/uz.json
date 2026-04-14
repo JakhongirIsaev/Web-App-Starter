@@ -183,7 +183,20 @@
     "calcPayment": "Oylik to'lov",
     "quickStats": "Xulosa",
     "completed": "To'ldirilgan",
-    "notStarted": "Boshlanmagan"
+    "notStarted": "Boshlanmagan",
+    "questionBusinessType": "Biznes turi",
+    "questionBusinessSize": "Biznes hajmi",
+    "questionNeedType": "Ehtiyoj",
+    "questionLoanPurpose": "Kredit maqsadi",
+    "questionDesiredAmount": "Kerakli summa",
+    "questionDesiredTerm": "Kerakli muddat",
+    "questionCurrency": "Valyuta",
+    "questionComfortPayment": "Qulay to'lov",
+    "questionRepaymentType": "To'lov turi",
+    "questionServiceGoal": "Xizmat maqsadi",
+    "questionMonthlyTurnover": "Oylik aylanma",
+    "questionPosNeeded": "POS-terminal kerak",
+    "questionIntlPayments": "Xalqaro to'lovlar"
   },
   "statuses": {
     "draft": "Qoralama",

@@ -183,7 +183,20 @@
     "calcPayment": "Ежемес. платёж",
     "quickStats": "Сводка",
     "completed": "Заполнено",
-    "notStarted": "Не начато"
+    "notStarted": "Не начато",
+    "questionBusinessType": "Тип бизнеса",
+    "questionBusinessSize": "Размер бизнеса",
+    "questionNeedType": "Потребность",
+    "questionLoanPurpose": "Цель кредита",
+    "questionDesiredAmount": "Желаемая сумма",
+    "questionDesiredTerm": "Желаемый срок",
+    "questionCurrency": "Валюта",
+    "questionComfortPayment": "Комфортный платёж",
+    "questionRepaymentType": "Тип погашения",
+    "questionServiceGoal": "Цель сервиса",
+    "questionMonthlyTurnover": "Ежемесячный оборот",
+    "questionPosNeeded": "Нужен POS-терминал",
+    "questionIntlPayments": "Международные платежи"
   },
   "statuses": {
     "draft": "Черновик",

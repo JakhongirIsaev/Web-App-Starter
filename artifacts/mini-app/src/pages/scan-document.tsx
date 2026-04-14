@@ -112,26 +112,11 @@ export default function ScanDocumentPage() {
   const [error, setError] = useState("");
 
   const scanMessages = {
-    tooManyPhotos:
-      i18n.language === "ru"
-        ? `Можно добавить не более ${MAX_PHOTOS} фотографий за раз.`
-        : `${MAX_PHOTOS} tadan ko'p surat biriktirib bo'lmaydi.`,
-    invalidImage:
-      i18n.language === "ru"
-        ? "Добавляйте только изображения."
-        : "Faqat rasm fayllarini yuklang.",
-    translateFailed:
-      i18n.language === "ru"
-        ? "Перевод сейчас не удалось получить. Попробуйте еще раз."
-        : "Tarjimani hozir olib bo'lmadi. Qayta urinib ko'ring.",
-    extractFailed:
-      i18n.language === "ru"
-        ? "AI не смог полноценно извлечь данные по авто. OCR результат сохранен."
-        : "AI avtomobil ma'lumotlarini to'liq ajrata olmadi. OCR natijasi saqlandi.",
-    exportFailed:
-      i18n.language === "ru"
-        ? "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring."
-        : "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
+    tooManyPhotos: t("scanDoc.tooManyPhotos", { max: MAX_PHOTOS }),
+    invalidImage: t("scanDoc.invalidImage"),
+    translateFailed: t("scanDoc.translateFailed"),
+    extractFailed: t("scanDoc.extractFailed"),
+    exportFailed: t("scanDoc.exportFailed"),
   };
 
   const toFieldMap = useCallback((values: Record<string, unknown>) => {
@@ -718,7 +703,7 @@ export default function ScanDocumentPage() {
                 ) : (
                   <Download className="w-4 h-4" />
                 )}
-                {i18n.language === "ru" ? "Excel выгрузка" : "Excel eksport"}
+                {t("scanDoc.excelExport")}
               </Button>
             )}
             <Button className="flex-1 gap-1 min-w-[120px]" onClick={() => uploadMutation.mutate()}>

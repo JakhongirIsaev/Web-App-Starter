@@ -50,139 +50,53 @@ function isQuestionDefinition(value: unknown): value is QuestionDefinition {
 }
 
 function getFallbackQuestions(
-  language: "ru" | "uz",
+  t: (key: string, params?: Record<string, unknown>) => string,
   needType?: string,
 ): QuestionDefinition[] {
   const isNonCredit = needType === "non_credit";
-
-  if (language === "ru") {
-    if (isNonCredit) {
-      return [
-        {
-          key: "service_goal",
-          label: "Какой некредитный сервис клиенту нужен в первую очередь?",
-          type: "select",
-          options: [
-            { value: "settlement", label: "Расчётно-кассовое обслуживание" },
-            { value: "terminal", label: "POS-терминал и эквайринг" },
-            { value: "payroll", label: "Зарплатный проект" },
-            { value: "foreign_payments", label: "Валютные и международные платежи" },
-          ],
-        },
-        {
-          key: "monthly_turnover_band",
-          label: "Какой ожидаемый ежемесячный оборот по счёту?",
-          type: "select",
-          options: [
-            { value: "up_to_100m", label: "До 100 млн сум" },
-            { value: "100m_to_500m", label: "100–500 млн сум" },
-            { value: "over_500m", label: "Свыше 500 млн сум" },
-            { value: "not_sure", label: "Пока неясно" },
-          ],
-        },
-        {
-          key: "has_pos_need",
-          label: "Нужно ли клиенту принимать оплату картами и QR?",
-          type: "select",
-          options: [
-            { value: "yes", label: "Да, обязательно" },
-            { value: "later", label: "Позже может понадобиться" },
-            { value: "no", label: "Нет" },
-          ],
-        },
-        {
-          key: "foreign_payments_need",
-          label: "Есть ли потребность в валютных или международных переводах?",
-          type: "select",
-          options: [
-            { value: "yes", label: "Да" },
-            { value: "no", label: "Нет" },
-            { value: "not_sure", label: "Пока не определено" },
-          ],
-        },
-      ];
-    }
-
-    return [
-      {
-        key: "preferred_currency",
-        label: "В какой валюте клиенту удобнее оформить продукт?",
-        type: "select",
-        helperText: "Это сразу сокращает неподходящие валютные варианты.",
-        options: [
-          { value: "uzs", label: "Сум" },
-          { value: "usd", label: "Доллар США" },
-          { value: "eur", label: "Евро" },
-          { value: "not_sure", label: "Пока не определено" },
-        ],
-      },
-      {
-        key: "monthly_payment_comfort",
-        label: "Какой ежемесячный платёж для клиента комфортен?",
-        type: "select",
-        helperText: "Это помогает точнее подобрать сумму и срок.",
-        options: [
-          { value: "up_to_10m", label: "До 10 млн сум" },
-          { value: "10m_to_30m", label: "10-30 млн сум" },
-          { value: "over_30m", label: "Свыше 30 млн сум" },
-          { value: "not_sure", label: "Пока неясно" },
-        ],
-      },
-      {
-        key: "repayment_preference",
-        label: "Какой график погашения клиенту удобнее?",
-        type: "select",
-        options: [
-          { value: "annuity", label: "Равный платёж каждый месяц" },
-          { value: "differentiated", label: "Сначала выше, потом ниже" },
-          { value: "not_sure", label: "Пусть эксперт подскажет" },
-        ],
-      },
-    ];
-  }
 
   if (isNonCredit) {
     return [
       {
         key: "service_goal",
-        label: "Mijozga birinchi navbatda qaysi nokredit xizmat kerak?",
+        label: t("questionnaire.nonCreditServiceLabel"),
         type: "select",
         options: [
-          { value: "settlement", label: "Hisob-kitob xizmati" },
-          { value: "terminal", label: "POS-terminal va ekvayring" },
-          { value: "payroll", label: "Ish haqi loyihasi" },
-          { value: "foreign_payments", label: "Valyuta va xalqaro to'lovlar" },
+          { value: "settlement", label: t("questionnaire.nonCreditServiceOptions.rko") },
+          { value: "terminal", label: t("questionnaire.nonCreditServiceOptions.pos") },
+          { value: "payroll", label: t("questionnaire.nonCreditServiceOptions.salary") },
+          { value: "foreign_payments", label: t("questionnaire.nonCreditServiceOptions.forex") },
         ],
       },
       {
         key: "monthly_turnover_band",
-        label: "Hisob bo'yicha kutilayotgan oylik aylanma qancha?",
+        label: t("questionnaire.monthlyTurnoverLabel"),
         type: "select",
         options: [
-          { value: "up_to_100m", label: "100 mln so'mgacha" },
-          { value: "100m_to_500m", label: "100–500 mln so'm" },
-          { value: "over_500m", label: "500 mln so'mdan yuqori" },
-          { value: "not_sure", label: "Hali aniq emas" },
+          { value: "up_to_100m", label: t("questionnaire.monthlyTurnoverOptions.under100m") },
+          { value: "100m_to_500m", label: t("questionnaire.monthlyTurnoverOptions.100to500m") },
+          { value: "over_500m", label: t("questionnaire.monthlyTurnoverOptions.over500m") },
+          { value: "not_sure", label: t("questionnaire.monthlyTurnoverOptions.unclear") },
         ],
       },
       {
         key: "has_pos_need",
-        label: "Mijozga karta va QR orqali to'lov qabul qilish kerakmi?",
+        label: t("questionnaire.posNeededLabel"),
         type: "select",
         options: [
-          { value: "yes", label: "Ha, albatta" },
-          { value: "later", label: "Keyin kerak bo'lishi mumkin" },
-          { value: "no", label: "Yo'q" },
+          { value: "yes", label: t("questionnaire.posNeededOptions.yes") },
+          { value: "later", label: t("questionnaire.posNeededOptions.maybe") },
+          { value: "no", label: t("questionnaire.posNeededOptions.no") },
         ],
       },
       {
         key: "foreign_payments_need",
-        label: "Valyuta yoki xalqaro o'tkazmalar kerak bo'ladimi?",
+        label: t("questionnaire.intlPaymentsLabel"),
         type: "select",
         options: [
-          { value: "yes", label: "Ha" },
-          { value: "no", label: "Yo'q" },
-          { value: "not_sure", label: "Hali aniqlanmagan" },
+          { value: "yes", label: t("questionnaire.intlPaymentsOptions.yes") },
+          { value: "no", label: t("questionnaire.intlPaymentsOptions.no") },
+          { value: "not_sure", label: t("questionnaire.intlPaymentsOptions.unclear") },
         ],
       },
     ];
@@ -191,36 +105,36 @@ function getFallbackQuestions(
   return [
     {
       key: "preferred_currency",
-      label: "Mijozga mahsulot qaysi valyutada qulayroq?",
+      label: t("questionnaire.currencyLabel"),
       type: "select",
-      helperText: "Bu mos bo'lmagan valyuta variantlarini darhol qisqartiradi.",
+      helperText: t("questionnaire.currencyHelper"),
       options: [
-        { value: "uzs", label: "So'm" },
-        { value: "usd", label: "AQSh dollari" },
-        { value: "eur", label: "Yevro" },
-        { value: "not_sure", label: "Hali aniqlanmagan" },
+        { value: "uzs", label: t("questionnaire.currencyOptions.uzs") },
+        { value: "usd", label: t("questionnaire.currencyOptions.usd") },
+        { value: "eur", label: t("questionnaire.currencyOptions.eur") },
+        { value: "not_sure", label: t("questionnaire.currencyOptions.unclear") },
       ],
     },
     {
       key: "monthly_payment_comfort",
-      label: "Mijoz uchun qaysi oylik to'lov diapazoni qulay?",
+      label: t("questionnaire.comfortPaymentLabel"),
       type: "select",
-      helperText: "Bu summa va muddatni aniqroq moslashtirishga yordam beradi.",
+      helperText: t("questionnaire.comfortPaymentHelper"),
       options: [
-        { value: "up_to_10m", label: "10 mln so'mgacha" },
-        { value: "10m_to_30m", label: "10-30 mln so'm" },
-        { value: "over_30m", label: "30 mln so'mdan yuqori" },
-        { value: "not_sure", label: "Hali aniq emas" },
+        { value: "up_to_10m", label: t("questionnaire.comfortPaymentOptions.under10m") },
+        { value: "10m_to_30m", label: t("questionnaire.comfortPaymentOptions.10to30m") },
+        { value: "over_30m", label: t("questionnaire.comfortPaymentOptions.over30m") },
+        { value: "not_sure", label: t("questionnaire.comfortPaymentOptions.unclear") },
       ],
     },
     {
       key: "repayment_preference",
-      label: "Mijozga qaysi to'lov jadvali qulayroq?",
+      label: t("questionnaire.repaymentScheduleLabel"),
       type: "select",
       options: [
-        { value: "annuity", label: "Har oy bir xil to'lov" },
-        { value: "differentiated", label: "Boshlanishida katta, keyin kamayadigan" },
-        { value: "not_sure", label: "Ekspert tavsiya bersin" },
+        { value: "annuity", label: t("questionnaire.repaymentScheduleOptions.equal") },
+        { value: "differentiated", label: t("questionnaire.repaymentScheduleOptions.decreasing") },
+        { value: "not_sure", label: t("questionnaire.repaymentScheduleOptions.expert") },
       ],
     },
   ];
@@ -437,7 +351,7 @@ export default function QuestionnairePage() {
   const openFollowUps = async () => {
     const needType =
       answers.find((item) => item.questionKey === "need_type")?.answer ?? undefined;
-    const fallbackQuestions = getFallbackQuestions(currentLanguage, needType);
+    const fallbackQuestions = getFallbackQuestions(t, needType);
 
     try {
       const generated = await generateQuestionsMutation.mutateAsync();
@@ -474,18 +388,9 @@ export default function QuestionnairePage() {
     return null;
   }
 
-  const aiHeading =
-    currentLanguage === "ru"
-      ? "AI уточняет профиль клиента"
-      : "AI mijoz profilini aniqlashtirmoqda";
-  const aiDescription =
-    currentLanguage === "ru"
-      ? "Дополнительные вопросы помогают точнее подобрать продукт, срок и комфортный ежемесячный платёж."
-      : "Qo'shimcha savollar mahsulot, muddat va qulay oylik to'lovni aniqroq tanlashga yordam beradi.";
-  const fallbackDescription =
-    currentLanguage === "ru"
-      ? "AI временно недоступен, поэтому используются встроенные уточняющие вопросы."
-      : "AI vaqtincha band, shu sababli ichki aniqlashtiruvchi savollar ishlatilmoqda.";
+  const aiHeading = t("questionnaire.aiHeading");
+  const aiDescription = t("questionnaire.aiDescription");
+  const fallbackDescription = t("questionnaire.fallbackDescription");
   const getFollowUpButtonLabel = () => {
     if (submitMutation.isPending || generateQuestionsMutation.isPending) {
       return t("questionnaire.submitting");
@@ -495,8 +400,8 @@ export default function QuestionnairePage() {
     }
     if (step === baseQuestions.length - 1 && aiQuestions.length === 0) {
       return currentLanguage === "ru"
-        ? "Получить уточняющие вопросы"
-        : "Aniqlashtiruvchi savollarni olish";
+        ? t("questionnaire.getFollowUpQuestions")
+        : t("questionnaire.getFollowUpQuestions");
     }
     return t("common.next");
   };
@@ -596,7 +501,7 @@ export default function QuestionnairePage() {
               />
               {currentQuestion.key === "desired_amount" && currentAnswer && !canProceed && (
                 <p className="text-xs text-destructive mt-2">
-                  Сумма должна быть не менее 1 000 000
+                  {t("questionnaire.amountMinError")}
                 </p>
               )}
             </div>

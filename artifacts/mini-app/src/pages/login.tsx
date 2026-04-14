@@ -33,10 +33,7 @@ export default function LoginPage() {
     }
   }, [detectedTelegramId, telegramId]);
 
-  const useTelegramAccountLabel =
-    i18n.language === "ru"
-      ? "Вернуться ко входу через Telegram"
-      : "Telegram akkauntiga qaytish";
+  const useTelegramAccountLabel = t("login.backToTelegram");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
