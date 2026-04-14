@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -28,7 +30,37 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
+const allowedOrigins = [
+  process.env.ADMIN_URL,
+  process.env.MINI_APP_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(null, true);
+  },
+  credentials: true,
+}));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path.startsWith("/mini-app") || req.path.startsWith("/admin"),
+});
+
+app.use(apiLimiter);
+
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
@@ -39,9 +71,6 @@ app.use("/api", (err: any, _req: express.Request, res: express.Response, _next: 
   res.status(500).json({ error: err?.message || "Internal server error" });
 });
 
-// Static SPAs (mini-app + admin) bundled alongside the server image so the
-// Telegram mini-app URL can stay on a single origin. Vite builds them with
-// BASE_PATH=/mini-app/ and /admin/ so asset URLs resolve correctly.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../../..");
 
