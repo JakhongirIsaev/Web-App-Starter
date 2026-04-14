@@ -3,6 +3,7 @@ set -eu
 
 # Keep deploys touching this service under artifacts/api-server so Railway's
 # watched-path deploys pick up backend changes consistently.
+# Bump: pull in root railway.toml (DOCKERFILE builder) for production.
 
 # Tailscale sidecar: joins the container to the user's private tailnet so the
 # api-server can reach a self-hosted Ollama over WireGuard — without exposing
