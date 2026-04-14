@@ -19,6 +19,14 @@ RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir -r artifacts/api-server/requirements.txt
 
 RUN pnpm install --frozen-lockfile
+
+# Build the two SPAs with the base paths the api-server mounts them under,
+# so asset URLs like /mini-app/assets/*.js resolve correctly behind the
+# single-origin Express static handler.
+ENV BASE_PATH=/mini-app/
+RUN pnpm --filter @workspace/mini-app run build
+ENV BASE_PATH=/admin/
+RUN pnpm --filter @workspace/admin run build
 RUN pnpm run build:api-server
 
 FROM node:22-bookworm-slim AS runtime
