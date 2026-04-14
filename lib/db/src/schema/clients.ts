@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
@@ -31,7 +31,16 @@ export const clientsTable = pgTable("clients", {
   longitude: numeric("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("clients_branch_id_idx").on(table.branchId),
+  index("clients_assigned_to_id_idx").on(table.assignedToId),
+  index("clients_status_idx").on(table.status),
+  index("clients_created_at_idx").on(table.createdAt),
+  index("clients_updated_at_idx").on(table.updatedAt),
+  index("clients_branch_status_idx").on(table.branchId, table.status),
+  index("clients_assigned_status_idx").on(table.assignedToId, table.status),
+  index("clients_assigned_created_idx").on(table.assignedToId, table.createdAt),
+]);
 
 export const insertClientSchema = createInsertSchema(clientsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertClient = z.infer<typeof insertClientSchema>;

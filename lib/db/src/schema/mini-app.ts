@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, boolean, numeric, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean, numeric, jsonb, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { branchesTable } from "./branches";
 import { clientsTable } from "./clients";
@@ -11,7 +11,9 @@ export const clientNotesTable = pgTable("client_notes", {
   type: text("type").notNull().default("note"),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("client_notes_client_id_idx").on(table.clientId),
+]);
 
 export const clientNextActionsTable = pgTable("client_next_actions", {
   id: serial("id").primaryKey(),
@@ -24,7 +26,12 @@ export const clientNextActionsTable = pgTable("client_next_actions", {
   isCompleted: boolean("is_completed").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("client_actions_client_id_idx").on(table.clientId),
+  index("client_actions_user_completed_idx").on(table.userId, table.isCompleted),
+  index("client_actions_client_completed_idx").on(table.clientId, table.isCompleted),
+  index("client_actions_action_date_idx").on(table.actionDate),
+]);
 
 export const questionnaireSessionsTable = pgTable("questionnaire_sessions", {
   id: serial("id").primaryKey(),
@@ -33,7 +40,9 @@ export const questionnaireSessionsTable = pgTable("questionnaire_sessions", {
   status: text("status").notNull().default("in_progress"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("questionnaire_sessions_client_id_idx").on(table.clientId),
+]);
 
 export const questionnaireAnswersTable = pgTable("questionnaire_answers", {
   id: serial("id").primaryKey(),
@@ -41,7 +50,9 @@ export const questionnaireAnswersTable = pgTable("questionnaire_answers", {
   questionKey: text("question_key").notNull(),
   answer: text("answer").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("questionnaire_answers_session_id_idx").on(table.sessionId),
+]);
 
 export const basketsTable = pgTable("baskets", {
   id: serial("id").primaryKey(),
@@ -50,7 +61,9 @@ export const basketsTable = pgTable("baskets", {
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("baskets_client_status_idx").on(table.clientId, table.status),
+]);
 
 export const basketItemsTable = pgTable("basket_items", {
   id: serial("id").primaryKey(),
@@ -61,7 +74,9 @@ export const basketItemsTable = pgTable("basket_items", {
   calculationId: integer("calculation_id"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("basket_items_basket_id_idx").on(table.basketId),
+]);
 
 export const calculationsTable = pgTable("calculations", {
   id: serial("id").primaryKey(),
@@ -80,7 +95,9 @@ export const calculationsTable = pgTable("calculations", {
   totalInterest: numeric("total_interest", { precision: 18, scale: 2 }),
   currency: text("currency").notNull().default("UZS"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("calculations_client_id_idx").on(table.clientId),
+]);
 
 export const clientDocumentsTable = pgTable("client_documents", {
   id: serial("id").primaryKey(),
@@ -92,4 +109,6 @@ export const clientDocumentsTable = pgTable("client_documents", {
   ocrText: text("ocr_text"),
   extractedData: jsonb("extracted_data"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("client_documents_client_id_idx").on(table.clientId),
+]);

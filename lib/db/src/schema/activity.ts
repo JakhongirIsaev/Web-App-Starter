@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, index } from "drizzle-orm/pg-core";
 
 export const activityLogTable = pgTable("activity_log", {
   id: serial("id").primaryKey(),
@@ -10,6 +10,9 @@ export const activityLogTable = pgTable("activity_log", {
   userName: text("user_name"),
   branchName: text("branch_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("activity_log_created_at_idx").on(table.createdAt),
+  index("activity_log_branch_name_idx").on(table.branchName),
+]);
 
 export type ActivityLog = typeof activityLogTable.$inferSelect;
