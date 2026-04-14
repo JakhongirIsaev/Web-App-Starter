@@ -50,9 +50,9 @@ router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const updateData: any = { updatedAt: new Date() };
-  const fields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"];
-  for (const f of fields) {
+  const updateData: Partial<typeof creditProductsTable.$inferInsert> = { updatedAt: new Date() };
+  const allowedFields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"] as const;
+  for (const f of allowedFields) {
     if (req.body[f] !== undefined) updateData[f] = req.body[f];
   }
 

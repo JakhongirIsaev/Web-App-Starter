@@ -838,6 +838,7 @@ export const CreateArticleBody = zod.object({
   isPublished: zod.boolean().optional(),
   targetAllBranches: zod.boolean().optional(),
   branchIds: zod.array(zod.number()).optional(),
+  category: zod.string().optional(),
 });
 
 /**
@@ -900,6 +901,7 @@ export const UpdateArticleBody = zod.object({
   isPublished: zod.boolean().optional(),
   targetAllBranches: zod.boolean().optional(),
   branchIds: zod.array(zod.number()).optional(),
+  category: zod.string().optional(),
 });
 
 export const UpdateArticleResponse = zod.object({

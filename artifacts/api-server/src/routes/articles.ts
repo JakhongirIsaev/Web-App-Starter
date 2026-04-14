@@ -111,7 +111,7 @@ router.post("/articles", requireAuth, requireRole("superadmin", "head_office_adm
   const [article] = await db.insert(articlesTable).values({
     title: parsed.data.title,
     content: parsed.data.content,
-    category: (req.body as any).category || "general",
+    category: parsed.data.category || "general",
     isPublished: parsed.data.isPublished ?? false,
     targetAllBranches: parsed.data.targetAllBranches ?? true,
     authorId: req.user?.id,
@@ -148,7 +148,7 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
   if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
   if (parsed.data.isPublished !== undefined) updateData.isPublished = parsed.data.isPublished;
   if (parsed.data.targetAllBranches !== undefined) updateData.targetAllBranches = parsed.data.targetAllBranches;
-  if ((req.body as any).category !== undefined) updateData.category = (req.body as any).category;
+  if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
 
   const [updated] = await db.update(articlesTable).set(updateData).where(eq(articlesTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
