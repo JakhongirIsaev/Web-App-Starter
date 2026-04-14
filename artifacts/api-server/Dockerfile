@@ -4,13 +4,21 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV TZ=Asia/Tashkent
 
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-
 WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY artifacts/api-server/package.json artifacts/api-server/package.json
+COPY artifacts/api-server/requirements.txt artifacts/api-server/requirements.txt
+COPY lib/db/package.json lib/db/package.json
+COPY lib/api-zod/package.json lib/api-zod/package.json
+
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -18,13 +26,6 @@ RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
   && /opt/venv/bin/pip install --no-cache-dir -r artifacts/api-server/requirements.txt
 
-RUN pnpm install --frozen-lockfile
-
-# Build the two SPAs with the base paths the api-server mounts them under,
-# so asset URLs like /mini-app/assets/*.js resolve correctly behind the
-# single-origin Express static handler. PORT is a no-op at build time but
-# the vite config throws if the env var is unset (it validates it up-front
-# for dev/preview). Any positive integer satisfies that check.
 ENV PORT=3001
 ENV BASE_PATH=/mini-app/
 RUN pnpm --filter @workspace/mini-app run build
@@ -48,7 +49,9 @@ RUN apt-get update \
   && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list \
        -o /etc/apt/sources.list.d/tailscale.list \
   && apt-get update && apt-get install -y --no-install-recommends tailscale \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --gid 1001 appuser \
+  && useradd --uid 1001 --gid appuser --shell /bin/sh --create-home appuser
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
@@ -65,6 +68,9 @@ COPY --from=build /app/artifacts /app/artifacts
 COPY --from=build /app/lib /app/lib
 COPY --from=build /app/attached_assets /app/attached_assets
 
-RUN chmod +x /app/artifacts/api-server/start.sh
+RUN chmod +x /app/artifacts/api-server/start.sh \
+  && chown -R appuser:appuser /app
+
+USER appuser
 
 CMD ["/app/artifacts/api-server/start.sh"]
