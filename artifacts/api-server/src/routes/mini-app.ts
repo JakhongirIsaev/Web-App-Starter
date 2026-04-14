@@ -1,4 +1,5 @@
 ﻿import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import XLSX from "xlsx";
 import {
@@ -22,6 +23,13 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
+import {
+  verifyClientAccess,
+  requireClientAccess,
+  requireDocumentAccess,
+  requireNextActionAccess,
+  requireClientAccessFromBody,
+} from "../lib/client-access";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
@@ -48,6 +56,94 @@ const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
 type PdfLanguage = "ru" | "uz" | "en";
 
+const CalculateBody = z.object({
+  clientId: z.number().optional(),
+  productName: z.string().min(1).optional(),
+  loanAmount: z.coerce.number().positive(),
+  interestRate: z.coerce.number().min(0),
+  termMonths: z.coerce.number().int().positive(),
+  repaymentType: z.enum(["annuity", "differentiated"]).optional(),
+  initialPayment: z.coerce.number().min(0).optional(),
+  gracePeriodMonths: z.coerce.number().int().min(0).optional(),
+  currency: z.string().optional(),
+});
+
+const QuestionnaireBody = z.object({
+  clientId: z.number().positive(),
+  answers: z.array(z.object({ questionKey: z.string().min(1), answer: z.string() })).min(1),
+});
+
+const RecommendBody = z.object({
+  clientId: z.number().positive(),
+  answers: z.array(z.object({ questionKey: z.string(), answer: z.string() })).optional().default([]),
+  language: z.enum(["ru", "uz", "en"]).optional(),
+});
+
+const BasketBody = z.object({
+  clientId: z.number().positive(),
+  items: z.array(z.object({
+    productType: z.enum(["credit", "non_credit"]),
+    productId: z.number().positive().optional(),
+    productName: z.string().optional(),
+    notes: z.string().optional(),
+  })).min(1),
+});
+
+const CreateClientBody = z.object({
+  fullName: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  businessType: z.string().optional(),
+  businessSize: z.string().optional(),
+  needType: z.string().optional(),
+  loanPurpose: z.string().optional(),
+  desiredAmount: z.string().optional(),
+  desiredTerm: z.string().optional(),
+  telegramInitData: z.string().optional(),
+});
+
+const UpdateClientBody = z.object({
+  fullName: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  status: z.string().optional(),
+  businessType: z.string().optional(),
+  businessSize: z.string().optional(),
+  needType: z.string().optional(),
+  loanPurpose: z.string().optional(),
+  desiredAmount: z.string().optional(),
+  desiredTerm: z.string().optional(),
+});
+
+const NoteBody = z.object({
+  type: z.string().optional(),
+  content: z.string().min(1),
+});
+
+const NextActionBody = z.object({
+  actionType: z.string().min(1),
+  actionDate: z.string().min(1),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+  description: z.string().optional(),
+});
+
+const DocumentBody = z.object({
+  docType: z.string().optional(),
+  fileName: z.string().min(1),
+  storagePath: z.string().min(1),
+  ocrText: z.string().optional(),
+  extractedData: z.any().optional(),
+});
+
+const OcrUpdateBody = z.object({
+  ocrText: z.string().optional(),
+  extractedData: z.any().optional(),
+});
+
+const GeneratePdfBody = z.object({
+  sendViaTelegram: z.boolean().optional(),
+  telegramInitData: z.string().optional(),
+  language: z.enum(["ru", "uz", "en"]).optional(),
+});
+
 interface DetailedBasketItem extends ProductLike {
   id: number;
   basketId: number;
@@ -59,18 +155,6 @@ interface DetailedBasketItem extends ProductLike {
   notes?: string | null;
   whySuitable?: string | null;
   sapCode?: string | null;
-}
-
-async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
-  const [client] = await db
-    .select({ assignedToId: clientsTable.assignedToId, branchId: clientsTable.branchId })
-    .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
-    .limit(1);
-  if (!client) return false;
-  if (user.role === "superadmin" || user.role === "head_office_admin") return true;
-  if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
-  return client.assignedToId === user.id;
 }
 
 function getSegmentAliases(value?: string | null) {
@@ -692,10 +776,12 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/clients", requireAuth, async (req, res) => {
+  const parsed = CreateClientBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
   const userId = req.user!.id;
   const branchId = req.user!.branchId;
 
-  const { fullName, phone } = req.body;
+  const { fullName, phone } = parsed.data;
   const sessionId = `S-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
   let assignedBranchId = branchId;
@@ -806,7 +892,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
   res.send(text);
 });
 
-router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const [client] = await db
     .select()
@@ -867,9 +953,11 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
 
 router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { fullName, phone, status } = req.body;
+  const parsed = UpdateClientBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { fullName, phone, status } = parsed.data;
 
-  const updates: any = { updatedAt: new Date() };
+  const updates: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone;
   if (status !== undefined) updates.status = status;
@@ -885,7 +973,9 @@ router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
 
 router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { type, content } = req.body;
+  const parsed = NoteBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { type, content } = parsed.data;
 
   const [note] = await db
     .insert(clientNotesTable)
@@ -897,7 +987,9 @@ router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
 
 router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { actionType, actionDate, priority, description } = req.body;
+  const parsed = NextActionBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { actionType, actionDate, priority, description } = parsed.data;
 
   const [action] = await db
     .insert(clientNextActionsTable)
@@ -925,7 +1017,9 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) 
 });
 
 router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
-  const { clientId, answers } = req.body;
+  const parsed = QuestionnaireBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { clientId, answers } = parsed.data;
 
   const session = await db.transaction(async (tx) => {
     const [createdSession] = await tx
@@ -973,8 +1067,10 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/recommend", requireAuth, async (req, res) => {
-  const { clientId, answers = [] } = req.body;
-  const language = resolvePdfLanguage(req.body.language);
+  const parsed = RecommendBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { clientId, answers } = parsed.data;
+  const language = resolvePdfLanguage(parsed.data.language);
   const answerList = Array.isArray(answers) ? answers : [];
   const profile = buildClientPreferenceProfile(answerList, language);
 
@@ -1033,7 +1129,9 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
 });
 
 router.post("/mini-app/basket", requireAuth, async (req, res) => {
-  const { clientId, items } = req.body;
+  const parsed = BasketBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  const { clientId, items } = parsed.data;
 
   const existing = await db
     .select()
@@ -1080,6 +1178,8 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
 
 router.post("/mini-app/calculate", requireAuth, async (req, res) => {
   try {
+  const calcParsed = CalculateBody.safeParse(req.body);
+  if (!calcParsed.success) { res.status(400).json({ error: "Invalid body", details: calcParsed.error }); return; }
   const {
     clientId,
     productName,
@@ -1296,7 +1396,9 @@ router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => 
     res.status(403).json({ error: "Access denied" });
     return;
   }
-  const { docType, fileName, storagePath, ocrText, extractedData } = req.body;
+  const docParsed = DocumentBody.safeParse(req.body);
+  if (!docParsed.success) { res.status(400).json({ error: "Invalid body", details: docParsed.error }); return; }
+  const { docType, fileName, storagePath, ocrText, extractedData } = docParsed.data;
   if (!fileName || !storagePath) {
     res.status(400).json({ error: "fileName and storagePath are required" });
     return;
@@ -1329,7 +1431,9 @@ router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
 
 router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
   const docId = Number(req.params.id);
-  const { ocrText, extractedData } = req.body;
+  const ocrParsed = OcrUpdateBody.safeParse(req.body);
+  if (!ocrParsed.success) { res.status(400).json({ error: "Invalid body", details: ocrParsed.error }); return; }
+  const { ocrText, extractedData } = ocrParsed.data;
   const [updated] = await db
     .update(clientDocumentsTable)
     .set({ ocrText, extractedData })
@@ -1352,18 +1456,19 @@ router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
 router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   const user = req.user!;
-  const sendViaTelegram = req.body.sendViaTelegram !== false;
-  const telegramInitData =
-    typeof req.body.telegramInitData === "string"
-      ? req.body.telegramInitData.trim()
-      : "";
+  const pdfParsed = GeneratePdfBody.safeParse(req.body);
+  if (!pdfParsed.success) { res.status(400).json({ error: "Invalid body", details: pdfParsed.error }); return; }
+  const sendViaTelegram = pdfParsed.data.sendViaTelegram !== false;
+  const telegramInitData = typeof pdfParsed.data.telegramInitData === "string"
+    ? pdfParsed.data.telegramInitData.trim()
+    : "";
 
   if (!(await verifyClientAccess(clientId, user))) {
     res.status(403).json({ error: "Access denied" });
     return;
   }
 
-  const language = resolvePdfLanguage(req.body.language);
+  const language = resolvePdfLanguage(pdfParsed.data.language);
   const payload = await buildPdfPayload(clientId, user, language);
   if (!payload) {
     res.status(404).json({ error: "Client not found" });
