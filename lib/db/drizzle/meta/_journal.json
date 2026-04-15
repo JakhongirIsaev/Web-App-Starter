@@ -8,6 +8,13 @@
       "when": 1776251447525,
       "tag": "0000_phase10_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776255163099,
+      "tag": "0001_password_reset_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -9,3 +9,4 @@ export * from "./sap-codes";
 export * from "./credit-lines";
 export * from "./mini-app";
 export * from "./auth-sessions";
+export * from "./password-reset-tokens";

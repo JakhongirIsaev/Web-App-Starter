@@ -6,8 +6,13 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { LoginBody } from "@workspace/api-zod";
 import { validateTelegramInitData } from "../lib/telegram";
-import { createSession, deleteSession, findSessionUserId } from "../lib/session-store";
+import { createSession, deleteSession, findSessionUserId, deleteSessionsForUser } from "../lib/session-store";
 import { extractBearerToken } from "../middleware/auth";
+import crypto from "crypto";
+import { z } from "zod";
+import { sendMessage } from "../bot";
+import { passwordResetTokensTable } from "@workspace/db";
+import { and, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -27,6 +32,33 @@ const telegramLoginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many login attempts. Try again later." },
 });
+
+const resetRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many reset requests. Try again later." },
+});
+
+const resetConfirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many confirm attempts. Try again later." },
+});
+
+const ResetRequestBody = z.object({
+  telegramId: z.string().min(1),
+});
+
+const ResetConfirmBody = z.object({
+  telegramId: z.string().min(1),
+  token: z.string().length(8),
+  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+});
+
 
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
@@ -206,6 +238,112 @@ router.post("/auth/logout", async (req, res) => {
     await deleteSession(token);
   }
   res.json({ success: true });
+});
+
+router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res) => {
+  const parsed = ResetRequestBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+
+  const telegramId = parsed.data.telegramId.replace(/\s+/g, "").trim();
+
+  const userRes = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .limit(1);
+
+  if (!userRes.length) {
+    // Prevent enumeration. Always return success.
+    res.json({ success: true, message: "If the account exists, instructions were sent." });
+    return;
+  }
+
+  const userId = userRes[0].id;
+
+  // Invalidate any existing unused tokens for this user
+  await db
+    .update(passwordResetTokensTable)
+    .set({ used: true })
+    .where(and(eq(passwordResetTokensTable.userId, userId), eq(passwordResetTokensTable.used, false)));
+
+  // Generate 8-digit OTP securely
+  const otp = crypto.randomInt(10000000, 99999999).toString();
+  const tokenHash = crypto.createHash("sha256").update(otp).digest("hex");
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+  await db.insert(passwordResetTokensTable).values({
+    userId,
+    tokenHash,
+    expiresAt,
+  });
+
+  await sendMessage(telegramId, `🔑 <b>Minerva Password Reset</b>\n\nYour reset code is: <code>${otp}</code>\n\nThis code expires in 15 minutes. If you did not request this, please ignore this message.`);
+
+  res.json({ success: true, message: "If the account exists, instructions were sent." });
+});
+
+router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res) => {
+  const parsed = ResetConfirmBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input data", details: parsed.error.issues });
+    return;
+  }
+
+  const { telegramId, token, newPassword } = parsed.data;
+  const cleanTelegramId = telegramId.replace(/\s+/g, "").trim();
+
+  // Validate user exists
+  const userRes = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, cleanTelegramId))
+    .limit(1);
+
+  if (!userRes.length) {
+    res.status(400).json({ error: "Invalid code or user" });
+    return;
+  }
+
+  const userId = userRes[0].id;
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  // Validate unexpired and unused token
+  const tokenRecord = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(and(
+      eq(passwordResetTokensTable.userId, userId),
+      eq(passwordResetTokensTable.tokenHash, tokenHash),
+      eq(passwordResetTokensTable.used, false)
+    ))
+    .orderBy(desc(passwordResetTokensTable.createdAt))
+    .limit(1);
+
+  if (!tokenRecord.length || tokenRecord[0].expiresAt.getTime() < Date.now()) {
+    res.status(400).json({ error: "Invalid or expired code" });
+    return;
+  }
+
+  // OTP verified, perform the reset
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  
+  await db
+    .update(usersTable)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(usersTable.id, userId));
+
+  await db
+    .update(passwordResetTokensTable)
+    .set({ used: true })
+    .where(eq(passwordResetTokensTable.id, tokenRecord[0].id));
+
+  // Invalidate ALL sessions instantly
+  await deleteSessionsForUser(userId);
+
+  res.json({ success: true, message: "Password updated successfully" });
 });
 
 export default router;

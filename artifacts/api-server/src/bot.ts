@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard, InputFile } from "grammy";
+import { Bot, InlineKeyboard, InputFile, webhookCallback } from "grammy";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, clientsTable, clientNextActionsTable } from "@workspace/db";
@@ -311,19 +311,40 @@ export async function startBot(miniAppUrl: string) {
   try {
     const me = await bot.api.getMe();
     logger.info({ botUsername: me.username }, "Telegram bot authenticated");
-    await bot.api.deleteWebhook({ drop_pending_updates: true });
-    bot.start({
-      onStart: () => logger.info("Telegram bot started (polling)"),
-    }).catch((err: any) => {
-      const desc = err?.description || err?.message || "";
-      if (desc.includes("terminated by other getUpdates request") || desc.includes("409")) {
-        logger.warn("Bot polling stopped due to conflict (409) - another instance is running");
-      } else {
-        logger.error({ err: desc }, "Bot polling stopped unexpectedly");
+
+    const isProduction = process.env.NODE_ENV === "production";
+    const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+    if (isProduction) {
+      if (!webhookUrl || !webhookSecret) {
+        throw new Error("TELEGRAM_WEBHOOK_URL and TELEGRAM_WEBHOOK_SECRET must be set in production.");
       }
-    });
+
+      await bot.api.setWebhook(webhookUrl, {
+        secret_token: webhookSecret,
+        drop_pending_updates: true,
+      });
+
+      logger.info({ webhookUrl }, "Telegram bot started (webhook mode)");
+    } else {
+      if (webhookUrl || webhookSecret) {
+         logger.warn("Webhook settings detected but NODE_ENV is not production. Ignored; using polling.");
+      }
+      await bot.api.deleteWebhook({ drop_pending_updates: true });
+      bot.start({
+        onStart: () => logger.info("Telegram bot started (polling)"),
+      }).catch((err: any) => {
+        const desc = err?.description || err?.message || "";
+        if (desc.includes("terminated by other getUpdates request") || desc.includes("409")) {
+          logger.warn("Bot polling stopped due to conflict (409) - another instance is running");
+        } else {
+          logger.error({ err: desc }, "Bot polling stopped unexpectedly");
+        }
+      });
+    }
   } catch (err: any) {
-    logger.error({ err: err.message || err }, "Failed to start Telegram bot - check TELEGRAM_BOT_TOKEN");
+    logger.error({ err: err.message || err }, "Failed to start Telegram bot");
     bot = null;
   }
 }
