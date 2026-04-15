@@ -258,13 +258,15 @@
     }
   },
   "statuses": {
-    "draft": "Черновик",
-    "questionnaire": "Анкета",
-    "recommendation": "Рекомендация",
+    "draft": "Новая заявка",
+    "questionnaire": "Анкетирование",
+    "recommendation": "Подбор продукта",
     "basket": "Корзина",
-    "pdf_generated": "PDF готов",
-    "completed": "Завершён",
-    "rejected": "Отклонён"
+    "pdf_generated": "КП сформировано",
+    "under_review": "На рассмотрении",
+    "approved": "Одобрено",
+    "completed": "Завершено",
+    "rejected": "Отклонено"
   },
   "scanDoc": {
     "title": "Сканирование документа",

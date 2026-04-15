@@ -5,7 +5,8 @@ import { branchesTable } from "./branches";
 import { usersTable } from "./users";
 
 export const clientStatusEnum = [
-  "draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"
+  "draft", "questionnaire", "recommendation", "basket", "pdf_generated",
+  "under_review", "approved", "completed", "rejected",
 ] as const;
 export type ClientStatus = typeof clientStatusEnum[number];
 

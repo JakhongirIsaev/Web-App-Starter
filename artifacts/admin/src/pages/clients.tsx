@@ -24,6 +24,8 @@ export function getStatusBadge(status: string, t: (key: string) => string) {
     case "recommendation": return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">{label}</Badge>;
     case "basket": return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">{label}</Badge>;
     case "pdf_generated": return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20">{label}</Badge>;
+    case "under_review": return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">{label}</Badge>;
+    case "approved": return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{label}</Badge>;
     case "completed": return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{label}</Badge>;
     case "rejected": return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">{label}</Badge>;
     default: return <Badge variant="outline">{status}</Badge>;

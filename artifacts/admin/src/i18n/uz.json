@@ -199,11 +199,13 @@
     "questionIntlPayments": "Xalqaro to'lovlar"
   },
   "statuses": {
-    "draft": "Qoralama",
+    "draft": "Yangi ariza",
     "questionnaire": "So'rovnoma",
-    "recommendation": "Tavsiya",
+    "recommendation": "Mahsulot tanlash",
     "basket": "Savat",
-    "pdf_generated": "PDF yaratilgan",
+    "pdf_generated": "KT tayyorlandi",
+    "under_review": "KQ/Anderrayterlar ko'rib chiqmoqda",
+    "approved": "Tasdiqlangan",
     "completed": "Bajarilgan",
     "rejected": "Rad etilgan"
   },

@@ -173,6 +173,8 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                 <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
                 <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
                 <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
+                <SelectItem value="under_review">{t("statuses.under_review")}</SelectItem>
+                <SelectItem value="approved">{t("statuses.approved")}</SelectItem>
                 <SelectItem value="completed">{t("statuses.completed")}</SelectItem>
                 <SelectItem value="rejected">{t("statuses.rejected")}</SelectItem>
               </SelectContent>

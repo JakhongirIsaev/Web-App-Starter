@@ -258,11 +258,13 @@
     }
   },
   "statuses": {
-    "draft": "Qoralama",
+    "draft": "Yangi ariza",
     "questionnaire": "So'rovnoma",
-    "recommendation": "Tavsiya",
+    "recommendation": "Mahsulot tanlash",
     "basket": "Savat",
-    "pdf_generated": "PDF tayyor",
+    "pdf_generated": "KT tayyorlandi",
+    "under_review": "Ko'rib chiqilmoqda",
+    "approved": "Tasdiqlangan",
     "completed": "Bajarilgan",
     "rejected": "Rad etilgan"
   },

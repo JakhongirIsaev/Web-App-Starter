@@ -199,13 +199,15 @@
     "questionIntlPayments": "Международные платежи"
   },
   "statuses": {
-    "draft": "Черновик",
-    "questionnaire": "Анкета",
-    "recommendation": "Рекомендация",
+    "draft": "Новая заявка",
+    "questionnaire": "Анкетирование",
+    "recommendation": "Подбор продукта",
     "basket": "Корзина",
-    "pdf_generated": "PDF сформирован",
-    "completed": "Завершён",
-    "rejected": "Отклонён"
+    "pdf_generated": "КП сформировано",
+    "under_review": "На рассмотрении КК/Андеррайтерами",
+    "approved": "Одобрено",
+    "completed": "Завершено",
+    "rejected": "Отклонено"
   },
   "products": {
     "title": "Продукты",
