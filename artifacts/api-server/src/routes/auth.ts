@@ -274,13 +274,21 @@ router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res
   const tokenHash = crypto.createHash("sha256").update(otp).digest("hex");
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-  await db.insert(passwordResetTokensTable).values({
+  const [inserted] = await db.insert(passwordResetTokensTable).values({
     userId,
     tokenHash,
     expiresAt,
-  });
+  }).returning({ id: passwordResetTokensTable.id });
 
-  await sendMessage(telegramId, `🔑 <b>Minerva Password Reset</b>\n\nYour reset code is: <code>${otp}</code>\n\nThis code expires in 15 minutes. If you did not request this, please ignore this message.`);
+  // Send OTP via Telegram. If the message fails, roll back the token so the
+  // user gets a clean error and can immediately retry (no TTL/rate-limit block).
+  try {
+    await sendMessage(telegramId, `🔑 <b>Minerva Password Reset</b>\n\nYour reset code is: <code>${otp}</code>\n\nThis code expires in 15 minutes. If you did not request this, please ignore this message.`);
+  } catch {
+    await db.update(passwordResetTokensTable).set({ used: true }).where(eq(passwordResetTokensTable.id, inserted.id));
+    res.status(500).json({ error: "Failed to send reset code. Please try again." });
+    return;
+  }
 
   res.json({ success: true, message: "If the account exists, instructions were sent." });
 });
@@ -295,7 +303,10 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
   const { telegramId, token, newPassword } = parsed.data;
   const cleanTelegramId = telegramId.replace(/\s+/g, "").trim();
 
-  // Validate user exists
+  // Use a single opaque error for all failure modes (user not found, bad OTP,
+  // expired OTP) so the confirm endpoint cannot be used to enumerate accounts.
+  const INVALID = { error: "Invalid or expired code" } as const;
+
   const userRes = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -303,7 +314,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
     .limit(1);
 
   if (!userRes.length) {
-    res.status(400).json({ error: "Invalid code or user" });
+    res.status(400).json(INVALID);
     return;
   }
 
@@ -323,7 +334,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
     .limit(1);
 
   if (!tokenRecord.length || tokenRecord[0].expiresAt.getTime() < Date.now()) {
-    res.status(400).json({ error: "Invalid or expired code" });
+    res.status(400).json(INVALID);
     return;
   }
 

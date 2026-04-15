@@ -4,7 +4,7 @@ import { getBot } from "../bot";
 
 const router = Router();
 
-router.post("/telegram/webhook", async (req, res, next) => {
+router.post("/telegram/webhook", async (req, res) => {
   const bot = getBot();
   if (!bot) {
     res.status(503).json({ error: "Bot not initialized" });
@@ -12,10 +12,20 @@ router.post("/telegram/webhook", async (req, res, next) => {
   }
 
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  
-  // webhookCallback(bot, 'express', ...) returns a middleware function.
-  // By passing the secretToken option, Grammy automatically asserts that 
-  // the incoming X-Telegram-Bot-Api-Secret-Token header matches the secret.
+
+  // Fail closed: if the secret is not configured we cannot verify the request
+  // origin. In production this must always be set; reject the request rather
+  // than silently accepting unsigned webhooks.
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      res.status(403).json({ error: "Webhook not configured" });
+      return;
+    }
+    // In development, allow unsigned webhooks for local tunnels (ngrok etc).
+  }
+
+  // Grammy's webhookCallback verifies the X-Telegram-Bot-Api-Secret-Token
+  // header when secretToken is provided; undefined skips verification (dev only).
   const cb = webhookCallback(bot, "express", {
     secretToken: secret,
   });

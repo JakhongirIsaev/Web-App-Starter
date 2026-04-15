@@ -860,40 +860,39 @@ router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req
     return;
   }
 
-  const notes = await db
-    .select({
-      id: clientNotesTable.id,
-      type: clientNotesTable.type,
-      content: clientNotesTable.content,
-      createdAt: clientNotesTable.createdAt,
-      userName: usersTable.name,
-    })
-    .from(clientNotesTable)
-    .leftJoin(usersTable, eq(clientNotesTable.userId, usersTable.id))
-    .where(eq(clientNotesTable.clientId, clientId))
-    .orderBy(desc(clientNotesTable.createdAt));
-
-  const nextActions = await db
-    .select()
-    .from(clientNextActionsTable)
-    .where(and(eq(clientNextActionsTable.clientId, clientId), eq(clientNextActionsTable.isCompleted, false)))
-    .orderBy(clientNextActionsTable.actionDate);
-
-  const basket = await db
-    .select()
-    .from(basketsTable)
-    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
-    .limit(1);
-
-  const basketItems = await getDetailedBasketItems(clientId);
-
-  const calculations = await db
-    .select()
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt));
-
-  const questionnaireAnswers = await getLatestQuestionnaireAnswers(clientId);
+  // All 6 sub-queries are independent — run in parallel to cut latency ~6×.
+  const [notes, nextActions, basket, basketItems, calculations, questionnaireAnswers] =
+    await Promise.all([
+      db
+        .select({
+          id: clientNotesTable.id,
+          type: clientNotesTable.type,
+          content: clientNotesTable.content,
+          createdAt: clientNotesTable.createdAt,
+          userName: usersTable.name,
+        })
+        .from(clientNotesTable)
+        .leftJoin(usersTable, eq(clientNotesTable.userId, usersTable.id))
+        .where(eq(clientNotesTable.clientId, clientId))
+        .orderBy(desc(clientNotesTable.createdAt)),
+      db
+        .select()
+        .from(clientNextActionsTable)
+        .where(and(eq(clientNextActionsTable.clientId, clientId), eq(clientNextActionsTable.isCompleted, false)))
+        .orderBy(clientNextActionsTable.actionDate),
+      db
+        .select()
+        .from(basketsTable)
+        .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
+        .limit(1),
+      getDetailedBasketItems(clientId),
+      db
+        .select()
+        .from(calculationsTable)
+        .where(eq(calculationsTable.clientId, clientId))
+        .orderBy(desc(calculationsTable.createdAt)),
+      getLatestQuestionnaireAnswers(clientId),
+    ]);
 
   res.json({
     client,
@@ -1567,21 +1566,15 @@ router.get("/mini-app/clients/:id/export", requireAuth, requireClientAccess, asy
     return;
   }
 
-  const docs = await db
-    .select()
-    .from(clientDocumentsTable)
-    .where(eq(clientDocumentsTable.clientId, clientId))
-    .orderBy(desc(clientDocumentsTable.createdAt));
-
-  const clientNotes = await db
-    .select()
-    .from(clientNotesTable)
-    .where(eq(clientNotesTable.clientId, clientId));
-
-  const calcs = await db
-    .select()
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId));
+  const [docs, clientNotes, calcs] = await Promise.all([
+    db.select().from(clientDocumentsTable)
+      .where(eq(clientDocumentsTable.clientId, clientId))
+      .orderBy(desc(clientDocumentsTable.createdAt)),
+    db.select().from(clientNotesTable)
+      .where(eq(clientNotesTable.clientId, clientId)),
+    db.select().from(calculationsTable)
+      .where(eq(calculationsTable.clientId, clientId)),
+  ]);
 
   let text = `=== MIJOZ MA'LUMOTLARI ===\n`;
   text += `F.I.Sh.: ${client.fullName || "-"}\n`;
