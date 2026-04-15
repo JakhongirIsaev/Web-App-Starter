@@ -1190,20 +1190,25 @@ router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("cli
     initialPayment,
     gracePeriodMonths,
     currency,
-  } = req.body;
+  } = calcParsed.data;
 
-  const principal = parseFloat(loanAmount);
-  const initialPay = parseFloat(initialPayment) || 0;
+  const principal = Number(loanAmount);
+  const initialPay = Math.max(0, Number(initialPayment) || 0);
   const effectivePrincipal = Math.max(0, principal - initialPay);
-  const monthlyRate = parseFloat(interestRate) / 100 / 12;
-  const grace = Math.min(parseInt(gracePeriodMonths) || 0, (parseInt(termMonths) || 1) - 1);
-  const term = parseInt(termMonths);
-  const paymentTerm = Math.max(1, term - grace);
+  const monthlyRate = Number(interestRate) / 100 / 12;
+  const term = Number(termMonths);
 
-  if (!principal || principal <= 0 || !term || term <= 0) {
+  if (!Number.isFinite(principal) || principal <= 0 || !Number.isInteger(term) || term <= 0) {
     res.status(400).json({ error: "Invalid loan parameters" });
     return;
   }
+  if (!Number.isFinite(monthlyRate) || monthlyRate < 0) {
+    res.status(400).json({ error: "Invalid interest rate" });
+    return;
+  }
+
+  const grace = Math.min(Math.max(0, Number(gracePeriodMonths) || 0), term - 1);
+  const paymentTerm = Math.max(1, term - grace);
 
   let monthlyPayment: number;
   let totalPayment: number;
@@ -1246,8 +1251,12 @@ router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("cli
       }
     }
 
-    const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
-    monthlyPayment = effectivePrincipal * annuityCoeff;
+    if (monthlyRate === 0) {
+      monthlyPayment = effectivePrincipal / paymentTerm;
+    } else {
+      const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
+      monthlyPayment = effectivePrincipal * annuityCoeff;
+    }
 
     for (let i = grace + 1; i <= term; i++) {
       const interest = remaining * monthlyRate;
@@ -1264,9 +1273,9 @@ router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("cli
     .values({
       clientId: clientId || null,
       userId: req.user!.id,
-      productName,
-      loanAmount: effectivePrincipal.toString(),
-      interestRate: interestRate.toString(),
+      productName: productName ?? "Untitled calculation",
+      loanAmount: principal.toString(),
+      interestRate: String(interestRate),
       termMonths: term,
       repaymentType: repaymentType || "annuity",
       initialPayment: initialPay.toString(),
