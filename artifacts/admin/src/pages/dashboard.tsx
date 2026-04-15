@@ -32,7 +32,7 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const token = localStorage.getItem("auth_token");
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const [filters, setFilters] = useState({
     branchId: "",
@@ -421,7 +421,13 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-6">
-              {activities?.map((activity) => (
+              {activities?.map((activity: {
+                id: number;
+                userName?: string | null;
+                description?: string | null;
+                createdAt: string;
+                branchName?: string | null;
+              }) => (
                 <div key={activity.id} className="flex gap-4 items-start">
                   <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-medium">

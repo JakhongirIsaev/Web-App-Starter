@@ -49,13 +49,14 @@ function buildRateFallback(product: ProductRecord) {
 }
 
 function buildClientFacingSummary(
-  language: "ru" | "uz",
+  _language: "ru" | "uz",
   values: {
     purpose?: string | null;
     highlight?: string | null;
     amount?: string | null;
     rate?: string | null;
   },
+  t: (key: string, options?: Record<string, unknown>) => string,
 ) {
   const parts = [
     values.purpose?.trim() || null,
@@ -264,12 +265,16 @@ export default function RecommendationPage() {
       clientFacingSummary:
         displayExplanation ||
         truncateText(
-          buildClientFacingSummary(currentLanguage, {
-            purpose: displayPurpose,
-            highlight: displayHighlight,
-            amount: displayAmount,
-            rate: displayRate,
-          }),
+          buildClientFacingSummary(
+            currentLanguage,
+            {
+              purpose: displayPurpose,
+              highlight: displayHighlight,
+              amount: displayAmount,
+              rate: displayRate,
+            },
+            t,
+          ),
         ) ||
         null,
     };

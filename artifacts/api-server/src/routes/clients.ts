@@ -253,16 +253,27 @@ router.post("/clients/import", requireAuth, requireRole("superadmin", "head_offi
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
+    const validStatuses = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"] as const;
+    type ClientStatus = typeof validStatuses[number];
+    const isClientStatus = (s: string): s is ClientStatus => (validStatuses as readonly string[]).includes(s);
+
     await db.transaction(async (tx) => {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        if (!row.fullName) { skipped.push(i + 2); continue; }
+        // branchId is required in the schema; skip rows without a resolvable one.
+        const branchId = row.branchId ? Number(row.branchId) : NaN;
+        if (!row.fullName || !Number.isInteger(branchId) || branchId <= 0) {
+          skipped.push(i + 2);
+          continue;
+        }
+        const status: ClientStatus =
+          row.status && isClientStatus(row.status) ? row.status : "draft";
         await tx.insert(clientsTable).values({
           sessionId: row.sessionId || randomUUID(),
           fullName: row.fullName || null,
           phone: row.phone || null,
-          status: row.status || "draft",
-          branchId: row.branchId ? Number(row.branchId) : null,
+          status,
+          branchId,
           assignedToId: row.assignedToId ? Number(row.assignedToId) : null,
         });
         imported++;

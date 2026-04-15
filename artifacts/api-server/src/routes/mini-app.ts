@@ -83,7 +83,8 @@ const BasketBody = z.object({
   items: z.array(z.object({
     productType: z.enum(["credit", "non_credit"]),
     productId: z.number().positive().optional(),
-    productName: z.string().optional(),
+    // Required: basket_items.product_name is NOT NULL in the DB schema.
+    productName: z.string().min(1),
     notes: z.string().optional(),
   })).min(1),
 });
@@ -966,7 +967,9 @@ router.put("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req
   const updates: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone;
-  if (status !== undefined) updates.status = status;
+  // Zod narrows `status` to the enum union, but the cross-workspace .d.ts
+  // occasionally widens it to `string`. Re-assert the narrower type.
+  if (status !== undefined) updates.status = status as ClientStatus;
 
   const [updated] = await db
     .update(clientsTable)
