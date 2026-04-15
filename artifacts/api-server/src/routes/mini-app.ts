@@ -143,6 +143,13 @@ const GeneratePdfBody = z.object({
   language: z.enum(["ru", "uz", "en"]).optional(),
 });
 
+const AutoExcelBody = z.object({
+  clientId: z.coerce.number().int().positive().optional(),
+  ocrText: z.string().optional(),
+  imageCount: z.coerce.number().int().min(0).optional(),
+  extractedData: z.record(z.string(), z.unknown()).optional(),
+});
+
 interface DetailedBasketItem extends ProductLike {
   id: number;
   basketId: number;
@@ -1513,20 +1520,20 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAcce
   }
 });
 
-router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
-  const extractedData =
-    req.body?.extractedData && typeof req.body.extractedData === "object"
-      ? (req.body.extractedData as Record<string, unknown>)
-      : {};
-  const ocrText = typeof req.body?.ocrText === "string" ? req.body.ocrText : "";
-  const imageCount =
-    typeof req.body?.imageCount === "number" && Number.isFinite(req.body.imageCount)
-      ? req.body.imageCount
-      : 0;
-  const clientId =
-    typeof req.body?.clientId === "number" && Number.isFinite(req.body.clientId)
-      ? req.body.clientId
-      : null;
+router.post(
+  "/mini-app/exports/auto-excel",
+  requireAuth,
+  requireClientAccessFromBody("clientId", { optional: true }),
+  async (req, res) => {
+  const autoParsed = AutoExcelBody.safeParse(req.body);
+  if (!autoParsed.success) {
+    res.status(400).json({ error: "Invalid body", details: autoParsed.error });
+    return;
+  }
+  const extractedData = autoParsed.data.extractedData ?? {};
+  const ocrText = autoParsed.data.ocrText ?? "";
+  const imageCount = autoParsed.data.imageCount ?? 0;
+  const clientId = autoParsed.data.clientId ?? null;
 
   const workbook = XLSX.utils.book_new();
   const vehicleSheet = XLSX.utils.json_to_sheet([
