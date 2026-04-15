@@ -4,6 +4,15 @@ import { clientsTable, clientDocumentsTable, clientNextActionsTable } from "@wor
 import { eq } from "drizzle-orm";
 import type { AuthUser } from "../middleware/auth";
 
+export function hasClientRoleAccess(
+  client: { assignedToId: number | null; branchId: number | null },
+  user: { id: number; role: string; branchId: number | null },
+): boolean {
+  if (user.role === "superadmin" || user.role === "head_office_admin") return true;
+  if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
+  return client.assignedToId === user.id;
+}
+
 export async function verifyClientAccess(
   clientId: number,
   user: { id: number; role: string; branchId: number | null },
@@ -14,9 +23,7 @@ export async function verifyClientAccess(
     .where(eq(clientsTable.id, clientId))
     .limit(1);
   if (!client) return false;
-  if (user.role === "superadmin" || user.role === "head_office_admin") return true;
-  if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
-  return client.assignedToId === user.id;
+  return hasClientRoleAccess(client, user);
 }
 
 function parsePositiveInt(raw: unknown): number | null {
@@ -106,5 +113,5 @@ export function requireClientAccessFromBody(
   };
 }
 
-export const __testing = { parsePositiveInt };
+export const __testing = { parsePositiveInt, makeParamGuard };
 export type { AuthUser };
