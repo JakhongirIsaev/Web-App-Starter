@@ -5,3 +5,4 @@
 // on the Zod schemas when a TS type is needed.
 export * from "./generated/api";
 export * from "./ai";
+export * from "./mini-app";

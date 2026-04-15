@@ -1,4 +1,4 @@
-﻿import { Router, type IRouter } from "express";
+import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import XLSX from "xlsx";
@@ -50,106 +50,24 @@ import {
   type QuestionnaireAnswer,
 } from "../lib/recommendation";
 import { buildCalculationSummary } from "../lib/calculations";
+import {
+  MiniAppCalculateBody as CalculateBody,
+  MiniAppQuestionnaireBody as QuestionnaireBody,
+  MiniAppRecommendBody as RecommendBody,
+  MiniAppBasketBody as BasketBody,
+  MiniAppCreateClientBody as CreateClientBody,
+  MiniAppUpdateClientBody as UpdateClientBody,
+  MiniAppNoteBody as NoteBody,
+  MiniAppNextActionBody as NextActionBody,
+  MiniAppDocumentBody as DocumentBody,
+  MiniAppOcrUpdateBody as OcrUpdateBody,
+  MiniAppGeneratePdfBody as GeneratePdfBody,
+  MiniAppAutoExcelBody as AutoExcelBody,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
 type PdfLanguage = "ru" | "uz" | "en";
-
-const CalculateBody = z.object({
-  clientId: z.number().optional(),
-  productName: z.string().min(1).optional(),
-  loanAmount: z.coerce.number().positive(),
-  interestRate: z.coerce.number().min(0),
-  termMonths: z.coerce.number().int().positive(),
-  repaymentType: z.enum(["annuity", "differentiated"]).optional(),
-  initialPayment: z.coerce.number().min(0).optional(),
-  gracePeriodMonths: z.coerce.number().int().min(0).optional(),
-  currency: z.string().optional(),
-});
-
-const QuestionnaireBody = z.object({
-  clientId: z.number().positive(),
-  answers: z.array(z.object({ questionKey: z.string().min(1), answer: z.string() })).min(1),
-});
-
-const RecommendBody = z.object({
-  clientId: z.number().positive(),
-  answers: z.array(z.object({ questionKey: z.string(), answer: z.string() })).optional().default([]),
-  language: z.enum(["ru", "uz", "en"]).optional(),
-});
-
-const BasketBody = z.object({
-  clientId: z.number().positive(),
-  items: z.array(z.object({
-    productType: z.enum(["credit", "non_credit"]),
-    productId: z.number().positive().optional(),
-    // Required: basket_items.product_name is NOT NULL in the DB schema.
-    productName: z.string().min(1),
-    notes: z.string().optional(),
-  })).min(1),
-});
-
-const CreateClientBody = z.object({
-  fullName: z.string().min(1).optional(),
-  phone: z.string().optional(),
-  businessType: z.string().optional(),
-  businessSize: z.string().optional(),
-  needType: z.string().optional(),
-  loanPurpose: z.string().optional(),
-  desiredAmount: z.string().optional(),
-  desiredTerm: z.string().optional(),
-  telegramInitData: z.string().optional(),
-});
-
-const UpdateClientBody = z.object({
-  fullName: z.string().min(1).optional(),
-  phone: z.string().optional(),
-  status: z.string().optional(),
-  businessType: z.string().optional(),
-  businessSize: z.string().optional(),
-  needType: z.string().optional(),
-  loanPurpose: z.string().optional(),
-  desiredAmount: z.string().optional(),
-  desiredTerm: z.string().optional(),
-});
-
-const NoteBody = z.object({
-  type: z.string().optional(),
-  content: z.string().min(1),
-});
-
-const NextActionBody = z.object({
-  actionType: z.string().min(1),
-  actionDate: z.string().min(1),
-  priority: z.enum(["low", "medium", "high"]).optional(),
-  description: z.string().optional(),
-});
-
-const DocumentBody = z.object({
-  docType: z.string().optional(),
-  fileName: z.string().min(1),
-  storagePath: z.string().min(1),
-  ocrText: z.string().optional(),
-  extractedData: z.any().optional(),
-});
-
-const OcrUpdateBody = z.object({
-  ocrText: z.string().optional(),
-  extractedData: z.any().optional(),
-});
-
-const GeneratePdfBody = z.object({
-  sendViaTelegram: z.boolean().optional(),
-  telegramInitData: z.string().optional(),
-  language: z.enum(["ru", "uz", "en"]).optional(),
-});
-
-const AutoExcelBody = z.object({
-  clientId: z.coerce.number().int().positive().optional(),
-  ocrText: z.string().optional(),
-  imageCount: z.coerce.number().int().min(0).optional(),
-  extractedData: z.record(z.string(), z.unknown()).optional(),
-});
 
 interface DetailedBasketItem extends ProductLike {
   id: number;
@@ -836,6 +754,45 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     .where(whereClause)
     .orderBy(desc(clientsTable.updatedAt));
 
+  // Batch-load all related data upfront to avoid N+1 queries
+  const allClientIds = clients.map(c => c.id);
+
+  const allDocs = allClientIds.length > 0
+    ? await db.select().from(clientDocumentsTable)
+        .where(inArray(clientDocumentsTable.clientId, allClientIds))
+    : [];
+
+  const allNotes = allClientIds.length > 0
+    ? await db.select().from(clientNotesTable)
+        .where(inArray(clientNotesTable.clientId, allClientIds))
+    : [];
+
+  const allCalcs = allClientIds.length > 0
+    ? await db.select().from(calculationsTable)
+        .where(inArray(calculationsTable.clientId, allClientIds))
+    : [];
+
+  // Build lookup maps keyed by clientId
+  const docsMap = new Map<number, typeof allDocs>();
+  for (const d of allDocs) {
+    const arr = docsMap.get(d.clientId) ?? [];
+    arr.push(d);
+    docsMap.set(d.clientId, arr);
+  }
+  const notesMap = new Map<number, typeof allNotes>();
+  for (const n of allNotes) {
+    const arr = notesMap.get(n.clientId) ?? [];
+    arr.push(n);
+    notesMap.set(n.clientId, arr);
+  }
+  const calcsMap = new Map<number, typeof allCalcs>();
+  for (const c of allCalcs) {
+    if (c.clientId == null) continue;
+    const arr = calcsMap.get(c.clientId) ?? [];
+    arr.push(c);
+    calcsMap.set(c.clientId, arr);
+  }
+
   let text = `=== BARCHA MIJOZLAR EKSPORTI ===\n`;
   text += `Sana: ${formatFileDate()}\n`;
   text += `Jami: ${clients.length}\n\n`;
@@ -847,10 +804,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
     text += `Holat: ${client.status}\n`;
     text += `Yaratilgan sana: ${formatDateTimeInAppTimeZone(client.createdAt)}\n`;
 
-    const docs = await db
-      .select()
-      .from(clientDocumentsTable)
-      .where(eq(clientDocumentsTable.clientId, client.id));
+    const docs = docsMap.get(client.id) ?? [];
 
     if (docs.length > 0) {
       text += `Hujjatlar: ${docs.length}\n`;
@@ -866,10 +820,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
       }
     }
 
-    const clientNotes = await db
-      .select()
-      .from(clientNotesTable)
-      .where(eq(clientNotesTable.clientId, client.id));
+    const clientNotes = notesMap.get(client.id) ?? [];
 
     if (clientNotes.length > 0) {
       text += `Izohlar: ${clientNotes.length}\n`;
@@ -878,10 +829,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
       }
     }
 
-    const calcs = await db
-      .select()
-      .from(calculationsTable)
-      .where(eq(calculationsTable.clientId, client.id));
+    const calcs = calcsMap.get(client.id) ?? [];
 
     if (calcs.length > 0) {
       text += `Hisob-kitoblar: ${calcs.length}\n`;
@@ -1041,14 +989,14 @@ router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody(
       })
       .returning();
 
-    if (answers && Array.isArray(answers)) {
-      for (const a of answers) {
-        await tx.insert(questionnaireAnswersTable).values({
+    if (answers && Array.isArray(answers) && answers.length > 0) {
+      await tx.insert(questionnaireAnswersTable).values(
+        answers.map(a => ({
           sessionId: createdSession.id,
           questionKey: a.questionKey,
           answer: a.answer,
-        });
-      }
+        }))
+      );
     }
 
     const activeBaskets = await tx
@@ -1164,17 +1112,17 @@ router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("client
     basketId = basket.id;
   }
 
-  if (items && Array.isArray(items)) {
-    for (const item of items) {
-      await db.insert(basketItemsTable).values({
+  if (items && Array.isArray(items) && items.length > 0) {
+    await db.insert(basketItemsTable).values(
+      items.map(item => ({
         basketId,
         productId:
           item.productType === "non_credit" ? null : item.productId || null,
         productType: item.productType || "credit",
         productName: item.productName,
         notes: item.notes || null,
-      });
-    }
+      }))
+    );
   }
 
   await db
@@ -1375,30 +1323,29 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
 
   const monthStart = startOfAppMonth();
 
-  const workerStats = [];
-  for (const w of workers) {
-    const [clientCount] = await db
-      .select({ count: count() })
-      .from(clientsTable)
-      .where(eq(clientsTable.assignedToId, w.id));
+  // Single aggregate query instead of 3 queries per worker (N+1 fix)
+  const workerIds = workers.map(w => w.id);
+  const workerClientStats = workerIds.length > 0
+    ? await db
+        .select({
+          assignedToId: clientsTable.assignedToId,
+          totalClients: count(),
+          monthClients: sql<number>`count(*) filter (where ${clientsTable.createdAt} >= ${monthStart})`,
+          completedClients: sql<number>`count(*) filter (where ${clientsTable.status} = 'completed')`,
+        })
+        .from(clientsTable)
+        .where(inArray(clientsTable.assignedToId, workerIds))
+        .groupBy(clientsTable.assignedToId)
+    : [];
 
-    const [monthCount] = await db
-      .select({ count: count() })
-      .from(clientsTable)
-      .where(and(eq(clientsTable.assignedToId, w.id), gte(clientsTable.createdAt, monthStart)));
+  const statsMap = new Map(workerClientStats.map(s => [s.assignedToId, s]));
 
-    const [completedCount] = await db
-      .select({ count: count() })
-      .from(clientsTable)
-      .where(and(eq(clientsTable.assignedToId, w.id), eq(clientsTable.status, "completed")));
-
-    workerStats.push({
-      ...w,
-      totalClients: clientCount.count,
-      monthClients: monthCount.count,
-      completedClients: completedCount.count,
-    });
-  }
+  const workerStats = workers.map(w => ({
+    ...w,
+    totalClients: statsMap.get(w.id)?.totalClients ?? 0,
+    monthClients: statsMap.get(w.id)?.monthClients ?? 0,
+    completedClients: statsMap.get(w.id)?.completedClients ?? 0,
+  }));
 
   const [branchTotal] = await db
     .select({ count: count() })

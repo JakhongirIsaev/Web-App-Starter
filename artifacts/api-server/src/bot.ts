@@ -297,6 +297,8 @@ export async function startBot(miniAppUrl: string) {
   });
 
   bot.catch((err) => {
+    // grammy's BotError.error is typed as unknown; Telegram API errors
+    // include a `description` field not in the SDK type definitions.
     const desc = (err.error as any)?.description || "";
     if (desc.includes("terminated by other getUpdates request")) {
       logger.warn("Bot polling conflict detected (409) - another instance is running. Stopping this bot instance.");

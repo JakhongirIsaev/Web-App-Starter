@@ -1,0 +1,18 @@
+# Dependabot — security updates only
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web-app-starter
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    # Only open PRs for security advisories, not version bumps
+    allow:
+      - dependency-type: direct
+      - dependency-type: indirect
+    # Ignore non-security patch bumps
+    groups:
+      security-patches:
+        applies-to: security-updates
+        patterns:
+          - "*"

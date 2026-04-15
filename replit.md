@@ -149,7 +149,7 @@ Both use i18next + react-i18next with `useTranslation()` / `t()` calls.
 
 All data pages (Clients, Products, Articles, Users, Branches) have Export and Import buttons.
 - **Export**: Frontend-only, downloads CSV with BOM for Excel compatibility, formula injection protection (prefixes dangerous chars with `'`)
-- **Import**: File upload via `multer`, parsed with `csv-parse` or `exceljs`, wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
+- **Import**: File upload via `multer`, parsed with `csv-parse` (CSV) or `xlsx` (Excel), wrapped in DB transactions (all-or-nothing), returns `{ imported, skipped }` counts
 - **Shared utilities**: `artifacts/admin/src/lib/csv.ts` (frontend), `artifacts/api-server/src/lib/csv.ts` (backend)
 - **Import endpoints**: `POST /api/{resource}/import` (superadmin/head_office_admin only)
 - **Users Bulk Excel Import**:

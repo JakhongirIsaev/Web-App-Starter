@@ -121,13 +121,13 @@ function toAnswerMap(answers: QuestionnaireAnswer[] = []) {
   return new Map(answers.map((item) => [item.questionKey, item.answer]));
 }
 
-function getLabel<T extends string>(
-  labels: Record<T, { uz: string; ru: string; en: string }>,
+function getLabel(
+  labels: Record<string, { uz: string; ru: string; en: string }>,
   value: string | undefined,
   language: SupportedLanguage,
 ) {
   if (!value) return undefined;
-  const candidate = labels[value as T];
+  const candidate = labels[value];
   return candidate ? candidate[language] : value;
 }
 
@@ -150,25 +150,25 @@ export function buildClientPreferenceProfile(
 
   return {
     businessType,
-    businessTypeLabel: getLabel(BUSINESS_TYPE_LABELS as any, businessType, language),
+    businessTypeLabel: getLabel(BUSINESS_TYPE_LABELS, businessType, language),
     businessSize,
-    businessSizeLabel: getLabel(BUSINESS_SIZE_LABELS as any, businessSize, language),
+    businessSizeLabel: getLabel(BUSINESS_SIZE_LABELS, businessSize, language),
     needType,
-    needTypeLabel: getLabel(NEED_TYPE_LABELS as any, needType, language),
+    needTypeLabel: getLabel(NEED_TYPE_LABELS, needType, language),
     loanPurpose,
-    loanPurposeLabel: getLabel(LOAN_PURPOSE_LABELS as any, loanPurpose, language),
+    loanPurposeLabel: getLabel(LOAN_PURPOSE_LABELS, loanPurpose, language),
     desiredAmount,
     desiredTerm,
     preferredCurrency,
-    preferredCurrencyLabel: getLabel(CURRENCY_LABELS as any, preferredCurrency, language),
+    preferredCurrencyLabel: getLabel(CURRENCY_LABELS, preferredCurrency, language),
     monthlyPaymentComfort,
-    monthlyPaymentComfortLabel: getLabel(MONTHLY_PAYMENT_LABELS as any, monthlyPaymentComfort, language),
+    monthlyPaymentComfortLabel: getLabel(MONTHLY_PAYMENT_LABELS, monthlyPaymentComfort, language),
     repaymentPreference,
-    repaymentPreferenceLabel: getLabel(REPAYMENT_PREFERENCE_LABELS as any, repaymentPreference, language),
+    repaymentPreferenceLabel: getLabel(REPAYMENT_PREFERENCE_LABELS, repaymentPreference, language),
     downPaymentLevel,
-    downPaymentLevelLabel: getLabel(DOWN_PAYMENT_LABELS as any, downPaymentLevel, language),
+    downPaymentLevelLabel: getLabel(DOWN_PAYMENT_LABELS, downPaymentLevel, language),
     needsGracePeriod,
-    needsGracePeriodLabel: getLabel(GRACE_PERIOD_LABELS as any, needsGracePeriod, language),
+    needsGracePeriodLabel: getLabel(GRACE_PERIOD_LABELS, needsGracePeriod, language),
   };
 }
 

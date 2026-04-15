@@ -1,0 +1,10 @@
+# Gitleaks configuration — pre-commit secret scanning
+title = "gitleaks config"
+
+[allowlist]
+  description = "Allowlisted patterns"
+  paths = [
+    "pnpm-lock.yaml",
+    "node_modules",
+    ".env.example",
+  ]

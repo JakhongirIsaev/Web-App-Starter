@@ -9,7 +9,10 @@ import { upload, parseCsvBuffer } from "../lib/csv";
 const router: IRouter = Router();
 
 router.get("/credit-products", requireAuth, async (req, res) => {
+  // Query params are typed as ParsedQs — destructuring with `as any` is
+  // intentional since each field is individually validated below.
   const { search, segment, page = "1", pageSize = "50" } = req.query as any;
+  // Drizzle condition array — `any[]` allows heterogeneous SQL conditions.
   const conditions: any[] = [];
   if (search) conditions.push(ilike(creditProductsTable.name, `%${search}%`));
   if (segment) conditions.push(eq(creditProductsTable.segment, segment));

@@ -2,7 +2,8 @@ import {
   useGetDashboardSummary, getGetDashboardSummaryQueryKey,
   useGetBranchStats, getGetBranchStatsQueryKey,
   useGetClientStatusBreakdown, getGetClientStatusBreakdownQueryKey,
-  useGetRecentActivity, getGetRecentActivityQueryKey
+  useGetRecentActivity, getGetRecentActivityQueryKey,
+  type ActivityItem,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
@@ -421,13 +422,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-6">
-              {activities?.map((activity: {
-                id: number;
-                userName?: string | null;
-                description?: string | null;
-                createdAt: string;
-                branchName?: string | null;
-              }) => (
+              {activities?.map((activity: ActivityItem) => (
                 <div key={activity.id} className="flex gap-4 items-start">
                   <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-medium">

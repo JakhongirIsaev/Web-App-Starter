@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
-import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
+import { eq, and, sql, gte, lte, desc, inArray, count } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/auth";
 import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
@@ -9,6 +9,9 @@ import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 const router: IRouter = Router();
 
 function getClientFilters(req: any, user: any) {
+  // Drizzle condition arrays are typed as SQL<unknown>[] — `any[]` is
+  // intentional to allow heterogeneous filter conditions to accumulate
+  // before being spread into `and()`.
   const conditions: any[] = [];
   if (user.role === "branch_head" && user.branchId) {
     conditions.push(eq(clientsTable.branchId, user.branchId));
@@ -16,6 +19,8 @@ function getClientFilters(req: any, user: any) {
     conditions.push(eq(clientsTable.branchId, Number(req.query.branchId)));
   }
 
+  // clientType & gender columns use pg enums; the query string is
+  // validated at the DB level, so the `as any` cast is safe here.
   if (req.query.clientType) conditions.push(eq(clientsTable.clientType, req.query.clientType as any));
   if (req.query.clientSegment) conditions.push(eq(clientsTable.clientSegment, req.query.clientSegment as string));
   if (req.query.gender) conditions.push(eq(clientsTable.gender, req.query.gender as any));
@@ -97,20 +102,45 @@ router.get("/dashboard/branch-stats", requireAuth, async (req, res) => {
 
   const branches = await db.select().from(branchesTable).where(branchFilter);
 
-  const stats = await Promise.all(branches.map(async (branch) => {
-    const [total] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable).where(eq(clientsTable.branchId, branch.id));
-    const [completed] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable)
-      .where(and(eq(clientsTable.branchId, branch.id), eq(clientsTable.status, "completed")));
-    const [hunters] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable)
-      .where(and(eq(usersTable.branchId, branch.id), eq(usersTable.role, "hunter"), eq(usersTable.isActive, true)));
+  // Two aggregate queries instead of 3 per branch in Promise.all (N+1 fix)
+  const branchIds = branches.map(b => b.id);
 
-    return {
-      branchId: branch.id,
-      branchName: branch.name,
-      totalClients: total?.count ?? 0,
-      completedClients: completed?.count ?? 0,
-      activeHunters: hunters?.count ?? 0,
-    };
+  const clientStats = branchIds.length > 0
+    ? await db
+        .select({
+          branchId: clientsTable.branchId,
+          total: count(),
+          completed: sql<number>`count(*) filter (where ${clientsTable.status} = 'completed')`,
+        })
+        .from(clientsTable)
+        .where(inArray(clientsTable.branchId, branchIds))
+        .groupBy(clientsTable.branchId)
+    : [];
+
+  const hunterStats = branchIds.length > 0
+    ? await db
+        .select({
+          branchId: usersTable.branchId,
+          activeHunters: count(),
+        })
+        .from(usersTable)
+        .where(and(
+          inArray(usersTable.branchId, branchIds),
+          eq(usersTable.role, "hunter"),
+          eq(usersTable.isActive, true),
+        ))
+        .groupBy(usersTable.branchId)
+    : [];
+
+  const clientMap = new Map(clientStats.map(s => [s.branchId, s]));
+  const hunterMap = new Map(hunterStats.map(s => [s.branchId, s]));
+
+  const stats = branches.map(branch => ({
+    branchId: branch.id,
+    branchName: branch.name,
+    totalClients: clientMap.get(branch.id)?.total ?? 0,
+    completedClients: clientMap.get(branch.id)?.completed ?? 0,
+    activeHunters: hunterMap.get(branch.id)?.activeHunters ?? 0,
   }));
 
   res.json(stats);

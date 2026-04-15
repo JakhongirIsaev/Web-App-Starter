@@ -10,3 +10,17 @@ node_modules
 npm-debug.log*
 pnpm-debug.log*
 attached_assets/**/*.tmp
+
+# Secrets and key material must never be copied into an image layer.
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+*.pem
+*.key
+secrets/
+credentials.json
