@@ -2,6 +2,29 @@ import { Router } from "express";
 import { webhookCallback } from "grammy";
 import { getBot } from "../bot";
 
+type WebhookSecretDecision =
+  | { action: "verify"; secret: string }
+  | { action: "allow-unsigned" }
+  | { action: "reject" };
+
+/**
+ * Decide how the /telegram/webhook handler should treat an incoming request
+ * based on whether a secret is configured and whether we are in production.
+ *
+ * - prod + secret   → verify against X-Telegram-Bot-Api-Secret-Token
+ * - prod + no secret → reject (fail closed)
+ * - dev  + secret   → verify
+ * - dev  + no secret → allow (local tunnels like ngrok)
+ */
+export function decideWebhookSecret(
+  secret: string | undefined,
+  isProduction: boolean,
+): WebhookSecretDecision {
+  if (secret && secret.length > 0) return { action: "verify", secret };
+  if (isProduction) return { action: "reject" };
+  return { action: "allow-unsigned" };
+}
+
 const router = Router();
 
 router.post("/telegram/webhook", async (req, res) => {
@@ -11,23 +34,18 @@ router.post("/telegram/webhook", async (req, res) => {
     return;
   }
 
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const decision = decideWebhookSecret(
+    process.env.TELEGRAM_WEBHOOK_SECRET,
+    process.env.NODE_ENV === "production",
+  );
 
-  // Fail closed: if the secret is not configured we cannot verify the request
-  // origin. In production this must always be set; reject the request rather
-  // than silently accepting unsigned webhooks.
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      res.status(403).json({ error: "Webhook not configured" });
-      return;
-    }
-    // In development, allow unsigned webhooks for local tunnels (ngrok etc).
+  if (decision.action === "reject") {
+    res.status(403).json({ error: "Webhook not configured" });
+    return;
   }
 
-  // Grammy's webhookCallback verifies the X-Telegram-Bot-Api-Secret-Token
-  // header when secretToken is provided; undefined skips verification (dev only).
   const cb = webhookCallback(bot, "express", {
-    secretToken: secret,
+    secretToken: decision.action === "verify" ? decision.secret : undefined,
   });
 
   return cb(req, res);
