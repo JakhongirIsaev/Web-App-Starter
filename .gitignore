@@ -47,3 +47,15 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment files (never commit real credentials)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Credentials / keys
+*.pem
+*.key
+secrets/
+credentials.json
