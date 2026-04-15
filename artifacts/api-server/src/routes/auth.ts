@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -9,6 +10,23 @@ import { createSession, deleteSession, findSessionUserId } from "../lib/session-
 import { extractBearerToken } from "../middleware/auth";
 
 const router: IRouter = Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many login attempts. Try again later." },
+});
+
+const telegramLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Try again later." },
+});
 
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
@@ -70,7 +88,7 @@ router.get("/auth/me", async (req, res) => {
   });
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", loginLimiter, async (req, res) => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body" });
@@ -124,7 +142,7 @@ router.post("/auth/login", async (req, res) => {
   });
 });
 
-router.post("/auth/telegram", async (req, res) => {
+router.post("/auth/telegram", telegramLoginLimiter, async (req, res) => {
   const { initData } = req.body;
   if (!initData) {
     res.status(400).json({ error: "Missing initData" });

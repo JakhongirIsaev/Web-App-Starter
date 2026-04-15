@@ -11,6 +11,14 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+const trustProxyRaw = process.env.TRUST_PROXY;
+if (trustProxyRaw) {
+  const parsed = Number(trustProxyRaw);
+  app.set("trust proxy", Number.isFinite(parsed) && parsed >= 0 ? parsed : trustProxyRaw);
+} else if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   pinoHttp({
     logger,
@@ -39,14 +47,17 @@ app.use(helmet({
 const allowedOrigins = [
   process.env.ADMIN_URL,
   process.env.MINI_APP_URL,
-].filter(Boolean);
+  ...((process.env.EXTRA_CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)),
+].filter((value): value is string => Boolean(value));
+
+const corsAllowAllInDev = process.env.NODE_ENV !== "production" && allowedOrigins.length === 0;
 
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0) return callback(null, true);
+    if (corsAllowAllInDev) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(null, true);
+    return callback(new Error(`CORS: origin not allowed: ${origin}`));
   },
   credentials: true,
 }));
