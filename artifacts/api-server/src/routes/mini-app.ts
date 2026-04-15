@@ -951,7 +951,7 @@ router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req
   });
 });
 
-router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
+router.put("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = UpdateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
@@ -971,7 +971,7 @@ router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/notes", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = NoteBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
@@ -985,7 +985,7 @@ router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
   res.json(note);
 });
 
-router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/next-action", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = NextActionBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
@@ -1006,7 +1006,7 @@ router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) =
   res.json(action);
 });
 
-router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) => {
+router.put("/mini-app/next-actions/:id/complete", requireAuth, requireNextActionAccess, async (req, res) => {
   const [action] = await db
     .update(clientNextActionsTable)
     .set({ isCompleted: true, updatedAt: new Date() })
@@ -1016,7 +1016,7 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) 
   res.json(action);
 });
 
-router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
+router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = QuestionnaireBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
   const { clientId, answers } = parsed.data;
@@ -1066,7 +1066,7 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
   res.json(session);
 });
 
-router.post("/mini-app/recommend", requireAuth, async (req, res) => {
+router.post("/mini-app/recommend", requireAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
   const parsed = RecommendBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
   const { clientId, answers } = parsed.data;
@@ -1128,7 +1128,7 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
   });
 });
 
-router.post("/mini-app/basket", requireAuth, async (req, res) => {
+router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = BasketBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
   const { clientId, items } = parsed.data;
@@ -1176,7 +1176,7 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
   res.json({ basketId });
 });
 
-router.post("/mini-app/calculate", requireAuth, async (req, res) => {
+router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
   try {
   const calcParsed = CalculateBody.safeParse(req.body);
   if (!calcParsed.success) { res.status(400).json({ error: "Invalid body", details: calcParsed.error }); return; }
@@ -1429,7 +1429,7 @@ router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   res.json(docs);
 });
 
-router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
+router.put("/mini-app/documents/:id/ocr", requireAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const ocrParsed = OcrUpdateBody.safeParse(req.body);
   if (!ocrParsed.success) { res.status(400).json({ error: "Invalid body", details: ocrParsed.error }); return; }
@@ -1443,7 +1443,7 @@ router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
+router.delete("/mini-app/documents/:id", requireAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const [deleted] = await db
     .delete(clientDocumentsTable)
