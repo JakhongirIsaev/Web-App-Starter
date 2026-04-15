@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import Logo from "@/components/logo";
 import { buildApiUrl } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { getGetMeQueryKey } from "@workspace/api-client-react";
 
 const STRIPES = Array.from({ length: 40 }).map((_, i) => {
   const seed = Math.sin(i * 9301 + 49297) * 49297;
@@ -51,6 +53,7 @@ export default function Login() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const loginSchema = z.object({
     telegramId: z.string().min(1, t("login.telegramId")),
@@ -98,6 +101,7 @@ export default function Login() {
       }
 
       localStorage.setItem("auth_token", data.token);
+      queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       toast({
         title: t("login.welcomeBack"),
         description: t("login.loggedInAs", { name: data.user.name }),
