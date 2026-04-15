@@ -59,3 +59,9 @@ Thumbs.db
 *.key
 secrets/
 credentials.json
+
+# OMC (oh-my-claudecode) transient agent state — not code
+.omc/state/
+.omc/logs/
+.omc/notepad.md
+.omc/project-memory.json
