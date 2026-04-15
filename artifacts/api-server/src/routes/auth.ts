@@ -5,17 +5,19 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { LoginBody } from "@workspace/api-zod";
 import { validateTelegramInitData } from "../lib/telegram";
+import { createSession, deleteSession, findSessionUserId } from "../lib/session-store";
+import { extractBearerToken } from "../middleware/auth";
 
 const router: IRouter = Router();
 
 router.get("/auth/me", async (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const token = extractBearerToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
-  const userId = req.app.locals.sessions?.get(token);
+  const userId = await findSessionUserId(token);
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -96,11 +98,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-  if (!req.app.locals.sessions) {
-    req.app.locals.sessions = new Map<string, number>();
-  }
-  req.app.locals.sessions.set(token, user.id);
+  const { token } = await createSession(user.id);
 
   let branch = null;
   if (user.branchId) {
@@ -160,11 +158,7 @@ router.post("/auth/telegram", async (req, res) => {
   }
 
   const user = users[0];
-  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-  if (!req.app.locals.sessions) {
-    req.app.locals.sessions = new Map<string, number>();
-  }
-  req.app.locals.sessions.set(token, user.id);
+  const { token } = await createSession(user.id);
 
   let branch = null;
   if (user.branchId) {
@@ -188,10 +182,10 @@ router.post("/auth/telegram", async (req, res) => {
   });
 });
 
-router.post("/auth/logout", (req, res) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (token && req.app.locals.sessions) {
-    req.app.locals.sessions.delete(token);
+router.post("/auth/logout", async (req, res) => {
+  const token = extractBearerToken(req);
+  if (token) {
+    await deleteSession(token);
   }
   res.json({ success: true });
 });

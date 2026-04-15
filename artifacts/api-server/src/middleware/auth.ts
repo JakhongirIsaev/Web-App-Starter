@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, branchesTable } from "@workspace/db";
+import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { findSessionUserId } from "../lib/session-store";
 
 export interface AuthUser {
   id: number;
@@ -20,17 +21,22 @@ declare global {
   }
 }
 
+export function extractBearerToken(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  if (!header) return undefined;
+  const [scheme, value] = header.split(" ", 2);
+  if (scheme?.toLowerCase() !== "bearer" || !value) return undefined;
+  return value.trim() || undefined;
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  let token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token && req.query?.token) {
-    token = req.query.token as string;
-  }
+  const token = extractBearerToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
-  const userId = req.app.locals.sessions?.get(token);
+  const userId = await findSessionUserId(token);
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;

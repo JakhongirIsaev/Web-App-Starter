@@ -4,6 +4,7 @@ import path from "node:path";
 export default defineConfig({
   test: {
     include: ["src/__tests__/**/*.test.ts"],
+    setupFiles: ["src/__tests__/setup.ts"],
   },
   resolve: {
     alias: {

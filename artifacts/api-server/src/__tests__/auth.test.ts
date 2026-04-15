@@ -1,30 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
+import { extractBearerToken } from "../middleware/auth";
 
-describe("requireAuth — query token fallback logic", () => {
-  it("extracts token from Authorization header", () => {
-    const header = "Bearer abc123";
-    const token = header.replace("Bearer ", "");
-    expect(token).toBe("abc123");
+describe("extractBearerToken", () => {
+  it("extracts token from a well-formed Authorization header", () => {
+    const req = { headers: { authorization: "Bearer abc123" } } as any;
+    expect(extractBearerToken(req)).toBe("abc123");
   });
 
-  it("falls back to req.query.token when no Authorization header", () => {
-    const headers: Record<string, string | undefined> = {};
-    const query: Record<string, string | undefined> = { token: "query-token" };
-    let token = headers.authorization?.replace("Bearer ", "");
-    if (!token && query?.token) {
-      token = query.token as string;
-    }
-    expect(token).toBe("query-token");
+  it("is case-insensitive on the scheme", () => {
+    const req = { headers: { authorization: "bearer abc123" } } as any;
+    expect(extractBearerToken(req)).toBe("abc123");
   });
 
-  it("token is undefined when neither header nor query provides it", () => {
-    const headers: Record<string, string | undefined> = {};
-    const query: Record<string, string | undefined> = {};
-    let token = headers.authorization?.replace("Bearer ", "");
-    if (!token && query?.token) {
-      token = query.token as string;
-    }
-    expect(token).toBeUndefined();
+  it("returns undefined when header missing", () => {
+    const req = { headers: {} } as any;
+    expect(extractBearerToken(req)).toBeUndefined();
+  });
+
+  it("returns undefined for non-Bearer schemes", () => {
+    const req = { headers: { authorization: "Basic dXNlcjpwYXNz" } } as any;
+    expect(extractBearerToken(req)).toBeUndefined();
+  });
+
+  it("ignores token in query string (no fallback)", () => {
+    const req = { headers: {}, query: { token: "should-be-ignored" } } as any;
+    expect(extractBearerToken(req)).toBeUndefined();
+  });
+
+  it("returns undefined when Bearer is empty", () => {
+    const req = { headers: { authorization: "Bearer  " } } as any;
+    expect(extractBearerToken(req)).toBeUndefined();
   });
 });
 
@@ -44,14 +49,5 @@ describe("requireRole — pure role check", () => {
 
   it("rejects when no user", () => {
     expect(checkRole(undefined, ["superadmin"])).toBe(false);
-  });
-});
-
-describe("session lookup logic", () => {
-  it("finds user ID from session map", () => {
-    const sessions = new Map<string, number>();
-    sessions.set("token-abc", 42);
-    expect(sessions.get("token-abc")).toBe(42);
-    expect(sessions.get("nonexistent")).toBeUndefined();
   });
 });
