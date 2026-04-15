@@ -24,7 +24,6 @@ import {
 import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import {
-  verifyClientAccess,
   requireClientAccess,
   requireDocumentAccess,
   requireNextActionAccess,
@@ -1399,12 +1398,8 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
   res.json({ workers: workerStats, totalBranchClients: branchTotal.count });
 });
 
-router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/documents", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-  if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
   const docParsed = DocumentBody.safeParse(req.body);
   if (!docParsed.success) { res.status(400).json({ error: "Invalid body", details: docParsed.error }); return; }
   const { docType, fileName, storagePath, ocrText, extractedData } = docParsed.data;
@@ -1424,12 +1419,8 @@ router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => 
   res.status(201).json(doc);
 });
 
-router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/documents", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-  if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
   const docs = await db
     .select()
     .from(clientDocumentsTable)
@@ -1462,7 +1453,7 @@ router.delete("/mini-app/documents/:id", requireAuth, requireDocumentAccess, asy
   res.json({ success: true });
 });
 
-router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const user = req.user!;
   const pdfParsed = GeneratePdfBody.safeParse(req.body);
@@ -1471,11 +1462,6 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
   const telegramInitData = typeof pdfParsed.data.telegramInitData === "string"
     ? pdfParsed.data.telegramInitData.trim()
     : "";
-
-  if (!(await verifyClientAccess(clientId, user))) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
 
   const language = resolvePdfLanguage(pdfParsed.data.language);
   const payload = await buildPdfPayload(clientId, user, language);
@@ -1582,14 +1568,9 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
   res.send(buffer);
 });
 
-router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/download-pdf", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const language = resolvePdfLanguage(req.query.language);
-
-  if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
 
   const payload = await buildPdfPayload(clientId, req.user!, language);
   if (!payload) {
@@ -1615,13 +1596,8 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   }
 });
 
-router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/export", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-
-  if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
 
   const [client] = await db
     .select()
