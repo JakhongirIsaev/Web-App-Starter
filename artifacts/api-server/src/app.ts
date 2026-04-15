@@ -39,9 +39,49 @@ app.use(
   }),
 );
 
+// Content Security Policy.
+// - default-src 'self' keeps the baseline tight.
+// - frame-ancestors allows the mini-app to be embedded inside Telegram Web
+//   and the Telegram desktop/mobile clients (the official domains are
+//   *.telegram.org + web.telegram.org + telegram.org).
+// - script-src permits 'unsafe-inline' ONLY because the Vite-built SPAs
+//   still emit a small inline bootstrap; we accept it but keep 'unsafe-eval'
+//   off so new code paths don't silently regress.
+// - style-src allows 'unsafe-inline' for the same reason (Tailwind/shadcn).
+// - img-src allows data: + https: so the SPAs can show user-uploaded docs
+//   and Telegram-hosted avatars.
+// - connect-src 'self' is enough because all XHR is same-origin (/api/*).
+//   Add extra hosts here if the mini-app starts calling a third-party API.
+// - object-src 'none' blocks legacy <object>/<embed> vectors.
+const telegramFrameAncestors = [
+  "'self'",
+  "https://web.telegram.org",
+  "https://*.telegram.org",
+  "https://telegram.org",
+];
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'", "'unsafe-inline'"],
+      "style-src": ["'self'", "'unsafe-inline'", "https:"],
+      "img-src": ["'self'", "data:", "https:"],
+      "font-src": ["'self'", "data:", "https:"],
+      "connect-src": ["'self'"],
+      "frame-ancestors": telegramFrameAncestors,
+      "object-src": ["'none'"],
+      "base-uri": ["'self'"],
+      "form-action": ["'self'"],
+    },
+  },
+  // Keep COEP off — Telegram WebApp bootstrap needs to read postMessage
+  // events that would be cross-origin-isolated out of the frame.
   crossOriginEmbedderPolicy: false,
+  // CORP "same-origin" would block Telegram Web from embedding us; use
+  // "cross-origin" so the iframe can mount while other security headers
+  // (CSP frame-ancestors, X-Content-Type-Options) still defend the app.
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
 const allowedOrigins = [
