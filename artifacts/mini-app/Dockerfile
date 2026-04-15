@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY artifacts/mini-app/package.json artifacts/mini-app/package.json
+COPY scripts/ scripts/
 RUN pnpm install --frozen-lockfile
 
 COPY . .

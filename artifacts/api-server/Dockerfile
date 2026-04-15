@@ -17,6 +17,7 @@ COPY artifacts/api-server/package.json artifacts/api-server/package.json
 COPY artifacts/api-server/requirements.txt artifacts/api-server/requirements.txt
 COPY lib/db/package.json lib/db/package.json
 COPY lib/api-zod/package.json lib/api-zod/package.json
+COPY scripts/ scripts/
 
 RUN pnpm install --frozen-lockfile
 
