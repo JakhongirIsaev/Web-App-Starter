@@ -5,6 +5,28 @@
  */
 import { z } from "zod";
 
+// Desired loan amount: client stores as string (often space-separated, e.g. "1 000 000").
+// Business rule: between 1_000_000 and 100_000_000_000 — matches questionnaire UI bounds.
+// Without this refinement a caller hitting the API directly could submit any value.
+export const DESIRED_AMOUNT_MIN = 1_000_000;
+export const DESIRED_AMOUNT_MAX = 100_000_000_000;
+
+const desiredAmountSchema = z
+  .string()
+  .optional()
+  .refine(
+    (v) => {
+      if (v === undefined || v === "") return true;
+      const digits = v.replace(/[\s\u00A0,_]/g, "");
+      if (!/^\d+$/.test(digits)) return false;
+      const n = Number(digits);
+      return Number.isFinite(n) && n >= DESIRED_AMOUNT_MIN && n <= DESIRED_AMOUNT_MAX;
+    },
+    {
+      message: `desiredAmount must be a number between ${DESIRED_AMOUNT_MIN} and ${DESIRED_AMOUNT_MAX}`,
+    },
+  );
+
 export const MiniAppCalculateBody = z.object({
   clientId: z.number().optional(),
   productName: z.string().min(1).optional(),
@@ -45,7 +67,7 @@ export const MiniAppCreateClientBody = z.object({
   businessSize: z.string().optional(),
   needType: z.string().optional(),
   loanPurpose: z.string().optional(),
-  desiredAmount: z.string().optional(),
+  desiredAmount: desiredAmountSchema,
   desiredTerm: z.string().optional(),
   telegramInitData: z.string().optional(),
 });
@@ -58,7 +80,7 @@ export const MiniAppUpdateClientBody = z.object({
   businessSize: z.string().optional(),
   needType: z.string().optional(),
   loanPurpose: z.string().optional(),
-  desiredAmount: z.string().optional(),
+  desiredAmount: desiredAmountSchema,
   desiredTerm: z.string().optional(),
 });
 
