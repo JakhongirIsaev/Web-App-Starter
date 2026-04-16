@@ -975,7 +975,7 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, requireNextAction
 router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = QuestionnaireBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
-  const { clientId, answers } = parsed.data;
+  const { clientId, answers, clearBasket } = parsed.data;
 
   const session = await db.transaction(async (tx) => {
     const [createdSession] = await tx
@@ -998,18 +998,12 @@ router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody(
       );
     }
 
-    const activeBaskets = await tx
-      .select({ id: basketsTable.id })
-      .from(basketsTable)
-      .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
-
-    if (activeBaskets.length > 0) {
-      const basketIds = activeBaskets.map((item) => item.id);
-      await tx.delete(basketItemsTable).where(inArray(basketItemsTable.basketId, basketIds));
-      await tx.delete(basketsTable).where(inArray(basketsTable.id, basketIds));
+    if (clearBasket) {
+      await tx
+        .update(basketsTable)
+        .set({ status: "archived", updatedAt: new Date() })
+        .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
     }
-
-    await tx.delete(calculationsTable).where(eq(calculationsTable.clientId, clientId));
 
     await tx
       .update(clientsTable)
@@ -1426,6 +1420,24 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAcce
     return;
   }
 
+  // Guard: refuse to emit a PDF for a client whose active basket is empty.
+  // Without this check the expert receives a KP with no products attached.
+  const [activeBasket] = await db
+    .select({ id: basketsTable.id })
+    .from(basketsTable)
+    .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")))
+    .limit(1);
+  const basketItemCount = activeBasket
+    ? (await db
+        .select({ count: count() })
+        .from(basketItemsTable)
+        .where(eq(basketItemsTable.basketId, activeBasket.id)))[0]?.count ?? 0
+    : 0;
+  if (!activeBasket || basketItemCount === 0) {
+    res.status(400).json({ error: "Basket is empty", code: "basket_empty" });
+    return;
+  }
+
   try {
     const pdfBuffer = await generateClientPdf({
       ...payload,
@@ -1450,6 +1462,18 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAcce
       const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
       const caption = `📋 Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\n👤 Ekspert: ${payload.expertName}`;
       telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
+    }
+
+    // If caller asked for Telegram delivery but it failed (no target or send returned false),
+    // do NOT advance client.status — surface the failure so the UI can retry.
+    if (sendViaTelegram && !telegramSent) {
+      res.status(502).json({
+        error: "Telegram delivery failed",
+        code: "telegram_delivery_failed",
+        telegramSent: false,
+        pdfSize: pdfBuffer.length,
+      });
+      return;
     }
 
     await db
