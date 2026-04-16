@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { Plus, Search, ChevronRight, User, Download } from "lucide-react";
-import { fmtDate, formatFileDate } from "@/lib/format";
+import { Plus, Search, ChevronRight, User } from "lucide-react";
+import { fmtDate } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -35,40 +35,16 @@ export default function ClientsPage() {
     !search || (c.fullName || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const exportAllMutation = useMutation({
-    mutationFn: async () => {
-      const blob = await api.getBlob("/mini-app/clients/export-all");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `all_clients_export_${formatFileDate()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-
-  const statuses = ["", "draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"];
+  const statuses = ["", "draft", "questionnaire", "recommendation", "basket", "pdf_generated", "under_review", "approved", "completed", "rejected"];
 
   return (
     <div className="space-y-3 pb-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-bold">{t("clients.title")}</h1>
-        <div className="flex flex-wrap gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => exportAllMutation.mutate()}
-            disabled={exportAllMutation.isPending}
-            className="gap-1"
-          >
-            <Download className="w-4 h-4" />
-            {t("common.exportAll")}
-          </Button>
-          <Button size="sm" onClick={() => navigate("/new-client")} className="gap-1">
-            <Plus className="w-4 h-4" />
-            {t("clients.newClient")}
-          </Button>
-        </div>
+        <Button size="sm" onClick={() => navigate("/new-client")} className="gap-1">
+          <Plus className="w-4 h-4" />
+          {t("clients.newClient")}
+        </Button>
       </div>
 
       <div className="relative">

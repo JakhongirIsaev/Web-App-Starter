@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Download, Image as ImageIcon, X, Eye, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Image as ImageIcon, X, Eye, MapPin } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
 const statusColors: Record<string, string> = {
@@ -103,18 +103,6 @@ export default function ClientDetailPage() {
     },
     onError: (err: any) => {
       setPdfError(err?.message || String(err) || "Failed to generate PDF");
-    },
-  });
-
-  const exportMutation = useMutation({
-    mutationFn: async () => {
-      const blob = await api.getBlob(`/mini-app/clients/${params.id}/export`);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `client_${params.id}_export.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
     },
   });
 
