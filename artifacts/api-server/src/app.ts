@@ -141,4 +141,6 @@ function mountSpa(mount: string, distRelative: string) {
 mountSpa("/mini-app", "artifacts/mini-app/dist/public");
 mountSpa("/admin", "artifacts/admin/dist/public");
 
+// deploy-trigger: 2026-04-16T11:30Z (mini-app i18n + favicon revert)
+
 export default app;
