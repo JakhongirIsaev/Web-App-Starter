@@ -253,7 +253,7 @@ router.post("/clients/import", requireAuth, requireRole("superadmin", "head_offi
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
-    const validStatuses = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed", "rejected"] as const;
+    const validStatuses = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "under_review", "approved", "completed", "rejected"] as const;
     type ClientStatus = typeof validStatuses[number];
     const isClientStatus = (s: string): s is ClientStatus => (validStatuses as readonly string[]).includes(s);
 

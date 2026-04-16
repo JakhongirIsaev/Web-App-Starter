@@ -113,6 +113,8 @@ export const ClientStatus = {
   recommendation: "recommendation",
   basket: "basket",
   pdf_generated: "pdf_generated",
+  under_review: "under_review",
+  approved: "approved",
   completed: "completed",
   rejected: "rejected",
 } as const;
@@ -200,6 +202,8 @@ export const UpdateClientBodyStatus = {
   recommendation: "recommendation",
   basket: "basket",
   pdf_generated: "pdf_generated",
+  under_review: "under_review",
+  approved: "approved",
   completed: "completed",
   rejected: "rejected",
 } as const;
@@ -327,6 +331,7 @@ export interface Article {
 export interface CreateArticleBody {
   title: string;
   content: string;
+  category?: string;
   isPublished?: boolean;
   targetAllBranches?: boolean;
   branchIds?: number[];
@@ -335,6 +340,7 @@ export interface CreateArticleBody {
 export interface UpdateArticleBody {
   title?: string;
   content?: string;
+  category?: string;
   isPublished?: boolean;
   targetAllBranches?: boolean;
   branchIds?: number[];

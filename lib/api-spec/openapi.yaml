@@ -945,7 +945,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, questionnaire, recommendation, basket, pdf_generated, completed, rejected]
+          enum: [draft, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         branchId:
           type: integer
         branch:
@@ -1036,7 +1036,7 @@ components:
           type: string
         status:
           type: string
-          enum: [draft, questionnaire, recommendation, basket, pdf_generated, completed, rejected]
+          enum: [draft, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         assignedToId:
           type: integer
         clientType:
@@ -1211,6 +1211,8 @@ components:
           type: string
         content:
           type: string
+        category:
+          type: string
         isPublished:
           type: boolean
         targetAllBranches:
@@ -1227,6 +1229,8 @@ components:
         title:
           type: string
         content:
+          type: string
+        category:
           type: string
         isPublished:
           type: boolean

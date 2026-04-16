@@ -14,6 +14,8 @@ export const ClientStatus = {
   recommendation: "recommendation",
   basket: "basket",
   pdf_generated: "pdf_generated",
+  under_review: "under_review",
+  approved: "approved",
   completed: "completed",
   rejected: "rejected",
 } as const;

@@ -9,6 +9,7 @@
 export interface CreateArticleBody {
   title: string;
   content: string;
+  category?: string;
   isPublished?: boolean;
   targetAllBranches?: boolean;
   branchIds?: number[];

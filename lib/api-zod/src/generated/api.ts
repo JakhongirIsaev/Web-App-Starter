@@ -387,6 +387,8 @@ export const ListClientsResponse = zod.object({
         "recommendation",
         "basket",
         "pdf_generated",
+        "under_review",
+        "approved",
         "completed",
         "rejected",
       ]),
@@ -479,6 +481,8 @@ export const GetClientResponse = zod.object({
     "recommendation",
     "basket",
     "pdf_generated",
+    "under_review",
+    "approved",
     "completed",
     "rejected",
   ]),
@@ -549,6 +553,8 @@ export const UpdateClientBody = zod.object({
       "recommendation",
       "basket",
       "pdf_generated",
+      "under_review",
+      "approved",
       "completed",
       "rejected",
     ])
@@ -573,6 +579,8 @@ export const UpdateClientResponse = zod.object({
     "recommendation",
     "basket",
     "pdf_generated",
+    "under_review",
+    "approved",
     "completed",
     "rejected",
   ]),
@@ -835,10 +843,10 @@ export const ListArticlesResponse = zod.array(ListArticlesResponseItem);
 export const CreateArticleBody = zod.object({
   title: zod.string(),
   content: zod.string(),
+  category: zod.string().optional(),
   isPublished: zod.boolean().optional(),
   targetAllBranches: zod.boolean().optional(),
   branchIds: zod.array(zod.number()).optional(),
-  category: zod.string().optional(),
 });
 
 /**
@@ -898,10 +906,10 @@ export const UpdateArticleParams = zod.object({
 export const UpdateArticleBody = zod.object({
   title: zod.string().optional(),
   content: zod.string().optional(),
+  category: zod.string().optional(),
   isPublished: zod.boolean().optional(),
   targetAllBranches: zod.boolean().optional(),
   branchIds: zod.array(zod.number()).optional(),
-  category: zod.string().optional(),
 });
 
 export const UpdateArticleResponse = zod.object({
