@@ -39,7 +39,13 @@ Recommended external dependency:
 
 Use the repository root as the working directory for every app service so workspace packages, shared libraries, and root Python files stay available.
 
-Do not add a single root `railway.toml` for this repo. Each service needs a different build/start command, so Railway should keep those values in the individual service settings.
+Do not keep a single root `railway.toml` for this repo — Railway applies a root config to **every** service in the project, which breaks the admin and mini-app services (they would inherit the api-server Dockerfile + `/api/healthz` check and fail to start). Use per-service config files instead and point each Railway service to its own file via **Settings → Config-as-Code Path**:
+
+- `@workspace/api-server` → `artifacts/api-server/railway.toml`
+- `@workspace/admin` → `artifacts/admin/railway.toml`
+- `@workspace/mini-app` → `artifacts/mini-app/railway.toml`
+
+Each of those files pins the correct Dockerfile, start command, and healthcheck for that service.
 
 ### `backend-api`
 

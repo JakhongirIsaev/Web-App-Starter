@@ -2,7 +2,7 @@
 builder = "DOCKERFILE"
 dockerfilePath = "artifacts/api-server/Dockerfile"
 buildCommand = "pnpm --filter @workspace/api-server build"
-# api-server bundles + serves the mini-app and admin SPAs, so it must rebuild
+# api-server also serves the mini-app and admin SPA bundles, so it must rebuild
 # whenever those workspaces change — not just on api-server source edits.
 watchPatterns = [
   "artifacts/api-server/**",
@@ -12,7 +12,7 @@ watchPatterns = [
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
-  "railway.toml",
+  "artifacts/api-server/railway.toml",
 ]
 
 [deploy]
