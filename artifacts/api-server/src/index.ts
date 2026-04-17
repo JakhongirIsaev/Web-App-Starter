@@ -29,9 +29,14 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
+  const miniAppUrlEnv = process.env["MINI_APP_URL"]?.trim();
+  if (process.env.NODE_ENV === "production" && !miniAppUrlEnv) {
+    logger.error("MINI_APP_URL is required in production — refusing to start the bot with a dev fallback URL.");
+    throw new Error("MINI_APP_URL must be set in production.");
+  }
   const domain = process.env["REPLIT_DEV_DOMAIN"] || process.env["REPLIT_DOMAINS"]?.split(",")[0];
   const miniAppUrl =
-    process.env["MINI_APP_URL"]?.trim() ||
+    miniAppUrlEnv ||
     (domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/");
   startBot(miniAppUrl).catch((err) => {
     logger.error({ err }, "Failed to start Telegram bot");

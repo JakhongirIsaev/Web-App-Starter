@@ -51,21 +51,30 @@ Do not add a single root `railway.toml` for this repo. Each service needs a diff
 - Port: `PORT`
 - Healthcheck path: `/api/healthz`
 
-Required env vars:
+Required env vars (all environments):
 
 - `PORT`
 - `DATABASE_URL`
 - `TZ=Asia/Tashkent`
 
+Required in production (process refuses to start without these):
+
+- `NODE_ENV=production`
+- `MINI_APP_URL` — public mini-app URL sent to Telegram users.
+- `ADMIN_URL` (and/or `EXTRA_CORS_ORIGINS`) — at least one CORS origin must be set.
+- `TELEGRAM_WEBHOOK_URL` — public HTTPS webhook endpoint.
+- `TELEGRAM_WEBHOOK_SECRET` — verified against `X-Telegram-Bot-Api-Secret-Token`.
+- `TELEGRAM_BOT_TOKEN` — required to start the bot / webhook handler.
+
 Optional env vars:
 
-- `MINI_APP_URL`
-- `TELEGRAM_BOT_TOKEN`
 - `LOG_LEVEL`
 - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
 - `OLLAMA_MODEL=gemma3:4b`
 - `PUBLIC_OBJECT_SEARCH_PATHS`
 - `PRIVATE_OBJECT_DIR`
+- `TRUST_PROXY=true` (or number of hops) behind Railway's proxy.
+- `SESSION_TTL_MS` (default 7 days).
 
 ### `admin`
 

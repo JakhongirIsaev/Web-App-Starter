@@ -90,7 +90,14 @@ const allowedOrigins = [
   ...((process.env.EXTRA_CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)),
 ].filter((value): value is string => Boolean(value));
 
-const corsAllowAllInDev = process.env.NODE_ENV !== "production" && allowedOrigins.length === 0;
+const isProduction = process.env.NODE_ENV === "production";
+const corsAllowAllInDev = !isProduction && allowedOrigins.length === 0;
+
+if (isProduction && allowedOrigins.length === 0) {
+  throw new Error(
+    "CORS: no allowed origins configured. Set ADMIN_URL and MINI_APP_URL (or EXTRA_CORS_ORIGINS) in production.",
+  );
+}
 
 app.use(cors({
   origin(origin, callback) {

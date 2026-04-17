@@ -65,3 +65,6 @@ credentials.json
 .omc/logs/
 .omc/notepad.md
 .omc/project-memory.json
+
+# Design handoff assets (kept out of repo — tracked separately)
+design_handoff_minerva/
