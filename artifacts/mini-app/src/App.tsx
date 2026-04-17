@@ -14,6 +14,10 @@ import QuestionnairePage from "@/pages/questionnaire";
 import RecommendationPage from "@/pages/recommendation";
 import CalculatorPage from "@/pages/calculator";
 import KnowledgePage from "@/pages/knowledge";
+import CatalogPage from "@/pages/catalog";
+import BasketPage from "@/pages/basket";
+import PdfSharePage from "@/pages/pdf-share";
+import ProfilePage from "@/pages/profile";
 import ProductsPage from "@/pages/products";
 import ScanDocumentPage from "@/pages/scan-document";
 import CreditLinesPage from "@/pages/credit-lines";
@@ -49,6 +53,10 @@ function AuthGate() {
           <Route path="/recommendation/:clientId" component={RecommendationPage} />
           <Route path="/calculator" component={CalculatorPage} />
           <Route path="/knowledge" component={KnowledgePage} />
+          <Route path="/catalog" component={CatalogPage} />
+          <Route path="/basket/:clientId" component={BasketPage} />
+          <Route path="/pdf-share/:clientId" component={PdfSharePage} />
+          <Route path="/profile" component={ProfilePage} />
           <Route path="/products" component={ProductsPage} />
           <Route path="/credit-lines" component={CreditLinesPage} />
           <Route path="/scan/:clientId" component={ScanDocumentPage} />

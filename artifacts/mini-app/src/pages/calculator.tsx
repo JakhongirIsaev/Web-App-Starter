@@ -2,16 +2,15 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { fmtDate, fmtNum, getTashkentDateByMonthOffset } from "@/lib/format";
-import { Calculator as CalcIcon, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { Calculator as CalcIcon, ChevronDown, ChevronUp, Download, Share2 } from "lucide-react";
 
 export default function CalculatorPage() {
   const { t } = useTranslation();
   const urlParams = new URLSearchParams(window.location.search);
   const clientId = urlParams.get("clientId");
+  const clientName = urlParams.get("clientName") || "";
 
   const [creditType, setCreditType] = useState("consumer");
   const [productCost, setProductCost] = useState("");
@@ -98,242 +97,377 @@ export default function CalculatorPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleShare = () => {
+    if (!result) return;
+    const monthlyPayment = result.summary.totalPayment / parseInt(termMonths);
+    const text = [
+      `${t("calculator.title")}`,
+      `${t("calculator.loanAmount")}: ${formatWithSpaces(loanAmount)} ${currency}`,
+      `${t("calculator.interestRate")}: ${interestRate}%`,
+      `${t("calculator.loanTerm")}: ${termMonths} ${t("calculator.months")}`,
+      `${t("calculator.monthlyPayment") || "Ежемесячный платёж"}: ${formatWithSpaces(monthlyPayment)} ${currency}`,
+      `${t("calculator.totalPayment")}: ${formatWithSpaces(result.summary.totalPayment)} ${currency}`,
+    ].join("\n");
+
+    if (navigator.share) {
+      navigator.share({ text }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(text);
+    }
+  };
+
+  const monthlyPayment = result
+    ? result.summary.totalPayment / parseInt(termMonths)
+    : 0;
+  const effectiveRateDisplay = result
+    ? ((result.summary.totalInterest / loanAmount) * 100 / (parseInt(termMonths) / 12)).toFixed(1)
+    : "0";
+
   return (
-    <div className="space-y-4 pb-4">
-      <div className="flex items-center gap-2">
-        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-          <CalcIcon className="w-5 h-5 text-primary" />
+    <div className="min-h-screen" style={{ background: "#F4F4F5" }}>
+      {/* ── White header bar ── */}
+      <div className="mn-card mx-4 mt-4 px-4 py-3 flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "#FFFBEB", color: "#D97706" }}
+        >
+          <CalcIcon className="w-5 h-5" />
         </div>
-        <div>
-          <h1 className="text-lg font-bold">{t("calculator.title")}</h1>
+        <div className="min-w-0">
+          <h1 className="text-[15px] font-bold" style={{ color: "#0F172A" }}>
+            {t("calculator.title")}
+          </h1>
+          {clientName && (
+            <p className="text-[13px] truncate" style={{ color: "#64748B" }}>
+              {clientName}
+            </p>
+          )}
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.creditType")}</label>
-            <select
-              value={creditType}
-              onChange={(e) => setCreditType(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      {/* ── Form card ── */}
+      <div className="mn-card mx-4 mt-3 p-4 space-y-4">
+        {/* Credit type */}
+        <div>
+          <label className="mn-label">{t("calculator.creditType")}</label>
+          <select
+            value={creditType}
+            onChange={(e) => setCreditType(e.target.value)}
+            className="mn-select"
+          >
+            <option value="consumer">{t("calculator.creditTypes.consumer")}</option>
+            <option value="business">{t("calculator.creditTypes.business")}</option>
+            <option value="micro">{t("calculator.creditTypes.micro")}</option>
+            <option value="mortgage">{t("calculator.creditTypes.mortgage")}</option>
+            <option value="auto">{t("calculator.creditTypes.auto")}</option>
+          </select>
+        </div>
+
+        {/* Product cost with currency suffix */}
+        <div>
+          <label className="mn-label">{t("calculator.productCost")}</label>
+          <div className="relative">
+            <input
+              type="number"
+              value={productCost}
+              onChange={(e) => setProductCost(e.target.value)}
+              placeholder="50 000 000"
+              className="mn-input"
+              style={{ paddingRight: 56 }}
+            />
+            <span
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+              style={{ color: "#64748B" }}
             >
-              <option value="consumer">{t("calculator.creditTypes.consumer")}</option>
-              <option value="business">{t("calculator.creditTypes.business")}</option>
-              <option value="micro">{t("calculator.creditTypes.micro")}</option>
-              <option value="mortgage">{t("calculator.creditTypes.mortgage")}</option>
-              <option value="auto">{t("calculator.creditTypes.auto")}</option>
+              {currency}
+            </span>
+          </div>
+        </div>
+
+        {/* Down payment + Term — 2-col */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mn-label">{t("calculator.downPaymentPct")}</label>
+            <div className="relative">
+              <input
+                type="number"
+                value={downPaymentPct}
+                onChange={(e) => setDownPaymentPct(e.target.value)}
+                min="0"
+                max="100"
+                className="mn-input"
+                style={{ paddingRight: 36 }}
+              />
+              <span
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+                style={{ color: "#64748B" }}
+              >
+                %
+              </span>
+            </div>
+            {cost > 0 && dpPct > 0 && (
+              <p className="text-[12px] mt-1" style={{ color: "#64748B" }}>
+                = {fmtNum(downPaymentAmount)} {currency}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="mn-label">{t("calculator.loanTerm")}</label>
+            <div className="relative">
+              <input
+                type="number"
+                value={termMonths}
+                onChange={(e) => setTermMonths(e.target.value)}
+                className="mn-input"
+                style={{ paddingRight: 44 }}
+              />
+              <span
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium"
+                style={{ color: "#64748B" }}
+              >
+                {t("calculator.months")}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Rate + Repayment type — 2-col */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mn-label">{t("calculator.interestRate")}</label>
+            <div className="relative">
+              <input
+                type="number"
+                step="0.1"
+                value={interestRate}
+                onChange={(e) => setInterestRate(e.target.value)}
+                className="mn-input"
+                style={{ paddingRight: 36 }}
+              />
+              <span
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+                style={{ color: "#64748B" }}
+              >
+                %
+              </span>
+            </div>
+            <select
+              value={rateType}
+              onChange={(e) => setRateType(e.target.value)}
+              className="mt-1.5 w-full text-[12px] rounded-lg border border-[#E2E8F0] px-2 py-1.5 outline-none"
+              style={{ color: "#64748B" }}
+            >
+              <option value="annual">{t("calculator.rateAnnual")}</option>
+              <option value="monthly">{t("calculator.rateMonthly")}</option>
             </select>
           </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.productCost")}</label>
-              <Input
-                type="number"
-                value={productCost}
-                onChange={(e) => setProductCost(e.target.value)}
-                placeholder="50 000 000"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.currency")}</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                <option value="UZS">{t("calculator.currencyUZS")}</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.downPaymentPct")}</label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  value={downPaymentPct}
-                  onChange={(e) => setDownPaymentPct(e.target.value)}
-                  min="0"
-                  max="100"
-                />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">%</span>
-              </div>
-            </div>
-            <div className="flex items-end pb-1.5">
-              {cost > 0 && dpPct > 0 && (
-                <span className="text-xs text-muted-foreground text-right w-full">
-                  = {fmtNum(downPaymentAmount)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.loanAmount")}</label>
-              <Input
-                type="number"
-                value={loanAmount > 0 ? loanAmount.toString() : ""}
-                readOnly
-                className="bg-muted/30"
-              />
-            </div>
-            <div className="flex items-end">
-              <div className="flex h-9 items-center text-xs text-muted-foreground">
-                {currency === "UZS" ? t("calculator.currencyUZS") : currency}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.gracePeriod")}</label>
-              <div className="flex gap-1">
-                <Input type="number" value={gracePeriod} onChange={(e) => setGracePeriod(e.target.value)} min="0" />
-                <span className="text-xs text-muted-foreground self-center whitespace-nowrap">{t("calculator.months")}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.interestRate")}</label>
-              <Input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">&nbsp;</label>
-              <select
-                value={rateType}
-                onChange={(e) => setRateType(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="annual">{t("calculator.rateAnnual")}</option>
-                <option value="monthly">{t("calculator.rateMonthly")}</option>
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.repaymentType")}</label>
+            <label className="mn-label">{t("calculator.repaymentType")}</label>
             <select
               value={repaymentType}
               onChange={(e) => setRepaymentType(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="mn-select"
             >
               <option value="annuity">{t("calculator.annuity")}</option>
               <option value="differentiated">{t("calculator.differentiated")}</option>
             </select>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.loanTerm")}</label>
-              <Input type="number" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} />
+        {/* Grace period (hidden row, small) */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mn-label">{t("calculator.gracePeriod")}</label>
+            <div className="relative">
+              <input
+                type="number"
+                value={gracePeriod}
+                onChange={(e) => setGracePeriod(e.target.value)}
+                min="0"
+                className="mn-input"
+                style={{ paddingRight: 44 }}
+              />
+              <span
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-medium"
+                style={{ color: "#64748B" }}
+              >
+                {t("calculator.months")}
+              </span>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">&nbsp;</label>
-              <div className="flex h-9 items-center px-3 text-sm text-muted-foreground">{t("calculator.months")}</div>
+          </div>
+          <div>
+            <label className="mn-label">{t("calculator.currency")}</label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="mn-select"
+            >
+              <option value="UZS">{t("calculator.currencyUZS")}</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Calculate button */}
+        <Button
+          className="w-full h-12 text-[15px] font-semibold rounded-xl"
+          style={{ background: "#16A34A", color: "#fff" }}
+          onClick={() => calcMutation.mutate()}
+          disabled={!canCalc || calcMutation.isPending}
+        >
+          {calcMutation.isPending ? t("calculator.calculating") : t("calculator.calculate")}
+        </Button>
+      </div>
+
+      {/* ── Results section ── */}
+      {result && (
+        <>
+          {/* 2x2 KPI grid */}
+          <div className="mn-card mx-4 mt-3 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Monthly payment — accent green */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: "#ECFDF5" }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
+                  {t("calculator.monthlyPayment") || "Ежемесячный платёж"}
+                </p>
+                <p className="text-[20px] font-bold mt-1 leading-tight" style={{ color: "#16A34A" }}>
+                  {formatWithSpaces(monthlyPayment)}
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{currency}</p>
+              </div>
+
+              {/* Total interest */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: "#F8FAFC" }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
+                  {t("calculator.totalInterest")}
+                </p>
+                <p className="text-[18px] font-bold mt-1 leading-tight" style={{ color: "#0F172A" }}>
+                  {formatWithSpaces(result.summary.totalInterest)}
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{currency}</p>
+              </div>
+
+              {/* Total payment */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: "#F8FAFC" }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
+                  {t("calculator.totalPayment")}
+                </p>
+                <p className="text-[18px] font-bold mt-1 leading-tight" style={{ color: "#0F172A" }}>
+                  {formatWithSpaces(result.summary.totalPayment)}
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{currency}</p>
+              </div>
+
+              {/* Effective rate */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: "#F8FAFC" }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
+                  {t("calculator.effectiveRate") || "Эффект. ставка"}
+                </p>
+                <p className="text-[18px] font-bold mt-1 leading-tight" style={{ color: "#0F172A" }}>
+                  {effectiveRateDisplay}%
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>
+                  {t("calculator.rateAnnual")}
+                </p>
+              </div>
             </div>
           </div>
 
-          <Button
-            className="w-full h-12 text-base font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-full active:scale-95 transition-transform"
-            onClick={() => calcMutation.mutate()}
-            disabled={!canCalc || calcMutation.isPending}
-          >
-            {calcMutation.isPending ? t("calculator.calculating") : t("calculator.calculate")}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {result && (
-        <>
-          <Card className="border-primary/30">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">{t("calculator.loanParams")}</h3>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <p>{t("calculator.productCost")}: <span className="text-foreground font-medium">{formatWithSpaces(cost)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
-                    <p>{t("calculator.downPaymentPct")}: <span className="text-foreground font-medium">{dpPct} %</span></p>
-                    <p>{t("calculator.loanAmount")}: <span className="text-foreground font-medium">{formatWithSpaces(loanAmount)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
-                    <p>{t("calculator.loanTerm")}: <span className="text-foreground font-medium">{termMonths} {t("calculator.months")}</span></p>
-                    <p>{t("calculator.interestRate")}: <span className="text-foreground font-medium">{interestRate}% {rateType === "annual" ? t("calculator.rateAnnual") : t("calculator.rateMonthly")}</span></p>
-                    <p>{t("calculator.repaymentType")}: <span className="text-foreground font-medium">{repaymentType === "annuity" ? t("calculator.annuity") : t("calculator.differentiated")}</span></p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">{t("calculator.calcResults")}</h3>
-                  <div className="space-y-1 text-xs">
-                    <p className="text-muted-foreground">{t("calculator.totalPayment")}: <span className="text-foreground font-bold">{formatWithSpaces(result.summary.totalPayment)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
-                    <p className="text-muted-foreground">{t("calculator.totalInterest")}: <span className="text-foreground font-bold">{formatWithSpaces(result.summary.totalInterest)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}</span></p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Button
-            variant="outline"
-            className="w-full h-10 border-primary text-primary hover:bg-primary/10"
-            onClick={handleDownload}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {t("calculator.download")}
-          </Button>
-
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-base">{t("calculator.schedule")}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="bg-amber-500 text-white">
-                      <th className="p-1.5 text-left">№</th>
-                      <th className="p-1.5 text-left">{t("calculator.date")}</th>
-                      <th className="p-1.5 text-right">{t("calculator.loanBalance")}</th>
-                      <th className="p-1.5 text-right">{t("calculator.principalPart")}</th>
-                      <th className="p-1.5 text-right">{t("calculator.interestPart")}</th>
-                      <th className="p-1.5 text-right">{t("calculator.totalDue")}</th>
+          {/* Schedule table */}
+          <div className="mn-card mx-4 mt-3 overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <h2 className="text-[15px] font-bold" style={{ color: "#0F172A" }}>
+                {t("calculator.schedule")}
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr style={{ background: "#F8FAFC" }}>
+                    <th className="px-4 py-2.5 text-left font-semibold" style={{ color: "#64748B" }}>#</th>
+                    <th className="px-3 py-2.5 text-left font-semibold" style={{ color: "#64748B" }}>{t("calculator.date")}</th>
+                    <th className="px-3 py-2.5 text-right font-semibold" style={{ color: "#64748B" }}>{t("calculator.interestPart")}</th>
+                    <th className="px-4 py-2.5 text-right font-semibold" style={{ color: "#64748B" }}>{t("calculator.totalDue")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedulePreview.map((row: any, idx: number) => (
+                    <tr
+                      key={row.month}
+                      style={{
+                        borderBottom: "1px solid #F1F5F9",
+                        background: idx % 2 === 1 ? "#FAFAFA" : "#fff",
+                      }}
+                    >
+                      <td className="px-4 py-2.5 font-mono" style={{ color: "#64748B" }}>{row.month}</td>
+                      <td className="px-3 py-2.5" style={{ color: "#0F172A" }}>{getPaymentDate(row.month)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono" style={{ color: "#64748B" }}>
+                        {formatWithSpaces(row.interest)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-semibold" style={{ color: "#0F172A" }}>
+                        {formatWithSpaces(row.payment)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {schedulePreview.map((row: any) => (
-                      <tr key={row.month} className="border-b even:bg-muted/30">
-                        <td className="p-1.5">{row.month}</td>
-                        <td className="p-1.5">{getPaymentDate(row.month)}</td>
-                        <td className="p-1.5 text-right">{formatWithSpaces(row.remaining + row.principal)}</td>
-                        <td className="p-1.5 text-right">{formatWithSpaces(row.principal)}</td>
-                        <td className="p-1.5 text-right">{formatWithSpaces(row.interest)}</td>
-                        <td className="p-1.5 text-right font-medium">{formatWithSpaces(row.payment)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {result.schedule?.length > 6 && (
-                <button
-                  onClick={() => setShowFullSchedule(!showFullSchedule)}
-                  className="w-full p-2 text-xs text-primary font-medium flex items-center justify-center gap-1"
-                >
-                  {showFullSchedule ? (
-                    <>
-                      <ChevronUp className="w-3 h-3" /> {t("common.close")}
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="w-3 h-3" /> {t("calculator.showAll")} ({result.schedule.length})
-                    </>
-                  )}
-                </button>
-              )}
-            </CardContent>
-          </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {result.schedule?.length > 6 && (
+              <button
+                onClick={() => setShowFullSchedule(!showFullSchedule)}
+                className="w-full py-3 flex items-center justify-center gap-1 text-[13px] font-semibold"
+                style={{ color: "#16A34A", borderTop: "1px solid #F1F5F9" }}
+              >
+                {showFullSchedule ? (
+                  <>
+                    <ChevronUp className="w-4 h-4" /> {t("common.close")}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4" /> {t("calculator.showAll")} ({result.schedule.length})
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="mx-4 mt-3 mb-6 grid grid-cols-2 gap-3">
+            <button
+              onClick={handleDownload}
+              className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold"
+              style={{ color: "#0F172A" }}
+            >
+              <Download className="w-4 h-4" style={{ color: "#64748B" }} />
+              CSV
+            </button>
+            <button
+              onClick={handleShare}
+              className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold"
+              style={{ color: "#0F172A" }}
+            >
+              <Share2 className="w-4 h-4" style={{ color: "#64748B" }} />
+              {t("common.share") || "Поделиться"}
+            </button>
+          </div>
         </>
       )}
+
+      {/* Bottom spacer when no results */}
+      {!result && <div className="h-6" />}
     </div>
   );
 }

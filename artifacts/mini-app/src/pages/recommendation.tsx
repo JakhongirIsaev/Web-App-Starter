@@ -2,16 +2,16 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import {
   ArrowLeft,
   Check,
   Loader2,
-  Plus,
-  ShoppingCart,
   Sparkles,
+  ShoppingCart,
+  Calculator,
+  ChevronDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 type RecommendationAnswer = {
@@ -85,6 +85,7 @@ export default function RecommendationPage() {
   const [, navigate] = useLocation();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showAll, setShowAll] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
   const currentLanguage = i18n.language === "ru" ? "ru" : "uz";
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -316,251 +317,398 @@ export default function RecommendationPage() {
     });
   };
 
+  const clientName = savedQuestionnaireQuery.data?.fullName || t("recommendation.title");
+  const matchPercent = (confidence: number) => Math.round((confidence || 0) * 100);
+
+  /* ═══════════════ LOADING STATE ═══════════════ */
   if (isLoading) {
     return (
-      <div className="space-y-4 pb-8">
-        <button
-          onClick={() => navigate(`/clients/${params.clientId}`)}
-          className="flex items-center gap-1 text-sm text-muted-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("common.back")}
-        </button>
-        <Card>
-          <CardContent className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
+      <div style={{ background: "#F4F4F5" }} className="min-h-screen">
+        <div className="bg-white px-5 pt-4 pb-5">
+          <button
+            onClick={() => navigate(`/clients/${params.clientId}`)}
+            className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "#F1F5F9" }}
+          >
+            <ArrowLeft className="w-[18px] h-[18px]" style={{ color: "#0F172A" }} />
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2 p-12">
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#A855F7" }} />
+          <span className="text-[14px]" style={{ color: "#64748B" }}>
             {t("common.loading")}
-          </CardContent>
-        </Card>
+          </span>
+        </div>
       </div>
     );
   }
 
+  /* ═══════════════ NO ANSWERS STATE ═══════════════ */
   if (!isLoading && answers.length === 0) {
     return (
-      <div className="space-y-4 pb-8">
-        <button
-          onClick={() => navigate(`/questionnaire/${params.clientId}`)}
-          className="flex items-center gap-1 text-sm text-muted-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("common.back")}
-        </button>
-        <Card>
-          <CardContent className="space-y-3 p-6 text-sm text-muted-foreground">
-            <p>
-              {t("recommendation.fillQuestionnaireFirst")}
-            </p>
-            <Button onClick={() => navigate(`/questionnaire/${params.clientId}`)}>
-              {t("recommendation.backToQuestionnaire")}
-            </Button>
-          </CardContent>
-        </Card>
+      <div style={{ background: "#F4F4F5" }} className="min-h-screen">
+        <div className="bg-white px-5 pt-4 pb-5">
+          <button
+            onClick={() => navigate(`/questionnaire/${params.clientId}`)}
+            className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "#F1F5F9" }}
+          >
+            <ArrowLeft className="w-[18px] h-[18px]" style={{ color: "#0F172A" }} />
+          </button>
+          <p className="text-[14px]" style={{ color: "#64748B" }}>
+            {t("recommendation.fillQuestionnaireFirst")}
+          </p>
+          <button
+            onClick={() => navigate(`/questionnaire/${params.clientId}`)}
+            className="mt-4 px-5 py-3 rounded-xl text-[14px] font-semibold text-white"
+            style={{ background: "#16A34A" }}
+          >
+            {t("recommendation.backToQuestionnaire")}
+          </button>
+        </div>
       </div>
     );
   }
 
+  /* ═══════════════ MAIN CONTENT ═══════════════ */
   return (
-    <div className="space-y-4 pb-36">
-      <button
-        onClick={() => navigate(`/clients/${params.clientId}`)}
-        className="flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("common.back")}
-      </button>
+    <div style={{ background: "#F4F4F5" }} className="min-h-screen pb-36">
+      {/* ═══════════════ HEADER ═══════════════ */}
+      <div className="bg-white px-5 pt-4 pb-5">
+        {/* Back button */}
+        <button
+          onClick={() => navigate(`/clients/${params.clientId}`)}
+          className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
+          style={{ background: "#F1F5F9" }}
+        >
+          <ArrowLeft className="w-[18px] h-[18px]" style={{ color: "#0F172A" }} />
+        </button>
 
-      <div className="space-y-2">
-        <div>
-          <h1 className="text-lg font-bold">{t("recommendation.title")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("recommendation.found", { count: visibleProducts.length })}
-          </p>
+        {/* Violet icon box + label */}
+        <div className="flex items-center gap-2.5 mb-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: "#FAF5FF", color: "#A855F7" }}
+          >
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <span
+            className="text-[11px] font-bold tracking-[0.08em] uppercase"
+            style={{ color: "#A855F7" }}
+          >
+            AI-ПОДБОР
+          </span>
         </div>
 
+        {/* Title */}
+        <h1
+          className="text-[20px] font-bold tracking-tight leading-tight"
+          style={{ color: "#0F172A" }}
+        >
+          Для {clientName} — {visibleProducts.length}{" "}
+          {visibleProducts.length === 1
+            ? "вариант"
+            : visibleProducts.length < 5
+              ? "варианта"
+              : "вариантов"}
+        </h1>
+        <p className="text-[13px] mt-1" style={{ color: "#64748B" }}>
+          {t("recommendation.aiSortedDescription")}
+        </p>
+
+        {/* Tab toggle: Recommended / All */}
         {!showAll && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="flex items-start gap-3 p-3">
-              <div className="rounded-xl bg-primary/10 p-2 text-primary">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-primary">
-                  {t("recommendation.aiConsideredAnswers")}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {t("recommendation.aiSortedDescription")}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => setShowAll(false)}
+              className="px-4 py-2 rounded-full text-[13px] font-semibold"
+              style={{
+                background: "#16A34A",
+                color: "#fff",
+              }}
+            >
+              {t("recommendation.recommended")}
+            </button>
+            <button
+              onClick={() => setShowAll(true)}
+              className="px-4 py-2 rounded-full text-[13px] font-semibold"
+              style={{
+                background: "#F1F5F9",
+                color: "#64748B",
+              }}
+            >
+              {t("recommendation.allProducts")}
+            </button>
+          </div>
+        )}
+        {showAll && (
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => setShowAll(false)}
+              className="px-4 py-2 rounded-full text-[13px] font-semibold"
+              style={{
+                background: "#F1F5F9",
+                color: "#64748B",
+              }}
+            >
+              {t("recommendation.recommended")}
+            </button>
+            <button
+              onClick={() => setShowAll(true)}
+              className="px-4 py-2 rounded-full text-[13px] font-semibold"
+              style={{
+                background: "#16A34A",
+                color: "#fff",
+              }}
+            >
+              {t("recommendation.allProducts")}
+            </button>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={showAll ? "outline" : "default"}
-          size="sm"
-          onClick={() => setShowAll(false)}
+      {/* ═══════════════ SORT BAR ═══════════════ */}
+      <div className="flex items-center justify-between px-5 py-3">
+        <span className="text-[13px] font-semibold" style={{ color: "#0F172A" }}>
+          {visibleProducts.length}{" "}
+          {visibleProducts.length === 1
+            ? "предложение"
+            : visibleProducts.length < 5
+              ? "предложения"
+              : "предложений"}
+        </span>
+        <button
+          onClick={() => setSortOpen(!sortOpen)}
+          className="flex items-center gap-1 text-[13px] font-medium"
+          style={{ color: "#64748B" }}
         >
-          {t("recommendation.recommended")}
-        </Button>
-        <Button
-          variant={showAll ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowAll(true)}
-        >
-          {t("recommendation.allProducts")}
-        </Button>
+          <ArrowUpDown className="w-3.5 h-3.5" />
+          По совпадению
+          <ChevronDown
+            className="w-3.5 h-3.5 transition-transform"
+            style={{ transform: sortOpen ? "rotate(180deg)" : "rotate(0)" }}
+          />
+        </button>
       </div>
 
+      {/* ═══════════════ PRODUCT CARDS ═══════════════ */}
       {visibleProducts.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground">
+        <div className="mx-5 mn-card p-8 text-center">
+          <p className="text-[14px]" style={{ color: "#64748B" }}>
             {t("recommendation.noProducts")}
-          </CardContent>
-        </Card>
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {visibleProducts.map((product: ProductRecord) => {
+        <div className="px-4 space-y-3">
+          {visibleProducts.map((product: ProductRecord, index: number) => {
             const isSelected = selectedIds.has(product.id);
+            const confidence = matchPercent(product.aiRecommendation?.confidence);
+            const isBest = index === 0 && !showAll && confidence > 0;
+            const reasons = [
+              product.displayHighlight,
+              product.displayPurpose,
+              product.displaySegment,
+            ].filter(Boolean);
 
             return (
-              <Card
+              <div
                 key={product.id}
-                className={`cursor-pointer overflow-hidden transition-colors ${
-                  isSelected ? "border-primary bg-primary/5" : ""
-                }`}
-                onClick={() => toggleProduct(product.id)}
+                className="relative rounded-2xl overflow-hidden"
+                style={{
+                  background: "#fff",
+                  boxShadow: isSelected
+                    ? "0 0 0 2px #16A34A, 0 2px 8px rgba(22,163,74,0.12)"
+                    : "0 1px 3px rgba(15,23,42,0.06)",
+                }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                        isSelected ? "bg-primary" : "bg-secondary"
-                      }`}
+                {/* Best match badge */}
+                {isBest && (
+                  <div
+                    className="absolute top-0 right-0 px-3 py-1.5 text-[11px] font-bold text-white"
+                    style={{
+                      background: "#16A34A",
+                      borderRadius: "0 16px 0 12px",
+                    }}
+                  >
+                    Лучший вариант
+                  </div>
+                )}
+
+                <div className="p-4">
+                  {/* Product name + key stats */}
+                  <div className="pr-20">
+                    <h3
+                      className="text-[15px] font-bold leading-snug"
+                      style={{ color: "#0F172A" }}
+                    >
+                      {product.name}
+                    </h3>
+                  </div>
+
+                  {/* Rate / Term / Amount row */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                    {product.displayRate && (
+                      <div className="text-[12px]" style={{ color: "#64748B" }}>
+                        Ставка:{" "}
+                        <span className="font-semibold" style={{ color: "#0F172A" }}>
+                          {product.displayRate}
+                        </span>
+                      </div>
+                    )}
+                    {product.displayAmount && (
+                      <div className="text-[12px]" style={{ color: "#64748B" }}>
+                        Сумма:{" "}
+                        <span className="font-semibold" style={{ color: "#0F172A" }}>
+                          {product.displayAmount}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Match percentage + progress bar */}
+                  {confidence > 0 && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className="text-[12px] font-medium"
+                          style={{ color: "#64748B" }}
+                        >
+                          Совпадение
+                        </span>
+                        <span
+                          className="text-[13px] font-bold"
+                          style={{
+                            color:
+                              confidence >= 80
+                                ? "#16A34A"
+                                : confidence >= 50
+                                  ? "#D97706"
+                                  : "#64748B",
+                          }}
+                        >
+                          {confidence}%
+                        </span>
+                      </div>
+                      <div
+                        className="h-[5px] rounded-full overflow-hidden"
+                        style={{ background: "#F1F5F9" }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${confidence}%`,
+                            background:
+                              confidence >= 80
+                                ? "#16A34A"
+                                : confidence >= 50
+                                  ? "#D97706"
+                                  : "#94A3B8",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reason chips */}
+                  {reasons.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {reasons.slice(0, 3).map((reason, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium"
+                          style={{ background: "#ECFDF3", color: "#15803D" }}
+                        >
+                          <Check className="w-3 h-3" />
+                          <span className="truncate max-w-[160px]">{reason}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Client-facing summary */}
+                  {product.clientFacingSummary && (
+                    <p
+                      className="text-[12px] leading-[18px] mt-3 line-clamp-3"
+                      style={{ color: "#64748B" }}
+                    >
+                      {product.clientFacingSummary}
+                    </p>
+                  )}
+
+                  {/* Action buttons row */}
+                  <div className="flex gap-2.5 mt-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("/calculator");
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors"
+                      style={{
+                        border: "1.5px solid #E2E8F0",
+                        color: "#0F172A",
+                        background: "#fff",
+                      }}
+                    >
+                      <Calculator className="w-4 h-4" />
+                      Калькулятор
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleProduct(product.id);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors"
+                      style={{
+                        background: isSelected ? "#15803D" : "#16A34A",
+                        color: "#fff",
+                      }}
                     >
                       {isSelected ? (
-                        <Check className="h-4 w-4 text-primary-foreground" />
+                        <>
+                          <Check className="w-4 h-4" />
+                          Добавлено
+                        </>
                       ) : (
-                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <>
+                          <ShoppingCart className="w-4 h-4" />
+                          В корзину
+                        </>
                       )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-base font-semibold leading-6">
-                            {product.name}
-                          </p>
-                          {product.displayPurpose && (
-                            <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                              {product.displayPurpose}
-                            </p>
-                          )}
-                        </div>
-
-                        {product.aiRecommendation && (
-                          <div className="flex flex-wrap gap-1.5 sm:max-w-[160px] sm:justify-end">
-                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium text-amber-800">
-                              {t("recommendation.aiRank", {
-                                rank: product.aiRecommendation.rank,
-                              })}
-                            </span>
-                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-800">
-                              {t("recommendation.aiConfidence", {
-                                value: Math.round(
-                                  (product.aiRecommendation.confidence || 0) * 100,
-                                ),
-                              })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {product.displaySegment && (
-                          <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {t("recommendation.segment")}
-                            </p>
-                            <p className="mt-1 text-sm font-medium">
-                              {product.displaySegment}
-                            </p>
-                          </div>
-                        )}
-                        {product.displayRate && (
-                          <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {t("recommendation.rate")}
-                            </p>
-                            <p className="mt-1 text-sm font-medium leading-5">
-                              {product.displayRate}
-                            </p>
-                          </div>
-                        )}
-                        {product.displayAmount && (
-                          <div className="rounded-2xl bg-slate-50 px-3 py-2 sm:col-span-2">
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {t("recommendation.amount")}
-                            </p>
-                            <p className="mt-1 text-sm font-medium leading-5">
-                              {product.displayAmount}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {product.displayHighlight && (
-                        <div className="rounded-2xl border border-primary/10 bg-primary/5 px-3 py-2">
-                          <p className="text-[10px] uppercase tracking-wide text-primary/70">
-                            {t("recommendation.keyAdvantage")}
-                          </p>
-                          <p className="mt-1 text-sm leading-6 text-primary">
-                            {product.displayHighlight}
-                          </p>
-                        </div>
-                      )}
-
-                      {product.clientFacingSummary && (
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                          <p className="text-[10px] uppercase tracking-wide text-emerald-700">
-                            {t("recommendation.clientDescription")}
-                          </p>
-                          <p className="mt-1 line-clamp-4 text-sm leading-6 text-emerald-800">
-                            {product.clientFacingSummary}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
       )}
 
+      {/* AI hint */}
       {!showAll && aiRecommendationsQuery.isFetching && (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[12px] mt-4" style={{ color: "#64748B" }}>
           {t("recommendation.aiHint")}
         </p>
       )}
 
+      {/* ═══════════════ FLOATING BASKET BUTTON ═══════════════ */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-24 left-4 right-4 z-50 mx-auto max-w-md">
-          <Button
-            className="w-full gap-2 shadow-lg"
+          <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-[15px] font-bold text-white"
+            style={{
+              background: "#16A34A",
+              boxShadow: "0 8px 24px rgba(22,163,74,0.3)",
+            }}
           >
             {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <ShoppingCart className="h-4 w-4" />
+              <ShoppingCart className="h-5 w-5" />
             )}
             {t("recommendation.goToBasket")} ({selectedIds.size})
-          </Button>
+          </button>
         </div>
       )}
     </div>

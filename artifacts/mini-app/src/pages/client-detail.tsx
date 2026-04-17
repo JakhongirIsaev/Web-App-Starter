@@ -3,26 +3,48 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, getAuthImageUrl } from "@/lib/api";
 import { getTelegramInitData } from "@/lib/telegram";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Image as ImageIcon, X, Eye, MapPin } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
+import {
+  Monogram,
+  StatusChip,
+  SectionHeader,
+  getInitials,
+  fmtMoney,
+  fmtShort,
+} from "@/components/ui-primitives";
+import {
+  ArrowLeft,
+  Phone,
+  MessageSquare,
+  Calendar,
+  Share2,
+  CreditCard,
+  ShoppingBag,
+  FileText,
+  Plus,
+  Check,
+  Calculator,
+  Scan,
+  Trash2,
+  Send,
+  Loader2,
+  CheckCircle,
+  Image as ImageIcon,
+  X,
+  MapPin,
+  Clock,
+  ChevronRight,
+} from "lucide-react";
 
-const statusChipStyles: Record<string, { bg: string; color: string }> = {
-  draft:          { bg: "hsl(215 16% 52% / .12)",  color: "hsl(215 16% 42%)" },
-  questionnaire:  { bg: "hsl(215 90% 52% / .12)",  color: "hsl(215 90% 42%)" },
-  recommendation: { bg: "hsl(38 95% 52% / .15)",   color: "hsl(38 95% 40%)" },
-  basket:         { bg: "hsl(270 80% 58% / .12)",  color: "hsl(270 70% 48%)" },
-  pdf_generated:  { bg: "hsl(174 72% 40% / .13)",  color: "hsl(174 72% 32%)" },
-  under_review:   { bg: "hsl(38 95% 52% / .12)",   color: "hsl(38 95% 40%)" },
-  approved:       { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
-  completed:      { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
-  rejected:       { bg: "hsl(0 80% 58% / .12)",    color: "hsl(0 80% 48%)" },
-};
-
-const statusFlow = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed"];
+const statusFlow = [
+  "draft",
+  "questionnaire",
+  "recommendation",
+  "basket",
+  "pdf_generated",
+  "completed",
+];
 
 export default function ClientDetailPage() {
   const { t, i18n } = useTranslation();
@@ -37,6 +59,7 @@ export default function ClientDetailPage() {
   const [actionPriority, setActionPriority] = useState("medium");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  /* ── queries ── */
   const { data, isLoading } = useQuery({
     queryKey: ["mini-client", params.id],
     queryFn: () => api.get(`/mini-app/clients/${params.id}`),
@@ -47,6 +70,7 @@ export default function ClientDetailPage() {
     queryFn: () => api.get(`/mini-app/clients/${params.id}/documents`),
   });
 
+  /* ── mutations ── */
   const deleteDocMutation = useMutation({
     mutationFn: (docId: number) => api.delete(`/mini-app/documents/${docId}`),
     onSuccess: () => {
@@ -55,7 +79,11 @@ export default function ClientDetailPage() {
   });
 
   const addNoteMutation = useMutation({
-    mutationFn: () => api.post(`/mini-app/clients/${params.id}/notes`, { content: noteContent, type: "note" }),
+    mutationFn: () =>
+      api.post(`/mini-app/clients/${params.id}/notes`, {
+        content: noteContent,
+        type: "note",
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setNoteContent("");
@@ -86,7 +114,10 @@ export default function ClientDetailPage() {
     },
   });
 
-  const [pdfResult, setPdfResult] = useState<{ success: boolean; telegramSent: boolean } | null>(null);
+  const [pdfResult, setPdfResult] = useState<{
+    success: boolean;
+    telegramSent: boolean;
+  } | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   const generatePdfMutation = useMutation({
@@ -96,9 +127,7 @@ export default function ClientDetailPage() {
         telegramInitData: getTelegramInitData(),
         language: i18n.language === "ru" ? "ru" : "uz",
       }),
-    onMutate: () => {
-      setPdfError(null);
-    },
+    onMutate: () => setPdfError(null),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setPdfResult(result);
@@ -108,16 +137,47 @@ export default function ClientDetailPage() {
     },
   });
 
-  if (isLoading) return <p className="text-center py-8 text-muted-foreground">{t("common.loading")}</p>;
-  if (!data?.client) return <p className="text-center py-8">{t("common.error")}</p>;
+  /* ── loading / error ── */
+  if (isLoading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--tg-bg, #F4F4F5)" }}
+      >
+        <Loader2 className="w-6 h-6 animate-spin text-[#64748B]" />
+      </div>
+    );
+  }
+  if (!data?.client) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--tg-bg, #F4F4F5)" }}
+      >
+        <p className="text-[14px] text-[#64748B]">{t("common.error")}</p>
+      </div>
+    );
+  }
 
   const { client, notes, nextActions, basketItems, calculations } = data;
   const currentIdx = statusFlow.indexOf(client.status);
 
   const getNextAction = () => {
-    if (client.status === "draft") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
-    if (client.status === "questionnaire") return { label: t("clientDetail.startQuestionnaire"), path: `/questionnaire/${client.id}` };
-    if (client.status === "recommendation") return { label: t("basket.title"), path: `/recommendation/${client.id}` };
+    if (client.status === "draft")
+      return {
+        label: t("clientDetail.startQuestionnaire"),
+        path: `/questionnaire/${client.id}`,
+      };
+    if (client.status === "questionnaire")
+      return {
+        label: t("clientDetail.startQuestionnaire"),
+        path: `/questionnaire/${client.id}`,
+      };
+    if (client.status === "recommendation")
+      return {
+        label: t("basket.title"),
+        path: `/recommendation/${client.id}`,
+      };
     return null;
   };
 
@@ -126,129 +186,400 @@ export default function ClientDetailPage() {
   const getDocImageUrl = (doc: any) => {
     if (doc.storagePath && doc.storagePath.startsWith("http")) return doc.storagePath;
     if (doc.storagePath) {
-      return getAuthImageUrl(`/storage/file?path=${encodeURIComponent(doc.storagePath)}`);
+      return getAuthImageUrl(
+        `/storage/file?path=${encodeURIComponent(doc.storagePath)}`,
+      );
     }
     return null;
   };
 
+  /* ── 4 action buttons ── */
+  const heroActions = [
+    {
+      icon: Phone,
+      label: t("clientDetail.call") || "\u0417\u0432\u043E\u043D\u043E\u043A",
+      action: () => client.phone && (window.location.href = `tel:${client.phone}`),
+    },
+    {
+      icon: MessageSquare,
+      label: "SMS",
+      action: () => client.phone && (window.location.href = `sms:${client.phone}`),
+    },
+    {
+      icon: Calendar,
+      label: t("home.meeting") || "\u0412\u0441\u0442\u0440\u0435\u0447\u0430",
+      action: () => setShowActionForm(true),
+    },
+    {
+      icon: Share2,
+      label: t("clientDetail.share") || "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F",
+      action: () => {
+        if (navigator.share) {
+          navigator.share({
+            title: client.fullName,
+            text: `${client.fullName} - ${t(`statuses.${client.status}`)}`,
+          });
+        }
+      },
+    },
+  ];
+
+  /* ── timeline events from notes ── */
+  const timelineColors: Record<string, { bg: string; fg: string }> = {
+    note: { bg: "#DBEAFE", fg: "#2563EB" },
+    status_change: { bg: "#ECFDF3", fg: "#16A34A" },
+    action: { bg: "#FEF3C7", fg: "#D97706" },
+    system: { bg: "#F1F5F9", fg: "#64748B" },
+  };
+
   return (
-    <div className="space-y-4 pb-8">
-      <button onClick={() => navigate("/clients")} className="flex items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeft className="w-4 h-4" />
-        {t("common.back")}
-      </button>
+    <div
+      className="min-h-screen pb-8"
+      style={{ background: "var(--tg-bg, #F4F4F5)" }}
+    >
+      {/* ═══════════════ BACK BUTTON ═══════════════ */}
+      <div className="px-4 pt-3 pb-2">
+        <button
+          onClick={() => navigate("/clients")}
+          className="flex items-center gap-1 text-[13px] font-semibold text-[#64748B]"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t("common.back")}
+        </button>
+      </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-primary font-bold text-lg">{(client.fullName || "?")[0].toUpperCase()}</span>
-              </div>
-              <div className="min-w-0">
-                <h2 className="truncate font-semibold">
-                  {client.fullName || t("clients.anonymous")}
-                </h2>
-                <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
-              </div>
+      {/* ═══════════════ HERO CARD ═══════════════ */}
+      <div className="mx-4 mn-card p-5">
+        <div className="flex items-center gap-4">
+          <Monogram text={getInitials(client.fullName)} size={56} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[18px] font-bold text-[#0F172A] truncate">
+              {client.fullName || t("clients.anonymous")}
             </div>
-            <span
-              className="inline-flex items-center gap-1 w-fit px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold"
+            <div className="text-[13px] text-[#64748B] mt-0.5">
+              {client.phone || t("clients.noPhone")}
+            </div>
+            <div className="mt-2">
+              <StatusChip status={client.status} />
+            </div>
+          </div>
+        </div>
+
+        {/* Status progress bar */}
+        <div className="flex gap-1 mt-4">
+          {statusFlow.map((s, i) => (
+            <div
+              key={s}
+              className="h-1.5 flex-1 rounded-full"
               style={{
-                background: statusChipStyles[client.status]?.bg ?? "",
-                color: statusChipStyles[client.status]?.color ?? "",
+                background: i <= currentIdx ? "#16A34A" : "#E2E8F0",
               }}
-            >
-              <span className="w-[5px] h-[5px] rounded-full" style={{ background: "currentColor" }} />
-              {t(`statuses.${client.status}`)}
-            </span>
-          </div>
-
-          <div className="flex gap-1 mb-3">
-            {statusFlow.map((s, i) => (
-              <div
-                key={s}
-                className={`h-1.5 flex-1 rounded-full ${i <= currentIdx ? "bg-primary" : "bg-border"}`}
-              />
-            ))}
-          </div>
-
-          <p className="text-xs text-muted-foreground">{t("clientDetail.status")}: {fmtDate(client.createdAt)}</p>
-        </CardContent>
-      </Card>
-
-      {nextStep && (
-        <Button className="w-full" onClick={() => navigate(nextStep.path)}>
-          {nextStep.label}
-        </Button>
-      )}
-
-      {nextActions?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.nextAction")}</h3>
-          {nextActions.map((a: any) => (
-            <Card key={a.id} className="mb-2">
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{a.actionType}</p>
-                  <p className="text-xs text-muted-foreground">{fmtDate(a.actionDate)} · {a.priority}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => completeActionMutation.mutate(a.id)}
-                >
-                  <Check className="w-4 h-4" />
-                </Button>
-              </CardContent>
-            </Card>
+            />
           ))}
+        </div>
+      </div>
+
+      {/* ═══════════════ 4-ACTION ROW ═══════════════ */}
+      <div className="mx-4 mt-3 grid grid-cols-4 gap-2">
+        {heroActions.map((a) => (
+          <button
+            key={a.label}
+            onClick={a.action}
+            className="flex flex-col items-center gap-1.5 py-3 rounded-xl active:scale-95 transition-transform"
+            style={{ background: "#F0FDF4" }}
+          >
+            <a.icon className="w-5 h-5 text-[#16A34A]" />
+            <span className="text-[11px] font-semibold text-[#16A34A]">{a.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ═══════════════ NEXT STEP CTA ═══════════════ */}
+      {nextStep && (
+        <div className="mx-4 mt-3">
+          <button
+            onClick={() => navigate(nextStep.path)}
+            className="w-full h-11 rounded-xl text-[14px] font-bold text-white active:scale-[0.98] transition-transform"
+            style={{ background: "#16A34A" }}
+          >
+            {nextStep.label}
+          </button>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowNoteForm(!showNoteForm)}>
-          <MessageSquare className="w-4 h-4" />
-          {t("clientDetail.addNote")}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => alert(t("clientDetail.locationReceived", { lat: pos.coords.latitude, lng: pos.coords.longitude })),
-              (err) => alert(t("clientDetail.locationError") + err.message)
-            );
-          } else {
-            alert(t("clientDetail.locationNotSupported"));
-          }
-        }}>
-          <MapPin className="w-4 h-4" />
-          {t("clientDetail.businessLocation")}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowActionForm(!showActionForm)}>
-          <Calendar className="w-4 h-4" />
-          {t("clientDetail.addAction")}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/calculator?clientId=${client.id}`)}>
-          <Calculator className="w-4 h-4" />
-          {t("nav.calculator")}
-        </Button>
+      {/* ═══════════════ KEY FIGURES ═══════════════ */}
+      {(calculations?.length > 0 || basketItems?.length > 0) && (
+        <div className="mx-4 mt-3">
+          <div className="mn-card p-4">
+            {calculations?.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
+                    {t("calculator.loanAmount") || "\u0421\u0443\u043C\u043C\u0430"}
+                  </div>
+                  <div className="text-[20px] font-bold text-[#0F172A] mt-1">
+                    {fmtNum(calculations[0].loanAmount)}{" "}
+                    <span className="text-[13px] font-semibold text-[#64748B]">
+                      {calculations[0].currency}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
+                    {t("calculator.rate") || "\u0421\u0442\u0430\u0432\u043A\u0430"}
+                  </div>
+                  <div className="text-[20px] font-bold text-[#0F172A] mt-1">
+                    {calculations[0].interestRate}%
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {basketItems?.length > 0 && (
+              <div
+                className="flex items-center gap-3 mt-3 p-3 rounded-xl"
+                style={{ background: "#F3E8FF" }}
+              >
+                <ShoppingBag className="w-5 h-5 text-[#7C3AED] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold text-[#7C3AED]">
+                    {t("clientDetail.basket")} ({basketItems.length})
+                  </div>
+                  <div className="text-[12px] text-[#7C3AED]/70 truncate">
+                    {basketItems.map((i: any) => i.productName).join(", ")}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#7C3AED]/50 shrink-0" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ CONTACT INFO ═══════════════ */}
+      <div className="mx-4 mt-3">
+        <div className="mn-card overflow-hidden">
+          {client.phone && (
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#F1F5F9]">
+              <Phone className="w-4 h-4 text-[#64748B] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[#64748B]">
+                  {t("clientDetail.phone") || "\u0422\u0435\u043B\u0435\u0444\u043E\u043D"}
+                </div>
+                <div className="text-[14px] font-semibold text-[#0F172A]">
+                  {client.phone}
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#F1F5F9]">
+            <Calendar className="w-4 h-4 text-[#64748B] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] text-[#64748B]">
+                {t("clientDetail.status") || "\u0414\u0430\u0442\u0430 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F"}
+              </div>
+              <div className="text-[14px] font-semibold text-[#0F172A]">
+                {fmtDate(client.createdAt)}
+              </div>
+            </div>
+          </div>
+          {client.address && (
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <MapPin className="w-4 h-4 text-[#64748B] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[#64748B]">
+                  {t("clientDetail.address") || "\u0410\u0434\u0440\u0435\u0441"}
+                </div>
+                <div className="text-[14px] font-semibold text-[#0F172A]">
+                  {client.address}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5"
-        onClick={() => navigate(`/scan/${client.id}`)}
-      >
-        <Scan className="w-4 h-4" />
-        {t("scanDoc.scanDocument")}
-      </Button>
+      {/* ═══════════════ ACTION BUTTONS ROW ═══════════════ */}
+      <div className="mx-4 mt-3 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setShowNoteForm(!showNoteForm)}
+          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"
+        >
+          <MessageSquare className="w-4 h-4 text-[#64748B]" />
+          {t("clientDetail.addNote")}
+        </button>
+        <button
+          onClick={() => {
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) =>
+                  alert(
+                    t("clientDetail.locationReceived", {
+                      lat: pos.coords.latitude,
+                      lng: pos.coords.longitude,
+                    }),
+                  ),
+                (err) => alert(t("clientDetail.locationError") + err.message),
+              );
+            } else {
+              alert(t("clientDetail.locationNotSupported"));
+            }
+          }}
+          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"
+        >
+          <MapPin className="w-4 h-4 text-[#64748B]" />
+          {t("clientDetail.businessLocation")}
+        </button>
+        <button
+          onClick={() => setShowActionForm(!showActionForm)}
+          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"
+        >
+          <Calendar className="w-4 h-4 text-[#64748B]" />
+          {t("clientDetail.addAction")}
+        </button>
+        <button
+          onClick={() => navigate(`/calculator?clientId=${client.id}`)}
+          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"
+        >
+          <Calculator className="w-4 h-4 text-[#64748B]" />
+          {t("nav.calculator")}
+        </button>
+      </div>
 
-      {documents.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("scanDoc.documents")} ({documents.length})</h3>
+      {/* ── Scan document button ── */}
+      <div className="mx-4 mt-2">
+        <button
+          onClick={() => navigate(`/scan/${client.id}`)}
+          className="w-full mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#16A34A] active:scale-[0.97] transition-transform"
+        >
+          <Scan className="w-4 h-4" />
+          {t("scanDoc.scanDocument")}
+        </button>
+      </div>
+
+      {/* ═══════════════ NOTE FORM ═══════════════ */}
+      {showNoteForm && (
+        <div className="mx-4 mt-3 mn-card p-4 space-y-3">
+          <input
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            placeholder={t("clientDetail.notePlaceholder")}
+            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#16A34A]/30"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => addNoteMutation.mutate()}
+              disabled={!noteContent || addNoteMutation.isPending}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50"
+              style={{ background: "#16A34A" }}
+            >
+              {t("common.save")}
+            </button>
+            <button
+              onClick={() => setShowNoteForm(false)}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-[#64748B]"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ ACTION FORM ═══════════════ */}
+      {showActionForm && (
+        <div className="mx-4 mt-3 mn-card p-4 space-y-3">
+          <select
+            value={actionType}
+            onChange={(e) => setActionType(e.target.value)}
+            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
+          >
+            <option value="follow_up">{t("home.followUp")}</option>
+            <option value="meeting">{t("home.meeting")}</option>
+            <option value="proposal">{t("home.proposal")}</option>
+            <option value="documents">{t("home.documents")}</option>
+          </select>
+          <input
+            type="date"
+            value={actionDate}
+            onChange={(e) => setActionDate(e.target.value)}
+            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
+          />
+          <select
+            value={actionPriority}
+            onChange={(e) => setActionPriority(e.target.value)}
+            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
+          >
+            <option value="high">{t("clientDetail.high")}</option>
+            <option value="medium">{t("clientDetail.medium")}</option>
+            <option value="low">{t("clientDetail.low")}</option>
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => addActionMutation.mutate()}
+              disabled={!actionDate || addActionMutation.isPending}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50"
+              style={{ background: "#16A34A" }}
+            >
+              {t("common.save")}
+            </button>
+            <button
+              onClick={() => setShowActionForm(false)}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-[#64748B]"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ NEXT ACTIONS ═══════════════ */}
+      {nextActions?.length > 0 && (
+        <div className="mx-4 mt-4">
+          <SectionHeader title={t("clientDetail.nextAction")} />
+          <div className="mn-card overflow-hidden">
+            {nextActions.map((a: any, i: number) => (
+              <div
+                key={a.id}
+                className={`flex items-center gap-3 px-4 py-3.5 ${
+                  i < nextActions.length - 1 ? "border-b border-[#F1F5F9]" : ""
+                }`}
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "#ECFDF3" }}
+                >
+                  <Calendar className="w-4 h-4 text-[#16A34A]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[#0F172A]">
+                    {a.actionType}
+                  </div>
+                  <div className="text-[12px] text-[#64748B] mt-0.5">
+                    {fmtDate(a.actionDate)} &middot; {a.priority}
+                  </div>
+                </div>
+                <button
+                  onClick={() => completeActionMutation.mutate(a.id)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "#ECFDF3" }}
+                >
+                  <Check className="w-4 h-4 text-[#16A34A]" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════ DOCUMENTS GALLERY ═══════════════ */}
+      {(documents as any[]).length > 0 && (
+        <div className="mx-4 mt-4">
+          <SectionHeader
+            title={`${t("scanDoc.documents")} (${(documents as any[]).length})`}
+          />
 
           <div className="grid grid-cols-3 gap-2 mb-2">
-            {documents.map((doc: any) => {
+            {(documents as any[]).map((doc: any) => {
               const imgUrl = getDocImageUrl(doc);
               return (
                 <div key={doc.id} className="relative group">
@@ -256,153 +587,139 @@ export default function ClientDetailPage() {
                     <img
                       src={imgUrl}
                       alt={doc.fileName}
-                      className="w-full h-24 object-cover rounded-lg border cursor-pointer"
+                      className="w-full h-24 object-cover rounded-xl border border-[#E2E8F0] cursor-pointer"
                       onClick={() => setPreviewImage(imgUrl)}
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                        (
+                          e.target as HTMLImageElement
+                        ).nextElementSibling?.classList.remove("hidden");
                       }}
                     />
                   ) : null}
-                  <div className={`${imgUrl ? "hidden" : ""} w-full h-24 rounded-lg border bg-muted/50 flex flex-col items-center justify-center`}>
-                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-[9px] text-muted-foreground mt-1">{t(`scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`)}</span>
+                  <div
+                    className={`${imgUrl ? "hidden" : ""} w-full h-24 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex flex-col items-center justify-center`}
+                  >
+                    <ImageIcon className="w-6 h-6 text-[#94A3B8]" />
+                    <span className="text-[9px] text-[#94A3B8] mt-1">
+                      {t(
+                        `scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`,
+                      )}
+                    </span>
                   </div>
                   <button
                     onClick={() => deleteDocMutation.mutate(doc.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#EF4444] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
-                    <div className="absolute bottom-1 left-1 right-1">
-                      <div className="bg-black/60 text-white text-[8px] rounded px-1 py-0.5 truncate">
-                        {Object.values(doc.extractedData)[0] as string}
+                  {doc.extractedData &&
+                    Object.keys(doc.extractedData).length > 0 && (
+                      <div className="absolute bottom-1 left-1 right-1">
+                        <div className="bg-black/60 text-white text-[8px] rounded px-1 py-0.5 truncate">
+                          {Object.values(doc.extractedData)[0] as string}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               );
             })}
           </div>
 
-          {documents.some((d: any) => d.extractedData && Object.keys(d.extractedData).length > 0) && (
-            <Card className="mb-2">
-              <CardContent className="p-3 space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground mb-1">{t("scanDoc.extractedFields")}</p>
-                {documents.map((doc: any) =>
-                  doc.extractedData && Object.entries(doc.extractedData).map(([k, v]) => (
-                    <div key={`${doc.id}-${k}`} className="flex items-center justify-between py-0.5 border-b border-border/30 last:border-0">
-                      <span className="text-[10px] text-muted-foreground">{t(`scanDoc.fields.${k}`, k)}</span>
-                      <span className="text-xs font-medium text-right max-w-[60%] truncate">{String(v)}</span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+          {(documents as any[]).some(
+            (d: any) =>
+              d.extractedData && Object.keys(d.extractedData).length > 0,
+          ) && (
+            <div className="mn-card p-3 space-y-1 mb-2">
+              <p className="text-[11px] font-semibold text-[#64748B] mb-1">
+                {t("scanDoc.extractedFields")}
+              </p>
+              {(documents as any[]).map((doc: any) =>
+                doc.extractedData &&
+                Object.entries(doc.extractedData).map(([k, v]) => (
+                  <div
+                    key={`${doc.id}-${k}`}
+                    className="flex items-center justify-between py-1 border-b border-[#F1F5F9] last:border-0"
+                  >
+                    <span className="text-[11px] text-[#64748B]">
+                      {t(`scanDoc.fields.${k}`, k)}
+                    </span>
+                    <span className="text-[12px] font-semibold text-[#0F172A] text-right max-w-[60%] truncate">
+                      {String(v)}
+                    </span>
+                  </div>
+                )),
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {showNoteForm && (
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            <Input
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              placeholder={t("clientDetail.notePlaceholder")}
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!noteContent || addNoteMutation.isPending}>
-                {t("common.save")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowNoteForm(false)}>
-                {t("common.cancel")}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {showActionForm && (
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            <select
-              value={actionType}
-              onChange={(e) => setActionType(e.target.value)}
-              className="w-full p-2 border rounded-lg text-sm bg-background"
-            >
-              <option value="follow_up">{t("home.followUp")}</option>
-              <option value="meeting">{t("home.meeting")}</option>
-              <option value="proposal">{t("home.proposal")}</option>
-              <option value="documents">{t("home.documents")}</option>
-            </select>
-            <Input type="date" value={actionDate} onChange={(e) => setActionDate(e.target.value)} />
-            <select
-              value={actionPriority}
-              onChange={(e) => setActionPriority(e.target.value)}
-              className="w-full p-2 border rounded-lg text-sm bg-background"
-            >
-              <option value="high">{t("clientDetail.high")}</option>
-              <option value="medium">{t("clientDetail.medium")}</option>
-              <option value="low">{t("clientDetail.low")}</option>
-            </select>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => addActionMutation.mutate()} disabled={!actionDate || addActionMutation.isPending}>
-                {t("common.save")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowActionForm(false)}>
-                {t("common.cancel")}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {basketItems?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.basket")}</h3>
+      {/* ═══════════════ BASKET ITEMS (expanded) ═══════════════ */}
+      {basketItems?.length > 0 && !calculations?.length && (
+        <div className="mx-4 mt-4">
+          <SectionHeader title={t("clientDetail.basket")} />
           {basketItems.map((item: any) => (
-            <Card key={item.id} className="mb-1.5">
-              <CardContent className="p-3">
-                <p className="text-sm font-medium">{item.productName}</p>
-                <p className="text-xs text-muted-foreground">{item.productType}</p>
-                {item.notes && (
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground line-clamp-3">
-                    {item.notes}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <div key={item.id} className="mn-card p-4 mb-2">
+              <div className="text-[14px] font-semibold text-[#0F172A]">
+                {item.productName}
+              </div>
+              <div className="text-[12px] text-[#64748B] mt-0.5">
+                {item.productType}
+              </div>
+              {item.notes && (
+                <div className="mt-2 text-[12px] text-[#64748B] leading-relaxed line-clamp-3">
+                  {item.notes}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
 
-      <div>
+      {/* ═══════════════ PDF GENERATION ═══════════════ */}
+      <div className="mx-4 mt-4">
         {pdfResult ? (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-3 text-center space-y-2">
-              <CheckCircle className="w-8 h-8 text-green-600 mx-auto" />
-              <p className="text-sm font-medium text-green-800">{t("pdf.generated")}</p>
-              <p className="text-xs text-muted-foreground">
-                {pdfResult.telegramSent ? t("pdf.sentViaTelegram") : t("pdf.notSentViaTelegram")}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setPdfResult(null)}
-              >
-                {t("pdf.generateAgain")}
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="mn-card p-5 text-center" style={{ background: "#F0FDF4" }}>
+            <CheckCircle className="w-10 h-10 text-[#16A34A] mx-auto mb-2" />
+            <div className="text-[15px] font-bold text-[#0F172A]">
+              {t("pdf.generated")}
+            </div>
+            <div className="text-[12px] text-[#64748B] mt-1">
+              {pdfResult.telegramSent
+                ? t("pdf.sentViaTelegram")
+                : t("pdf.notSentViaTelegram")}
+            </div>
+            <button
+              onClick={() => setPdfResult(null)}
+              className="mt-3 h-9 px-4 rounded-lg text-[13px] font-semibold text-[#16A34A] border border-[#16A34A]/30"
+            >
+              {t("pdf.generateAgain")}
+            </button>
+          </div>
         ) : (
-          <Button
-            className="w-full gap-2"
-            variant={client.status === "basket" || basketItems?.length > 0 ? "default" : "outline"}
+          <button
             onClick={() => generatePdfMutation.mutate()}
             disabled={generatePdfMutation.isPending}
+            className="w-full h-12 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+            style={{
+              background:
+                client.status === "basket" || basketItems?.length > 0
+                  ? "#16A34A"
+                  : "#FFFFFF",
+              color:
+                client.status === "basket" || basketItems?.length > 0
+                  ? "#FFFFFF"
+                  : "#16A34A",
+              border:
+                client.status === "basket" || basketItems?.length > 0
+                  ? "none"
+                  : "1px solid rgba(22,163,74,0.3)",
+              boxShadow:
+                client.status === "basket" || basketItems?.length > 0
+                  ? "0 2px 8px rgba(22,163,74,0.25)"
+                  : "none",
+            }}
           >
             {generatePdfMutation.isPending ? (
               <>
@@ -415,61 +732,99 @@ export default function ClientDetailPage() {
                 {t("pdf.generate")}
               </>
             )}
-          </Button>
+          </button>
         )}
         {pdfError && !generatePdfMutation.isPending && (
-          <p className="mt-2 text-xs text-red-600 break-words">
+          <p className="mt-2 text-[12px] text-[#EF4444] break-words">
             {t("common.error")}: {pdfError}
           </p>
         )}
       </div>
 
-
-
+      {/* ═══════════════ CALCULATIONS (detailed) ═══════════════ */}
       {calculations?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.calculations")}</h3>
+        <div className="mx-4 mt-4">
+          <SectionHeader title={t("clientDetail.calculations")} />
           {calculations.map((c: any) => (
-            <Card key={c.id} className="mb-1.5">
-              <CardContent className="p-3">
-                <p className="text-sm font-medium">{c.productName}</p>
-                <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                  <span>{fmtNum(c.loanAmount)} {c.currency}</span>
-                  <span>{c.termMonths} {t("calculator.months")}</span>
-                  <span>{c.interestRate}%</span>
-                </div>
-                <p className="mt-1 text-sm font-semibold text-primary">
-                  {t("calculator.monthlyPayment")}: {fmtNum(c.monthlyPayment)} {c.currency}
-                </p>
-              </CardContent>
-            </Card>
+            <div key={c.id} className="mn-card p-4 mb-2">
+              <div className="text-[14px] font-semibold text-[#0F172A]">
+                {c.productName}
+              </div>
+              <div className="flex gap-4 text-[12px] text-[#64748B] mt-1.5">
+                <span>
+                  {fmtNum(c.loanAmount)} {c.currency}
+                </span>
+                <span>
+                  {c.termMonths} {t("calculator.months")}
+                </span>
+                <span>{c.interestRate}%</span>
+              </div>
+              <div className="mt-2 text-[15px] font-bold text-[#16A34A]">
+                {t("calculator.monthlyPayment")}: {fmtNum(c.monthlyPayment)}{" "}
+                {c.currency}
+              </div>
+            </div>
           ))}
         </div>
       )}
 
+      {/* ═══════════════ TIMELINE ═══════════════ */}
       {notes?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("clientDetail.history")}</h3>
-          {notes.map((n: any) => (
-            <Card key={n.id} className="mb-1.5">
-              <CardContent className="p-3">
-                <p className="text-sm">{n.content}</p>
-                <p className="text-xs text-muted-foreground mt-1">{n.userName} · {fmtDateTime(n.createdAt)}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="mx-4 mt-4">
+          <SectionHeader title={t("clientDetail.history")} />
+          <div className="mn-card p-4">
+            {notes.map((n: any, i: number) => {
+              const tc = timelineColors[n.type] || timelineColors.note;
+              return (
+                <div key={n.id} className="flex gap-3">
+                  {/* vertical connector */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: tc.bg }}
+                    >
+                      <MessageSquare
+                        className="w-3.5 h-3.5"
+                        style={{ color: tc.fg }}
+                      />
+                    </div>
+                    {i < notes.length - 1 && (
+                      <div className="w-px flex-1 bg-[#E2E8F0] my-1" />
+                    )}
+                  </div>
+                  {/* content */}
+                  <div className={`flex-1 min-w-0 ${i < notes.length - 1 ? "pb-4" : ""}`}>
+                    <div className="text-[13px] text-[#0F172A] leading-relaxed">
+                      {n.content}
+                    </div>
+                    <div className="text-[11px] text-[#94A3B8] mt-1">
+                      {n.userName} &middot; {fmtDateTime(n.createdAt)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
+      {/* ═══════════════ IMAGE PREVIEW MODAL ═══════════════ */}
       {previewImage && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setPreviewImage(null)}
         >
-          <button className="absolute top-4 right-4 text-white" onClick={() => setPreviewImage(null)}>
+          <button
+            className="absolute top-4 right-4 text-white"
+            onClick={() => setPreviewImage(null)}
+          >
             <X className="w-8 h-8" />
           </button>
-          <img src={previewImage} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" />
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
         </div>
       )}
     </div>

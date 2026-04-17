@@ -116,18 +116,36 @@
   --status-completed: 142 65% 42%;
   --status-rejected: 0 80% 58%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  /* Telegram-aligned surface tokens */
+  --tg-bg: #F4F4F5;
+  --tg-surface: #FFFFFF;
+  --tg-text: #0F172A;
+  --tg-hint: #707579;
+  --tg-link: #16A34A;
+  --tg-destructive: #EF4444;
+
+  /* v2 status hex tokens */
+  --st-draft: #64748B;
+  --st-quest: #3B82F6;
+  --st-rec: #F59E0B;
+  --st-basket: #A855F7;
+  --st-pdf: #14B8A6;
+  --st-done: #16A34A;
+  --st-rej: #EF4444;
+
+  --app-font-sans: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 0.75rem;
-  --shadow-2xs: 0px 1px 2px rgba(0,0,0,0.04);
-  --shadow-xs: 0px 1px 3px rgba(0,0,0,0.06);
-  --shadow-sm: 0px 1px 3px rgba(0,0,0,0.06), 0px 1px 2px rgba(0,0,0,0.04);
-  --shadow: 0px 2px 4px rgba(0,0,0,0.06), 0px 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0px 4px 6px rgba(0,0,0,0.06), 0px 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg: 0px 10px 15px rgba(0,0,0,0.06), 0px 4px 6px rgba(0,0,0,0.04);
-  --shadow-xl: 0px 20px 25px rgba(0,0,0,0.06), 0px 8px 10px rgba(0,0,0,0.04);
-  --shadow-2xl: 0px 25px 50px rgba(0,0,0,0.1);
+  --shadow-2xs: 0px 1px 2px rgba(15,23,42,0.04);
+  --shadow-xs: 0px 1px 3px rgba(15,23,42,0.06);
+  --shadow-sm: 0px 1px 3px rgba(15,23,42,0.06), 0px 1px 2px rgba(15,23,42,0.04);
+  --shadow: 0px 2px 4px rgba(15,23,42,0.06), 0px 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0px 4px 8px rgba(15,23,42,0.06), 0px 2px 4px rgba(15,23,42,0.04);
+  --shadow-lg: 0px 10px 24px rgba(15,23,42,0.08), 0px 4px 8px rgba(15,23,42,0.04);
+  --shadow-xl: 0px 20px 25px rgba(15,23,42,0.06), 0px 8px 10px rgba(15,23,42,0.04);
+  --shadow-2xl: 0px 25px 50px rgba(15,23,42,0.1);
+  --shadow-up: 0 -8px 24px rgba(15,23,42,0.08);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -161,3 +179,41 @@
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* v2 status chips */
+.mn-chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; letter-spacing: 0.01em; }
+.mn-chip .dot { width: 6px; height: 6px; border-radius: 99px; background: currentColor; flex: none; }
+.mn-chip-draft { background: rgba(100,116,139,.12); color: #475569; }
+.mn-chip-questionnaire { background: rgba(59,130,246,.12); color: #1d4ed8; }
+.mn-chip-recommendation { background: rgba(245,158,11,.15); color: #b45309; }
+.mn-chip-basket { background: rgba(168,85,247,.12); color: #7e22ce; }
+.mn-chip-pdf_generated { background: rgba(20,184,166,.14); color: #0f766e; }
+.mn-chip-completed { background: rgba(22,163,74,.14); color: #15803d; }
+.mn-chip-rejected { background: rgba(239,68,68,.12); color: #b91c1c; }
+.mn-chip-under_review { background: rgba(245,158,11,.12); color: #b45309; }
+.mn-chip-approved { background: rgba(22,163,74,.14); color: #15803d; }
+
+/* v2 card surface */
+.mn-card { background: var(--tg-surface, #fff); border-radius: 14px; box-shadow: var(--shadow-sm); }
+
+/* v2 section header */
+.mn-section-hdr { padding: 12px 20px 6px; font-size: 12px; font-weight: 600; color: var(--tg-hint, #707579); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Skeleton shimmer */
+@keyframes mn-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.mn-skel { background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%); background-size: 200% 100%; animation: mn-shimmer 1.4s ease-in-out infinite; border-radius: 6px; }
+
+/* v2 form label */
+.mn-label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+
+/* v2 form input */
+.mn-input { width: 100%; border-radius: 10px; border: 1.5px solid #E2E8F0; font-size: 16px; padding: 14px; outline: none; background: #fff; transition: border-color .15s; }
+.mn-input:focus { border-color: #16A34A; }
+
+/* v2 form select */
+.mn-select { width: 100%; border-radius: 10px; border: 1.5px solid #E2E8F0; font-size: 16px; padding: 14px; outline: none; background: #fff; transition: border-color .15s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+.mn-select:focus { border-color: #16A34A; }
+
+/* Hide scrollbar for horizontal scroll */
+.mn-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.mn-scroll { scrollbar-width: none; }
