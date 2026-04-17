@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useListClients, getListClientsQueryKey, useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { Search, Download, Upload } from "lucide-react";
+import { Search, Download, Upload, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
@@ -45,38 +45,51 @@ export function getStatusBadge(status: string, t: (key: string) => string) {
   );
 }
 
+/* ── Filter tab definitions ── */
+const STATUS_TABS = [
+  { key: "all", statuses: undefined },
+  { key: "active", statuses: "draft,questionnaire,recommendation,basket,pdf_generated,under_review" },
+  { key: "completed", statuses: "completed,approved" },
+  { key: "rejected", statuses: "rejected" },
+] as const;
+
 export default function Clients({ user }: { user?: { role: string } }) {
   const isBranchHead = user?.role === "branch_head";
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [branchId, setBranchId] = useState<string>("all");
   const [page, setPage] = useState(1);
   const importRef = useRef<HTMLInputElement>(null);
+
+  /* Derive the effective status filter from tab + dropdown */
+  const tabDef = STATUS_TABS.find(t => t.key === activeTab) || STATUS_TABS[0];
 
   const { data: branches } = useListBranches({
     query: { queryKey: getListBranchesQueryKey() }
   });
 
   const { data: clientsData, isLoading } = useListClients(
-    { 
-      search: search || undefined, 
-      status: status !== "all" ? status : undefined,
+    {
+      search: search || undefined,
+      status: status !== "all" ? status : (tabDef.statuses || undefined),
       branchId: branchId !== "all" ? Number(branchId) : undefined,
       page,
       pageSize: 20
     },
-    { 
-      query: { 
-        queryKey: getListClientsQueryKey({ 
-          search: search || undefined, 
-          status: status !== "all" ? status : undefined,
+    {
+      query: {
+        queryKey: getListClientsQueryKey({
+          search: search || undefined,
+          status: status !== "all" ? status : (tabDef.statuses || undefined),
           branchId: branchId !== "all" ? Number(branchId) : undefined,
           page,
           pageSize: 20
-        }) 
-      } 
+        })
+      }
     }
   );
 
@@ -119,94 +132,145 @@ export default function Clients({ user }: { user?: { role: string } }) {
     if (importRef.current) importRef.current.value = "";
   };
 
+  const tabLabels: Record<string, string> = {
+    all: t("clients.allStatuses"),
+    active: t("clients.tabActive", { defaultValue: "В работе" }),
+    completed: t("statuses.completed"),
+    rejected: t("statuses.rejected"),
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-[14px] animate-in fade-in duration-500">
+      {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t("clients.title")}</h2>
-          <p className="text-muted-foreground mt-1">{t("clients.subtitle")}</p>
+          <h2 className="text-[30px] font-bold tracking-tight">{t("clients.title")}</h2>
+          <p className="text-[13px] text-muted-foreground mt-0.5">{t("clients.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           {!isBranchHead && (
             <>
               <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
-              <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-                <Upload className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => importRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5" />
                 {t("common.import")}
               </Button>
             </>
           )}
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5" />
             {t("common.export")}
           </Button>
         </div>
       </div>
 
-      <div className="bg-card border border-border/50 rounded-lg shadow-sm">
-        <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder={t("clients.searchPlaceholder")} 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 max-w-md"
-            />
-          </div>
-          <div className="flex gap-4">
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder={t("common.status")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("clients.allStatuses")}</SelectItem>
-                <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
-                <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
-                <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
-                <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
-                <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
-                <SelectItem value="completed">{t("statuses.completed")}</SelectItem>
-                <SelectItem value="rejected">{t("statuses.rejected")}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder={t("clients.branch")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("clients.allBranches")}</SelectItem>
-                {branches?.map(b => (
-                  <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {/* ── Underline tabs ── */}
+      <div className="flex items-center justify-between border-b border-border/50">
+        <div className="flex gap-0">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setStatus("all"); setPage(1); }}
+              className={`relative px-4 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tabLabels[tab.key]}
+              {activeTab === tab.key && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full" />
+              )}
+            </button>
+          ))}
         </div>
+      </div>
 
+      {/* ── Search bar + action row ── */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("clients.searchPlaceholder")}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="pl-9 h-9"
+          />
+        </div>
+        <div className="flex gap-3 items-center">
+          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+            <SelectTrigger className="w-[160px] h-9 text-xs">
+              <SelectValue placeholder={t("common.status")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("clients.allStatuses")}</SelectItem>
+              <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
+              <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
+              <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
+              <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
+              <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
+              <SelectItem value="completed">{t("statuses.completed")}</SelectItem>
+              <SelectItem value="rejected">{t("statuses.rejected")}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={branchId} onValueChange={(v) => { setBranchId(v); setPage(1); }}>
+            <SelectTrigger className="w-[180px] h-9 text-xs">
+              <SelectValue placeholder={t("clients.branch")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("clients.allBranches")}</SelectItem>
+              {branches?.map(b => (
+                <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button size="sm" className="gap-1.5 h-9 text-xs" asChild>
+            <Link href="/clients/new">
+              <Plus className="h-3.5 w-3.5" />
+              {t("clients.newClient", { defaultValue: "+ Новый клиент" })}
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Table card ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
         <div className="relative w-full overflow-auto">
           <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("clients.client")}</TableHead>
-                <TableHead>{t("common.status")}</TableHead>
-                <TableHead>{t("clients.branch")}</TableHead>
-                <TableHead>{t("clients.assignedTo")}</TableHead>
-                <TableHead>{t("clients.created")}</TableHead>
-                <TableHead className="text-right">{t("clients.action")}</TableHead>
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent bg-muted/50">
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.client")}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("common.status")}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.branch")}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.assignedTo")}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.created")}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground text-right">
+                  {t("clients.action")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-24 mt-2" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+                  <TableRow key={i} className="border-b border-border/50">
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-24 mt-2" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="py-[11px] text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : clientsData?.data.length === 0 ? (
@@ -217,27 +281,38 @@ export default function Clients({ user }: { user?: { role: string } }) {
                 </TableRow>
               ) : (
                 clientsData?.data.map((client) => (
-                  <TableRow key={client.id} className="group">
-                    <TableCell>
-                      <div className="font-medium text-foreground">
+                  <TableRow
+                    key={client.id}
+                    className="group border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                  >
+                    <TableCell className="py-[11px]">
+                      <div className="text-sm font-medium text-foreground">
                         {client.fullName || t("clients.anonymous")}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {client.phone || t("clients.noPhone")} • ID: {client.sessionId.substring(0,8)}...
+                      <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                        ID: {client.sessionId.substring(0,8)}
+                        {client.phone && <> &middot; {client.phone}</>}
                       </div>
                     </TableCell>
-                    <TableCell>{getStatusBadge(client.status, t)}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="py-[11px]">{getStatusBadge(client.status, t)}</TableCell>
+                    <TableCell className="py-[11px] text-sm text-muted-foreground">
                       {client.branch?.name || t("clients.unknownBranch")}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="py-[11px] text-sm text-muted-foreground">
                       {client.assignedTo?.name || t("clients.unassigned")}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="py-[11px] text-sm text-muted-foreground">
                       {formatAdminShortDate(client.createdAt)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
+                    <TableCell className="py-[11px] text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        asChild
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      >
                         <Link href={`/clients/${client.id}`}>{t("common.view")}</Link>
                       </Button>
                     </TableCell>
@@ -248,15 +323,17 @@ export default function Clients({ user }: { user?: { role: string } }) {
           </Table>
         </div>
 
-        <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
+        {/* ── Pagination footer ── */}
+        <div className="p-4 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
           <div>
             {t("common.showing", { count: clientsData?.data.length || 0, total: clientsData?.total || 0 })}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
               {t("common.previous")}
             </Button>
-            <Button variant="outline" size="sm" disabled={!clientsData || page * 20 >= clientsData.total} onClick={() => setPage(p => p + 1)}>
+            <span className="flex items-center px-2 text-xs font-medium text-foreground">{page}</span>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled={!clientsData || page * 20 >= clientsData.total} onClick={() => setPage(p => p + 1)}>
               {t("common.next")}
             </Button>
           </div>
