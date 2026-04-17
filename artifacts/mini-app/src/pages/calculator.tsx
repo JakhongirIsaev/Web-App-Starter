@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fmtDate, fmtNum, getTashkentDateByMonthOffset } from "@/lib/format";
-import { Calculator as CalcIcon, ChevronDown, ChevronUp, Download, Printer } from "lucide-react";
+import { Calculator as CalcIcon, ChevronDown, ChevronUp, Download } from "lucide-react";
 
 export default function CalculatorPage() {
   const { t } = useTranslation();
@@ -112,11 +112,11 @@ export default function CalculatorPage() {
       <Card>
         <CardContent className="p-4 space-y-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">{t("calculator.creditType")}</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.creditType")}</label>
             <select
               value={creditType}
               onChange={(e) => setCreditType(e.target.value)}
-              className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="consumer">{t("calculator.creditTypes.consumer")}</option>
               <option value="business">{t("calculator.creditTypes.business")}</option>
@@ -128,18 +128,17 @@ export default function CalculatorPage() {
 
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.productCost")}</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.productCost")}</label>
               <Input
                 type="number"
                 value={productCost}
                 onChange={(e) => setProductCost(e.target.value)}
                 placeholder="50 000 000"
-                className="mt-1"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.currency")}</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full mt-1 p-2 border rounded-lg text-sm bg-background">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.currency")}</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 <option value="UZS">{t("calculator.currencyUZS")}</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -149,8 +148,8 @@ export default function CalculatorPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.downPaymentPct")}</label>
-              <div className="flex items-center gap-2 mt-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.downPaymentPct")}</label>
+              <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   value={downPaymentPct}
@@ -163,7 +162,7 @@ export default function CalculatorPage() {
             </div>
             <div className="flex items-end pb-1.5">
               {cost > 0 && dpPct > 0 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground text-right w-full">
                   = {fmtNum(downPaymentAmount)} {currency === "UZS" ? t("calculator.currencyUZS") : currency}
                 </span>
               )}
@@ -172,25 +171,25 @@ export default function CalculatorPage() {
 
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.loanAmount")}</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.loanAmount")}</label>
               <Input
                 type="number"
                 value={loanAmount > 0 ? loanAmount.toString() : ""}
                 readOnly
-                className="mt-1 bg-muted/30"
+                className="bg-muted/30"
               />
             </div>
-            <div className="flex items-end pb-1.5">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-end">
+              <div className="flex h-9 items-center text-xs text-muted-foreground">
                 {currency === "UZS" ? t("calculator.currencyUZS") : currency}
-              </span>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.gracePeriod")}</label>
-              <div className="flex gap-1 mt-1">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.gracePeriod")}</label>
+              <div className="flex gap-1">
                 <Input type="number" value={gracePeriod} onChange={(e) => setGracePeriod(e.target.value)} min="0" />
                 <span className="text-xs text-muted-foreground self-center whitespace-nowrap">{t("calculator.months")}</span>
               </div>
@@ -199,15 +198,15 @@ export default function CalculatorPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.interestRate")}</label>
-              <Input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} className="mt-1" />
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.interestRate")}</label>
+              <Input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">&nbsp;</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">&nbsp;</label>
               <select
                 value={rateType}
                 onChange={(e) => setRateType(e.target.value)}
-                className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="annual">{t("calculator.rateAnnual")}</option>
                 <option value="monthly">{t("calculator.rateMonthly")}</option>
@@ -216,11 +215,11 @@ export default function CalculatorPage() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground">{t("calculator.repaymentType")}</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.repaymentType")}</label>
             <select
               value={repaymentType}
               onChange={(e) => setRepaymentType(e.target.value)}
-              className="w-full mt-1 p-2 border rounded-lg text-sm bg-background"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="annuity">{t("calculator.annuity")}</option>
               <option value="differentiated">{t("calculator.differentiated")}</option>
@@ -229,17 +228,17 @@ export default function CalculatorPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">{t("calculator.loanTerm")}</label>
-              <Input type="number" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} className="mt-1" />
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("calculator.loanTerm")}</label>
+              <Input type="number" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">&nbsp;</label>
-              <div className="mt-1 p-2 text-sm text-muted-foreground">{t("calculator.months")}</div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">&nbsp;</label>
+              <div className="flex h-9 items-center px-3 text-sm text-muted-foreground">{t("calculator.months")}</div>
             </div>
           </div>
 
           <Button
-            className="w-full h-12 text-base font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-full"
+            className="w-full h-12 text-base font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-full active:scale-95 transition-transform"
             onClick={() => calcMutation.mutate()}
             disabled={!canCalc || calcMutation.isPending}
           >

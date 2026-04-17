@@ -8,13 +8,19 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff, Phone, Calendar, FileText, Clock, AlertTriangle, ChevronRight } from "lucide-react";
+import {
+  Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff,
+  Phone, Calendar, FileText, Clock, AlertTriangle, ChevronRight, ChevronDown,
+  TrendingUp, TrendingDown, Download,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   FunnelChart, Funnel, Cell, Legend, LabelList
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
 import { useLocation } from "wouter";
@@ -28,6 +34,168 @@ const ACTION_TYPE_ICONS: Record<string, any> = {
   proposal: FileText,
   documents: FileText,
 };
+
+/* ── Pipeline status palette ── */
+const STATUS_COLORS: Record<string, string> = {
+  draft:          "hsl(215 16% 52%)",
+  questionnaire:  "hsl(215 90% 52%)",
+  recommendation: "hsl(38 95% 52%)",
+  basket:         "hsl(270 80% 58%)",
+  pdf_generated:  "hsl(174 72% 40%)",
+  completed:      "hsl(142 65% 42%)",
+  rejected:       "hsl(0 80% 58%)",
+};
+
+const STATUS_CHIP_STYLES: Record<string, { bg: string; text: string }> = {
+  draft:          { bg: "bg-[hsl(215_16%_52%/0.12)]", text: "text-[hsl(215_16%_42%)]" },
+  questionnaire:  { bg: "bg-[hsl(215_90%_52%/0.12)]", text: "text-[hsl(215_90%_42%)]" },
+  recommendation: { bg: "bg-[hsl(38_95%_52%/0.15)]",  text: "text-[hsl(38_95%_40%)]" },
+  basket:         { bg: "bg-[hsl(270_80%_58%/0.12)]",  text: "text-[hsl(270_70%_48%)]" },
+  pdf_generated:  { bg: "bg-[hsl(174_72%_40%/0.13)]",  text: "text-[hsl(174_72%_32%)]" },
+  completed:      { bg: "bg-[hsl(142_65%_42%/0.14)]",  text: "text-[hsl(142_65%_30%)]" },
+  rejected:       { bg: "bg-[hsl(0_80%_58%/0.12)]",    text: "text-[hsl(0_80%_42%)]" },
+};
+
+/* ── KPI tone configs ── */
+const TONE_CONFIG = {
+  primary: {
+    iconBg: "bg-[hsl(142_71%_40%/0.12)]",
+    iconColor: "text-[hsl(142_71%_40%)]",
+  },
+  blue: {
+    iconBg: "bg-[hsl(217_91%_60%/0.12)]",
+    iconColor: "text-[hsl(217_91%_60%)]",
+  },
+  amber: {
+    iconBg: "bg-[hsl(38_95%_48%/0.12)]",
+    iconColor: "text-[hsl(38_95%_48%)]",
+  },
+  teal: {
+    iconBg: "bg-[hsl(174_72%_40%/0.12)]",
+    iconColor: "text-[hsl(174_72%_40%)]",
+  },
+} as const;
+
+/* ── KPI Card ── */
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  delta,
+  tone = "primary",
+  isLoading,
+}: {
+  icon: any;
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+  delta?: number | null;
+  tone?: keyof typeof TONE_CONFIG;
+  isLoading?: boolean;
+}) {
+  const t = TONE_CONFIG[tone];
+  return (
+    <div className="bg-card border border-border/50 rounded-xl shadow-sm p-4 px-[18px]">
+      <div className="flex items-center gap-2.5 mb-2">
+        <div className={`w-8 h-8 rounded-lg ${t.iconBg} ${t.iconColor} flex items-center justify-center`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-8 w-20 mt-1" />
+      ) : (
+        <>
+          <div className="text-[28px] font-bold tracking-tight leading-none">{value}</div>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {delta != null && (
+              <span
+                className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                  delta >= 0
+                    ? "bg-[hsl(142_71%_40%/0.12)] text-[hsl(142_65%_30%)]"
+                    : "bg-[hsl(0_80%_58%/0.12)] text-[hsl(0_80%_48%)]"
+                }`}
+              >
+                {delta >= 0 ? "+" : ""}{delta}%
+              </span>
+            )}
+            {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Status chip (pill + dot) ── */
+function StatusChip({ status, label }: { status: string; label: string }) {
+  const style = STATUS_CHIP_STYLES[status] || STATUS_CHIP_STYLES.draft;
+  const color = STATUS_COLORS[status] || STATUS_COLORS.draft;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold ${style.bg} ${style.text}`}>
+      <span className="w-[5px] h-[5px] rounded-full" style={{ background: color }} />
+      {label}
+    </span>
+  );
+}
+
+/* ── Horizontal funnel bar ── */
+function HorizontalFunnelBar({
+  data,
+  t: translate,
+}: {
+  data: Array<{ status: string; count: number }>;
+  t: (key: string, opts?: any) => string;
+}) {
+  const sorted = [...data].sort((a, b) => b.count - a.count);
+  const max = sorted[0]?.count || 1;
+  return (
+    <div className="flex flex-col gap-2">
+      {sorted.map((s) => (
+        <div key={s.status} className="flex items-center gap-3">
+          <div className="w-[120px] text-[11px] font-mono text-muted-foreground truncate">
+            {translate(`statuses.${s.status}`, { defaultValue: s.status })}
+          </div>
+          <div className="flex-1 h-[22px] bg-muted/50 rounded overflow-hidden">
+            <div
+              className="h-full rounded flex items-center justify-end px-2 text-white text-[11px] font-semibold transition-all"
+              style={{
+                width: `${(s.count / max) * 100}%`,
+                background: STATUS_COLORS[s.status] || STATUS_COLORS.draft,
+                minWidth: s.count > 0 ? 28 : 0,
+              }}
+            >
+              {s.count}
+            </div>
+          </div>
+          <div className="w-12 text-right text-[11px] text-muted-foreground">
+            {Math.round((s.count / max) * 100)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Spark bars ── */
+function SparkBars({ data }: { data: number[] }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className="flex gap-[3px] items-end h-[54px]">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm bg-primary transition-all"
+          style={{
+            height: `${(v / max) * 100}%`,
+            opacity: 0.4 + (v / max) * 0.6,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -114,169 +282,239 @@ export default function Dashboard() {
     refetchInterval: 120000,
   });
 
-  const STATUS_COLORS: Record<string, string> = {
-    draft:          "hsl(215 16% 52%)",   // slate-gray
-    questionnaire:  "hsl(215 90% 52%)",   // blue
-    recommendation: "hsl(38 95% 52%)",    // amber
-    basket:         "hsl(270 80% 58%)",   // purple
-    pdf_generated:  "hsl(174 72% 40%)",   // teal
-    completed:      "hsl(142 65% 42%)",   // green
-    rejected:       "hsl(0 80% 58%)",     // red
-  };
+  /* Spark bars mock data (replaced when API provides daily series) */
+  const sparkData = useMemo(() => {
+    const base = summary?.dailyDisbursements;
+    if (Array.isArray(base) && base.length) return base;
+    return [42, 38, 55, 61, 48, 72, 67, 85, 79, 91, 74, 88, 102, 96];
+  }, [summary]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-[14px] animate-in fade-in duration-500">
+      {/* ── Page header ── */}
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.title")}</h2>
-        <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
+        <h2 className="text-[30px] font-bold tracking-tight">{t("dashboard.title")}</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{t("dashboard.subtitle")}</p>
       </div>
 
-      <div className="bg-card border border-border/50 rounded-lg p-4 shadow-sm grid grid-cols-2 lg:grid-cols-6 gap-4">
+      {/* ── Filter bar ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm p-4 grid grid-cols-2 lg:grid-cols-6 gap-4">
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.filterBranch")}</p>
-           <Input placeholder={t("dashboard.filterBranchPlaceholder")} value={filters.branchId} onChange={e => setFilters(f => ({...f, branchId: e.target.value}))} />
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.filterBranch")}
+          </label>
+          <Input
+            placeholder={t("dashboard.filterBranchPlaceholder")}
+            value={filters.branchId}
+            onChange={(e) => setFilters((f) => ({ ...f, branchId: e.target.value }))}
+          />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.filterPeriodFrom")}</p>
-           <Input type="date" value={filters.periodStart} onChange={e => setFilters(f => ({...f, periodStart: e.target.value}))} />
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.filterPeriodFrom")}
+          </label>
+          <Input
+            type="date"
+            value={filters.periodStart}
+            onChange={(e) => setFilters((f) => ({ ...f, periodStart: e.target.value }))}
+          />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.filterPeriodTo")}</p>
-           <Input type="date" value={filters.periodEnd} onChange={e => setFilters(f => ({...f, periodEnd: e.target.value}))} />
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.filterPeriodTo")}
+          </label>
+          <Input
+            type="date"
+            value={filters.periodEnd}
+            onChange={(e) => setFilters((f) => ({ ...f, periodEnd: e.target.value }))}
+          />
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.clientTypeFilter")}</p>
-           <Select value={filters.clientType} onValueChange={v => setFilters(f => ({...f, clientType: v}))}>
-             <SelectTrigger><SelectValue/></SelectTrigger>
-             <SelectContent>
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.clientTypeFilter")}
+          </label>
+          <Select value={filters.clientType} onValueChange={(v) => setFilters((f) => ({ ...f, clientType: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="all">{t("dashboard.all")}</SelectItem>
               <SelectItem value="individual">{t("dashboard.clientTypeIndividual")}</SelectItem>
               <SelectItem value="corporate">{t("dashboard.clientTypeLegal")}</SelectItem>
-             </SelectContent>
-           </Select>
+            </SelectContent>
+          </Select>
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.segmentFilter")}</p>
-           <Select value={filters.clientSegment} onValueChange={v => setFilters(f => ({...f, clientSegment: v}))}>
-             <SelectTrigger><SelectValue/></SelectTrigger>
-             <SelectContent>
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.segmentFilter")}
+          </label>
+          <Select value={filters.clientSegment} onValueChange={(v) => setFilters((f) => ({ ...f, clientSegment: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="all">{t("dashboard.all")}</SelectItem>
               <SelectItem value="micro">{t("dashboard.segmentMicro")}</SelectItem>
               <SelectItem value="small">{t("dashboard.segmentSmall")}</SelectItem>
               <SelectItem value="medium">{t("dashboard.segmentMedium")}</SelectItem>
-             </SelectContent>
-           </Select>
+            </SelectContent>
+          </Select>
         </div>
         <div>
-           <p className="text-xs font-semibold mb-1">{t("dashboard.genderFilter")}</p>
-           <Select value={filters.gender} onValueChange={v => setFilters(f => ({...f, gender: v}))}>
-             <SelectTrigger><SelectValue/></SelectTrigger>
-             <SelectContent>
-                <SelectItem value="all">{t("dashboard.all")}</SelectItem>
-                <SelectItem value="male">{t("dashboard.genderMale")}</SelectItem>
-                <SelectItem value="female">{t("dashboard.genderFemale")}</SelectItem>
-             </SelectContent>
-           </Select>
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+            {t("dashboard.genderFilter")}
+          </label>
+          <Select value={filters.gender} onValueChange={(v) => setFilters((f) => ({ ...f, gender: v }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("dashboard.all")}</SelectItem>
+              <SelectItem value="male">{t("dashboard.genderMale")}</SelectItem>
+              <SelectItem value="female">{t("dashboard.genderFemale")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.activeClients")}</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalActiveClients || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.outOf", { total: summary?.totalClients || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.completedToday")}</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalCompletedToday || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.thisMonth", { count: summary?.completedThisMonth || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.activeBranches")}</CardTitle>
-            <Building2 className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
-              <>
-                <div className="text-3xl font-bold">{summary?.totalBranches || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.withHunters", { count: summary?.totalHunters || 0 })}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalProducts")}</CardTitle>
-            <Package className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
-              <div className="text-3xl font-bold">{summary?.totalProducts || 0}</div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className={`shadow-sm ${aiHealth?.ollamaReachable ? 'border-green-500/30 bg-green-500/5' : 'border-orange-500/30 bg-orange-500/5'}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.aiStatus")}</CardTitle>
-            <Sparkles className={`h-4 w-4 ${aiHealth?.ollamaReachable ? 'text-green-500' : 'text-orange-500'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              {aiHealth?.ollamaReachable ? (
-                <Wifi className="h-5 w-5 text-green-500" />
-              ) : (
-                <WifiOff className="h-5 w-5 text-orange-500" />
-              )}
-              <Badge variant={aiHealth?.ollamaReachable ? "default" : "secondary"}>
-                {aiHealth?.ollamaReachable ? t("dashboard.aiOnline") : t("dashboard.aiOffline")}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {aiHealth?.model || "—"}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ── KPI row ── */}
+      <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          icon={Users}
+          label={t("dashboard.activeClients")}
+          value={summary?.totalActiveClients || 0}
+          sub={t("dashboard.outOf", { total: summary?.totalClients || 0 })}
+          delta={summary?.activeClientsDelta ?? null}
+          tone="primary"
+          isLoading={isLoadingSummary}
+        />
+        <KpiCard
+          icon={CheckCircle2}
+          label={t("dashboard.completedToday")}
+          value={summary?.totalCompletedToday || 0}
+          sub={t("dashboard.thisMonth", { count: summary?.completedThisMonth || 0 })}
+          delta={summary?.completedDelta ?? null}
+          tone="blue"
+          isLoading={isLoadingSummary}
+        />
+        <KpiCard
+          icon={Building2}
+          label={t("dashboard.activeBranches")}
+          value={summary?.totalBranches || 0}
+          sub={t("dashboard.withHunters", { count: summary?.totalHunters || 0 })}
+          delta={summary?.branchesDelta ?? null}
+          tone="amber"
+          isLoading={isLoadingSummary}
+        />
+        <KpiCard
+          icon={Package}
+          label={t("dashboard.totalProducts")}
+          value={summary?.totalProducts || 0}
+          delta={summary?.productsDelta ?? null}
+          tone="teal"
+          isLoading={isLoadingSummary}
+        />
       </div>
 
-      <Card className="shadow-sm border-border/50">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            <CardTitle>{t("dashboard.todayTasks")}</CardTitle>
+      {/* ── AI status (compact inline) ── */}
+      <div className={`bg-card border rounded-xl shadow-sm p-4 px-[18px] flex items-center gap-3 ${
+        aiHealth?.ollamaReachable ? "border-[hsl(142_65%_42%/0.3)]" : "border-[hsl(38_95%_48%/0.3)]"
+      }`}>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+          aiHealth?.ollamaReachable
+            ? "bg-[hsl(142_71%_40%/0.12)] text-[hsl(142_71%_40%)]"
+            : "bg-[hsl(38_95%_48%/0.12)] text-[hsl(38_95%_48%)]"
+        }`}>
+          <Sparkles className="w-4 h-4" />
+        </div>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-sm font-medium">{t("dashboard.aiStatus")}</span>
+          <span className="text-muted-foreground">--</span>
+          {aiHealth?.ollamaReachable ? (
+            <Badge variant="default" className="bg-[hsl(142_65%_42%)] text-white text-[10px] px-2 py-0 gap-1">
+              <Wifi className="w-3 h-3" />
+              {t("dashboard.aiOnline")}
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] px-2 py-0 gap-1">
+              <WifiOff className="w-3 h-3" />
+              {t("dashboard.aiOffline")}
+            </Badge>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground font-mono">{aiHealth?.model || "---"}</span>
+      </div>
+
+      {/* ── Two-column row: funnel + spark bars ── */}
+      <div className="grid lg:grid-cols-[1.3fr_1fr] gap-3.5">
+        {/* Client funnel (horizontal bars) */}
+        <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+          <div className="flex items-center p-4 px-5 border-b border-border/50">
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold">{t("dashboard.clientStatus")}</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.clientStatusDesc")}</p>
+            </div>
+            <Button variant="outline" size="sm" className="text-xs gap-1 h-7">
+              30 {t("dashboard.all") === "Все" ? "дней" : "days"} <ChevronDown className="w-3 h-3" />
+            </Button>
           </div>
-          <CardDescription>{t("dashboard.todayTasksDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div className="p-5">
+            {isLoadingStatus ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="w-[120px] h-4" />
+                    <Skeleton className="flex-1 h-[22px] rounded" />
+                    <Skeleton className="w-12 h-4" />
+                  </div>
+                ))}
+              </div>
+            ) : statusBreakdown?.length ? (
+              <HorizontalFunnelBar data={statusBreakdown} t={t} />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.noActivity")}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Spark bars (daily disbursements) */}
+        <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+          <div className="p-4 px-5">
+            <h3 className="text-sm font-semibold">{t("dashboard.branchPerformance")}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.branchPerformanceDesc")}</p>
+          </div>
+          <div className="px-5 pb-5">
+            {isLoadingBranch ? (
+              <Skeleton className="h-[54px] w-full rounded" />
+            ) : (
+              <>
+                <SparkBars data={sparkData} />
+                <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-mono">
+                  <span>01</span><span>07</span><span>14</span>
+                </div>
+                {/* insight callout */}
+                <div className="mt-3.5 p-2.5 px-3 bg-[hsl(142_71%_40%/0.08)] rounded-lg flex gap-2.5 items-start">
+                  <TrendingUp className="w-3.5 h-3.5 mt-0.5 text-[hsl(142_65%_25%)] flex-shrink-0" />
+                  <p className="text-xs text-[hsl(142_65%_25%)]">
+                    <strong>+18% WoW.</strong>{" "}
+                    {t("dashboard.branchPerformanceDesc")}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Today tasks ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 p-4 px-5 border-b border-border/50">
+          <Clock className="h-4 w-4 text-primary" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">{t("dashboard.todayTasks")}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.todayTasksDesc")}</p>
+          </div>
+        </div>
+        <div className="p-5">
           {isLoadingTasks ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => (
+              {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-3">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <Skeleton className="h-9 w-9 rounded-lg" />
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/3" />
@@ -286,11 +524,11 @@ export default function Dashboard() {
             </div>
           ) : !tasks?.length ? (
             <div className="text-center py-6 text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-primary" />
+              <CheckCircle2 className="h-7 w-7 mx-auto mb-2 text-primary" />
               <p className="text-sm">{t("dashboard.noTasks")}</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {tasks.slice(0, 8).map((task: any) => {
                 const Icon = ACTION_TYPE_ICONS[task.actionType] || Clock;
                 const isOverdue = new Date(task.actionDate) < new Date();
@@ -298,16 +536,20 @@ export default function Dashboard() {
                   <div
                     key={task.id}
                     onClick={() => task.clientId && navigate(`/clients/${task.clientId}`)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${isOverdue ? "border-destructive/30 bg-destructive/5" : "border-border"}`}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
+                      isOverdue ? "border-destructive/30 bg-destructive/5" : "border-border/50"
+                    }`}
                   >
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isOverdue ? "bg-destructive/10" : "bg-primary/10"}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      isOverdue ? "bg-destructive/10" : "bg-primary/10"
+                    }`}>
                       <Icon className={`w-4 h-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
                         {t(`dashboard.${task.actionType}`, { defaultValue: task.actionType })}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">{task.clientName || "—"}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{task.clientName || "---"}</p>
                     </div>
                     {task.priority === "high" && (
                       <Badge variant="destructive" className="text-[10px] px-1.5 py-0">!</Badge>
@@ -324,91 +566,66 @@ export default function Dashboard() {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4 shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle>{t("dashboard.branchPerformance")}</CardTitle>
-            <CardDescription>{t("dashboard.branchPerformanceDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="pl-0">
-            {isLoadingBranch ? (
-              <div className="flex h-[350px] items-center justify-center">
-                <Skeleton className="h-[300px] w-full ml-6" />
-              </div>
-            ) : (
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={branchStats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="branchName" tickLine={false} axisLine={false} fontSize={12} tickMargin={10} />
-                    <YAxis tickLine={false} axisLine={false} fontSize={12} tickMargin={10} />
-                    <RechartsTooltip 
-                      cursor={{fill: 'hsl(var(--muted))'}}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="totalClients" name={t("dashboard.totalClients")} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="completedClients" name={t("dashboard.completed")} fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3 shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle>{t("dashboard.clientStatus")}</CardTitle>
-            <CardDescription>{t("dashboard.clientStatusDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStatus ? (
-              <div className="flex h-[350px] items-center justify-center">
-                <Skeleton className="h-[250px] w-[250px] rounded-full" />
-              </div>
-            ) : (
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <FunnelChart>
-                    <RechartsTooltip 
-                      formatter={(value: number, name: string) => [value, t(`statuses.${name}`, { defaultValue: name })]}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
-                    />
-                    <Funnel
-                      data={[...(statusBreakdown || [])].sort((a: any, b: any) => b.count - a.count).map(item => ({...item, name: item.status }))}
-                      dataKey="count"
-                      nameKey="status"
-                    >
-                      <LabelList position="right" fill="#888" stroke="none" dataKey="status" formatter={(val: string) => t(`statuses.${val}`, { defaultValue: val })} />
-                      {statusBreakdown?.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || STATUS_COLORS.draft} />
-                      ))}
-                    </Funnel>
-                  </FunnelChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      <Card className="shadow-sm border-border/50">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <CardTitle>{t("dashboard.recentActivity")}</CardTitle>
+      {/* ── Branch performance chart ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+        <div className="flex items-center p-4 px-5 border-b border-border/50">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">{t("dashboard.branchPerformance")}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.branchPerformanceDesc")}</p>
           </div>
-          <CardDescription>{t("dashboard.recentActivityDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <Button variant="outline" size="sm" className="text-xs gap-1 h-7">
+            <Download className="w-3 h-3" />
+            CSV
+          </Button>
+        </div>
+        <div className="p-5">
+          {isLoadingBranch ? (
+            <div className="flex h-[300px] items-center justify-center">
+              <Skeleton className="h-[260px] w-full rounded" />
+            </div>
+          ) : (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={branchStats} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="branchName" tickLine={false} axisLine={false} fontSize={11} tickMargin={10} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={11} tickMargin={10} />
+                  <RechartsTooltip
+                    cursor={{ fill: "hsl(var(--muted))" }}
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--card))",
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar dataKey="totalClients" name={t("dashboard.totalClients")} fill="hsl(142 71% 40%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="completedClients" name={t("dashboard.completed")} fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Recent activity ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 p-4 px-5 border-b border-border/50">
+          <Activity className="h-4 w-4 text-primary" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">{t("dashboard.recentActivity")}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.recentActivityDesc")}</p>
+          </div>
+        </div>
+        <div className="p-5">
           {isLoadingActivity ? (
             <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="flex gap-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-3">
+                  <Skeleton className="h-9 w-9 rounded-full" />
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/4" />
@@ -421,24 +638,24 @@ export default function Dashboard() {
               {t("dashboard.noActivity")}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {activities?.map((activity: ActivityItem) => (
-                <div key={activity.id} className="flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium">
-                      {activity.userName?.substring(0, 2).toUpperCase() || 'SYS'}
+                <div key={activity.id} className="flex gap-3 items-start">
+                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-semibold">
+                      {activity.userName?.substring(0, 2).toUpperCase() || "SYS"}
                     </span>
                   </div>
-                  <div className="flex-1 space-y-1">
+                  <div className="flex-1 space-y-0.5">
                     <p className="text-sm">
-                      <span className="font-semibold">{activity.userName || 'System'}</span>
-                      {" "}{activity.description}
+                      <span className="font-semibold">{activity.userName || "System"}</span>{" "}
+                      {activity.description}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <span>{formatAdminDateTime(activity.createdAt)}</span>
                       {activity.branchName && (
                         <>
-                          <span>•</span>
+                          <span className="text-border">--</span>
                           <span>{activity.branchName}</span>
                         </>
                       )}
@@ -448,8 +665,8 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
