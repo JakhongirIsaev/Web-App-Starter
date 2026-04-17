@@ -18,6 +18,12 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY artifacts/admin/package.json artifacts/admin/package.json
+COPY artifacts/mini-app/package.json artifacts/mini-app/package.json
+COPY artifacts/api-server/package.json artifacts/api-server/package.json
+COPY lib/db/package.json lib/db/package.json
+COPY lib/api-zod/package.json lib/api-zod/package.json
+COPY lib/api-spec/package.json lib/api-spec/package.json
+COPY lib/api-client-react/package.json lib/api-client-react/package.json
 COPY scripts/ scripts/
 RUN pnpm install --frozen-lockfile
 
