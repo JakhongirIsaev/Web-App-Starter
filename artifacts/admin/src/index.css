@@ -114,14 +114,22 @@
   --sidebar-ring: 142 71% 55%;
 
   --chart-1: 142 71% 45%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 90 60% 50%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 38 95% 52%;
   --chart-4: 180 50% 45%;
-  --chart-5: 120 50% 55%;
+  --chart-5: 270 80% 58%;
+
+  --status-draft: 215 16% 52%;
+  --status-questionnaire: 215 90% 52%;
+  --status-recommendation: 38 95% 52%;
+  --status-basket: 270 80% 58%;
+  --status-pdf_generated: 174 72% 40%;
+  --status-completed: 142 65% 42%;
+  --status-rejected: 0 80% 58%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 0.5rem;
   
   --shadow-2xs: 0px 2px 0px 0px rgba(0,0,0,0.02);
@@ -184,10 +192,10 @@
   --sidebar-ring: 142 71% 55%;
 
   --chart-1: 142 71% 55%;
-  --chart-2: 160 60% 55%;
-  --chart-3: 90 60% 55%;
+  --chart-2: 217 91% 65%;
+  --chart-3: 38 95% 58%;
   --chart-4: 180 50% 55%;
-  --chart-5: 120 50% 60%;
+  --chart-5: 270 80% 63%;
 }
 
 @layer base {

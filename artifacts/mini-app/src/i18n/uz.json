@@ -7,9 +7,10 @@
     "home": "Bosh sahifa",
     "clients": "Mijozlar",
     "products": "Mahsulotlar",
-    "calculator": "Kalkulyator",
+    "calculator": "Hisob",
     "knowledge": "Bilimlar",
-    "creditLines": "Liniyalar"
+    "creditLines": "Liniyalar",
+    "profile": "Profil"
   },
   "creditLines": {
     "title": "Kredit liniyalari",

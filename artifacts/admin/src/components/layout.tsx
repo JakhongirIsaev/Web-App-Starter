@@ -1,16 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { User, useLogout } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  ShieldCheck, 
-  Building2, 
+import {
+  Home,
+  Users,
+  Package,
+  BookOpen,
+  Building2,
   LogOut,
-  CreditCard,
-  Hash,
-  Landmark,
+  Calculator,
   ChevronRight,
   Languages
 } from "lucide-react";
@@ -34,14 +32,12 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
-  { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"] },
-  { href: "/articles", labelKey: "nav.articles", icon: FileText, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/users", labelKey: "nav.accessManagement", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"] },
-  { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"] },
-  { href: "/credit-products", labelKey: "nav.creditProducts", icon: CreditCard, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
-  { href: "/credit-lines", labelKey: "nav.creditLines", icon: Landmark, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"] },
+  { href: "/", labelKey: "nav.dashboard", icon: Home, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
+  { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: true },
+  { href: "/credit-products", labelKey: "nav.creditProducts", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
+  { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
+  { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
+  { href: "/credit-lines", labelKey: "nav.creditLines", icon: Calculator, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
 ];
 
 export function getRoleColor(role: string) {
@@ -82,35 +78,64 @@ export default function Layout({ children, user }: LayoutProps) {
 
   return (
     <div className="min-h-screen w-full flex bg-background">
-      <aside className="w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-          <Logo size={28} textColor="text-sidebar-foreground" />
-        </div>
-        
-        <div className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto">
-          <div className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-            {t("nav.overview")}
+      <aside className="w-[232px] flex-shrink-0 bg-sidebar text-sidebar-foreground font-sans flex flex-col p-[16px_12px]">
+        {/* Brand block */}
+        <div className="flex items-center gap-2 px-2.5 py-1.5 mb-[18px]">
+          <Logo size={26} showText={false} />
+          <div className="flex flex-col">
+            <span className="text-[15px] font-bold leading-tight text-sidebar-foreground">Minerva</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-sidebar-foreground/55">
+              Credit Hunter
+            </span>
           </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex flex-col gap-0.5">
           {filteredNavItems.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}>
-                <Button
-                  variant="ghost"
+                <div
                   className={cn(
-                    "w-full justify-start text-sm font-medium h-10 px-3",
-                    isActive 
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    "flex items-center gap-[10px] px-3 py-[9px] rounded-[6px] text-[13px] cursor-pointer transition-colors",
+                    isActive
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
+                      : "text-sidebar-foreground/70 font-medium hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   )}
                 >
-                  <Icon className="mr-3 h-4 w-4" />
-                  {t(item.labelKey)}
-                </Button>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1">{t(item.labelKey)}</span>
+                  {item.badge && !isActive && (
+                    <span className="bg-sidebar-accent text-sidebar-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                      0
+                    </span>
+                  )}
+                </div>
               </Link>
             );
           })}
+        </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* User pod */}
+        <div className="flex items-center gap-2.5 bg-sidebar-accent border border-sidebar-border rounded-lg p-2.5">
+          <div className="w-[30px] h-[30px] rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+            {user.name.substring(0, 2).toUpperCase()}
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-[12px] font-semibold text-sidebar-foreground truncate">{user.name}</span>
+            <span className="text-[10px] text-sidebar-foreground/60 truncate">{t(`roles.${user.role}`)}</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-shrink-0"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </aside>
 

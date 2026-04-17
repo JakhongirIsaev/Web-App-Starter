@@ -7,9 +7,10 @@
     "home": "Главная",
     "clients": "Клиенты",
     "products": "Продукты",
-    "calculator": "Калькулятор",
+    "calculator": "Расчёт",
     "knowledge": "Знания",
-    "creditLines": "Линии"
+    "creditLines": "Линии",
+    "profile": "Профиль"
   },
   "creditLines": {
     "title": "Кредитные линии",

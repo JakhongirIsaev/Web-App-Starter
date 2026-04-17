@@ -10,14 +10,16 @@ import { useLocation, useParams } from "wouter";
 import { ArrowLeft, Plus, Check, Phone, Calendar, FileText, MessageSquare, Calculator, Scan, CreditCard, Car, FileCheck, Trash2, Send, Loader2, CheckCircle, Image as ImageIcon, X, Eye, MapPin } from "lucide-react";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 
-const statusColors: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700 border-gray-200",
-  questionnaire: "bg-blue-100 text-blue-700 border-blue-200",
-  recommendation: "bg-amber-100 text-amber-700 border-amber-200",
-  basket: "bg-purple-100 text-purple-700 border-purple-200",
-  pdf_generated: "bg-teal-100 text-teal-700 border-teal-200",
-  completed: "bg-green-100 text-green-700 border-green-200",
-  rejected: "bg-red-100 text-red-700 border-red-200",
+const statusChipStyles: Record<string, { bg: string; color: string }> = {
+  draft:          { bg: "hsl(215 16% 52% / .12)",  color: "hsl(215 16% 42%)" },
+  questionnaire:  { bg: "hsl(215 90% 52% / .12)",  color: "hsl(215 90% 42%)" },
+  recommendation: { bg: "hsl(38 95% 52% / .15)",   color: "hsl(38 95% 40%)" },
+  basket:         { bg: "hsl(270 80% 58% / .12)",  color: "hsl(270 70% 48%)" },
+  pdf_generated:  { bg: "hsl(174 72% 40% / .13)",  color: "hsl(174 72% 32%)" },
+  under_review:   { bg: "hsl(38 95% 52% / .12)",   color: "hsl(38 95% 40%)" },
+  approved:       { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
+  completed:      { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
+  rejected:       { bg: "hsl(0 80% 58% / .12)",    color: "hsl(0 80% 48%)" },
 };
 
 const statusFlow = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "completed"];
@@ -150,7 +152,14 @@ export default function ClientDetailPage() {
                 <p className="text-sm text-muted-foreground">{client.phone || t("clients.noPhone")}</p>
               </div>
             </div>
-            <span className={`inline-flex w-fit px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[client.status] || ""}`}>
+            <span
+              className="inline-flex items-center gap-1 w-fit px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold"
+              style={{
+                background: statusChipStyles[client.status]?.bg ?? "",
+                color: statusChipStyles[client.status]?.color ?? "",
+              }}
+            >
+              <span className="w-[5px] h-[5px] rounded-full" style={{ background: "currentColor" }} />
               {t(`statuses.${client.status}`)}
             </span>
           </div>

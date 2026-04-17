@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { Home, Users, Package, Calculator, BookOpen, Landmark, LogOut, Globe } from "lucide-react";
+import { Home, Users, Calculator, BookOpen, User, LogOut, Globe } from "lucide-react";
 import { MinervaIcon } from "@/components/minerva-logo";
 
 interface Props {
@@ -23,10 +23,9 @@ export default function MiniAppLayout({ children }: Props) {
   const navItems = [
     { path: "/", icon: Home, label: t("nav.home") },
     { path: "/clients", icon: Users, label: t("nav.clients") },
-    { path: "/products", icon: Package, label: t("nav.products") },
-    { path: "/credit-lines", icon: Landmark, label: t("nav.creditLines") },
     { path: "/calculator", icon: Calculator, label: t("nav.calculator") },
     { path: "/knowledge", icon: BookOpen, label: t("nav.knowledge") },
+    { path: "/profile", icon: User, label: t("nav.profile") },
   ];
 
   const isActive = (path: string) => {
@@ -62,20 +61,27 @@ export default function MiniAppLayout({ children }: Props) {
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card safe-bottom shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
-        <div className="mx-auto flex max-w-md">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-[hsl(140_15%_93%)] bg-white/95 backdrop-blur-[20px] shadow-[0_-8px_24px_rgba(15,23,42,0.06)] pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex h-full max-w-md">
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center justify-center gap-[3px] py-[6px] transition-colors ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${active ? "text-primary" : ""}`} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <item.icon
+                  className="w-5 h-5"
+                  strokeWidth={active ? 2.2 : 1.8}
+                />
+                <span
+                  className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}
+                >
+                  {item.label}
+                </span>
               </button>
             );
           })}

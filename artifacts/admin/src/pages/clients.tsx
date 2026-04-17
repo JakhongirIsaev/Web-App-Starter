@@ -16,20 +16,33 @@ import { buildApiUrl } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import { formatAdminFileDate, formatAdminShortDate } from "@/lib/time";
 
+const STATUS_CHIP_STYLES: Record<string, { bg: string; color: string }> = {
+  draft:          { bg: "hsl(215 16% 52% / .12)",  color: "hsl(215 16% 42%)" },
+  questionnaire:  { bg: "hsl(215 90% 52% / .12)",  color: "hsl(215 90% 42%)" },
+  recommendation: { bg: "hsl(38 95% 52% / .15)",   color: "hsl(38 95% 40%)" },
+  basket:         { bg: "hsl(270 80% 58% / .12)",  color: "hsl(270 70% 48%)" },
+  pdf_generated:  { bg: "hsl(174 72% 40% / .13)",  color: "hsl(174 72% 32%)" },
+  under_review:   { bg: "hsl(38 95% 52% / .12)",   color: "hsl(38 95% 40%)" },
+  approved:       { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
+  completed:      { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
+  rejected:       { bg: "hsl(0 80% 58% / .12)",    color: "hsl(0 80% 48%)" },
+};
+
 export function getStatusBadge(status: string, t: (key: string) => string) {
   const label = t(`statuses.${status}`);
-  switch (status) {
-    case "draft": return <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">{label}</Badge>;
-    case "questionnaire": return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{label}</Badge>;
-    case "recommendation": return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">{label}</Badge>;
-    case "basket": return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">{label}</Badge>;
-    case "pdf_generated": return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20">{label}</Badge>;
-    case "under_review": return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">{label}</Badge>;
-    case "approved": return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">{label}</Badge>;
-    case "completed": return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{label}</Badge>;
-    case "rejected": return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">{label}</Badge>;
-    default: return <Badge variant="outline">{status}</Badge>;
+  const style = STATUS_CHIP_STYLES[status];
+  if (!style) {
+    return <Badge variant="outline">{status}</Badge>;
   }
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold"
+      style={{ background: style.bg, color: style.color }}
+    >
+      <span className="w-[5px] h-[5px] rounded-full" style={{ background: "currentColor" }} />
+      {label}
+    </span>
+  );
 }
 
 export default function Clients({ user }: { user?: { role: string } }) {
