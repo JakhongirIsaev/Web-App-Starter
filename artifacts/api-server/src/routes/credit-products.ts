@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { creditProductsTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
+import { CreateCreditProductBody, UpdateCreditProductBody } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -33,16 +34,18 @@ router.get("/credit-products", requireAuth, async (req, res) => {
 });
 
 router.post("/credit-products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
-  const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = req.body;
-  if (!name) { res.status(400).json({ error: "Name required" }); return; }
+  const parsed = CreateCreditProductBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.flatten().fieldErrors }); return; }
+
+  const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = parsed.data;
 
   const [created] = await db.insert(creditProductsTable).values({
-    number: num || null, name, sapCode: sapCode || null, segment: segment || null,
-    disbursementForm: disbursementForm || null, loanAmount: loanAmount || null,
-    termWorkingCapital: termWorkingCapital || null, termFixedAssets: termFixedAssets || null,
-    termUntargeted: termUntargeted || null, rateUZS: rateUZS || null,
-    rateUSD: rateUSD || null, rateEUR: rateEUR || null, gracePeriod: gracePeriod || null,
-    purpose: purpose || null, highlight: highlight || null,
+    number: num ?? null, name, sapCode: sapCode ?? null, segment: segment ?? null,
+    disbursementForm: disbursementForm ?? null, loanAmount: loanAmount ?? null,
+    termWorkingCapital: termWorkingCapital ?? null, termFixedAssets: termFixedAssets ?? null,
+    termUntargeted: termUntargeted ?? null, rateUZS: rateUZS ?? null,
+    rateUSD: rateUSD ?? null, rateEUR: rateEUR ?? null, gracePeriod: gracePeriod ?? null,
+    purpose: purpose ?? null, highlight: highlight ?? null,
   }).returning();
 
   await logActivity({ type: "credit_product_created", description: `Credit product "${name}" created`, entityId: created.id, entityType: "credit_product", user: req.user });
@@ -53,10 +56,13 @@ router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const parsed = UpdateCreditProductBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.flatten().fieldErrors }); return; }
+
   const updateData: Partial<typeof creditProductsTable.$inferInsert> = { updatedAt: new Date() };
   const allowedFields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"] as const;
   for (const f of allowedFields) {
-    if (req.body[f] !== undefined) updateData[f] = req.body[f];
+    if (parsed.data[f] !== undefined) (updateData as any)[f] = parsed.data[f];
   }
 
   const [updated] = await db.update(creditProductsTable).set(updateData).where(eq(creditProductsTable.id, id)).returning();

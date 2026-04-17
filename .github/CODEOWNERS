@@ -1,0 +1,18 @@
+# Security-critical files — require review from project owner
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Auth & session middleware
+artifacts/api-server/src/middleware/ @JakhongirIsaev
+artifacts/api-server/src/routes/auth.ts @JakhongirIsaev
+
+# Session, access control, and business logic
+artifacts/api-server/src/lib/session-store.ts @JakhongirIsaev
+artifacts/api-server/src/lib/client-access.ts @JakhongirIsaev
+artifacts/api-server/src/lib/calculations.ts @JakhongirIsaev
+
+# Database schema and migrations
+lib/db/src/schema/ @JakhongirIsaev
+lib/db/drizzle/ @JakhongirIsaev
+
+# CI/CD and repo config
+.github/ @JakhongirIsaev

@@ -37,6 +37,8 @@ export const MiniAppCalculateBody = z.object({
   initialPayment: z.coerce.number().min(0).optional(),
   gracePeriodMonths: z.coerce.number().int().min(0).optional(),
   currency: z.string().optional(),
+  productCost: z.coerce.number().positive().optional(),
+  downPaymentPct: z.coerce.number().min(0).max(100).optional(),
 });
 
 export const MiniAppQuestionnaireBody = z.object({

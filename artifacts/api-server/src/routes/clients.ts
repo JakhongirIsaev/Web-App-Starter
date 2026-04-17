@@ -8,6 +8,7 @@ import {
   UpdateClientParams, ListClientsQueryParams
 } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
@@ -202,7 +203,7 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
   });
 });
 
-router.put("/clients/:id", requireAuth, async (req, res) => {
+router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const user = req.user!;
   const params = UpdateClientParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }

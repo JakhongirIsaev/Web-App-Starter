@@ -1133,14 +1133,25 @@ router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("cli
   const {
     clientId,
     productName,
-    loanAmount,
+    loanAmount: submittedLoanAmount,
     interestRate,
     termMonths,
     repaymentType,
     initialPayment,
     gracePeriodMonths,
     currency,
+    productCost,
+    downPaymentPct,
   } = calcParsed.data;
+
+  // Server-side recalculation: if productCost is provided, derive loanAmount
+  // from it instead of trusting the client-submitted value.
+  let loanAmount = submittedLoanAmount;
+  if (productCost != null && productCost > 0) {
+    const dpPct = Math.min(100, Math.max(0, downPaymentPct ?? 0));
+    const downPaymentAmount = productCost * (dpPct / 100);
+    loanAmount = productCost - downPaymentAmount;
+  }
 
   const principal = Number(loanAmount);
   const initialPay = Math.max(0, Number(initialPayment) || 0);

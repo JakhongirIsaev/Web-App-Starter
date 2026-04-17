@@ -6,3 +6,4 @@
 export * from "./generated/api";
 export * from "./ai";
 export * from "./mini-app";
+export * from "./credit-products";
