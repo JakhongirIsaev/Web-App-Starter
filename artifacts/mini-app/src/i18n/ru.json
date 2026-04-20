@@ -425,5 +425,64 @@
     "disbursement": "Форма выдачи",
     "purpose": "Назначение",
     "sapCode": "SAP код"
+  },
+  "profile": {
+    "title": "Профиль",
+    "noBranch": "Без филиала",
+    "rating": "Рейтинг",
+    "tools": "Инструменты",
+    "productsHint": "Каталог кредитных продуктов",
+    "calculatorHint": "Расчёт графика платежей",
+    "account": "Аккаунт",
+    "personalData": "Личные данные",
+    "personalDataHint": "Имя, роль, филиал",
+    "notifications": "Уведомления",
+    "notificationsHint": "Push, звуки, напоминания",
+    "language": "Язык",
+    "languageHint": "Язык интерфейса приложения",
+    "security": "Безопасность",
+    "securityHint": "Изменить пароль",
+    "logout": "Выйти из Minerva",
+    "version": "Minerva v{{version}}",
+    "personalSheet": {
+      "title": "Личные данные",
+      "name": "Имя",
+      "role": "Роль",
+      "branch": "Филиал",
+      "telegramId": "Telegram ID",
+      "userId": "ID пользователя",
+      "close": "Закрыть"
+    },
+    "notificationsSheet": {
+      "title": "Уведомления",
+      "push": "Push-уведомления",
+      "pushHint": "Новые клиенты и задачи",
+      "sounds": "Звуковые сигналы",
+      "soundsHint": "Звук при получении уведомлений",
+      "reminders": "Напоминания",
+      "remindersHint": "Напоминания о следующих действиях",
+      "save": "Сохранить"
+    },
+    "securitySheet": {
+      "title": "Изменить пароль",
+      "currentPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "confirmPassword": "Подтвердите пароль",
+      "hint": "Минимум 8 символов",
+      "submit": "Сохранить пароль",
+      "submitting": "Сохранение...",
+      "mismatch": "Пароли не совпадают",
+      "tooShort": "Пароль должен быть не менее 8 символов",
+      "success": "Пароль обновлён",
+      "wrongCurrent": "Неверный текущий пароль"
+    },
+    "roles": {
+      "superadmin": "Суперадмин",
+      "head_office_admin": "Администратор ГО",
+      "editor": "Редактор",
+      "branch_head": "Руководитель филиала",
+      "hunter": "Менеджер",
+      "manager": "Менеджер"
+    }
   }
 }

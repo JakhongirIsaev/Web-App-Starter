@@ -425,5 +425,64 @@
     "disbursement": "Berish shakli",
     "purpose": "Maqsad",
     "sapCode": "SAP kod"
+  },
+  "profile": {
+    "title": "Profil",
+    "noBranch": "Filialsiz",
+    "rating": "Reyting",
+    "tools": "Asboblar",
+    "productsHint": "Kredit mahsulotlari katalogi",
+    "calculatorHint": "To'lov jadvalini hisoblash",
+    "account": "Hisob",
+    "personalData": "Shaxsiy ma'lumotlar",
+    "personalDataHint": "Ism, rol, filial",
+    "notifications": "Bildirishnomalar",
+    "notificationsHint": "Push, tovushlar, eslatmalar",
+    "language": "Til",
+    "languageHint": "Ilova interfeysi tili",
+    "security": "Xavfsizlik",
+    "securityHint": "Parolni o'zgartirish",
+    "logout": "Minerva tizimidan chiqish",
+    "version": "Minerva v{{version}}",
+    "personalSheet": {
+      "title": "Shaxsiy ma'lumotlar",
+      "name": "Ism",
+      "role": "Rol",
+      "branch": "Filial",
+      "telegramId": "Telegram ID",
+      "userId": "Foydalanuvchi ID",
+      "close": "Yopish"
+    },
+    "notificationsSheet": {
+      "title": "Bildirishnomalar",
+      "push": "Push bildirishnomalari",
+      "pushHint": "Yangi mijozlar va vazifalar",
+      "sounds": "Tovush signallari",
+      "soundsHint": "Bildirishnoma kelganda tovush",
+      "reminders": "Eslatmalar",
+      "remindersHint": "Keyingi harakatlar haqida eslatmalar",
+      "save": "Saqlash"
+    },
+    "securitySheet": {
+      "title": "Parolni o'zgartirish",
+      "currentPassword": "Joriy parol",
+      "newPassword": "Yangi parol",
+      "confirmPassword": "Parolni tasdiqlang",
+      "hint": "Kamida 8 ta belgi",
+      "submit": "Parolni saqlash",
+      "submitting": "Saqlanmoqda...",
+      "mismatch": "Parollar mos kelmaydi",
+      "tooShort": "Parol kamida 8 ta belgidan iborat bo'lishi kerak",
+      "success": "Parol yangilandi",
+      "wrongCurrent": "Joriy parol noto'g'ri"
+    },
+    "roles": {
+      "superadmin": "Superadmin",
+      "head_office_admin": "Bosh ofis administratori",
+      "editor": "Muharrir",
+      "branch_head": "Filial rahbari",
+      "hunter": "Menejer",
+      "manager": "Menejer"
+    }
   }
 }

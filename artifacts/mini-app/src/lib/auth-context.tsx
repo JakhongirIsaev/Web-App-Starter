@@ -2,12 +2,20 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { getMe, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
 import { getDetectedTelegramId, getTelegramInitData, isTelegramWebApp } from "./telegram";
 
+interface Branch {
+  id: number;
+  name: string;
+  city: string;
+  isActive: boolean;
+}
+
 interface User {
   id: number;
   telegramId: string;
   name: string;
   role: string;
   branchId: number | null;
+  branch?: Branch | null;
   isActive: boolean;
 }
 

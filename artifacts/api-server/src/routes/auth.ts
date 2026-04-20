@@ -59,6 +59,19 @@ const ResetConfirmBody = z.object({
   newPassword: z.string().min(8, "Password must be at least 8 characters long"),
 });
 
+const ChangePasswordBody = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+});
+
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many password change attempts. Try again later." },
+});
+
 
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
@@ -237,6 +250,47 @@ router.post("/auth/logout", async (req, res) => {
   if (token) {
     await deleteSession(token);
   }
+  res.json({ success: true });
+});
+
+router.post("/auth/change-password", changePasswordLimiter, async (req, res) => {
+  const token = extractBearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const userId = await findSessionUserId(token);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const parsed = ChangePasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid body" });
+    return;
+  }
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!users.length || !users[0].isActive) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const user = users[0];
+  const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+  if (!valid) {
+    res.status(400).json({ error: "Current password is incorrect" });
+    return;
+  }
+
+  const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  await db
+    .update(usersTable)
+    .set({ passwordHash: newHash, updatedAt: new Date() })
+    .where(eq(usersTable.id, userId));
+
   res.json({ success: true });
 });
 

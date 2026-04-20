@@ -102,6 +102,10 @@ export async function getMe() {
   return api.get("/auth/me");
 }
 
+export async function changePassword(currentPassword: string, newPassword: string) {
+  return api.post("/auth/change-password", { currentPassword, newPassword });
+}
+
 export async function logout() {
   try {
     await api.post("/auth/logout");
