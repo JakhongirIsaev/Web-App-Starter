@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Home, Users, Package, BookOpen, User } from "lucide-react";
+import { Home, Users, BookOpen, User } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -14,7 +14,6 @@ export default function MiniAppLayout({ children }: Props) {
   const navItems = [
     { path: "/", icon: Home, label: t("nav.home") },
     { path: "/clients", icon: Users, label: t("nav.clients") },
-    { path: "/catalog", icon: Package, label: t("nav.products") },
     { path: "/knowledge", icon: BookOpen, label: t("nav.knowledge") },
     { path: "/profile", icon: User, label: t("nav.profile") },
   ];

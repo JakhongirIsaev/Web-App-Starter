@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useLocation } from "wouter";
-import { Plus, Search, SlidersHorizontal, User, ArrowUpDown } from "lucide-react";
-import { ClientRow, getInitials, timeAgo, fmtShort } from "@/components/ui-primitives";
+import {
+  Plus,
+  Search,
+  SlidersHorizontal,
+  User,
+  ArrowUp,
+  ArrowDown,
+  Check,
+} from "lucide-react";
+import { ClientRow, getInitials, timeAgo } from "@/components/ui-primitives";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const STATUS_KEYS = [
   "",
@@ -19,11 +28,15 @@ const STATUS_KEYS = [
   "rejected",
 ];
 
+type SortKey = "date_desc" | "date_asc" | "name_asc" | "amount_desc";
+
 export default function ClientsPage() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["mini-clients", statusFilter],
@@ -31,10 +44,45 @@ export default function ClientsPage() {
       api.get(`/mini-app/clients${statusFilter ? `?status=${statusFilter}` : ""}`),
   });
 
-  const filtered = (clients as any[]).filter(
-    (c: any) =>
-      !search || (c.fullName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = useMemo(() => {
+    const base = (clients as any[]).filter(
+      (c: any) =>
+        !search || (c.fullName || "").toLowerCase().includes(search.toLowerCase()),
+    );
+    const sorted = [...base];
+    sorted.sort((a: any, b: any) => {
+      switch (sortKey) {
+        case "date_asc":
+          return new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime();
+        case "name_asc":
+          return (a.fullName || "").localeCompare(b.fullName || "");
+        case "amount_desc":
+          return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+        case "date_desc":
+        default:
+          return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      }
+    });
+    return sorted;
+  }, [clients, search, sortKey]);
+
+  const sortLabel =
+    sortKey === "date_asc"
+      ? t("clients.sortDateOldest")
+      : sortKey === "name_asc"
+        ? t("clients.sortName")
+        : sortKey === "amount_desc"
+          ? t("clients.sortAmount")
+          : t("clients.sortDateNewest");
+
+  const SortIcon = sortKey === "date_asc" ? ArrowUp : ArrowDown;
+
+  const sortOptions: Array<{ key: SortKey; label: string }> = [
+    { key: "date_desc", label: t("clients.sortDateNewest") },
+    { key: "date_asc", label: t("clients.sortDateOldest") },
+    { key: "name_asc", label: t("clients.sortName") },
+    { key: "amount_desc", label: t("clients.sortAmount") },
+  ];
 
   return (
     <div
@@ -59,8 +107,10 @@ export default function ClientsPage() {
             />
           </div>
           <button
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            onClick={() => setFilterOpen(true)}
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
             style={{ background: "#16A34A" }}
+            aria-label={t("clients.filterAndSort")}
           >
             <SlidersHorizontal className="w-[18px] h-[18px] text-white" />
           </button>
@@ -95,9 +145,12 @@ export default function ClientsPage() {
         <span className="text-[13px] font-semibold text-[#64748B]">
           {filtered.length} {t("clients.title").toLowerCase()}
         </span>
-        <button className="flex items-center gap-1 text-[12px] font-semibold text-[#64748B]">
-          <ArrowUpDown className="w-3.5 h-3.5" />
-          {t("clients.sortDate") || "\u041F\u043E \u0434\u0430\u0442\u0435"}
+        <button
+          onClick={() => setFilterOpen(true)}
+          className="flex items-center gap-1 text-[12px] font-semibold text-[#64748B] active:opacity-70"
+        >
+          <SortIcon className="w-3.5 h-3.5" />
+          {sortLabel}
         </button>
       </div>
 
@@ -153,6 +206,77 @@ export default function ClientsPage() {
       >
         <Plus className="w-6 h-6 text-white" />
       </button>
+
+      {/* ═══════════════ FILTER / SORT SHEET ═══════════════ */}
+      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>{t("clients.filterAndSort")}</SheetTitle>
+          </SheetHeader>
+
+          <div className="mt-4">
+            <div className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide mb-2 px-1">
+              {t("clients.sortBy")}
+            </div>
+            <div className="rounded-xl overflow-hidden bg-white border" style={{ borderColor: "#F1F5F9" }}>
+              {sortOptions.map((opt, i) => {
+                const active = sortKey === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => {
+                      setSortKey(opt.key);
+                      setFilterOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-black/[0.03] text-left"
+                    style={{
+                      borderBottom: i < sortOptions.length - 1 ? "1px solid #F1F5F9" : "none",
+                    }}
+                  >
+                    <span className="flex-1 text-[14px] font-medium" style={{ color: "#0F172A" }}>
+                      {opt.label}
+                    </span>
+                    {active && <Check className="w-4 h-4 text-[#16A34A] shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide mb-2 px-1">
+              {t("clients.filterByStatus")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {STATUS_KEYS.map((s) => {
+                const active = statusFilter === s;
+                return (
+                  <button
+                    key={s || "all"}
+                    onClick={() => setStatusFilter(s)}
+                    className="px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors"
+                    style={{
+                      background: active ? "#0F172A" : "#FFFFFF",
+                      color: active ? "#FFFFFF" : "#0F172A",
+                      border: active ? "none" : "1px solid #E2E8F0",
+                    }}
+                  >
+                    {s ? t(`statuses.${s}`) : t("clients.allStatuses")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setFilterOpen(false)}
+            className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white"
+            style={{ background: "#16A34A" }}
+          >
+            {t("clients.applyFilters")}
+          </button>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

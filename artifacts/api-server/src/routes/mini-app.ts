@@ -617,6 +617,7 @@ router.get("/mini-app/todo", requireAuth, async (req, res) => {
       priority: clientNextActionsTable.priority,
       description: clientNextActionsTable.description,
       clientName: clientsTable.fullName,
+      clientStatus: clientsTable.status,
     })
     .from(clientNextActionsTable)
     .leftJoin(clientsTable, eq(clientNextActionsTable.clientId, clientsTable.id))

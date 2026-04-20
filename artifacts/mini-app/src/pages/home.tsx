@@ -17,7 +17,6 @@ import {
   Calculator,
   Sparkles,
   BookOpen,
-  Bell,
   Users,
   CalendarCheck,
   TrendingUp,
@@ -30,6 +29,28 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
+
+/**
+ * Routes a client to the next actionable screen in the workflow based on status.
+ * For open statuses (draft/questionnaire/recommendation/basket/pdf_generated) we jump
+ * directly to the step the user needs to continue; for closed statuses we fall back
+ * to the detail page.
+ */
+function nextStepPath(clientId: number, status?: string): string {
+  switch (status) {
+    case "questionnaire":
+      return `/questionnaire/${clientId}`;
+    case "recommendation":
+      return `/recommendation/${clientId}`;
+    case "basket":
+      return `/basket/${clientId}`;
+    case "pdf_generated":
+      return `/pdf-share/${clientId}`;
+    case "draft":
+    default:
+      return `/clients/${clientId}`;
+  }
+}
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -100,10 +121,10 @@ export default function HomePage() {
         className="relative overflow-hidden"
         style={{
           background: "linear-gradient(135deg, #15803D 0%, #16A34A 55%, #22C55E 100%)",
-          padding: "20px 20px 72px",
+          padding: "20px 20px 56px",
         }}
       >
-        {/* Top row: avatar + greeting + bell */}
+        {/* Top row: avatar + greeting */}
         <div className="flex items-center gap-3">
           <div
             className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-[15px] text-white shrink-0"
@@ -119,15 +140,6 @@ export default function HomePage() {
               {user?.name?.split(" ")[0] || ""}
             </div>
           </div>
-          <button
-            className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "rgba(255,255,255,0.15)" }}
-          >
-            <Bell className="w-5 h-5 text-white" />
-            {todoPendingCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-green-600" />
-            )}
-          </button>
         </div>
 
         {/* Date line */}
@@ -135,7 +147,7 @@ export default function HomePage() {
       </div>
 
       {/* ═══════════════ KPI TILES (overlapping gradient) ═══════════════ */}
-      <div className="px-4" style={{ marginTop: -56 }}>
+      <div className="px-4" style={{ marginTop: -28 }}>
         {dashboardLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-[#64748B]" />
@@ -209,7 +221,7 @@ export default function HomePage() {
                       ? "border-b border-[#F1F5F9]"
                       : ""
                   }`}
-                  onClick={() => action.clientId && navigate(`/clients/${action.clientId}`)}
+                  onClick={() => action.clientId && navigate(nextStepPath(action.clientId, action.clientStatus))}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
@@ -245,7 +257,7 @@ export default function HomePage() {
                 className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer active:bg-black/[0.03] ${
                   i < (todo.incompleteClients?.length ?? 0) - 1 ? "border-b border-[#F1F5F9]" : ""
                 }`}
-                onClick={() => navigate(`/clients/${c.id}`)}
+                onClick={() => navigate(nextStepPath(c.id, c.status))}
               >
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#FEF3C7]">
                   <FileText className="w-4 h-4 text-[#D97706]" />
@@ -301,33 +313,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* ═══════════════ KNOWLEDGE TEASER ═══════════════ */}
-      <div className="px-4 pt-5">
-        <div
-          className="mn-card overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-          style={{
-            background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-            boxShadow: "0px 4px 12px rgba(217,119,6,0.22)",
-          }}
-          onClick={() => navigate("/knowledge")}
-        >
-          <div className="flex items-center gap-3.5 p-4 text-white">
-            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-              <Sparkles className="w-[22px] h-[22px]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-bold tracking-tight">
-                {t("knowledge.title") === "\u0411\u0430\u0437\u0430 \u0437\u043D\u0430\u043D\u0438\u0439" ? "\u041D\u043E\u0432\u043E\u0435 \u0432 \u043F\u0440\u043E\u0434\u0443\u043A\u0442\u0430\u0445" : "Product updates"}
-              </div>
-              <div className="text-[12px] text-white/90 mt-0.5 leading-snug">
-                {t("knowledge.subtitle")}
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-white/70 shrink-0" />
-          </div>
-        </div>
-      </div>
 
       {/* ═══════════════ BRANCH HEAD SUMMARY ═══════════════ */}
       {user?.role === "branch_head" && branchData && (

@@ -81,7 +81,15 @@
     "noClients": "Нет клиентов",
     "noClientsHint": "Создайте первого клиента",
     "anonymous": "Без имени",
-    "noPhone": "Нет телефона"
+    "noPhone": "Нет телефона",
+    "filterAndSort": "Фильтр и сортировка",
+    "sortBy": "Сортировка",
+    "filterByStatus": "Фильтр по статусу",
+    "applyFilters": "Применить",
+    "sortDateNewest": "Сначала новые",
+    "sortDateOldest": "Сначала старые",
+    "sortName": "По имени (А–Я)",
+    "sortAmount": "По сумме"
   },
   "clientDetail": {
     "title": "Карточка клиента",

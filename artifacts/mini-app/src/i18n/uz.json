@@ -81,7 +81,15 @@
     "noClients": "Mijozlar yo'q",
     "noClientsHint": "Birinchi mijozni yarating",
     "anonymous": "Ismsiz",
-    "noPhone": "Telefon yo'q"
+    "noPhone": "Telefon yo'q",
+    "filterAndSort": "Filtr va tartib",
+    "sortBy": "Tartiblash",
+    "filterByStatus": "Holat bo'yicha filtr",
+    "applyFilters": "Qo'llash",
+    "sortDateNewest": "Avval yangilari",
+    "sortDateOldest": "Avval eskilari",
+    "sortName": "Ism bo'yicha (A–Z)",
+    "sortAmount": "Summa bo'yicha"
   },
   "clientDetail": {
     "title": "Mijoz kartasi",
