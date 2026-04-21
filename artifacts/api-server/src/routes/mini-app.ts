@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import XLSX from "xlsx";
@@ -67,6 +68,29 @@ import {
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
+
+// Per-user rate limits for compute/IO-heavy endpoints. Applied after requireAuth
+// so req.user.id is always set; these keep one authenticated user from
+// saturating calculate/export workers even though /mini-app/* is excluded from
+// the global IP limiter in app.ts.
+const userKey = (req: any) => `user:${req.user.id}`;
+const calculateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  message: { error: "Too many calculations. Try again in a minute." },
+});
+const exportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  message: { error: "Too many export requests. Try again in a minute." },
+});
+
 type PdfLanguage = "ru" | "uz" | "en";
 
 interface DetailedBasketItem extends ProductLike {
@@ -735,7 +759,7 @@ router.post("/mini-app/clients", requireAuth, async (req, res) => {
   res.json(client);
 });
 
-router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/export-all", requireAuth, exportLimiter, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const branchId = req.user!.branchId;
@@ -1127,7 +1151,7 @@ router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("client
   res.json({ basketId });
 });
 
-router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
+router.post("/mini-app/calculate", requireAuth, calculateLimiter, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
   try {
   const calcParsed = CalculateBody.safeParse(req.body);
   if (!calcParsed.success) { res.status(400).json({ error: "Invalid body", details: calcParsed.error }); return; }
@@ -1508,6 +1532,7 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAcce
 router.post(
   "/mini-app/exports/auto-excel",
   requireAuth,
+  exportLimiter,
   requireClientAccessFromBody("clientId", { optional: true }),
   async (req, res) => {
   const autoParsed = AutoExcelBody.safeParse(req.body);
