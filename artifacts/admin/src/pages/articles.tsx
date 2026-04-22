@@ -158,7 +158,7 @@ export default function Articles({ user }: { user?: { role: string } }) {
           <h2 className="text-3xl font-bold tracking-tight">{t("articles.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("articles.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canWrite && (
             <>
               <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />

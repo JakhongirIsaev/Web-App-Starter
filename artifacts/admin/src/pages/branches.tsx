@@ -109,7 +109,7 @@ export default function Branches() {
           <h2 className="text-3xl font-bold tracking-tight">{t("branches.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("branches.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
           <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
             <Upload className="h-4 w-4" />

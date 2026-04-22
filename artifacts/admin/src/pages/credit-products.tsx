@@ -206,7 +206,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
           <h2 className="text-3xl font-bold tracking-tight">{t("creditProducts.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("creditProducts.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canAdmin && (
             <>
               <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
