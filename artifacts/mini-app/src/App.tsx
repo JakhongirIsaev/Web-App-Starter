@@ -1,67 +1,200 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import "@/i18n";
-import LoginPage from "@/pages/login";
 import MiniAppLayout from "@/components/mini-app-layout";
-import HomePage from "@/pages/home";
-import ClientsPage from "@/pages/clients";
-import NewClientPage from "@/pages/new-client";
-import ClientDetailPage from "@/pages/client-detail";
-import QuestionnairePage from "@/pages/questionnaire";
-import RecommendationPage from "@/pages/recommendation";
-import CalculatorPage from "@/pages/calculator";
-import KnowledgePage from "@/pages/knowledge";
-import CatalogPage from "@/pages/catalog";
-import BasketPage from "@/pages/basket";
-import PdfSharePage from "@/pages/pdf-share";
-import ProfilePage from "@/pages/profile";
-import ProductsPage from "@/pages/products";
-import ScanDocumentPage from "@/pages/scan-document";
-import CreditLinesPage from "@/pages/credit-lines";
-import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/error-boundary";
 
+const LoginPage = lazy(() => import("@/pages/login"));
+const HomePage = lazy(() => import("@/pages/home"));
+const ClientsPage = lazy(() => import("@/pages/clients"));
+const NewClientPage = lazy(() => import("@/pages/new-client"));
+const ClientDetailPage = lazy(() => import("@/pages/client-detail"));
+const QuestionnairePage = lazy(() => import("@/pages/questionnaire"));
+const RecommendationPage = lazy(() => import("@/pages/recommendation"));
+const CalculatorPage = lazy(() => import("@/pages/calculator"));
+const KnowledgePage = lazy(() => import("@/pages/knowledge"));
+const CatalogPage = lazy(() => import("@/pages/catalog"));
+const BasketPage = lazy(() => import("@/pages/basket"));
+const PdfSharePage = lazy(() => import("@/pages/pdf-share"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const ProductsPage = lazy(() => import("@/pages/products"));
+const ScanDocumentPage = lazy(() => import("@/pages/scan-document"));
+const CreditLinesPage = lazy(() => import("@/pages/credit-lines"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
 const queryClient = new QueryClient();
+
+function FullScreenLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[var(--tg-bg,#F4F4F5)] px-6">
+      <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-[28px] border border-white/80 bg-white/90 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#15803D_0%,#16A34A_58%,#22C55E_100%)] text-xl font-bold text-white shadow-[0_18px_40px_rgba(22,163,74,0.28)]">
+          M
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-[#0F172A]">Minerva</p>
+          <p className="text-xs text-[#64748B]">Preparing your workspace...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniPageFallback() {
+  return (
+    <div className="space-y-4 px-4 pb-24 pt-4">
+      <Skeleton className="h-36 w-full rounded-[28px]" />
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+      <Skeleton className="h-28 w-full rounded-2xl" />
+      <Skeleton className="h-56 w-full rounded-2xl" />
+    </div>
+  );
+}
+
+function PageSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<MiniPageFallback />}>{children}</Suspense>;
+}
 
 function AuthGate() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center animate-pulse">
-          <span className="text-primary-foreground font-bold text-xl">M</span>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
-  if (!user) return <LoginPage />;
+  if (!user) {
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <LoginPage />
+      </Suspense>
+    );
+  }
 
   return (
     <MiniAppLayout>
       <ErrorBoundary>
         <Switch>
-          <Route path="/" component={HomePage} />
-          <Route path="/clients" component={ClientsPage} />
-          <Route path="/new-client" component={NewClientPage} />
-          <Route path="/clients/:id" component={ClientDetailPage} />
-          <Route path="/questionnaire/:clientId" component={QuestionnairePage} />
-          <Route path="/recommendation/:clientId" component={RecommendationPage} />
-          <Route path="/calculator" component={CalculatorPage} />
-          <Route path="/knowledge" component={KnowledgePage} />
-          <Route path="/catalog" component={CatalogPage} />
-          <Route path="/basket/:clientId" component={BasketPage} />
-          <Route path="/pdf-share/:clientId" component={PdfSharePage} />
-          <Route path="/profile" component={ProfilePage} />
-          <Route path="/products" component={ProductsPage} />
-          <Route path="/credit-lines" component={CreditLinesPage} />
-          <Route path="/scan/:clientId" component={ScanDocumentPage} />
-          <Route component={NotFound} />
+          <Route path="/">
+            {() => (
+              <PageSuspense>
+                <HomePage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/clients">
+            {() => (
+              <PageSuspense>
+                <ClientsPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/new-client">
+            {() => (
+              <PageSuspense>
+                <NewClientPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/clients/:id">
+            {() => (
+              <PageSuspense>
+                <ClientDetailPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/questionnaire/:clientId">
+            {() => (
+              <PageSuspense>
+                <QuestionnairePage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/recommendation/:clientId">
+            {() => (
+              <PageSuspense>
+                <RecommendationPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/calculator">
+            {() => (
+              <PageSuspense>
+                <CalculatorPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/knowledge">
+            {() => (
+              <PageSuspense>
+                <KnowledgePage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/catalog">
+            {() => (
+              <PageSuspense>
+                <CatalogPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/basket/:clientId">
+            {() => (
+              <PageSuspense>
+                <BasketPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/pdf-share/:clientId">
+            {() => (
+              <PageSuspense>
+                <PdfSharePage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/profile">
+            {() => (
+              <PageSuspense>
+                <ProfilePage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/products">
+            {() => (
+              <PageSuspense>
+                <ProductsPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/credit-lines">
+            {() => (
+              <PageSuspense>
+                <CreditLinesPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/scan/:clientId">
+            {() => (
+              <PageSuspense>
+                <ScanDocumentPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route>
+            {() => (
+              <PageSuspense>
+                <NotFound />
+              </PageSuspense>
+            )}
+          </Route>
         </Switch>
       </ErrorBoundary>
     </MiniAppLayout>
