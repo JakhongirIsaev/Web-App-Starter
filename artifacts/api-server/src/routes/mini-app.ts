@@ -18,6 +18,7 @@ import {
   basketItemsTable,
   calculationsTable,
   clientDocumentsTable,
+  creditLinesTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
@@ -1238,6 +1239,23 @@ router.get("/mini-app/products", requireAuth, async (req, res) => {
   const products = await getRecommendationCatalog("uz", needType);
 
   res.json(products);
+});
+
+router.get("/mini-app/credit-lines", requireAuth, async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(creditLinesTable)
+    .orderBy(creditLinesTable.number, creditLinesTable.id);
+
+  const mapped = rows.map((r) => ({
+    ...r,
+    agreementAmount: r.agreementAmount !== null ? Number(r.agreementAmount) : null,
+    receivedAmount: r.receivedAmount !== null ? Number(r.receivedAmount) : null,
+    disbursedAmount: r.disbursedAmount !== null ? Number(r.disbursedAmount) : null,
+    remainingBalance: r.remainingBalance !== null ? Number(r.remainingBalance) : null,
+  }));
+
+  res.json(mapped);
 });
 
 router.get("/mini-app/articles", requireAuth, async (req, res) => {
