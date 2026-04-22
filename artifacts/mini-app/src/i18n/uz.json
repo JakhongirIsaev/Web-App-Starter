@@ -73,7 +73,9 @@
     "totalBranchClients": "Filial mijozlari",
     "monthClients": "Bu oy",
     "knowledgeTitle": "Bilimlar bazasi",
-    "knowledgeHint": "Mahsulotlar, shartlar va qoʻllanmalar doimo qoʻl ostida"
+    "knowledgeHint": "Mahsulotlar, shartlar va qoʻllanmalar doimo qoʻl ostida",
+    "online": "Onlayn",
+    "branchLabel": "Filial"
   },
   "clients": {
     "title": "Mening mijozlarim",

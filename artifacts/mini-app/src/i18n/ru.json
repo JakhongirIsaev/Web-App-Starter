@@ -73,7 +73,9 @@
     "totalBranchClients": "Клиенты филиала",
     "monthClients": "За месяц",
     "knowledgeTitle": "База знаний",
-    "knowledgeHint": "Продукты, условия и гайды — всегда под рукой"
+    "knowledgeHint": "Продукты, условия и гайды — всегда под рукой",
+    "online": "Онлайн",
+    "branchLabel": "Филиал"
   },
   "clients": {
     "title": "Мои клиенты",

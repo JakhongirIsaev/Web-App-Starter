@@ -129,78 +129,95 @@ export default function HomePage() {
     (todo?.pendingActions?.length || 0) + (todo?.incompleteClients?.length || 0);
 
   const quickActions = [
-    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", bg: "#ECFDF3", fg: "#16A34A" },
-    { icon: Calculator, label: t("home.calc"), path: "/calculator", bg: "#FFFBEB", fg: "#D97706" },
-    { icon: Package, label: t("nav.products"), path: "/products", bg: "#FAF5FF", fg: "#A855F7" },
-    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", bg: "#EFF6FF", fg: "#3B82F6" },
+    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
+    { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
+    { icon: Package, label: t("nav.products"), path: "/products", iconBg: "#A855F7", iconColor: "#FFFFFF" },
+    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#3B82F6", iconColor: "#FFFFFF" },
   ];
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString("ru-RU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
-  const kpiStats = [
-    { label: t("home.totalClients"), value: dashboard?.totalClients ?? 0, icon: Users, tint: "#16A34A", bg: "#ECFDF3" },
-    { label: t("home.todayTasks"), value: todoPendingCount, icon: Clock, tint: "#D97706", bg: "#FFFBEB" },
-    { label: t("home.thisMonth"), value: dashboard?.clientsThisMonth ?? 0, icon: CalendarCheck, tint: "#14B8A6", bg: "#F0FDFA" },
+  const inlineStats = [
+    { label: t("home.totalClients"), value: dashboard?.totalClients ?? 0, color: "#FFFFFF" },
+    { label: t("home.clientsToday"), value: dashboard?.clientsToday ?? dashboard?.todayTasks ?? todoPendingCount, color: "#FBBF24" },
+    { label: t("home.thisMonth"), value: dashboard?.clientsThisMonth ?? 0, color: "#FFFFFF" },
   ];
 
   const firstName = user?.name?.split(" ")[0] || "";
   const branchName = user?.branch?.name || "";
 
   return (
-    <div className="min-h-screen pb-6" style={{ background: "var(--tg-bg, #F4F4F5)" }}>
+    <div className="min-h-screen pb-6" style={{ background: "hsl(140 20% 97%)" }}>
       <div
-        className="relative px-5 pt-5 text-white"
+        className="relative overflow-hidden px-5 text-white"
         style={{
-          paddingBottom: 72,
-          background: "linear-gradient(135deg, #15803D 0%, #16A34A 55%, #22C55E 100%)",
+          padding: "18px 20px 22px",
+          background: "linear-gradient(180deg, #0D3D1A 0%, #155D27 60%, #1A7A32 100%)",
         }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-bold"
-            style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
-          >
-            {getInitials(user?.name)}
+        <svg width="100%" height="100%" className="pointer-events-none absolute inset-0" style={{ opacity: 0.08 }}>
+          <defs>
+            <pattern id="mn-stripes" width="16" height="100" patternUnits="userSpaceOnUse">
+              <rect x="0" y="0" width="2" height="100" fill="#fff" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#mn-stripes)" />
+        </svg>
+        <div className="relative">
+          <div className="mb-3.5 flex items-center gap-3">
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-full text-[16px] font-bold"
+              style={{
+                background: "hsl(142 71% 55%)",
+                color: "hsl(145 55% 14%)",
+                border: "2px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              {getInitials(user?.name)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[12px] font-medium opacity-75">{getGreeting()},</div>
+              <div className="mt-0.5 truncate text-[17px] font-bold tracking-[-0.01em]">{firstName}</div>
+            </div>
+            <div
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#4ADE80" }} />
+              {t("home.online")}
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[12px] text-white/75">{getGreeting()},</div>
-            <div className="truncate text-[17px] font-bold tracking-[-0.01em]">{firstName}</div>
-          </div>
+
           {branchName && (
-            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
-              {branchName}
+            <div className="mb-1.5 text-[11px] font-medium uppercase opacity-70" style={{ letterSpacing: "0.06em" }}>
+              {t("home.branchLabel")} · {branchName}
             </div>
           )}
-        </div>
-        <div className="mt-3.5 text-[12px] capitalize text-white/75">{dateStr}</div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-2.5 px-4" style={{ marginTop: -56 }}>
-        {kpiStats.map((stat) => (
-          <div key={stat.label} className="mn-card flex flex-col gap-1.5" style={{ padding: 14 }}>
-            <div className="flex items-center gap-2">
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-lg"
-                style={{ background: stat.bg, color: stat.tint }}
-              >
-                <stat.icon className="h-4 w-4" />
+          <div
+            className="mt-2 flex items-stretch gap-2.5 rounded-[14px] px-3.5 py-3"
+            style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+          >
+            {inlineStats.map((stat, i) => (
+              <div key={stat.label} className="flex flex-1 items-stretch gap-2.5">
+                {i > 0 && <div className="w-px" style={{ background: "rgba(255,255,255,0.2)" }} />}
+                <div className="flex-1">
+                  <div className="text-[22px] font-bold leading-none tracking-[-0.02em]" style={{ color: stat.color }}>
+                    {stat.value}
+                  </div>
+                  <div className="mt-1 text-[10px] opacity-75">{stat.label}</div>
+                </div>
               </div>
-            </div>
-            <div className="text-[22px] font-bold leading-none text-[#0F172A]">{stat.value}</div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
-              {stat.label}
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
-      <div className="px-4 pt-4">
-        <div className="mn-section-hdr px-0 pt-0 pb-2">{t("home.quickActions")}</div>
+      <div className="px-4 pt-[18px]">
+        <div
+          className="mb-2.5 px-1 text-[11px] font-semibold uppercase"
+          style={{ letterSpacing: "0.06em", color: "hsl(150 10% 45%)" }}
+        >
+          {t("home.quickActions")}
+        </div>
         <div className="grid grid-cols-4 gap-2.5">
           {quickActions.map((action) => (
             <button
@@ -210,11 +227,11 @@ export default function HomePage() {
             >
               <div
                 className="flex h-11 w-11 items-center justify-center rounded-[14px]"
-                style={{ background: action.bg, color: action.fg }}
+                style={{ background: action.iconBg, color: action.iconColor }}
               >
                 <action.icon className="h-5 w-5" strokeWidth={2} />
               </div>
-              <div className="text-[11px] font-semibold leading-tight text-[#0F172A]" style={{ textWrap: "balance" as any }}>
+              <div className="text-[11px] font-semibold leading-tight" style={{ color: "hsl(150 40% 8%)", textWrap: "balance" as any }}>
                 {action.label}
               </div>
             </button>
@@ -362,27 +379,23 @@ export default function HomePage() {
       <div className="px-4 pt-5">
         <button
           onClick={() => navigate("/knowledge")}
-          className="flex w-full items-center gap-3 rounded-[16px] px-4 py-4 text-left transition-transform active:scale-[0.98]"
+          className="flex w-full items-center gap-3.5 rounded-[16px] px-[18px] py-4 text-left text-white transition-transform active:scale-[0.98]"
           style={{
-            background: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
-            border: "1px solid #FDE68A",
+            background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+            boxShadow: "0px 4px 12px rgba(217,119,6,0.22)",
           }}
         >
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] text-white"
-            style={{ background: "#FBBF24" }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+            style={{ background: "rgba(255,255,255,0.22)" }}
           >
             <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-bold tracking-[-0.01em]" style={{ color: "#78350F" }}>
-              {t("home.knowledgeTitle")}
-            </div>
-            <div className="mt-0.5 truncate text-[12px]" style={{ color: "#92400E" }}>
-              {t("home.knowledgeHint")}
-            </div>
+            <div className="text-[14px] font-bold tracking-[-0.01em]">{t("home.knowledgeTitle")}</div>
+            <div className="mt-1 text-[11px] leading-snug opacity-90">{t("home.knowledgeHint")}</div>
           </div>
-          <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "#92400E" }} />
+          <ChevronRight className="h-[14px] w-[14px] shrink-0 opacity-70" />
         </button>
       </div>
 
