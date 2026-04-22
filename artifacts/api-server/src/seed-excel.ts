@@ -1,16 +1,60 @@
 import { db } from "@workspace/db";
 import { creditProductsTable, sapCodesTable, creditLinesTable, basketItemsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { logger } from "./lib/logger";
 
 // VERIFIED 2026-04-02: 20 products × 3 segments = 60 rows
 // Products #9 HAMROH, #12 VOYAH, #13 LIXIANG, #14 Trend Motor have
 // intentionally different rateUZS/loanAmount for средний vs микро/малый segments
 // (matches original Ipak Yuli Bank product passport data)
 
-async function seed() {
-  console.log("Seeding credit products...");
-  await db.delete(basketItemsTable);
-  await db.delete(creditProductsTable);
+interface SeedExcelOptions {
+  /**
+   * When true, wipes existing rows before re-seeding. Use with extreme care —
+   * this also deletes basket_items (client FK dependency).
+   */
+  force?: boolean;
+}
+
+async function tableCount(table: typeof creditProductsTable | typeof sapCodesTable | typeof creditLinesTable): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(table);
+  return row?.count ?? 0;
+}
+
+/**
+ * Seeds the credit product catalogue, SAP code dictionary, and credit-line
+ * balances from the Ipak Yuli Bank product passport.
+ *
+ * Idempotent: each table is only populated when empty, so this is safe to
+ * call unconditionally on every boot. Pass { force: true } to wipe and
+ * re-seed (destructive — only use in local dev or via reseed-demo).
+ */
+export async function seedExcelData(options: SeedExcelOptions = {}) {
+  const { force = false } = options;
+
+  const cpCount = await tableCount(creditProductsTable);
+  const scCount = await tableCount(sapCodesTable);
+  const clCount = await tableCount(creditLinesTable);
+
+  if (!force && cpCount > 0 && scCount > 0 && clCount > 0) {
+    logger.info(
+      { creditProducts: cpCount, sapCodes: scCount, creditLines: clCount },
+      "Excel reference data already seeded, skipping",
+    );
+    return;
+  }
+
+  logger.info(
+    { force, creditProducts: cpCount, sapCodes: scCount, creditLines: clCount },
+    "Seeding Excel reference data",
+  );
+
+  // Only wipe when forcing OR when the specific table is empty (fresh insert).
+  // We guard basket_items separately since it depends on creditProducts.
+  if (force || cpCount === 0) {
+    await db.delete(basketItemsTable);
+    await db.delete(creditProductsTable);
+  }
 
   const creditProducts = [
     { number: 1, name: "ISHONCH", sapCode: "MMF_100", segment: "средний", disbursementForm: "перечислением", loanAmount: "до 100,0 млн.сум (в экв. иностр. валюты USD)", termWorkingCapital: "12 мес", termFixedAssets: "12 мес", termUntargeted: "-", rateUZS: "28%", rateUSD: "14%", rateEUR: "-", gracePeriod: "-", purpose: "Доверительные кредиты под залог страхового полиса или товаров в обороте.", highlight: "" },
@@ -75,13 +119,18 @@ async function seed() {
     { number: 20, name: "BIZNESGA KO'MAK", sapCode: "", segment: "микро", disbursementForm: "", loanAmount: "до 500,0 млн.сум", termWorkingCapital: "24 мес.", termFixedAssets: "48 мес.", termUntargeted: "-", rateUZS: "до 12 мес - 20%; до 24 мес - 22%; свыше 24 мес - 24%", rateUSD: "-", rateEUR: "-", gracePeriod: "до 3 мес.", purpose: "Кредитные средства на поддержку и развитие малого бизнеса.", highlight: "" },
   ];
 
-  for (const cp of creditProducts) {
-    await db.insert(creditProductsTable).values(cp);
+  if (force || cpCount === 0) {
+    for (const cp of creditProducts) {
+      await db.insert(creditProductsTable).values(cp);
+    }
+    logger.info({ count: creditProducts.length }, "Inserted credit products");
+  } else {
+    logger.info({ existing: cpCount }, "Credit products already populated, skipping");
   }
-  console.log(`Inserted ${creditProducts.length} credit products`);
 
-  console.log("Seeding SAP codes...");
-  await db.delete(sapCodesTable);
+  if (force || scCount === 0) {
+    await db.delete(sapCodesTable);
+  }
 
   const sapCodes = [
     { status: "действующий", productId: "ANDR_USD", name: "EXPRESS MIKRO ВАЛЮТНЫЙ", productType: "Финансовые услуги", categoryId: "BFS_ORG_LOANI", categoryName: "Кредиты за счет ин. капитала" },
@@ -177,13 +226,18 @@ async function seed() {
     { status: "действующий", productId: "M_UN / M_UN_VAL", name: "Универсальный продукт", productType: "Финансовые услуги", categoryId: "", categoryName: "В зависимости от выбранного Шифра источника финансирования" },
   ];
 
-  for (const sc of sapCodes) {
-    await db.insert(sapCodesTable).values(sc);
+  if (force || scCount === 0) {
+    for (const sc of sapCodes) {
+      await db.insert(sapCodesTable).values(sc);
+    }
+    logger.info({ count: sapCodes.length }, "Inserted SAP codes");
+  } else {
+    logger.info({ existing: scCount }, "SAP codes already populated, skipping");
   }
-  console.log(`Inserted ${sapCodes.length} SAP codes`);
 
-  console.log("Seeding credit lines...");
-  await db.delete(creditLinesTable);
+  if (force || clCount === 0) {
+    await db.delete(creditLinesTable);
+  }
 
   const creditLines = [
     { number: 1, name: "Symbiotics Sicav Asset Management", department: "Корп/Микро", agreementDate: "2023-12-08", agreementAmount: "4000000", receivedAmount: "4000000", currency: "EUR (978)", interestRate: "6.15%", disbursedAmount: "3551044.99", remainingBalance: "448955.01", projectCount: 71, specialConditions: "Линия направлена на развитие ММСБ", notes: "нет изменений", section: "Доступные для освоения" },
@@ -212,13 +266,14 @@ async function seed() {
     { number: 24, name: "Incofin", department: "Микро", agreementDate: "2024-06-25", agreementAmount: "2500000", receivedAmount: "2673750", currency: "USD (840)", interestRate: "c 27.06.24 по 27.12.24 11,081%", disbursedAmount: "0", remainingBalance: "2673750", projectCount: 0, specialConditions: "Линия направлена на развитие ММСБ", notes: "", section: "Доступные для освоения" },
   ];
 
-  for (const cl of creditLines) {
-    await db.insert(creditLinesTable).values(cl);
+  if (force || clCount === 0) {
+    for (const cl of creditLines) {
+      await db.insert(creditLinesTable).values(cl);
+    }
+    logger.info({ count: creditLines.length }, "Inserted credit lines");
+  } else {
+    logger.info({ existing: clCount }, "Credit lines already populated, skipping");
   }
-  console.log(`Inserted ${creditLines.length} credit lines`);
 
-  console.log("Seeding complete!");
-  process.exit(0);
+  logger.info("Excel reference data seed complete");
 }
-
-seed().catch(e => { console.error(e); process.exit(1); });

@@ -13,6 +13,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { logger } from "./lib/logger";
+import { seedExcelData } from "./seed-excel";
 
 interface SeedOptions {
   force?: boolean;
@@ -56,6 +57,12 @@ export async function seedDatabase(options: SeedOptions = {}) {
         ne(usersTable.name, "Jahongir Isayev"),
       ),
     );
+
+  // Seed the credit product catalogue, SAP dictionary, and credit-line
+  // balances. The function is independently idempotent per-table so it is
+  // safe to call regardless of whether the demo users/clients are already
+  // seeded.
+  await seedExcelData({ force });
 
   const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
 
