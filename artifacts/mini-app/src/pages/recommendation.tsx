@@ -306,7 +306,7 @@ export default function RecommendationPage() {
         items,
       });
     },
-    onSuccess: () => navigate(`/clients/${params.clientId}`),
+    onSuccess: () => navigate(`/basket/${params.clientId}`),
   });
 
   const toggleProduct = (id: number) => {

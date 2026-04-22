@@ -292,8 +292,9 @@ export default function ClientDetailPage() {
             )}
 
             {basketItems?.length > 0 && (
-              <div
-                className="flex items-center gap-3 mt-3 p-3 rounded-xl"
+              <button
+                onClick={() => navigate(`/basket/${client.id}`)}
+                className="w-full flex items-center gap-3 mt-3 p-3 rounded-xl text-left active:scale-[0.99] transition-transform"
                 style={{ background: "#F3E8FF" }}
               >
                 <ShoppingBag className="w-5 h-5 text-[#7C3AED] shrink-0" />
@@ -306,7 +307,7 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#7C3AED]/50 shrink-0" />
-              </div>
+              </button>
             )}
           </div>
         </div>
