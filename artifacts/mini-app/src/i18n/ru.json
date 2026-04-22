@@ -71,7 +71,9 @@
     "branchSummary": "Сводка по филиалу",
     "workers": "Сотрудники",
     "totalBranchClients": "Клиенты филиала",
-    "monthClients": "За месяц"
+    "monthClients": "За месяц",
+    "knowledgeTitle": "База знаний",
+    "knowledgeHint": "Продукты, условия и гайды — всегда под рукой"
   },
   "clients": {
     "title": "Мои клиенты",

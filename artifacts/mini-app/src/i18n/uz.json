@@ -71,7 +71,9 @@
     "branchSummary": "Filial xulosasi",
     "workers": "Xodimlar",
     "totalBranchClients": "Filial mijozlari",
-    "monthClients": "Bu oy"
+    "monthClients": "Bu oy",
+    "knowledgeTitle": "Bilimlar bazasi",
+    "knowledgeHint": "Mahsulotlar, shartlar va qoʻllanmalar doimo qoʻl ostida"
   },
   "clients": {
     "title": "Mening mijozlarim",
