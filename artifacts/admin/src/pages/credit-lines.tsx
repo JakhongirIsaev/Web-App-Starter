@@ -65,6 +65,61 @@ function fmtNum(value: string | number | null | undefined): string {
   return decPart ? `${formatted}.${decPart}` : formatted;
 }
 
+function trimTrailingZeros(value: number): string {
+  return value
+    .toFixed(2)
+    .replace(/\.00$/, "")
+    .replace(/(\.\d*[1-9])0+$/, "$1");
+}
+
+function normalizeCurrencyCode(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const text = value.trim().toUpperCase();
+  const digits = text.replace(/\D/g, "");
+  const lookup = digits || text;
+
+  switch (lookup) {
+    case "000":
+    case "860":
+    case "UZS":
+      return "UZS";
+    case "840":
+    case "USD":
+      return "USD";
+    case "978":
+    case "EUR":
+      return "EUR";
+    case "392":
+    case "JPY":
+      return "JPY";
+    default:
+      return text;
+  }
+}
+
+function fmtInterestRate(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "number") {
+    const percentValue = Math.abs(value) < 1 ? value * 100 : value;
+    return `${trimTrailingZeros(percentValue)}%`;
+  }
+
+  const text = String(value).trim();
+  if (text.includes("%")) return text;
+
+  const normalized = text.replace(",", ".");
+  if (/^[+-]?\d+(\.\d+)?(e[+-]?\d+)?$/i.test(normalized)) {
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed)) {
+      const percentValue = Math.abs(parsed) < 1 ? parsed * 100 : parsed;
+      return `${trimTrailingZeros(percentValue)}%`;
+    }
+  }
+
+  return text;
+}
+
 export default function CreditLines({ user }: { user?: { role: string } }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -81,6 +136,12 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const canWrite = user && writeRoles.includes(user.role);
   const canAdmin = user && adminRoles.includes(user.role);
+  const buildImportSummary = (result: { imported?: number; updated?: number; skipped?: number[] }) => {
+    const parts = [`${result.imported || 0} imported`];
+    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.skipped?.length) parts.push(`${result.skipped.length} skipped`);
+    return parts.join(" • ");
+  };
 
   const queryKey = ["credit-lines", search, currency, page];
   const { data, isLoading } = useQuery({
@@ -157,7 +218,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
-      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
+      toast({ title: t("common.importSuccess"), description: buildImportSummary(result) });
       invalidate();
     } catch (err: any) {
       toast({ variant: "destructive", title: t("common.importError"), description: err.message });
@@ -170,10 +231,11 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
   const isPending = createMut.isPending || updateMut.isPending;
 
   const getCurrencyBadge = (c: string) => {
-    switch (c?.toUpperCase()) {
+    switch (normalizeCurrencyCode(c)) {
       case "USD": return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">USD</Badge>;
       case "EUR": return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">EUR</Badge>;
       case "JPY": return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">JPY</Badge>;
+      case "UZS": return <Badge variant="outline" className="bg-violet-500/10 text-violet-700 border-violet-500/20">UZS</Badge>;
       default: return <Badge variant="secondary">{c}</Badge>;
     }
   };
@@ -188,7 +250,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
         <div className="flex flex-wrap gap-2">
           {canAdmin && (
             <>
-              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+              <input type="file" ref={importRef} accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
               <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
                 <Upload className="h-4 w-4" />{t("common.import")}
               </Button>
@@ -215,6 +277,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("creditLines.allCurrencies")}</SelectItem>
+              <SelectItem value="UZS">UZS</SelectItem>
               <SelectItem value="USD">USD</SelectItem>
               <SelectItem value="EUR">EUR</SelectItem>
               <SelectItem value="JPY">JPY</SelectItem>
@@ -291,7 +354,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{localizeDepartment(item.department, lang) || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{item.agreementDate || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1 tabular-nums">{fmtNum(item.receivedAmount)}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{item.interestRate || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{fmtInterestRate(item.interestRate)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.projectCount")}:</span> <span className="ml-1">{item.projectCount || "-"}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.section")}:</span> <span className="ml-1">{localizeSection(item.section, lang) || "-"}</span></div>
                             {item.specialConditions && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditLines.specialConditions")}:</span> <span className="ml-1">{localizeSpecialConditions(item.specialConditions, lang)}</span></div>}
@@ -347,6 +410,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">-</SelectItem>
+                    <SelectItem value="UZS">UZS</SelectItem>
                     <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                     <SelectItem value="JPY">JPY</SelectItem>

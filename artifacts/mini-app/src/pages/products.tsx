@@ -1,64 +1,84 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-interface ProductGroup {
-  number: number;
+type ProductItem = {
+  id: number;
+  number: number | null;
   name: string;
-  sapCode: string;
-  segments: Record<string, any>;
+  sapCode: string | null;
+  segment: string | null;
+  disbursementForm: string | null;
+  loanAmount: string | null;
+  termWorkingCapital: string | null;
+  termFixedAssets: string | null;
+  termUntargeted: string | null;
+  rateUZS: string | null;
+  rateUSD: string | null;
+  rateEUR: string | null;
+  gracePeriod: string | null;
+  purpose: string | null;
+  highlight: string | null;
+};
+
+function SegmentBadge({ segment, t }: { segment: string | null; t: ReturnType<typeof useTranslation>["t"] }) {
+  switch (segment) {
+    case "СЃСЂРµРґРЅРёР№":
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">{t("products.medium")}</Badge>;
+    case "РјР°Р»С‹Р№":
+      return <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/20">{t("products.small")}</Badge>;
+    case "РјРёРєСЂРѕ":
+      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20">{t("products.micro")}</Badge>;
+    case "":
+    case null:
+      return <Badge variant="secondary">-</Badge>;
+    default:
+      return <Badge variant="secondary">{segment}</Badge>;
+  }
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-muted-foreground flex-shrink-0">{label}</span>
+      <span className="text-foreground font-medium text-right">{value}</span>
+    </div>
+  );
 }
 
 export default function ProductsPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
-  const [expandedNumber, setExpandedNumber] = useState<number | null>(null);
-  const [selectedSegments, setSelectedSegments] = useState<Record<number, string>>({});
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["mini-products"],
     queryFn: () => api.get("/mini-app/products"),
   });
 
-  const grouped = useMemo(() => {
-    const map = new Map<number, ProductGroup>();
-    for (const p of products as any[]) {
-      const num = p.number || p.id;
-      if (!map.has(num)) {
-        map.set(num, {
-          number: num,
-          name: p.name,
-          sapCode: p.sapCode || "",
-          segments: {},
-        });
-      }
-      const segKey = p.segment || "__default";
-      map.get(num)!.segments[segKey] = p;
-    }
-    return Array.from(map.values()).sort((a, b) => a.number - b.number);
-  }, [products]);
-
-  const filtered = grouped.filter((g) =>
-    !search || g.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const segmentOrder = ["микро", "малый", "средний"];
-  const segmentLabels: Record<string, string> = {
-    "микро": t("products.micro"),
-    "малый": t("products.small"),
-    "средний": t("products.medium"),
-  };
-
-  const getSelectedSegment = (group: ProductGroup) => {
-    const segs = Object.keys(group.segments);
-    const chosen = selectedSegments[group.number];
-    if (chosen && group.segments[chosen]) return chosen;
-    return segmentOrder.find((s) => segs.includes(s)) || segs[0] || "__default";
-  };
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (products as ProductItem[]).filter((item) => {
+      if (!term) return true;
+      return [
+        item.number ?? "",
+        item.name,
+        item.sapCode,
+        item.segment,
+        item.loanAmount,
+        item.purpose,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [products, search]);
 
   return (
     <div className="space-y-4 pb-4">
@@ -76,7 +96,7 @@ export default function ProductsPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           placeholder={t("recommendation.allProducts")}
           className="pl-9"
         />
@@ -92,101 +112,62 @@ export default function ProductsPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((group) => {
-            const isExpanded = expandedNumber === group.number;
-            const currentSeg = getSelectedSegment(group);
-            const product = group.segments[currentSeg];
-            const availableSegs = segmentOrder.filter((s) => group.segments[s]);
+          {filtered.map((item) => {
+            const expanded = expandedId === item.id;
 
             return (
-              <Card key={group.number} className="overflow-hidden">
+              <Card key={item.id} className="overflow-hidden">
                 <CardContent className="p-0">
-                  <div
-                    className="p-3 cursor-pointer"
-                    onClick={() => setExpandedNumber(isExpanded ? null : group.number)}
+                  <button
+                    type="button"
+                    className="w-full text-left p-3"
+                    onClick={() => setExpandedId(expanded ? null : item.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                            #{group.number}
+                            #{item.number ?? "—"}
                           </span>
-                          <p className="text-sm font-medium truncate">{group.name}</p>
+                          <p className="text-sm font-medium truncate">{item.name}</p>
                         </div>
-                        {group.sapCode && (
-                          <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                            SAP: {group.sapCode}
-                          </span>
-                        )}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <SegmentBadge segment={item.segment} t={t} />
+                          {item.sapCode && (
+                            <span className="text-[10px] text-muted-foreground">
+                              SAP: {item.sapCode}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {isExpanded ? (
+                      {expanded ? (
                         <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
                       ) : (
                         <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
                       )}
                     </div>
-                  </div>
+                  </button>
 
-                  {isExpanded && (
-                    <div className="border-t">
-                      {availableSegs.length > 1 && (
-                        <div className="px-3 pt-3 pb-1">
-                          <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wider">{t("products.businessType")}</p>
-                          <div className="flex gap-1.5">
-                            {availableSegs.map((seg) => (
-                              <button
-                                key={seg}
-                                onClick={() => setSelectedSegments((prev) => ({ ...prev, [group.number]: seg }))}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                                  currentSeg === seg
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                }`}
-                              >
-                                {segmentLabels[seg] || seg}
-                              </button>
-                            ))}
-                          </div>
+                  {expanded && (
+                    <div className="border-t p-3 space-y-2 text-xs">
+                      {item.loanAmount && <InfoRow label={t("products.loanAmount")} value={item.loanAmount} />}
+                      {item.rateUZS && <InfoRow label={t("products.rateUzs")} value={item.rateUZS} />}
+                      {item.rateUSD && <InfoRow label={t("products.rateUsd")} value={item.rateUSD} />}
+                      {item.rateEUR && <InfoRow label={t("products.rateEur")} value={item.rateEUR} />}
+                      {item.termWorkingCapital && <InfoRow label={t("products.termWC")} value={item.termWorkingCapital} />}
+                      {item.termFixedAssets && <InfoRow label={t("products.termFA")} value={item.termFixedAssets} />}
+                      {item.termUntargeted && <InfoRow label={t("creditProducts.termUntargeted")} value={item.termUntargeted} />}
+                      {item.gracePeriod && <InfoRow label={t("products.gracePeriod")} value={item.gracePeriod} />}
+                      {item.disbursementForm && <InfoRow label={t("products.disbursement")} value={item.disbursementForm} />}
+                      {item.purpose && (
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">{t("products.purpose")}</p>
+                          <p className="text-foreground text-xs leading-relaxed whitespace-pre-wrap">{item.purpose}</p>
                         </div>
                       )}
-
-                      {product && (
-                        <div className="p-3 space-y-2 text-xs">
-                          {product.loanAmount && (
-                            <InfoRow label={t("products.loanAmount")} value={product.loanAmount} />
-                          )}
-                          {product.rateUZS && (
-                            <InfoRow label={t("products.rateUzs")} value={product.rateUZS} />
-                          )}
-                          {product.rateUSD && (
-                            <InfoRow label={t("products.rateUsd")} value={product.rateUSD} />
-                          )}
-                          {product.rateEUR && (
-                            <InfoRow label={t("products.rateEur")} value={product.rateEUR} />
-                          )}
-                          {product.termWorkingCapital && (
-                            <InfoRow label={t("products.termWC")} value={product.termWorkingCapital} />
-                          )}
-                          {product.termFixedAssets && (
-                            <InfoRow label={t("products.termFA")} value={product.termFixedAssets} />
-                          )}
-                          {product.gracePeriod && (
-                            <InfoRow label={t("products.gracePeriod")} value={product.gracePeriod} />
-                          )}
-                          {product.disbursementForm && (
-                            <InfoRow label={t("products.disbursement")} value={product.disbursementForm} />
-                          )}
-                          {product.purpose && (
-                            <div>
-                              <p className="text-muted-foreground mb-0.5">{t("products.purpose")}</p>
-                              <p className="text-foreground text-xs leading-relaxed">{product.purpose}</p>
-                            </div>
-                          )}
-                          {product.highlight && (
-                            <div className="bg-primary/10 rounded-lg p-2">
-                              <p className="text-primary font-medium text-xs">{product.highlight}</p>
-                            </div>
-                          )}
+                      {item.highlight && (
+                        <div className="bg-primary/10 rounded-lg p-2">
+                          <p className="text-primary font-medium text-xs whitespace-pre-wrap">{item.highlight}</p>
                         </div>
                       )}
                     </div>
@@ -197,15 +178,6 @@ export default function ProductsPage() {
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span className="text-muted-foreground flex-shrink-0">{label}</span>
-      <span className="text-foreground font-medium text-right">{value}</span>
     </div>
   );
 }

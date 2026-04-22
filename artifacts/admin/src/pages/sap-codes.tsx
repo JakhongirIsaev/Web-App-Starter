@@ -61,6 +61,12 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
   const [form, setForm] = useState<SapCodeForm>(emptyForm);
   const canWrite = user && writeRoles.includes(user.role);
   const canAdmin = user && adminRoles.includes(user.role);
+  const buildImportSummary = (result: { imported?: number; updated?: number; skipped?: number[] }) => {
+    const parts = [`${result.imported || 0} imported`];
+    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.skipped?.length) parts.push(`${result.skipped.length} skipped`);
+    return parts.join(" • ");
+  };
 
   const queryKey = ["sap-codes", search, status, page];
   const { data, isLoading } = useQuery({
@@ -129,7 +135,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
-      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
+      toast({ title: t("common.importSuccess"), description: buildImportSummary(result) });
       invalidate();
     } catch (err: any) {
       toast({ variant: "destructive", title: t("common.importError"), description: err.message });
@@ -160,7 +166,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
         <div className="flex flex-wrap gap-2">
           {canAdmin && (
             <>
-              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
+              <input type="file" ref={importRef} accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
               <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
                 <Upload className="h-4 w-4" />{t("common.import")}
               </Button>

@@ -5,6 +5,11 @@ import { eq, ilike, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import {
+  isExcelUpload,
+  mapSapCodeCsvRow,
+  parseSapCodesWorkbook,
+} from "../lib/spreadsheet-import";
 
 const router: IRouter = Router();
 
@@ -74,23 +79,52 @@ router.delete("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_off
 router.post("/sap-codes/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
+    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    const rows = isExcelUpload(req.file)
+      ? parseSapCodesWorkbook(req.file.buffer)
+      : parseCsvBuffer(req.file.buffer).map(mapSapCodeCsvRow);
     const skipped: number[] = [];
-    let imported = 0;
+    const validRows: Array<typeof sapCodesTable.$inferInsert> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.name || !row.status) {
+        skipped.push(i + 2);
+        continue;
+      }
+      validRows.push({
+        status: row.status,
+        productId: row.productId || null,
+        name: row.name,
+        productType: row.productType || null,
+        categoryId: row.categoryId || null,
+        categoryName: row.categoryName || null,
+      });
+    }
+
+    let cleared = 0;
+
     await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.name || !row.status) { skipped.push(i + 2); continue; }
-        await tx.insert(sapCodesTable).values({
-          status: row.status, productId: row.productId || null, name: row.name,
-          productType: row.productType || null, categoryId: row.categoryId || null,
-          categoryName: row.categoryName || null,
-        });
-        imported++;
+      const [existingCountRow] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(sapCodesTable);
+      cleared = Number(existingCountRow?.count ?? 0);
+
+      await tx.delete(sapCodesTable);
+
+      if (validRows.length > 0) {
+        await tx.insert(sapCodesTable).values(validRows);
       }
     });
-    await logActivity({ type: "sap_codes_imported", description: `Imported ${imported} SAP codes from CSV`, entityType: "sap_code", user: req.user });
-    res.json({ imported, skipped });
+
+    const imported = validRows.length;
+    await logActivity({
+      type: "sap_codes_imported",
+      description: `Replaced SAP codes with ${imported} rows from ${sourceLabel}`,
+      entityType: "sap_code",
+      user: req.user,
+    });
+    res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

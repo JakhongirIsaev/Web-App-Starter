@@ -5,6 +5,11 @@ import { eq, ilike, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import {
+  isExcelUpload,
+  mapCreditLineCsvRow,
+  parseCreditLinesWorkbook,
+} from "../lib/spreadsheet-import";
 
 const router: IRouter = Router();
 
@@ -97,27 +102,60 @@ router.delete("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_
 router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
+    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    const rows = isExcelUpload(req.file)
+      ? parseCreditLinesWorkbook(req.file.buffer)
+      : parseCsvBuffer(req.file.buffer).map(mapCreditLineCsvRow);
     const skipped: number[] = [];
-    let imported = 0;
+    const validRows: Array<typeof creditLinesTable.$inferInsert> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.name) {
+        skipped.push(i + 2);
+        continue;
+      }
+      validRows.push({
+        number: row.number !== null && row.number !== undefined ? Number(row.number) : null,
+        name: row.name,
+        department: row.department || null,
+        agreementDate: row.agreementDate || null,
+        agreementAmount: row.agreementAmount || null,
+        receivedAmount: row.receivedAmount || null,
+        currency: row.currency || null,
+        interestRate: row.interestRate || null,
+        disbursedAmount: row.disbursedAmount || null,
+        remainingBalance: row.remainingBalance || null,
+        projectCount: row.projectCount !== null && row.projectCount !== undefined ? Number(row.projectCount) : null,
+        specialConditions: row.specialConditions || null,
+        notes: row.notes || null,
+        section: row.section || null,
+      });
+    }
+
+    let cleared = 0;
+
     await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.name) { skipped.push(i + 2); continue; }
-        await tx.insert(creditLinesTable).values({
-          number: row.number ? Number(row.number) : null, name: row.name,
-          department: row.department || null, agreementDate: row.agreementDate || null,
-          agreementAmount: row.agreementAmount || null, receivedAmount: row.receivedAmount || null,
-          currency: row.currency || null, interestRate: row.interestRate || null,
-          disbursedAmount: row.disbursedAmount || null, remainingBalance: row.remainingBalance || null,
-          projectCount: row.projectCount ? Number(row.projectCount) : null,
-          specialConditions: row.specialConditions || null, notes: row.notes || null, section: row.section || null,
-        });
-        imported++;
+      const [existingCountRow] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(creditLinesTable);
+      cleared = Number(existingCountRow?.count ?? 0);
+
+      await tx.delete(creditLinesTable);
+
+      if (validRows.length > 0) {
+        await tx.insert(creditLinesTable).values(validRows);
       }
     });
-    await logActivity({ type: "credit_lines_imported", description: `Imported ${imported} credit lines from CSV`, entityType: "credit_line", user: req.user });
-    res.json({ imported, skipped });
+
+    const imported = validRows.length;
+    await logActivity({
+      type: "credit_lines_imported",
+      description: `Replaced credit lines with ${imported} rows from ${sourceLabel}`,
+      entityType: "credit_line",
+      user: req.user,
+    });
+    res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

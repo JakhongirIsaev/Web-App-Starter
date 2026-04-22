@@ -1,11 +1,16 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { creditProductsTable } from "@workspace/db";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { basketItemsTable, creditProductsTable } from "@workspace/db";
+import { eq, ilike, and, sql, isNotNull } from "drizzle-orm";
 import { CreateCreditProductBody, UpdateCreditProductBody } from "@workspace/api-zod";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import {
+  isExcelUpload,
+  mapCreditProductCsvRow,
+  parseCreditProductsWorkbook,
+} from "../lib/spreadsheet-import";
 
 const router: IRouter = Router();
 
@@ -83,27 +88,75 @@ router.delete("/credit-products/:id", requireAuth, requireRole("superadmin", "he
 router.post("/credit-products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
+    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    const rows = isExcelUpload(req.file)
+      ? parseCreditProductsWorkbook(req.file.buffer)
+      : parseCsvBuffer(req.file.buffer).map(mapCreditProductCsvRow);
     const skipped: number[] = [];
-    let imported = 0;
+    const validRows: Array<typeof creditProductsTable.$inferInsert> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.name) {
+        skipped.push(i + 2);
+        continue;
+      }
+      validRows.push({
+        number: row.number !== null && row.number !== undefined ? Number(row.number) : null,
+        name: row.name,
+        sapCode: row.sapCode || null,
+        segment: row.segment || null,
+        disbursementForm: row.disbursementForm || null,
+        loanAmount: row.loanAmount || null,
+        termWorkingCapital: row.termWorkingCapital || null,
+        termFixedAssets: row.termFixedAssets || null,
+        termUntargeted: row.termUntargeted || null,
+        rateUZS: row.rateUZS || null,
+        rateUSD: row.rateUSD || null,
+        rateEUR: row.rateEUR || null,
+        gracePeriod: row.gracePeriod || null,
+        purpose: row.purpose || null,
+        highlight: row.highlight || null,
+      });
+    }
+
+    let detachedBasketItems = 0;
+    let cleared = 0;
+
     await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.name) { skipped.push(i + 2); continue; }
-        await tx.insert(creditProductsTable).values({
-          number: row.number ? Number(row.number) : null, name: row.name,
-          sapCode: row.sapCode || null, segment: row.segment || null,
-          disbursementForm: row.disbursementForm || null, loanAmount: row.loanAmount || null,
-          termWorkingCapital: row.termWorkingCapital || null, termFixedAssets: row.termFixedAssets || null,
-          termUntargeted: row.termUntargeted || null, rateUZS: row.rateUZS || null,
-          rateUSD: row.rateUSD || null, rateEUR: row.rateEUR || null,
-          gracePeriod: row.gracePeriod || null, purpose: row.purpose || null, highlight: row.highlight || null,
-        });
-        imported++;
+      const [existingCountRow] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(creditProductsTable);
+      cleared = Number(existingCountRow?.count ?? 0);
+
+      const [linkedBasketCountRow] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(basketItemsTable)
+        .where(isNotNull(basketItemsTable.productId));
+      detachedBasketItems = Number(linkedBasketCountRow?.count ?? 0);
+
+      if (detachedBasketItems > 0) {
+        await tx
+          .update(basketItemsTable)
+          .set({ productId: null })
+          .where(isNotNull(basketItemsTable.productId));
+      }
+
+      await tx.delete(creditProductsTable);
+
+      if (validRows.length > 0) {
+        await tx.insert(creditProductsTable).values(validRows);
       }
     });
-    await logActivity({ type: "credit_products_imported", description: `Imported ${imported} credit products from CSV`, entityType: "credit_product", user: req.user });
-    res.json({ imported, skipped });
+
+    const imported = validRows.length;
+    await logActivity({
+      type: "credit_products_imported",
+      description: `Replaced credit products with ${imported} rows from ${sourceLabel}`,
+      entityType: "credit_product",
+      user: req.user,
+    });
+    res.json({ imported, cleared, detachedBasketItems, replaced: true, skipped });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
