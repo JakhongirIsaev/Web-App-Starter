@@ -65,6 +65,19 @@ function formatRole(role: string) {
   return labels[role] || role;
 }
 
+function buildVersionedMiniAppUrl(miniAppUrl: string): string {
+  // Cache-bust the Telegram WebApp URL so the in-app WebView fetches the
+  // latest index.html on every deploy. Telegram keys its cache by full URL
+  // including query string, so appending a per-deploy version string avoids
+  // stale bundles even when users have a previous session pinned.
+  const version =
+    process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ||
+    process.env.GIT_COMMIT_SHA?.slice(0, 8) ||
+    Date.now().toString(36);
+  const separator = miniAppUrl.includes("?") ? "&" : "?";
+  return `${miniAppUrl}${separator}v=${version}`;
+}
+
 export async function startBot(miniAppUrl: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -72,12 +85,15 @@ export async function startBot(miniAppUrl: string) {
     return;
   }
 
+  const versionedMiniAppUrl = buildVersionedMiniAppUrl(miniAppUrl);
+  logger.info({ versionedMiniAppUrl }, "Mini-app URL cache-busted for Telegram WebApp");
+
   bot = new Bot(token);
 
   bot.command("start", async (ctx) => {
     const telegramId = ctx.from?.id?.toString();
     const user = telegramId ? await getUserByTelegramId(telegramId) : null;
-    const keyboard = new InlineKeyboard().webApp("Minerva mini-ilovasini ochish", miniAppUrl);
+    const keyboard = new InlineKeyboard().webApp("Minerva mini-ilovasini ochish", versionedMiniAppUrl);
 
     if (user) {
       await ctx.reply(
@@ -311,6 +327,19 @@ export async function startBot(miniAppUrl: string) {
   try {
     const me = await bot.api.getMe();
     logger.info({ botUsername: me.username }, "Telegram bot authenticated");
+
+    try {
+      await bot.api.setChatMenuButton({
+        menu_button: {
+          type: "web_app",
+          text: "Minerva",
+          web_app: { url: versionedMiniAppUrl },
+        },
+      });
+      logger.info("Chat menu button updated to versioned mini-app URL");
+    } catch (err: any) {
+      logger.warn({ err: err.message || err }, "Failed to update chat menu button");
+    }
 
     const isProduction = process.env.NODE_ENV === "production";
     const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
