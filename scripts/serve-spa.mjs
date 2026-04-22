@@ -111,7 +111,16 @@ function proxyApiRequest(req, res, target) {
   const client = isHttps ? https : http;
   const defaultPort = isHttps ? 443 : 80;
 
-  const { host: _incomingHost, ...passthroughHeaders } = req.headers;
+  // Strip origin/referer so the upstream CORS middleware sees the proxied
+  // request as same-origin (app.ts has a `!origin` bypass). Strip host because
+  // we rewrite it to the target below. Leaving these in would cause the
+  // api-server's allowlist to reject the browser's public URL.
+  const {
+    host: _incomingHost,
+    origin: _incomingOrigin,
+    referer: _incomingReferer,
+    ...passthroughHeaders
+  } = req.headers;
 
   const options = {
     protocol: target.protocol,
