@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 
 const rawPort = process.env["PORT"];
@@ -19,9 +20,21 @@ const distArg = process.argv[2] ?? "dist/public";
 const distDir = path.resolve(process.cwd(), distArg);
 const basePath = normalizeBasePath(process.env["BASE_PATH"] ?? "/");
 
+const apiProxyTargetRaw = (
+  process.env["API_PROXY_TARGET"] ??
+  process.env["API_ORIGIN"] ??
+  ""
+).trim().replace(/\/+$/, "");
+const apiProxyTarget = apiProxyTargetRaw ? new URL(apiProxyTargetRaw) : null;
+
 await access(distDir);
 
 const server = http.createServer(async (req, res) => {
+  if (apiProxyTarget && shouldProxy(req.url)) {
+    proxyApiRequest(req, res, apiProxyTarget);
+    return;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD" });
     res.end("Method not allowed");
@@ -75,6 +88,9 @@ server.listen(port, "0.0.0.0", () => {
   console.log(
     `Serving ${distDir} on http://0.0.0.0:${port}${basePath === "/" ? "/" : basePath}`,
   );
+  if (apiProxyTarget) {
+    console.log(`Proxying /api/* -> ${apiProxyTarget.origin}`);
+  }
 });
 
 process.on("SIGTERM", () => {
@@ -84,6 +100,55 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   server.close(() => process.exit(0));
 });
+
+function shouldProxy(url) {
+  if (!url) return false;
+  return url === "/api" || url.startsWith("/api/") || url.startsWith("/api?");
+}
+
+function proxyApiRequest(req, res, target) {
+  const isHttps = target.protocol === "https:";
+  const client = isHttps ? https : http;
+  const defaultPort = isHttps ? 443 : 80;
+
+  const { host: _incomingHost, ...passthroughHeaders } = req.headers;
+
+  const options = {
+    protocol: target.protocol,
+    hostname: target.hostname,
+    port: target.port ? Number(target.port) : defaultPort,
+    path: req.url,
+    method: req.method,
+    headers: {
+      ...passthroughHeaders,
+      host: target.host,
+    },
+  };
+
+  const proxyReq = client.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error(
+      `[proxy] ${req.method} ${req.url} -> ${target.origin}${req.url} failed:`,
+      err.message,
+    );
+    if (!res.headersSent) {
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Upstream API unavailable" }));
+    } else {
+      res.end();
+    }
+  });
+
+  req.on("aborted", () => {
+    proxyReq.destroy();
+  });
+
+  req.pipe(proxyReq);
+}
 
 function normalizeBasePath(value) {
   const trimmed = value.trim();
