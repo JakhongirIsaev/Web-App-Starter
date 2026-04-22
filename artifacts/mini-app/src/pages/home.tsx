@@ -129,10 +129,10 @@ export default function HomePage() {
     (todo?.pendingActions?.length || 0) + (todo?.incompleteClients?.length || 0);
 
   const quickActions = [
-    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
-    { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
-    { icon: Package, label: t("nav.products"), path: "/products", iconBg: "#A855F7", iconColor: "#FFFFFF" },
-    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#3B82F6", iconColor: "#FFFFFF" },
+    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", bg: "#ECFDF3", fg: "#16A34A" },
+    { icon: Calculator, label: t("home.calc"), path: "/calculator", bg: "#FFFBEB", fg: "#D97706" },
+    { icon: Package, label: t("nav.products"), path: "/products", bg: "#FAF5FF", fg: "#A855F7" },
+    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", bg: "#EFF6FF", fg: "#3B82F6" },
   ];
 
   const today = new Date();
@@ -142,11 +142,10 @@ export default function HomePage() {
     month: "long",
   });
 
-  const heroStats = [
-    { label: t("home.totalClients"), value: dashboard?.totalClients ?? 0, tone: "#16A34A", surface: "rgba(255,255,255,0.16)" },
-    { label: t("home.clientsToday"), value: dashboard?.clientsToday ?? dashboard?.todayTasks ?? 0, tone: "#FFFFFF", surface: "rgba(255,255,255,0.12)" },
-    { label: t("home.thisMonth"), value: dashboard?.clientsThisMonth ?? 0, tone: "#FEF3C7", surface: "rgba(255,255,255,0.12)" },
-    { label: t("home.todayTasks"), value: todoPendingCount, tone: "#D1FAE5", surface: "rgba(15,23,42,0.12)" },
+  const kpiStats = [
+    { label: t("home.totalClients"), value: dashboard?.totalClients ?? 0, icon: Users, tint: "#16A34A", bg: "#ECFDF3" },
+    { label: t("home.todayTasks"), value: todoPendingCount, icon: Clock, tint: "#D97706", bg: "#FFFBEB" },
+    { label: t("home.thisMonth"), value: dashboard?.clientsThisMonth ?? 0, icon: CalendarCheck, tint: "#14B8A6", bg: "#F0FDFA" },
   ];
 
   const firstName = user?.name?.split(" ")[0] || "";
@@ -154,66 +153,53 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen pb-6" style={{ background: "var(--tg-bg, #F4F4F5)" }}>
-      <div className="px-4 pt-4">
-        <div
-          className="relative overflow-hidden rounded-[32px] px-5 pb-5 pt-5 text-white shadow-[0_24px_60px_rgba(21,128,61,0.28)]"
-          style={{ background: "linear-gradient(145deg, #14532D 0%, #15803D 42%, #16A34A 78%, #22C55E 100%)" }}
-        >
-          <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-white/12 blur-2xl" />
-          <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-black/10 blur-xl" />
-
-          <div className="relative">
-            <div className="flex items-start gap-3">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-full text-[15px] font-bold text-white shadow-[0_8px_30px_rgba(15,23,42,0.14)]"
-                style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
-              >
-                {getInitials(user?.name)}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-white/75">{getGreeting()}</div>
-                <div className="mt-0.5 truncate text-[24px] font-bold tracking-[-0.03em]">
-                  {firstName}
-                </div>
-                <div className="mt-1 text-[13px] text-white/70 capitalize">
-                  {dateStr}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {branchName && (
-                <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
-                  {branchName}
-                </div>
-              )}
-              <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
-                {todoPendingCount} {t("home.todayTasks").toLowerCase()}
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
-              {heroStats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-[22px] border border-white/10 px-3.5 py-3.5"
-                  style={{ background: stat.surface, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-                >
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/65">
-                    {stat.label}
-                  </div>
-                  <div className="mt-2 text-[28px] font-bold leading-none" style={{ color: stat.tone }}>
-                    {stat.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div
+        className="relative px-5 pt-5 text-white"
+        style={{
+          paddingBottom: 72,
+          background: "linear-gradient(135deg, #15803D 0%, #16A34A 55%, #22C55E 100%)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-bold"
+            style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+          >
+            {getInitials(user?.name)}
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] text-white/75">{getGreeting()},</div>
+            <div className="truncate text-[17px] font-bold tracking-[-0.01em]">{firstName}</div>
+          </div>
+          {branchName && (
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
+              {branchName}
+            </div>
+          )}
         </div>
+        <div className="mt-3.5 text-[12px] capitalize text-white/75">{dateStr}</div>
       </div>
 
-      <div className="px-4 pt-5">
+      <div className="grid grid-cols-3 gap-2.5 px-4" style={{ marginTop: -56 }}>
+        {kpiStats.map((stat) => (
+          <div key={stat.label} className="mn-card flex flex-col gap-1.5" style={{ padding: 14 }}>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-lg"
+                style={{ background: stat.bg, color: stat.tint }}
+              >
+                <stat.icon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-[22px] font-bold leading-none text-[#0F172A]">{stat.value}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+              {stat.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="px-4 pt-4">
         <div className="mn-section-hdr px-0 pt-0 pb-2">{t("home.quickActions")}</div>
         <div className="grid grid-cols-4 gap-2.5">
           {quickActions.map((action) => (
@@ -224,7 +210,7 @@ export default function HomePage() {
             >
               <div
                 className="flex h-11 w-11 items-center justify-center rounded-[14px]"
-                style={{ background: action.iconBg, color: action.iconColor }}
+                style={{ background: action.bg, color: action.fg }}
               >
                 <action.icon className="h-5 w-5" strokeWidth={2} />
               </div>
@@ -376,23 +362,27 @@ export default function HomePage() {
       <div className="px-4 pt-5">
         <button
           onClick={() => navigate("/knowledge")}
-          className="flex w-full items-center gap-3.5 rounded-[16px] px-[18px] py-4 text-left text-white transition-transform active:scale-[0.98]"
+          className="flex w-full items-center gap-3 rounded-[16px] px-4 py-4 text-left transition-transform active:scale-[0.98]"
           style={{
-            background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-            boxShadow: "0px 4px 12px rgba(217,119,6,0.22)",
+            background: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+            border: "1px solid #FDE68A",
           }}
         >
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-            style={{ background: "rgba(255,255,255,0.22)" }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] text-white"
+            style={{ background: "#FBBF24" }}
           >
             <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-bold tracking-[-0.01em]">{t("home.knowledgeTitle")}</div>
-            <div className="mt-0.5 text-[11px] leading-snug opacity-90">{t("home.knowledgeHint")}</div>
+            <div className="text-[14px] font-bold tracking-[-0.01em]" style={{ color: "#78350F" }}>
+              {t("home.knowledgeTitle")}
+            </div>
+            <div className="mt-0.5 truncate text-[12px]" style={{ color: "#92400E" }}>
+              {t("home.knowledgeHint")}
+            </div>
           </div>
-          <ChevronRight className="h-[14px] w-[14px] shrink-0 opacity-70" />
+          <ChevronRight className="h-5 w-5 shrink-0" style={{ color: "#92400E" }} />
         </button>
       </div>
 

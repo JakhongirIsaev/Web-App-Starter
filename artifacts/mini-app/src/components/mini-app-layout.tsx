@@ -53,15 +53,12 @@ export default function MiniAppLayout({ children }: Props) {
       <nav
         className="fixed inset-x-0 bottom-0 z-50"
         style={{
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          borderTop: "1px solid hsl(140 15% 93%)",
-          boxShadow: "0 -8px 24px rgba(15,23,42,0.06)",
-          padding: "8px 6px calc(8px + env(safe-area-inset-bottom))",
+          background: "#FFFFFF",
+          boxShadow: "0 -1px 0 rgba(15,23,42,0.06), 0 -8px 24px rgba(15,23,42,0.04)",
+          padding: "4px 0 calc(4px + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="mx-auto flex max-w-md">
+        <div className="mx-auto flex max-w-md justify-around">
           {navItems.map((item) => {
             const active = isActive(item);
 
@@ -69,13 +66,16 @@ export default function MiniAppLayout({ children }: Props) {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className="flex flex-1 flex-col items-center justify-center gap-[3px] py-[6px] transition-colors"
-                style={{ color: active ? "hsl(142 71% 40%)" : "hsl(150 10% 45%)" }}
+                className="flex flex-1 flex-col items-center justify-center gap-[2px] transition-colors"
+                style={{
+                  padding: "8px 4px",
+                  color: active ? "#16A34A" : "#64748B",
+                }}
               >
-                <item.icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+                <item.icon size={22} strokeWidth={active ? 2 : 1.8} />
                 <span
-                  className="text-[10px] leading-none"
-                  style={{ fontWeight: active ? 700 : 500, letterSpacing: "0.01em" }}
+                  className="text-[11px] leading-none"
+                  style={{ fontWeight: active ? 600 : 500 }}
                 >
                   {item.label}
                 </span>
