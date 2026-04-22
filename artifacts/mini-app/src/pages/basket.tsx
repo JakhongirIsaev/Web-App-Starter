@@ -88,11 +88,13 @@ export default function BasketPage() {
   const generatePdfMutation = useMutation({
     mutationFn: () => {
       setPdfLoading(true);
-      return api.post(`/mini-app/clients/${params.clientId}/generate-pdf`, {
-        sendViaTelegram: true,
-        telegramInitData: getTelegramInitData(),
+      const initData = getTelegramInitData();
+      const body: Record<string, unknown> = {
+        sendViaTelegram: Boolean(initData),
         language: i18n.language === "ru" ? "ru" : "uz",
-      });
+      };
+      if (initData) body.telegramInitData = initData;
+      return api.post(`/mini-app/clients/${params.clientId}/generate-pdf`, body);
     },
     onSuccess: () => {
       setPdfLoading(false);

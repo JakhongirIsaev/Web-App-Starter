@@ -121,12 +121,15 @@ export default function ClientDetailPage() {
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   const generatePdfMutation = useMutation({
-    mutationFn: () =>
-      api.post(`/mini-app/clients/${params.id}/generate-pdf`, {
-        sendViaTelegram: true,
-        telegramInitData: getTelegramInitData(),
+    mutationFn: () => {
+      const initData = getTelegramInitData();
+      const body: Record<string, unknown> = {
+        sendViaTelegram: Boolean(initData),
         language: i18n.language === "ru" ? "ru" : "uz",
-      }),
+      };
+      if (initData) body.telegramInitData = initData;
+      return api.post(`/mini-app/clients/${params.id}/generate-pdf`, body);
+    },
     onMutate: () => setPdfError(null),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });

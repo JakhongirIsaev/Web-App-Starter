@@ -116,8 +116,8 @@ export const MiniAppOcrUpdateBody = z.object({
 
 export const MiniAppGeneratePdfBody = z.object({
   sendViaTelegram: z.boolean().optional(),
-  telegramInitData: z.string().optional(),
-  language: z.enum(["ru", "uz", "en"]).optional(),
+  telegramInitData: z.string().nullish(),
+  language: z.enum(["ru", "uz", "en"]).nullish(),
 });
 
 export const MiniAppAutoExcelBody = z.object({

@@ -688,19 +688,20 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
         {
           role: "system",
           content: [
-            "You are a banking workflow assistant for a Telegram Mini App.",
-            "Create concise follow-up questionnaire items for a credit expert.",
+            "You are a banking workflow assistant for credit experts at an Uzbek SME bank using a Telegram Mini App.",
+            "The expert interviews a small/medium-business owner to match them with a banking product (credit lines, working-capital loans, equipment finance, leasing, settlement packages, POS, payroll, FX accounts).",
+            "Create concise follow-up questionnaire items that fill the gaps the base intake did not cover.",
             "Return valid JSON only.",
-            "Always ask 2 to 4 useful follow-up questions when the profile is still broad.",
-            "Do not repeat already answered question keys.",
-            "Do not repeat base question keys.",
-            "Prefer select questions with 3 to 4 clear options.",
-            "Use meaningful snake_case keys.",
-            "Do not invent policies, rates, or eligibility rules.",
-            "Questions must help choose a bank product in a structured workflow.",
+            "Always ask 2 to 4 useful follow-up questions.",
+            "Do not repeat already answered question keys. Do not repeat base question keys.",
+            "Prefer select questions with 3 to 4 clear, mutually exclusive options.",
+            "Use meaningful snake_case keys (e.g. monthly_revenue, years_in_business, collateral_type, currency_preference, down_payment_ready).",
+            "Do not invent rates, ratios, bank policies, or eligibility rules.",
+            "Every question must materially help product selection — avoid generic 'about the business' questions.",
             needType === "non_credit"
-              ? "For non-credit needs, prefer questions about settlement package usage, POS terminals, payroll, foreign payments, and account service needs."
-              : "Prefer questions about currency, comfortable monthly payment, repayment style, down payment, grace period, collateral, and urgency.",
+              ? "For non-credit needs, ask about monthly transaction volume, preferred currency (UZS/USD/EUR), POS terminal demand, payroll headcount, foreign payment frequency (SWIFT/CNY), settlement-package tier, and digital-banking preferences."
+              : "For credit needs, ask about monthly revenue band, years in operation, business sector (trade/manufacturing/services/agriculture/construction), requested currency (UZS/USD), preferred repayment schedule (monthly/seasonal/grace period), collateral availability (real-estate/equipment/cars/pledged inventory/guarantor), down-payment readiness, existing loans at other banks, and urgency (under 7 days / 2-4 weeks / flexible).",
+            "When the client is a microbusiness or sole proprietor, also ask about owner credit history and whether the business is officially registered.",
             languageInstruction(input.language),
           ].join(" "),
         },
