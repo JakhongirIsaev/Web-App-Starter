@@ -33,7 +33,7 @@ interface LayoutProps {
 
 const navItems = [
   { href: "/", labelKey: "nav.dashboard", icon: Home, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
-  { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: true },
+  { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
   { href: "/credit-products", labelKey: "nav.creditProducts", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
@@ -116,7 +116,7 @@ export default function Layout({ children, user }: LayoutProps) {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* User pod */}
+        {/* User pod — logout lives in the top-right dropdown to avoid duplication */}
         <div className="flex items-center gap-2.5 bg-sidebar-accent border border-sidebar-border rounded-lg p-2.5">
           <div className="w-[30px] h-[30px] rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-[11px] font-bold flex-shrink-0">
             {user.name.substring(0, 2).toUpperCase()}
@@ -125,12 +125,6 @@ export default function Layout({ children, user }: LayoutProps) {
             <span className="text-[12px] font-semibold text-sidebar-foreground truncate">{user.name}</span>
             <span className="text-[10px] text-sidebar-foreground/60 truncate">{t(`roles.${user.role}`)}</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-shrink-0"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
         </div>
       </aside>
 

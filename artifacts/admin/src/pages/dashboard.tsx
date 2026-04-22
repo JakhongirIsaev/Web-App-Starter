@@ -282,11 +282,11 @@ export default function Dashboard() {
     refetchInterval: 120000,
   });
 
-  /* Spark bars mock data (replaced when API provides daily series) */
+  /* Spark bars fallback — zeros until the API provides a real daily series */
   const sparkData = useMemo(() => {
     const base = summary?.dailyDisbursements;
     if (Array.isArray(base) && base.length) return base;
-    return [42, 38, 55, 61, 48, 72, 67, 85, 79, 91, 74, 88, 102, 96];
+    return new Array(14).fill(0);
   }, [summary]);
 
   return (

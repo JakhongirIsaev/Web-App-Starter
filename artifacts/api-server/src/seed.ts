@@ -9,7 +9,7 @@ import {
   productsTable,
   usersTable,
 } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { logger } from "./lib/logger";
@@ -43,6 +43,20 @@ async function truncateDemoTables() {
 
 export async function seedDatabase(options: SeedOptions = {}) {
   const { force = false } = options;
+
+  // One-time idempotent migrations that must run on every boot regardless
+  // of the "skip-if-seeded" guard. The WHERE clauses make each a no-op
+  // once it has already been applied.
+  await db
+    .update(usersTable)
+    .set({ name: "Jahongir Isayev" })
+    .where(
+      and(
+        eq(usersTable.telegramId, "399083740"),
+        ne(usersTable.name, "Jahongir Isayev"),
+      ),
+    );
+
   const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
 
   if (existing && existing.count > 0 && !force) {
@@ -67,7 +81,7 @@ export async function seedDatabase(options: SeedOptions = {}) {
   ]).returning();
 
   const users = await db.insert(usersTable).values([
-    { telegramId: "399083740", name: "Jakhongir Isaev", role: "superadmin", branchId: null, passwordHash, isActive: true },
+    { telegramId: "399083740", name: "Jahongir Isayev", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "10000001", name: "Minerva Demo Admin", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "100000001", name: "Nodira Karimova", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
     { telegramId: "100000002", name: "Dilshod Rasulov", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
