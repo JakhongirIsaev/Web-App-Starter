@@ -143,11 +143,11 @@ export default function Login() {
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <img
-              src="/ipak-yuli-on-green.jpg"
+              src="/ipak-yuli-transparent.png"
               alt="Ipak Yuli Bank"
-              className="h-16 w-auto rounded-md shadow-lg"
+              className="h-10 w-auto"
             />
             <div className="flex items-center gap-2 text-white/40 text-sm font-medium">
               <ShieldCheck className="w-4 h-4" />

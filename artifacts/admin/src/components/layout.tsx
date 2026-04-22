@@ -151,9 +151,9 @@ export default function Layout({ children, user }: LayoutProps) {
 
           <div className="flex items-center gap-4">
             <img
-              src="/ipak-yuli-on-white.png"
+              src="/ipak-yuli-header.png"
               alt="Ipak Yuli Bank"
-              className="h-8 w-auto"
+              className="h-7 w-auto"
             />
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={toggleLanguage}>
               <Languages className="h-4 w-4" />
