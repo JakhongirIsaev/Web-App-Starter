@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Globe } from "lucide-react";
+import { ShieldCheck, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,27 +20,32 @@ import { buildApiUrl } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetMeQueryKey } from "@workspace/api-client-react";
 
-function StripePattern() {
+const STRIPES = Array.from({ length: 40 }).map((_, i) => {
+  const seed = Math.sin(i * 9301 + 49297) * 49297;
+  const r = seed - Math.floor(seed);
+  return {
+    width: `${2 + r * 3}%`,
+    marginRight: `${0.5 + (Math.sin(i * 127 + 311) * 0.5 + 0.5)}%`,
+    background: `linear-gradient(180deg,
+      hsl(142 71% ${35 + Math.sin(i * 0.5) * 20}%) 0%,
+      hsl(145 55% ${25 + Math.cos(i * 0.3) * 15}%) 50%,
+      hsl(140 60% ${30 + Math.sin(i * 0.7) * 15}%) 100%)`,
+  };
+});
+
+function StripeBackground() {
   return (
-    <svg
-      className="absolute inset-0 w-full h-full opacity-[0.15]"
-      xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <pattern
-          id="login-stripes"
-          x="0"
-          y="0"
-          width="20"
-          height="100%"
-          patternUnits="userSpaceOnUse"
-        >
-          <rect x="0" y="0" width="6" height="100%" fill="white" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#login-stripes)" />
-    </svg>
+    <div className="absolute inset-0 overflow-hidden opacity-[0.15]">
+      <div className="absolute inset-0 flex">
+        {STRIPES.map((s, i) => (
+          <div
+            key={i}
+            className="flex-shrink-0"
+            style={{ width: s.width, height: "100%", background: s.background, marginRight: s.marginRight }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -121,59 +126,55 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row">
-      {/* Hero — left 55% on desktop, compact header on mobile */}
-      <div
-        className="relative overflow-hidden lg:w-[55%] flex-shrink-0"
-        style={{
-          background:
-            "linear-gradient(135deg, #0D3D1A 0%, #155D27 50%, #1A7A32 100%)",
-        }}
-      >
-        <StripePattern />
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-background">
+      <div className="hidden md:flex flex-col flex-1 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0d3d1a 0%, #155d27 40%, #1a7a32 100%)" }}>
+        <StripeBackground />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 
-        {/* Desktop hero content */}
-        <div className="hidden lg:flex relative z-10 flex-col justify-center h-full p-16">
-          <Logo size={48} textColor="text-white" className="mb-8" />
-          <p className="text-white/60 max-w-sm" style={{ fontSize: 15 }}>
-            {t("login.tagline")}
-          </p>
-        </div>
+        <div className="relative z-10 flex flex-col justify-between h-full p-12">
+          <div>
+            <Logo size={36} textColor="text-white" className="mb-16" />
 
-        {/* Mobile compact header */}
-        <div className="flex lg:hidden relative z-10 items-center justify-center py-8">
-          <Logo size={36} textColor="text-white" />
+            <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight max-w-lg mb-6">
+              {t("login.headline")}
+            </h1>
+            <p className="text-white/60 text-lg max-w-md">
+              {t("login.tagline")}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 text-white/40 text-sm font-medium">
+            <ShieldCheck className="w-4 h-4" />
+            {t("login.encryption")}
+          </div>
         </div>
       </div>
 
-      {/* Right panel — white, form */}
-      <div className="flex-1 flex items-center justify-center bg-white p-8">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-              {t("login.title")}
-            </h2>
-            <p className="text-sm text-gray-500">{t("login.subtitle")}</p>
+      <div className="flex-1 flex items-center justify-center p-8 bg-background relative">
+        <div className="w-full max-w-md space-y-8">
+          <div className="space-y-2 text-center md:text-left">
+            <div className="md:hidden flex justify-center mb-6">
+              <Logo size={40} textColor="text-foreground" />
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">{t("login.title")}</h2>
+            <p className="text-muted-foreground">
+              {t("login.subtitle")}
+            </p>
           </div>
 
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-5"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="telegramId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700">
-                      {t("login.telegramId")}
-                    </FormLabel>
+                    <FormLabel>{t("login.telegramId")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("login.telegramPlaceholder")}
                         {...field}
-                        className="h-10"
+                        className="h-12"
                       />
                     </FormControl>
                     <FormMessage />
@@ -185,15 +186,13 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700">
-                      {t("login.password")}
-                    </FormLabel>
+                    <FormLabel>{t("login.password")}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
                         placeholder="********"
                         {...field}
-                        className="h-10"
+                        className="h-12"
                       />
                     </FormControl>
                     <FormMessage />
@@ -202,12 +201,12 @@ export default function Login() {
               />
               <Button
                 type="submit"
-                className="w-full h-10 text-sm font-medium"
+                className="w-full h-12 text-base font-medium"
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     {t("login.authenticating")}
                   </>
                 ) : (
@@ -222,7 +221,7 @@ export default function Login() {
             <button
               type="button"
               onClick={toggleLanguage}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Globe className="w-3.5 h-3.5" />
               {i18n.language === "ru" ? "O'zbekcha" : "Русский"}
