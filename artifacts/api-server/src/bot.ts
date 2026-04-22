@@ -66,16 +66,20 @@ function formatRole(role: string) {
 }
 
 function buildVersionedMiniAppUrl(miniAppUrl: string): string {
-  // Cache-bust the Telegram WebApp URL so the in-app WebView fetches the
-  // latest index.html on every deploy. Telegram keys its cache by full URL
-  // including query string, so appending a per-deploy version string avoids
-  // stale bundles even when users have a previous session pinned.
-  const version =
+  // Cache-bust the Telegram WebApp URL so the in-app WebView fetches a fresh
+  // index.html on every api-server restart. Telegram's WebView keys its cache
+  // by full URL, so we append BOTH the api-server commit SHA AND the boot
+  // timestamp. The timestamp covers the case where the mini-app service
+  // redeploys but api-server does not — any subsequent api-server restart
+  // (or redeploy via any source) will then issue a new URL that breaks the
+  // stale cached bundle.
+  const sha =
     process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ||
     process.env.GIT_COMMIT_SHA?.slice(0, 8) ||
-    Date.now().toString(36);
+    "dev";
+  const ts = Date.now().toString(36);
   const separator = miniAppUrl.includes("?") ? "&" : "?";
-  return `${miniAppUrl}${separator}v=${version}`;
+  return `${miniAppUrl}${separator}v=${sha}-${ts}`;
 }
 
 export async function startBot(miniAppUrl: string) {
