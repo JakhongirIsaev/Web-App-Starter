@@ -154,6 +154,7 @@ export default function ScanDocumentPage() {
     mutationFn: async () => {
       const blob = await api.postBlob("/mini-app/exports/auto-excel", {
         clientId: parseInt(params.clientId),
+        docType,
         extractedData: extractedFields,
         ocrText,
         imageCount: photos.length,
@@ -161,7 +162,7 @@ export default function ScanDocumentPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `auto_extract_${params.clientId}.xlsx`;
+      anchor.download = `doc_${docType}_${params.clientId}.xlsx`;
       anchor.click();
       URL.revokeObjectURL(url);
     },
@@ -374,32 +375,38 @@ export default function ScanDocumentPage() {
 
       for (let index = 0; index < photos.length; index += 1) {
         const photo = photos[index];
-        let storagePath = `documents/client-${params.clientId}/${Date.now()}-${index}.jpg`;
+        const initialName = `documents/client-${params.clientId}/${Date.now()}-${index}.jpg`;
 
-        try {
-          const blob = await fetch(photo.dataUrl).then((response) => response.blob());
-          const uploadMeta = await api.post("/storage/uploads/request-url", {
-            name: storagePath,
-            size: blob.size,
-            contentType: "image/jpeg",
-          });
-          await fetch(uploadMeta.uploadURL, {
-            method: "PUT",
-            body: blob,
-            headers: { "Content-Type": "image/jpeg" },
-          });
-          storagePath = uploadMeta.objectPath;
-        } catch (err) {
-          console.warn("Object storage upload failed for photo", index, err);
+        // Upload to object storage; if it fails, abort the whole save so we
+        // don't leave orphan DB rows pointing at a file that never landed.
+        const blob = await fetch(photo.dataUrl).then((response) => response.blob());
+        const uploadMeta = await api.post("/storage/uploads/request-url", {
+          name: initialName,
+          size: blob.size,
+          contentType: "image/jpeg",
+        });
+        const putResponse = await fetch(uploadMeta.uploadURL, {
+          method: "PUT",
+          body: blob,
+          headers: { "Content-Type": "image/jpeg" },
+        });
+        if (!putResponse.ok) {
+          throw new Error(
+            `Upload failed for photo ${index + 1}: ${putResponse.status} ${putResponse.statusText}`,
+          );
         }
+        const storagePath = uploadMeta.objectPath;
 
-        await api.post(`/mini-app/clients/${params.clientId}/documents`, {
+        const payload: Record<string, unknown> = {
           docType,
           fileName: `scan_${docType}_${Date.now()}_p${index + 1}.jpg`,
           storagePath,
-          ocrText: photo.ocrText || "",
-          extractedData: photo.extractedFields || {},
-        });
+        };
+        if (photo.ocrText) payload.ocrText = photo.ocrText;
+        if (photo.extractedFields && Object.keys(photo.extractedFields).length > 0) {
+          payload.extractedData = photo.extractedFields;
+        }
+        await api.post(`/mini-app/clients/${params.clientId}/documents`, payload);
       }
     },
     onSuccess: () => {
@@ -408,7 +415,7 @@ export default function ScanDocumentPage() {
       setState("done");
     },
     onError: (err: any) => {
-      setError(err.message);
+      setError(err?.body?.message || err?.message || "Upload failed");
       setState("review");
     },
   });
@@ -691,7 +698,7 @@ export default function ScanDocumentPage() {
               <RotateCcw className="w-4 h-4" />
               {t("scanDoc.retake")}
             </Button>
-            {docType === "vehicle_doc" && Object.keys(extractedFields).length > 0 && (
+            {(Object.keys(extractedFields).length > 0 || ocrText) && (
               <Button
                 variant="outline"
                 className="flex-1 gap-1 min-w-[140px]"

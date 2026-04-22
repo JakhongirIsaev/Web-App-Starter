@@ -76,13 +76,21 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
     );
 
     const result = await new Promise<any>((resolve, reject) => {
-      const gccLibPath = "/nix/store/bmi5znnqk4kg2grkrhk6py0irc8phf6l-gcc-14.2.1.20250322-lib/lib";
+      // Optional extra LD path for environments that need a specific libgcc_s.
+      // On Nixpacks images the gcc lib lives under a content-addressed /nix/store
+      // hash that changes between base-image rebuilds, so hardcoding it rots.
+      // Set OCR_GCC_LIB_PATH in Railway variables only if the OS can't find
+      // libgcc_s on its own (PaddleOCR throws "libgcc_s.so.1 must be installed").
+      const extraLibPath = process.env["OCR_GCC_LIB_PATH"] || "";
       const existingLdPath = process.env["LD_LIBRARY_PATH"] || "";
+      const ldLibraryPath = [extraLibPath, existingLdPath]
+        .filter((segment) => segment && segment.length > 0)
+        .join(":");
       const proc = spawn("python3", [scriptPath], {
         env: {
           ...process.env,
           PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",
-          LD_LIBRARY_PATH: existingLdPath ? `${gccLibPath}:${existingLdPath}` : gccLibPath,
+          ...(ldLibraryPath ? { LD_LIBRARY_PATH: ldLibraryPath } : {}),
         },
       });
 

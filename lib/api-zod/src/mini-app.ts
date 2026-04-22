@@ -122,6 +122,7 @@ export const MiniAppGeneratePdfBody = z.object({
 
 export const MiniAppAutoExcelBody = z.object({
   clientId: z.coerce.number().int().positive().optional(),
+  docType: z.string().optional(),
   ocrText: z.string().optional(),
   imageCount: z.coerce.number().int().min(0).optional(),
   extractedData: z.record(z.string(), z.unknown()).optional(),
