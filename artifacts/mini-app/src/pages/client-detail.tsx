@@ -18,7 +18,6 @@ import {
   Phone,
   MessageSquare,
   Calendar,
-  Share2,
   CreditCard,
   ShoppingBag,
   FileText,
@@ -196,37 +195,6 @@ export default function ClientDetailPage() {
     return null;
   };
 
-  /* ── 4 action buttons ── */
-  const heroActions = [
-    {
-      icon: Phone,
-      label: t("clientDetail.call") || "\u0417\u0432\u043E\u043D\u043E\u043A",
-      action: () => client.phone && (window.location.href = `tel:${client.phone}`),
-    },
-    {
-      icon: MessageSquare,
-      label: "SMS",
-      action: () => client.phone && (window.location.href = `sms:${client.phone}`),
-    },
-    {
-      icon: Calendar,
-      label: t("home.meeting") || "\u0412\u0441\u0442\u0440\u0435\u0447\u0430",
-      action: () => setShowActionForm(true),
-    },
-    {
-      icon: Share2,
-      label: t("clientDetail.share") || "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F",
-      action: () => {
-        if (navigator.share) {
-          navigator.share({
-            title: client.fullName,
-            text: `${client.fullName} - ${t(`statuses.${client.status}`)}`,
-          });
-        }
-      },
-    },
-  ];
-
   /* ── timeline events from notes ── */
   const timelineColors: Record<string, { bg: string; fg: string }> = {
     note: { bg: "#DBEAFE", fg: "#2563EB" },
@@ -280,21 +248,6 @@ export default function ClientDetailPage() {
             />
           ))}
         </div>
-      </div>
-
-      {/* ═══════════════ 4-ACTION ROW ═══════════════ */}
-      <div className="mx-4 mt-3 grid grid-cols-4 gap-2">
-        {heroActions.map((a) => (
-          <button
-            key={a.label}
-            onClick={a.action}
-            className="flex flex-col items-center gap-1.5 py-3 rounded-xl active:scale-95 transition-transform"
-            style={{ background: "#F0FDF4" }}
-          >
-            <a.icon className="w-5 h-5 text-[#16A34A]" />
-            <span className="text-[11px] font-semibold text-[#16A34A]">{a.label}</span>
-          </button>
-        ))}
       </div>
 
       {/* ═══════════════ NEXT STEP CTA ═══════════════ */}
@@ -685,14 +638,6 @@ export default function ClientDetailPage() {
         {pdfResult ? (
           <div className="mn-card p-5 text-center" style={{ background: "#F0FDF4" }}>
             <CheckCircle className="w-10 h-10 text-[#16A34A] mx-auto mb-2" />
-            <div className="text-[15px] font-bold text-[#0F172A]">
-              {t("pdf.generated")}
-            </div>
-            <div className="text-[12px] text-[#64748B] mt-1">
-              {pdfResult.telegramSent
-                ? t("pdf.sentViaTelegram")
-                : t("pdf.notSentViaTelegram")}
-            </div>
             <button
               onClick={() => setPdfResult(null)}
               className="mt-3 h-9 px-4 rounded-lg text-[13px] font-semibold text-[#16A34A] border border-[#16A34A]/30"
