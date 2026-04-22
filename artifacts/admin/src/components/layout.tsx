@@ -82,12 +82,7 @@ export default function Layout({ children, user }: LayoutProps) {
         {/* Brand block */}
         <div className="flex items-center gap-2 px-2.5 py-1.5 mb-[18px]">
           <Logo size={26} showText={false} />
-          <div className="flex flex-col">
-            <span className="text-[15px] font-bold leading-tight text-sidebar-foreground">Minerva</span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-sidebar-foreground/55">
-              Credit Hunter
-            </span>
-          </div>
+          <span className="text-[15px] font-bold leading-tight text-sidebar-foreground">Minerva</span>
         </div>
 
         {/* Navigation */}
