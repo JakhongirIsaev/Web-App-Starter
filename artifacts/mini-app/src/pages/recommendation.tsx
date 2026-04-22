@@ -294,12 +294,18 @@ export default function RecommendationPage() {
     mutationFn: () => {
       const items = visibleProducts
         .filter((product: ProductRecord) => selectedIds.has(product.id))
-        .map((product: ProductRecord) => ({
-          productId: product.productType === "non_credit" ? null : product.id,
-          productType: product.productType || "credit",
-          productName: product.name,
-          notes: product.clientFacingSummary || null,
-        }));
+        .map((product: ProductRecord) => {
+          const item: Record<string, unknown> = {
+            productType: product.productType || "credit",
+            productName: product.name,
+          };
+          if (product.productType !== "non_credit" && typeof product.id === "number") {
+            item.productId = product.id;
+          }
+          const summary = product.clientFacingSummary?.trim();
+          if (summary) item.notes = summary;
+          return item;
+        });
 
       return api.post("/mini-app/basket", {
         clientId: parseInt(params.clientId),
@@ -307,6 +313,10 @@ export default function RecommendationPage() {
       });
     },
     onSuccess: () => navigate(`/basket/${params.clientId}`),
+    onError: (err: any) => {
+      const message = err?.body?.message || err?.message || "Failed to save basket";
+      window.alert(message);
+    },
   });
 
   const toggleProduct = (id: number) => {
