@@ -39,11 +39,11 @@ describe("hashToken", () => {
 });
 
 describe("sessionTtlMs", () => {
-  it("defaults to 30 days when env unset", () => {
+  it("defaults to 7 days when env unset", () => {
     const prev = process.env.SESSION_TTL_MS;
     delete process.env.SESSION_TTL_MS;
     try {
-      expect(sessionTtlMs()).toBe(30 * 24 * 60 * 60 * 1000);
+      expect(sessionTtlMs()).toBe(7 * 24 * 60 * 60 * 1000);
     } finally {
       if (prev !== undefined) process.env.SESSION_TTL_MS = prev;
     }
@@ -64,7 +64,7 @@ describe("sessionTtlMs", () => {
     const prev = process.env.SESSION_TTL_MS;
     process.env.SESSION_TTL_MS = "not-a-number";
     try {
-      expect(sessionTtlMs()).toBe(30 * 24 * 60 * 60 * 1000);
+      expect(sessionTtlMs()).toBe(7 * 24 * 60 * 60 * 1000);
     } finally {
       if (prev === undefined) delete process.env.SESSION_TTL_MS;
       else process.env.SESSION_TTL_MS = prev;
@@ -75,7 +75,7 @@ describe("sessionTtlMs", () => {
     const prev = process.env.SESSION_TTL_MS;
     process.env.SESSION_TTL_MS = "-1";
     try {
-      expect(sessionTtlMs()).toBe(30 * 24 * 60 * 60 * 1000);
+      expect(sessionTtlMs()).toBe(7 * 24 * 60 * 60 * 1000);
     } finally {
       if (prev === undefined) delete process.env.SESSION_TTL_MS;
       else process.env.SESSION_TTL_MS = prev;

@@ -1,37 +1,79 @@
+import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { Skeleton } from "@/components/ui/skeleton";
 import "@/lib/api";
 import Layout from "@/components/layout";
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
-import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import Clients from "@/pages/clients";
-import ClientDetail from "@/pages/client-detail";
-import Articles from "@/pages/articles";
-import Users from "@/pages/users";
-import Branches from "@/pages/branches";
-import CreditProducts from "@/pages/credit-products";
-import SapCodes from "@/pages/sap-codes";
-import CreditLines from "@/pages/credit-lines";
+const Login = lazy(() => import("@/pages/login"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Clients = lazy(() => import("@/pages/clients"));
+const ClientDetail = lazy(() => import("@/pages/client-detail"));
+const Articles = lazy(() => import("@/pages/articles"));
+const Users = lazy(() => import("@/pages/users"));
+const Branches = lazy(() => import("@/pages/branches"));
+const Accesses = lazy(() => import("@/pages/accesses"));
+const CreditProducts = lazy(() => import("@/pages/credit-products"));
+const SapCodes = lazy(() => import("@/pages/sap-codes"));
+const CreditLines = lazy(() => import("@/pages/credit-lines"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
 
 const adminRoles = ["superadmin", "head_office_admin"];
 
-function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: any) {
-  const [location, setLocation] = useLocation();
+function FullScreenLoader() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function PageFallback() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-40 w-full rounded-[28px]" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+      <Skeleton className="h-32 w-full rounded-2xl" />
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
+        <Skeleton className="h-80 w-full rounded-2xl" />
+        <Skeleton className="h-80 w-full rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
+function PageSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageFallback />}>{children}</Suspense>;
+}
+
+interface ProtectedRouteProps {
+  component: ComponentType<any>;
+  params?: Record<string, string | undefined>;
+  requiredRoles?: string[];
+}
+
+function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: ProtectedRouteProps) {
+  const [, setLocation] = useLocation();
   const { t } = useTranslation();
   const { data: user, isLoading, error } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
       retry: false,
-    }
+    },
   });
 
   useEffect(() => {
@@ -41,14 +83,7 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
   }, [isLoading, error, setLocation]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">{t("common.authenticating")}</p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   if (error || !user) return null;
@@ -56,7 +91,7 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
   if (requiredRoles && !requiredRoles.includes(user.role)) {
     return (
       <Layout user={user}>
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <div className="flex h-64 flex-col items-center justify-center space-y-4">
           <h2 className="text-2xl font-bold text-foreground">{t("common.accessDenied")}</h2>
           <p className="text-muted-foreground">{t("common.noPermission")}</p>
         </div>
@@ -66,7 +101,9 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
 
   return (
     <Layout user={user}>
-      <Component params={params} user={user} {...rest} />
+      <PageSuspense>
+        <Component params={params} user={user} {...rest} />
+      </PageSuspense>
     </Layout>
   );
 }
@@ -74,35 +111,50 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={Login} />
+      <Route path="/login">
+        {() => (
+          <Suspense fallback={<FullScreenLoader />}>
+            <Login />
+          </Suspense>
+        )}
+      </Route>
       <Route path="/">
-        {(params) => <ProtectedRoute component={Dashboard} />}
+        {() => <ProtectedRoute component={Dashboard} />}
       </Route>
       <Route path="/clients">
-        {(params) => <ProtectedRoute component={Clients} />}
+        {() => <ProtectedRoute component={Clients} />}
       </Route>
       <Route path="/clients/:id">
         {(params) => <ProtectedRoute component={ClientDetail} params={params} />}
       </Route>
       <Route path="/articles">
-        {(params) => <ProtectedRoute component={Articles} />}
+        {() => <ProtectedRoute component={Articles} />}
       </Route>
       <Route path="/users">
-        {(params) => <ProtectedRoute component={Users} requiredRoles={adminRoles} />}
+        {() => <ProtectedRoute component={Users} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/branches">
-        {(params) => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
+        {() => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
+      </Route>
+      <Route path="/accesses">
+        {() => <ProtectedRoute component={Accesses} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/credit-products">
-        {(params) => <ProtectedRoute component={CreditProducts} />}
+        {() => <ProtectedRoute component={CreditProducts} />}
       </Route>
       <Route path="/sap-codes">
-        {(params) => <ProtectedRoute component={SapCodes} />}
+        {() => <ProtectedRoute component={SapCodes} />}
       </Route>
       <Route path="/credit-lines">
-        {(params) => <ProtectedRoute component={CreditLines} />}
+        {() => <ProtectedRoute component={CreditLines} />}
       </Route>
-      <Route component={NotFound} />
+      <Route>
+        {() => (
+          <PageSuspense>
+            <NotFound />
+          </PageSuspense>
+        )}
+      </Route>
     </Switch>
   );
 }

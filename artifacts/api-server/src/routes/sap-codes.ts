@@ -14,10 +14,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/sap-codes", requireAuth, async (req, res) => {
-  // Query params are typed as ParsedQs — destructuring with `as any` is
-  // intentional since each field is individually validated below.
   const { search, status, page = "1", pageSize = "50" } = req.query as any;
-  // Drizzle condition array — `any[]` allows heterogeneous SQL conditions.
   const conditions: any[] = [];
   if (search) conditions.push(ilike(sapCodesTable.name, `%${search}%`));
   if (status) conditions.push(eq(sapCodesTable.status, status));
@@ -105,9 +102,7 @@ router.post("/sap-codes/import", requireAuth, requireRole("superadmin", "head_of
     let cleared = 0;
 
     await db.transaction(async (tx) => {
-      const [existingCountRow] = await tx
-        .select({ count: sql<number>`count(*)` })
-        .from(sapCodesTable);
+      const [existingCountRow] = await tx.select({ count: sql<number>`count(*)` }).from(sapCodesTable);
       cleared = Number(existingCountRow?.count ?? 0);
 
       await tx.delete(sapCodesTable);

@@ -49,9 +49,22 @@
     "articles": "Maqolalar va e'lonlar",
     "accessManagement": "Foydalanuvchilar",
     "branches": "Filiallar",
+    "accesses": "Ruxsatlar",
     "creditProducts": "Kredit mahsulotlari",
     "sapCodes": "Mahsulot shifrlari",
     "creditLines": "Kredit liniyalari"
+  },
+  "accesses": {
+    "title": "Ruxsatlar",
+    "subtitle": "Filiallar bo'yicha xodimlar va ularning lavozim hamda holati.",
+    "searchPlaceholder": "FISh, filial yoki rol bo'yicha qidirish...",
+    "staff": "xodim",
+    "name": "FISh",
+    "contact": "Kontakt",
+    "role": "Rol",
+    "unassigned": "Filialga biriktirilmagan",
+    "noStaff": "Bu filialda hozircha xodimlar yo'q.",
+    "empty": "Xodimlar topilmadi."
   },
   "roles": {
     "superadmin": "SUPERADMIN",
@@ -67,6 +80,9 @@
     "password": "Parol",
     "signIn": "Kirish",
     "authenticating": "Autentifikatsiya...",
+    "demoTitle": "Mehmon kirishi",
+    "demoSubtitle": "Tizim bilan tanishish uchun quyidagi ma'lumotlar bilan kiring.",
+    "demoAction": "Demo foydalanuvchi sifatida kirish",
     "welcomeBack": "Xush kelibsiz",
     "loggedInAs": "{{name}} sifatida kirdingiz",
     "authFailed": "Autentifikatsiya xatosi",

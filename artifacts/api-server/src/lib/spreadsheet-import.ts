@@ -1,4 +1,4 @@
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 
 export interface UploadLike {
   originalname?: string;
@@ -273,10 +273,10 @@ export function parseSapCodesWorkbook(buffer: Buffer): SapCodeImportRow[] {
     const row = rows[index] ?? [];
 
     const status = normalizeText(row[0]);
-    const name = normalizeText(row[2]);
     const productId = normalizeText(row[1]);
+    const name = normalizeText(row[2]);
 
-    if (!status && !name && !productId) continue;
+    if (!status && !productId && !name) continue;
     if (!status || !name) continue;
 
     parsed.push({
@@ -392,33 +392,4 @@ export function mapCreditLineCsvRow(row: Record<string, string>): CreditLineImpo
     notes: normalizeText(row.notes),
     section: normalizeText(row.section),
   };
-}
-
-export function buildCreditProductImportKey(row: Pick<CreditProductImportRow, "number" | "name" | "segment">): string | null {
-  const segment = (row.segment || "").trim().toLowerCase();
-  if (!segment) return null;
-
-  if (row.number !== null && row.number !== undefined) {
-    return `number:${row.number}|segment:${segment}`;
-  }
-
-  const name = row.name.trim().toLowerCase();
-  return name ? `name:${name}|segment:${segment}` : null;
-}
-
-export function buildSapCodeImportKey(row: Pick<SapCodeImportRow, "productId" | "name">): string | null {
-  const productId = (row.productId || "").trim().toLowerCase();
-  if (productId) return `product:${productId}`;
-
-  const name = row.name.trim().toLowerCase();
-  return name ? `name:${name}` : null;
-}
-
-export function buildCreditLineImportKey(row: Pick<CreditLineImportRow, "number" | "name">): string | null {
-  if (row.number !== null && row.number !== undefined) {
-    return `number:${row.number}`;
-  }
-
-  const name = row.name.trim().toLowerCase();
-  return name ? `name:${name}` : null;
 }

@@ -14,10 +14,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/credit-lines", requireAuth, async (req, res) => {
-  // Query params are typed as ParsedQs — destructuring with `as any` is
-  // intentional since each field is individually validated below.
   const { search, section, currency, page = "1", pageSize = "50" } = req.query as any;
-  // Drizzle condition array — `any[]` allows heterogeneous SQL conditions.
   const conditions: any[] = [];
   if (search) conditions.push(ilike(creditLinesTable.name, `%${search}%`));
   if (section) conditions.push(eq(creditLinesTable.section, section));
@@ -68,8 +65,6 @@ router.put("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_off
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  // Partial<> update object — `any` is intentional since fields
-  // are dynamically populated from a whitelist of column names.
   const updateData: any = { updatedAt: new Date() };
   const fields = ["name", "number", "department", "agreementDate", "agreementAmount", "receivedAmount", "currency", "interestRate", "disbursedAmount", "remainingBalance", "projectCount", "specialConditions", "notes", "section"];
   for (const f of fields) {
@@ -136,9 +131,7 @@ router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head
     let cleared = 0;
 
     await db.transaction(async (tx) => {
-      const [existingCountRow] = await tx
-        .select({ count: sql<number>`count(*)` })
-        .from(creditLinesTable);
+      const [existingCountRow] = await tx.select({ count: sql<number>`count(*)` }).from(creditLinesTable);
       cleared = Number(existingCountRow?.count ?? 0);
 
       await tx.delete(creditLinesTable);

@@ -78,14 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (isTelegram && !manualTelegramLogin && getTelegramInitData()) {
-        try {
-          const data = await loginWithTelegram(getTelegramInitData()!);
-          setUser(data.user);
-        } catch (err: any) {
-          setTelegramError(err.message || "Telegram auth failed");
-        }
-      }
+      // Telegram auto-login is intentionally disabled. Every visitor —
+      // including users opening the mini-app from inside Telegram — has to
+      // go through the manual Telegram-ID + password form. This keeps a
+      // single, consistent entry point regardless of where the page is
+      // opened from.
 
       setLoading(false);
     };
@@ -114,28 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isTelegram]);
 
   const resumeTelegramAutoLogin = useCallback(async () => {
+    // Telegram auto-login is disabled. "Resume" is now a no-op that just
+    // clears any stale state and drops the user back on the manual form.
     localStorage.removeItem(MANUAL_TELEGRAM_LOGIN_KEY);
     setManualTelegramLogin(false);
     setTelegramError(null);
-    setLoading(true);
     clearToken();
     setUser(null);
-
-    const initData = getTelegramInitData();
-    if (!isTelegram || !initData) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const data = await loginWithTelegram(initData);
-      setUser(data.user);
-    } catch (err: any) {
-      setTelegramError(err.message || "Telegram auth failed");
-    } finally {
-      setLoading(false);
-    }
-  }, [isTelegram]);
+    setLoading(false);
+  }, []);
 
   return (
     <AuthContext.Provider

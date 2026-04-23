@@ -36,12 +36,21 @@ async function apiFetch(url: string, options?: RequestInit) {
 }
 
 interface SapCodeForm {
-  status: string; productId: string; name: string;
-  productType: string; categoryId: string; categoryName: string;
+  status: string;
+  productId: string;
+  name: string;
+  productType: string;
+  categoryId: string;
+  categoryName: string;
 }
 
 const emptyForm: SapCodeForm = {
-  status: "", productId: "", name: "", productType: "", categoryId: "", categoryName: "",
+  status: "",
+  productId: "",
+  name: "",
+  productType: "",
+  categoryId: "",
+  categoryName: "",
 };
 
 const writeRoles = ["superadmin", "head_office_admin", "editor"];
@@ -61,11 +70,12 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
   const [form, setForm] = useState<SapCodeForm>(emptyForm);
   const canWrite = user && writeRoles.includes(user.role);
   const canAdmin = user && adminRoles.includes(user.role);
-  const buildImportSummary = (result: { imported?: number; updated?: number; skipped?: number[] }) => {
+
+  const buildImportSummary = (result: { imported?: number; cleared?: number; skipped?: number[] }) => {
     const parts = [`${result.imported || 0} imported`];
-    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.cleared) parts.push(`${result.cleared} cleared`);
     if (result.skipped?.length) parts.push(`${result.skipped.length} skipped`);
-    return parts.join(" • ");
+    return parts.join(", ");
   };
 
   const queryKey = ["sap-codes", search, status, page];
@@ -74,8 +84,8 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
     queryFn: () => apiFetch(`/sap-codes?search=${search}&status=${status !== "all" ? status : ""}&page=${page}&pageSize=50`),
   });
 
-  const createMut = useMutation({ mutationFn: (d: any) => apiFetch("/sap-codes", { method: "POST", body: JSON.stringify(d) }) });
-  const updateMut = useMutation({ mutationFn: ({ id, ...d }: any) => apiFetch(`/sap-codes/${id}`, { method: "PUT", body: JSON.stringify(d) }) });
+  const createMut = useMutation({ mutationFn: (payload: any) => apiFetch("/sap-codes", { method: "POST", body: JSON.stringify(payload) }) });
+  const updateMut = useMutation({ mutationFn: ({ id, ...payload }: any) => apiFetch(`/sap-codes/${id}`, { method: "PUT", body: JSON.stringify(payload) }) });
   const deleteMut = useMutation({ mutationFn: (id: number) => apiFetch(`/sap-codes/${id}`, { method: "DELETE" }) });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["sap-codes"] });
@@ -84,9 +94,12 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
   const openEdit = (item: any) => {
     setEditItem(item);
     setForm({
-      status: item.status || "", productId: item.productId || "",
-      name: item.name || "", productType: item.productType || "",
-      categoryId: item.categoryId || "", categoryName: item.categoryName || "",
+      status: item.status || "",
+      productId: item.productId || "",
+      name: item.name || "",
+      productType: item.productType || "",
+      categoryId: item.categoryId || "",
+      categoryName: item.categoryName || "",
     });
     setDialogOpen(true);
   };
@@ -96,12 +109,12 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
     if (editItem) {
       updateMut.mutate({ id: editItem.id, ...form }, {
         onSuccess: () => { toast({ title: t("sapCodes.codeUpdated") }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+        onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
       });
     } else {
       createMut.mutate(form, {
         onSuccess: () => { toast({ title: t("sapCodes.codeCreated") }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+        onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
       });
     }
   };
@@ -110,35 +123,41 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
     if (!deleteTarget) return;
     deleteMut.mutate(deleteTarget.id, {
       onSuccess: () => { toast({ title: t("sapCodes.codeDeleted") }); setDeleteTarget(null); invalidate(); },
-      onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+      onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
     });
   };
 
   const handleExport = () => {
     if (!data?.data?.length) return;
-    const rows = data.data.map((p: any) => ({
-      status: p.status || "", productId: p.productId || "", name: p.name,
-      productType: p.productType || "", categoryId: p.categoryId || "", categoryName: p.categoryName || "",
+    const rows = data.data.map((item: any) => ({
+      status: item.status || "",
+      productId: item.productId || "",
+      name: item.name,
+      productType: item.productType || "",
+      categoryId: item.categoryId || "",
+      categoryName: item.categoryName || "",
     }));
-    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     const formData = new FormData();
     formData.append("file", file);
     try {
       const res = await fetch(buildApiUrl("/api/sap-codes/import"), {
-        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
       toast({ title: t("common.importSuccess"), description: buildImportSummary(result) });
       invalidate();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("common.importError"), description: error.message });
     }
     if (importRef.current) importRef.current.value = "";
   };
@@ -147,12 +166,16 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
   const total = data?.total || 0;
   const isPending = createMut.isPending || updateMut.isPending;
 
-  const getStatusBadge = (s: string) => {
-    switch (s?.toLowerCase()) {
-      case "действующий": return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{t("sapCodes.active")}</Badge>;
-      case "заблокировать": return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">{t("sapCodes.blocked")}</Badge>;
-      case "открыть": return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("sapCodes.toOpen")}</Badge>;
-      default: return <Badge variant="secondary">{s}</Badge>;
+  const getStatusBadge = (value: string) => {
+    switch (value?.toLowerCase()) {
+      case "действующий":
+        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{t("sapCodes.active")}</Badge>;
+      case "заблокировать":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">{t("sapCodes.blocked")}</Badge>;
+      case "открыть":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("sapCodes.toOpen")}</Badge>;
+      default:
+        return <Badge variant="secondary">{value}</Badge>;
     }
   };
 
@@ -187,9 +210,9 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
         <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t("sapCodes.searchPlaceholder")} className="pl-9 max-w-md" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <Input placeholder={t("sapCodes.searchPlaceholder")} className="pl-9 max-w-md" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           </div>
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+          <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
             <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("sapCodes.allStatuses")}</SelectItem>
@@ -215,10 +238,10 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-5 w-24" /></TableCell>
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={index}>
+                    {Array.from({ length: 7 }).map((__, cellIndex) => (
+                      <TableCell key={cellIndex}><Skeleton className="h-5 w-24" /></TableCell>
                     ))}
                   </TableRow>
                 ))
@@ -260,8 +283,8 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
           <div className="p-4 border-t border-border/50 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">{t("common.showing", { count: items.length, total })}</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("common.previous")}</Button>
-              <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage(p => p + 1)}>{t("common.next")}</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t("common.previous")}</Button>
+              <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage((value) => value + 1)}>{t("common.next")}</Button>
             </div>
           </div>
         )}
@@ -277,11 +300,11 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("sapCodes.productId")}</Label>
-                <Input value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))} />
+                <Input value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("sapCodes.status")}</Label>
-                <Select value={form.status || "none"} onValueChange={v => setForm(f => ({ ...f, status: v === "none" ? "" : v }))}>
+                <Select value={form.status || "none"} onValueChange={(value) => setForm((current) => ({ ...current, status: value === "none" ? "" : value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">-</SelectItem>
@@ -294,20 +317,20 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
             </div>
             <div className="space-y-2">
               <Label>{t("sapCodes.name")}</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>{t("sapCodes.productType")}</Label>
-              <Input value={form.productType} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))} />
+              <Input value={form.productType} onChange={(event) => setForm((current) => ({ ...current, productType: event.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("sapCodes.categoryId")}</Label>
-                <Input value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))} />
+                <Input value={form.categoryId} onChange={(event) => setForm((current) => ({ ...current, categoryId: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("sapCodes.categoryName")}</Label>
-                <Input value={form.categoryName} onChange={e => setForm(f => ({ ...f, categoryName: e.target.value }))} />
+                <Input value={form.categoryName} onChange={(event) => setForm((current) => ({ ...current, categoryName: event.target.value }))} />
               </div>
             </div>
           </div>

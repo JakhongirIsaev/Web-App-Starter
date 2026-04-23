@@ -187,63 +187,20 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
   });
 });
 
-router.post("/auth/telegram", telegramLoginLimiter, async (req, res) => {
-  const { initData } = req.body;
-  if (!initData) {
-    res.status(400).json({ error: "Missing initData" });
-    return;
-  }
-
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) {
-    res.status(500).json({ error: "Bot not configured" });
-    return;
-  }
-
-  const result = validateTelegramInitData(initData, botToken);
-  if (!result.valid || !result.user) {
-    res.status(401).json({ error: "Invalid Telegram data" });
-    return;
-  }
-
-  const tgUser = result.user;
-  const telegramId = String(tgUser.id);
-
-  const users = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.telegramId, telegramId))
-    .limit(1);
-
-  if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "User not registered", telegramId });
-    return;
-  }
-
-  const user = users[0];
-  const { token } = await createSession(user.id);
-
-  let branch = null;
-  if (user.branchId) {
-    const branches = await db.select().from(branchesTable).where(eq(branchesTable.id, user.branchId)).limit(1);
-    if (branches.length) branch = branches[0];
-  }
-
-  res.json({
-    user: {
-      id: user.id,
-      telegramId: user.telegramId,
-      name: user.name,
-      role: user.role,
-      branchId: user.branchId ?? null,
-      branch,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    },
-    token,
+// Telegram auto-login is intentionally disabled. Everyone — including
+// users opening the mini-app from inside Telegram — authenticates via
+// the password form at POST /auth/login using their Telegram-ID + password.
+// Keeping the route registered (instead of deleting it) so any stale client
+// still in the field gets a clear 403 instead of a hard 404.
+router.post("/auth/telegram", telegramLoginLimiter, async (_req, res) => {
+  res.status(403).json({
+    error: "Telegram auto-login is disabled. Please use password login.",
   });
 });
+
+// Kept temporarily as a no-op to avoid unused-import warnings for helpers
+// that only the old Telegram flow referenced.
+void validateTelegramInitData;
 
 router.post("/auth/logout", async (req, res) => {
   const token = extractBearerToken(req);

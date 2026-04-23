@@ -76,20 +76,35 @@ const emptyForm: CreditProductForm = {
 const writeRoles = ["superadmin", "head_office_admin", "editor"];
 const adminRoles = ["superadmin", "head_office_admin"];
 
-function renderSegmentBadge(seg: string | null | undefined, t: ReturnType<typeof useTranslation>["t"]) {
-  switch (seg) {
-    case "СЃСЂРµРґРЅРёР№":
+function normalizeSegment(segment: string | null | undefined): string | null {
+  const value = segment?.trim().toLowerCase();
+  if (!value) return null;
+
+  if (value === "средний") return "средний";
+  if (value === "малый") return "малый";
+  if (value === "микро") return "микро";
+
+  return segment?.trim() || null;
+}
+
+function formatSapCode(value: string | null | undefined): string {
+  if (!value) return "-";
+  const parts = value.split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? parts.join("\n") : value;
+}
+
+function renderSegmentBadge(segment: string | null | undefined, t: ReturnType<typeof useTranslation>["t"]) {
+  switch (normalizeSegment(segment)) {
+    case "средний":
       return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">{t("creditProducts.medium")}</Badge>;
-    case "РјР°Р»С‹Р№":
+    case "малый":
       return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">{t("creditProducts.small")}</Badge>;
-    case "РјРёРєСЂРѕ":
+    case "микро":
       return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">{t("creditProducts.micro")}</Badge>;
-    case "":
     case null:
-    case undefined:
       return <span className="text-muted-foreground">-</span>;
     default:
-      return <Badge variant="secondary">{seg}</Badge>;
+      return <Badge variant="secondary">{segment}</Badge>;
   }
 }
 
@@ -141,7 +156,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
       name: item.name || "",
       number: item.number?.toString() || "",
       sapCode: item.sapCode || "",
-      segment: item.segment || "",
+      segment: normalizeSegment(item.segment) || "",
       disbursementForm: item.disbursementForm || "",
       loanAmount: item.loanAmount || "",
       termWorkingCapital: item.termWorkingCapital || "",
@@ -159,7 +174,11 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
 
   const handleSubmit = () => {
     if (!form.name.trim()) return;
-    const payload = { ...form, number: form.number ? Number(form.number) : null };
+    const payload = {
+      ...form,
+      segment: normalizeSegment(form.segment),
+      number: form.number ? Number(form.number) : null,
+    };
 
     if (editItem) {
       updateMut.mutate({ id: editItem.id, ...payload }, {
@@ -214,7 +233,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
       purpose: item.purpose || "",
       highlight: item.highlight || "",
     }));
-    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -333,7 +352,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
                             {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs whitespace-pre-line">{item.sapCode || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground font-mono text-xs whitespace-pre-line">{formatSapCode(item.sapCode)}</TableCell>
                         <TableCell>{renderSegmentBadge(item.segment, t)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[260px] truncate">
                           {localizeLoanAmount(item.loanAmount, lang) || "-"}
@@ -422,9 +441,9 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">-</SelectItem>
-                    <SelectItem value="СЃСЂРµРґРЅРёР№">{t("creditProducts.medium")}</SelectItem>
-                    <SelectItem value="РјР°Р»С‹Р№">{t("creditProducts.small")}</SelectItem>
-                    <SelectItem value="РјРёРєСЂРѕ">{t("creditProducts.micro")}</SelectItem>
+                    <SelectItem value="средний">{t("creditProducts.medium")}</SelectItem>
+                    <SelectItem value="малый">{t("creditProducts.small")}</SelectItem>
+                    <SelectItem value="микро">{t("creditProducts.micro")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

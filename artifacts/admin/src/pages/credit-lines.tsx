@@ -38,16 +38,37 @@ async function apiFetch(url: string, options?: RequestInit) {
 }
 
 interface CreditLineForm {
-  number: string; name: string; department: string; agreementDate: string;
-  agreementAmount: string; receivedAmount: string; currency: string;
-  interestRate: string; disbursedAmount: string; remainingBalance: string;
-  projectCount: string; specialConditions: string; notes: string; section: string;
+  number: string;
+  name: string;
+  department: string;
+  agreementDate: string;
+  agreementAmount: string;
+  receivedAmount: string;
+  currency: string;
+  interestRate: string;
+  disbursedAmount: string;
+  remainingBalance: string;
+  projectCount: string;
+  specialConditions: string;
+  notes: string;
+  section: string;
 }
 
 const emptyForm: CreditLineForm = {
-  number: "", name: "", department: "", agreementDate: "", agreementAmount: "",
-  receivedAmount: "", currency: "", interestRate: "", disbursedAmount: "",
-  remainingBalance: "", projectCount: "", specialConditions: "", notes: "", section: "",
+  number: "",
+  name: "",
+  department: "",
+  agreementDate: "",
+  agreementAmount: "",
+  receivedAmount: "",
+  currency: "",
+  interestRate: "",
+  disbursedAmount: "",
+  remainingBalance: "",
+  projectCount: "",
+  specialConditions: "",
+  notes: "",
+  section: "",
 };
 
 const writeRoles = ["superadmin", "head_office_admin", "editor"];
@@ -55,12 +76,13 @@ const adminRoles = ["superadmin", "head_office_admin"];
 
 function fmtNum(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "-";
+
   const str = String(value).trim();
-  const num = parseFloat(str);
-  if (isNaN(num)) return str;
-  const [intPart, decPart] = num.toFixed(
-    str.includes(".") ? Math.min((str.split(".")[1] || "").length, 2) : 0
-  ).split(".");
+  const num = Number(str);
+  if (!Number.isFinite(num)) return str;
+
+  const fixed = str.includes(".") ? Math.min((str.split(".")[1] || "").length, 2) : 0;
+  const [intPart, decPart] = num.toFixed(fixed).split(".");
   const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
   return decPart ? `${formatted}.${decPart}` : formatted;
 }
@@ -106,6 +128,7 @@ function fmtInterestRate(value: string | number | null | undefined): string {
   }
 
   const text = String(value).trim();
+  if (!text) return "-";
   if (text.includes("%")) return text;
 
   const normalized = text.replace(",", ".");
@@ -118,6 +141,18 @@ function fmtInterestRate(value: string | number | null | undefined): string {
   }
 
   return text;
+}
+
+function formatAgreementDate(value: string | null | undefined): string {
+  if (!value) return "-";
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) return value;
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return `${match[3]}.${match[2]}.${match[1]}`;
+  }
+
+  return value;
 }
 
 export default function CreditLines({ user }: { user?: { role: string } }) {
@@ -136,11 +171,12 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const canWrite = user && writeRoles.includes(user.role);
   const canAdmin = user && adminRoles.includes(user.role);
-  const buildImportSummary = (result: { imported?: number; updated?: number; skipped?: number[] }) => {
+
+  const buildImportSummary = (result: { imported?: number; cleared?: number; skipped?: number[] }) => {
     const parts = [`${result.imported || 0} imported`];
-    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.cleared) parts.push(`${result.cleared} cleared`);
     if (result.skipped?.length) parts.push(`${result.skipped.length} skipped`);
-    return parts.join(" • ");
+    return parts.join(", ");
   };
 
   const queryKey = ["credit-lines", search, currency, page];
@@ -149,38 +185,57 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
     queryFn: () => apiFetch(`/credit-lines?search=${search}&currency=${currency !== "all" ? currency : ""}&page=${page}&pageSize=50`),
   });
 
-  const createMut = useMutation({ mutationFn: (d: any) => apiFetch("/credit-lines", { method: "POST", body: JSON.stringify(d) }) });
-  const updateMut = useMutation({ mutationFn: ({ id, ...d }: any) => apiFetch(`/credit-lines/${id}`, { method: "PUT", body: JSON.stringify(d) }) });
+  const createMut = useMutation({ mutationFn: (payload: any) => apiFetch("/credit-lines", { method: "POST", body: JSON.stringify(payload) }) });
+  const updateMut = useMutation({ mutationFn: ({ id, ...payload }: any) => apiFetch(`/credit-lines/${id}`, { method: "PUT", body: JSON.stringify(payload) }) });
   const deleteMut = useMutation({ mutationFn: (id: number) => apiFetch(`/credit-lines/${id}`, { method: "DELETE" }) });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["credit-lines"] });
 
-  const openCreate = () => { setEditItem(null); setForm(emptyForm); setDialogOpen(true); };
+  const openCreate = () => {
+    setEditItem(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
   const openEdit = (item: any) => {
     setEditItem(item);
     setForm({
-      number: item.number?.toString() || "", name: item.name || "", department: item.department || "",
-      agreementDate: item.agreementDate || "", agreementAmount: item.agreementAmount || "",
-      receivedAmount: item.receivedAmount || "", currency: item.currency || "",
-      interestRate: item.interestRate || "", disbursedAmount: item.disbursedAmount || "",
-      remainingBalance: item.remainingBalance || "", projectCount: item.projectCount?.toString() || "",
-      specialConditions: item.specialConditions || "", notes: item.notes || "", section: item.section || "",
+      number: item.number?.toString() || "",
+      name: item.name || "",
+      department: item.department || "",
+      agreementDate: item.agreementDate || "",
+      agreementAmount: item.agreementAmount || "",
+      receivedAmount: item.receivedAmount || "",
+      currency: normalizeCurrencyCode(item.currency) || "",
+      interestRate: item.interestRate || "",
+      disbursedAmount: item.disbursedAmount || "",
+      remainingBalance: item.remainingBalance || "",
+      projectCount: item.projectCount?.toString() || "",
+      specialConditions: item.specialConditions || "",
+      notes: item.notes || "",
+      section: item.section || "",
     });
     setDialogOpen(true);
   };
 
   const handleSubmit = () => {
     if (!form.name.trim()) return;
-    const payload = { ...form, number: form.number ? Number(form.number) : null, projectCount: form.projectCount ? Number(form.projectCount) : null };
+    const payload = {
+      ...form,
+      currency: normalizeCurrencyCode(form.currency),
+      number: form.number ? Number(form.number) : null,
+      projectCount: form.projectCount ? Number(form.projectCount) : null,
+    };
+
     if (editItem) {
       updateMut.mutate({ id: editItem.id, ...payload }, {
         onSuccess: () => { toast({ title: t("creditLines.lineUpdated") }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+        onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
       });
     } else {
       createMut.mutate(payload, {
         onSuccess: () => { toast({ title: t("creditLines.lineCreated") }); setDialogOpen(false); invalidate(); },
-        onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+        onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
       });
     }
   };
@@ -189,39 +244,51 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
     if (!deleteTarget) return;
     deleteMut.mutate(deleteTarget.id, {
       onSuccess: () => { toast({ title: t("creditLines.lineDeleted") }); setDeleteTarget(null); invalidate(); },
-      onError: (e: any) => toast({ variant: "destructive", title: t("common.error"), description: e.message }),
+      onError: (error: any) => toast({ variant: "destructive", title: t("common.error"), description: error.message }),
     });
   };
 
   const handleExport = () => {
     if (!data?.data?.length) return;
-    const rows = data.data.map((p: any) => ({
-      number: p.number || "", name: p.name, department: p.department || "",
-      agreementDate: p.agreementDate || "", agreementAmount: p.agreementAmount || "",
-      receivedAmount: p.receivedAmount || "", currency: p.currency || "",
-      interestRate: p.interestRate || "", disbursedAmount: p.disbursedAmount || "",
-      remainingBalance: p.remainingBalance || "", projectCount: p.projectCount || "",
-      specialConditions: p.specialConditions || "", notes: p.notes || "", section: p.section || "",
+    const rows = data.data.map((item: any) => ({
+      number: item.number || "",
+      name: item.name,
+      department: item.department || "",
+      agreementDate: item.agreementDate || "",
+      agreementAmount: item.agreementAmount || "",
+      receivedAmount: item.receivedAmount || "",
+      currency: normalizeCurrencyCode(item.currency) || "",
+      interestRate: item.interestRate || "",
+      disbursedAmount: item.disbursedAmount || "",
+      remainingBalance: item.remainingBalance || "",
+      projectCount: item.projectCount || "",
+      specialConditions: item.specialConditions || "",
+      notes: item.notes || "",
+      section: item.section || "",
     }));
-    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
+
     const formData = new FormData();
     formData.append("file", file);
     try {
       const res = await fetch(buildApiUrl("/api/credit-lines/import"), {
-        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
       toast({ title: t("common.importSuccess"), description: buildImportSummary(result) });
+      setExpandedId(null);
       invalidate();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("common.importError"), description: error.message });
     }
     if (importRef.current) importRef.current.value = "";
   };
@@ -230,13 +297,18 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
   const total = data?.total || 0;
   const isPending = createMut.isPending || updateMut.isPending;
 
-  const getCurrencyBadge = (c: string) => {
-    switch (normalizeCurrencyCode(c)) {
-      case "USD": return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">USD</Badge>;
-      case "EUR": return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">EUR</Badge>;
-      case "JPY": return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">JPY</Badge>;
-      case "UZS": return <Badge variant="outline" className="bg-violet-500/10 text-violet-700 border-violet-500/20">UZS</Badge>;
-      default: return <Badge variant="secondary">{c}</Badge>;
+  const getCurrencyBadge = (value: string | null | undefined) => {
+    switch (normalizeCurrencyCode(value)) {
+      case "USD":
+        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">USD</Badge>;
+      case "EUR":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">EUR</Badge>;
+      case "JPY":
+        return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">JPY</Badge>;
+      case "UZS":
+        return <Badge variant="outline" className="bg-violet-500/10 text-violet-700 border-violet-500/20">UZS</Badge>;
+      default:
+        return value ? <Badge variant="secondary">{value}</Badge> : "-";
     }
   };
 
@@ -271,9 +343,9 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
         <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t("creditLines.searchPlaceholder")} className="pl-9 max-w-md" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <Input placeholder={t("creditLines.searchPlaceholder")} className="pl-9 max-w-md" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           </div>
-          <Select value={currency} onValueChange={(v) => { setCurrency(v); setPage(1); }}>
+          <Select value={currency} onValueChange={(value) => { setCurrency(value); setPage(1); }}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("creditLines.allCurrencies")}</SelectItem>
@@ -300,10 +372,10 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-5 w-24" /></TableCell>
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={index}>
+                    {Array.from({ length: 7 }).map((__, cellIndex) => (
+                      <TableCell key={cellIndex}><Skeleton className="h-5 w-24" /></TableCell>
                     ))}
                   </TableRow>
                 ))
@@ -312,29 +384,23 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                   <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">{t("creditLines.noLines")}</TableCell>
                 </TableRow>
               ) : (
-                items.map((item: any) => {
-                  const isStopped = Number(item.remainingBalance) <= 0 || item.notes?.toLowerCase().includes("stop") || item.notes?.toLowerCase().includes("стоп");
-                  const rowClass = isStopped
-                    ? "bg-red-500/10 hover:bg-red-500/20"
-                    : "bg-green-500/10 hover:bg-green-500/20";
-                  
-                  return (
+                items.map((item: any) => (
                   <Fragment key={item.id}>
-                    <TableRow className={`cursor-pointer ${rowClass}`} onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                      <TableCell className="font-mono text-muted-foreground">{item.number}</TableCell>
+                    <TableRow className="cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                      <TableCell className="font-mono text-muted-foreground">{item.number ?? "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="font-medium text-foreground max-w-[300px] truncate">{item.name}</div>
+                          <div className="font-medium text-foreground max-w-[320px] truncate">{item.name}</div>
                           {expandedId === item.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </div>
                       </TableCell>
-                      <TableCell>{item.currency ? getCurrencyBadge(item.currency) : "-"}</TableCell>
+                      <TableCell>{getCurrencyBadge(item.currency)}</TableCell>
                       <TableCell className="text-sm font-medium tabular-nums">{fmtNum(item.agreementAmount)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground tabular-nums">{fmtNum(item.disbursedAmount)}</TableCell>
                       <TableCell className="text-sm font-medium text-primary tabular-nums">{fmtNum(item.remainingBalance)}</TableCell>
                       {canWrite ? (
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2" onClick={(event) => event.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(item)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -352,7 +418,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                         <TableCell colSpan={7} className="bg-muted/30 p-4">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.department")}:</span> <span className="ml-1">{localizeDepartment(item.department, lang) || "-"}</span></div>
-                            <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{item.agreementDate || "-"}</span></div>
+                            <div><span className="font-medium text-muted-foreground">{t("creditLines.agreementDate")}:</span> <span className="ml-1">{formatAgreementDate(item.agreementDate)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.receivedAmount")}:</span> <span className="ml-1 tabular-nums">{fmtNum(item.receivedAmount)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.interestRate")}:</span> <span className="ml-1">{fmtInterestRate(item.interestRate)}</span></div>
                             <div><span className="font-medium text-muted-foreground">{t("creditLines.projectCount")}:</span> <span className="ml-1">{item.projectCount || "-"}</span></div>
@@ -364,8 +430,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
                       </TableRow>
                     )}
                   </Fragment>
-                  );
-                })
+                ))
               )}
             </TableBody>
           </Table>
@@ -375,8 +440,8 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
           <div className="p-4 border-t border-border/50 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">{t("common.showing", { count: items.length, total })}</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("common.previous")}</Button>
-              <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage(p => p + 1)}>{t("common.next")}</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t("common.previous")}</Button>
+              <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage((value) => value + 1)}>{t("common.next")}</Button>
             </div>
           </div>
         )}
@@ -392,21 +457,21 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>{t("creditLines.number")}</Label>
-                <Input type="number" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} />
+                <Input type="number" value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>{t("creditLines.name")}</Label>
-                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("creditLines.department")}</Label>
-                <Input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
+                <Input value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("creditLines.currency")}</Label>
-                <Select value={form.currency || "none"} onValueChange={v => setForm(f => ({ ...f, currency: v === "none" ? "" : v }))}>
+                <Select value={form.currency || "none"} onValueChange={(value) => setForm((current) => ({ ...current, currency: value === "none" ? "" : value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">-</SelectItem>
@@ -421,48 +486,48 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("creditLines.agreementDate")}</Label>
-                <Input value={form.agreementDate} onChange={e => setForm(f => ({ ...f, agreementDate: e.target.value }))} />
+                <Input value={form.agreementDate} onChange={(event) => setForm((current) => ({ ...current, agreementDate: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("creditLines.interestRate")}</Label>
-                <Input value={form.interestRate} onChange={e => setForm(f => ({ ...f, interestRate: e.target.value }))} />
+                <Input value={form.interestRate} onChange={(event) => setForm((current) => ({ ...current, interestRate: event.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>{t("creditLines.agreementAmount")}</Label>
-                <Input value={form.agreementAmount} onChange={e => setForm(f => ({ ...f, agreementAmount: e.target.value }))} />
+                <Input value={form.agreementAmount} onChange={(event) => setForm((current) => ({ ...current, agreementAmount: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("creditLines.receivedAmount")}</Label>
-                <Input value={form.receivedAmount} onChange={e => setForm(f => ({ ...f, receivedAmount: e.target.value }))} />
+                <Input value={form.receivedAmount} onChange={(event) => setForm((current) => ({ ...current, receivedAmount: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("creditLines.disbursedAmount")}</Label>
-                <Input value={form.disbursedAmount} onChange={e => setForm(f => ({ ...f, disbursedAmount: e.target.value }))} />
+                <Input value={form.disbursedAmount} onChange={(event) => setForm((current) => ({ ...current, disbursedAmount: event.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t("creditLines.remainingBalance")}</Label>
-                <Input value={form.remainingBalance} onChange={e => setForm(f => ({ ...f, remainingBalance: e.target.value }))} />
+                <Input value={form.remainingBalance} onChange={(event) => setForm((current) => ({ ...current, remainingBalance: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("creditLines.projectCount")}</Label>
-                <Input type="number" value={form.projectCount} onChange={e => setForm(f => ({ ...f, projectCount: e.target.value }))} />
+                <Input type="number" value={form.projectCount} onChange={(event) => setForm((current) => ({ ...current, projectCount: event.target.value }))} />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t("creditLines.section")}</Label>
-              <Input value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} />
+              <Input value={form.section} onChange={(event) => setForm((current) => ({ ...current, section: event.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>{t("creditLines.specialConditions")}</Label>
-              <Textarea value={form.specialConditions} onChange={e => setForm(f => ({ ...f, specialConditions: e.target.value }))} rows={2} />
+              <Textarea value={form.specialConditions} onChange={(event) => setForm((current) => ({ ...current, specialConditions: event.target.value }))} rows={2} />
             </div>
             <div className="space-y-2">
               <Label>{t("creditLines.notes")}</Label>
-              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
+              <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={2} />
             </div>
           </div>
           <DialogFooter>

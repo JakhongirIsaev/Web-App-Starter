@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import { db, authSessionsTable } from "@workspace/db";
 import { eq, lt } from "drizzle-orm";
 
-const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// 7 days. Reduced from 30 to shrink the window in which a leaked token is
+// usable. Operators can still override via SESSION_TTL_MS when needed.
+const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function sessionTtlMs(): number {
   const raw = process.env.SESSION_TTL_MS;

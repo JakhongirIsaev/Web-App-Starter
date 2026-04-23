@@ -13,6 +13,7 @@ import {
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import { deleteSessionsForUser } from "../lib/session-store";
 
 const router: IRouter = Router();
 
@@ -224,10 +225,35 @@ router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "hea
   const [updated] = await db.update(usersTable).set({ isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
 
+  await deleteSessionsForUser(updated.id);
   await logActivity({ type: "user_deactivated", description: `User "${updated.name}" deactivated`, entityId: updated.id, entityType: "user", user: req.user });
 
   const full = await getUserWithBranch(updated.id);
   res.json(full);
+});
+
+router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+  const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
+  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [target] = await db
+    .select({ id: usersTable.id, name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, params.data.id))
+    .limit(1);
+
+  if (!target) { res.status(404).json({ error: "Not found" }); return; }
+
+  await deleteSessionsForUser(target.id);
+  await logActivity({
+    type: "user_sessions_revoked",
+    description: `All sessions revoked for "${target.name}"`,
+    entityId: target.id,
+    entityType: "user",
+    user: req.user,
+  });
+
+  res.json({ success: true });
 });
 
 router.post("/users/:id/activate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
