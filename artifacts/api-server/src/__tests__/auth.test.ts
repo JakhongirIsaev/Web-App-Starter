@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractBearerToken } from "../middleware/auth";
+import { extractAuthToken, extractBearerToken } from "../middleware/auth";
 
 describe("extractBearerToken", () => {
   it("extracts token from a well-formed Authorization header", () => {
@@ -22,8 +22,8 @@ describe("extractBearerToken", () => {
     expect(extractBearerToken(req)).toBeUndefined();
   });
 
-  it("ignores token in query string (no fallback)", () => {
-    const req = { headers: {}, query: { token: "should-be-ignored" } } as any;
+  it("ignores token in query string", () => {
+    const req = { headers: {}, method: "GET", query: { token: "should-be-ignored" } } as any;
     expect(extractBearerToken(req)).toBeUndefined();
   });
 
@@ -33,7 +33,28 @@ describe("extractBearerToken", () => {
   });
 });
 
-describe("requireRole — pure role check", () => {
+describe("extractAuthToken", () => {
+  it("uses Bearer token first", () => {
+    const req = {
+      headers: { authorization: "Bearer header-token" },
+      method: "GET",
+      query: { token: "query-token" },
+    } as any;
+    expect(extractAuthToken(req)).toBe("header-token");
+  });
+
+  it("allows query token fallback for GET requests", () => {
+    const req = { headers: {}, method: "GET", query: { token: "query-token" } } as any;
+    expect(extractAuthToken(req)).toBe("query-token");
+  });
+
+  it("does not allow query token fallback for non-GET requests", () => {
+    const req = { headers: {}, method: "POST", query: { token: "query-token" } } as any;
+    expect(extractAuthToken(req)).toBeUndefined();
+  });
+});
+
+describe("requireRole pure role check", () => {
   const checkRole = (userRole: string | undefined, allowedRoles: string[]) => {
     if (!userRole || !allowedRoles.includes(userRole)) return false;
     return true;

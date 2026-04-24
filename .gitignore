@@ -59,6 +59,7 @@ Thumbs.db
 *.key
 secrets/
 credentials.json
+artifacts/api-server/uploads/
 
 # OMC (oh-my-claudecode) transient agent state — not code
 .omc/state/

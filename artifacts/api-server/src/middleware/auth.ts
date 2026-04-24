@@ -29,8 +29,20 @@ export function extractBearerToken(req: Request): string | undefined {
   return value.trim() || undefined;
 }
 
+export function extractAuthToken(req: Request): string | undefined {
+  const bearerToken = extractBearerToken(req);
+  if (bearerToken) return bearerToken;
+
+  // Browser <img> requests cannot attach Authorization headers. Allow token
+  // query fallback only for GET endpoints such as authenticated document files.
+  if (req.method !== "GET") return undefined;
+  const queryToken = req.query?.token;
+  if (typeof queryToken !== "string") return undefined;
+  return queryToken.trim() || undefined;
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = extractBearerToken(req);
+  const token = extractAuthToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildApiUrl } from "@/lib/api";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
@@ -377,24 +377,14 @@ export default function ScanDocumentPage() {
         const photo = photos[index];
         const initialName = `documents/client-${params.clientId}/${Date.now()}-${index}.jpg`;
 
-        // Upload to object storage; if it fails, abort the whole save so we
-        // don't leave orphan DB rows pointing at a file that never landed.
-        const blob = await fetch(photo.dataUrl).then((response) => response.blob());
-        const uploadMeta = await api.post("/storage/uploads/request-url", {
+        // Upload through the authenticated API. Railway does not provide the
+        // Replit object-storage sidecar used by the legacy signed-URL route.
+        const contentType = photo.dataUrl.match(/^data:([^;]+);/)?.[1] || "image/jpeg";
+        const uploadMeta = await api.post("/storage/uploads/direct", {
           name: initialName,
-          size: blob.size,
-          contentType: "image/jpeg",
+          contentType,
+          dataUrl: photo.dataUrl,
         });
-        const putResponse = await fetch(uploadMeta.uploadURL, {
-          method: "PUT",
-          body: blob,
-          headers: { "Content-Type": "image/jpeg" },
-        });
-        if (!putResponse.ok) {
-          throw new Error(
-            `Upload failed for photo ${index + 1}: ${putResponse.status} ${putResponse.statusText}`,
-          );
-        }
         const storagePath = uploadMeta.objectPath;
 
         const payload: Record<string, unknown> = {

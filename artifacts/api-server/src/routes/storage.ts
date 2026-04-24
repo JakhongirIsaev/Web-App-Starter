@@ -2,12 +2,127 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import { spawn } from "child_process";
 import path from "path";
+import { randomUUID } from "crypto";
+import { promises as fs } from "fs";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middleware/auth";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+const LOCAL_OBJECT_PREFIX = "/local-objects/";
+const DEFAULT_MAX_LOCAL_UPLOAD_BYTES = 12 * 1024 * 1024;
+const configuredMaxUploadBytes = Number(process.env.FILE_STORAGE_MAX_BYTES);
+const MAX_LOCAL_UPLOAD_BYTES =
+  Number.isFinite(configuredMaxUploadBytes) && configuredMaxUploadBytes > 0
+    ? configuredMaxUploadBytes
+    : DEFAULT_MAX_LOCAL_UPLOAD_BYTES;
+
+class UploadValidationError extends Error {}
+
+const imageExtensionsByType: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
+function getLocalStorageRoot(): string {
+  return path.resolve(process.env.FILE_STORAGE_DIR || path.join(process.cwd(), "uploads"));
+}
+
+function normalizeImageContentType(value: unknown): string | null {
+  const contentType = String(value || "").split(";")[0].trim().toLowerCase();
+  if (contentType === "image/jpg") return "image/jpeg";
+  return imageExtensionsByType[contentType] ? contentType : null;
+}
+
+function parseUploadImage(body: any): { buffer: Buffer; contentType: string } {
+  const rawDataUrl = body?.dataUrl;
+  if (typeof rawDataUrl !== "string" || !rawDataUrl.trim()) {
+    throw new UploadValidationError("Missing image data");
+  }
+
+  const dataUrlMatch = rawDataUrl.match(/^data:([^;,]+);base64,(.*)$/s);
+  const contentType = normalizeImageContentType(dataUrlMatch?.[1] || body?.contentType);
+  if (!contentType) {
+    throw new UploadValidationError("Unsupported image content type");
+  }
+
+  const base64Data = (dataUrlMatch ? dataUrlMatch[2] : rawDataUrl).replace(/\s/g, "");
+  if (!base64Data || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Data)) {
+    throw new UploadValidationError("Invalid base64 image data");
+  }
+
+  const buffer = Buffer.from(base64Data, "base64");
+  if (!buffer.length) {
+    throw new UploadValidationError("Empty image upload");
+  }
+  if (buffer.length > MAX_LOCAL_UPLOAD_BYTES) {
+    throw new UploadValidationError(`Image exceeds ${MAX_LOCAL_UPLOAD_BYTES} byte limit`);
+  }
+
+  return { buffer, contentType };
+}
+
+function sanitizePathSegment(segment: string): string {
+  return segment
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^\.+$/, "")
+    .slice(0, 80);
+}
+
+function buildLocalObjectPath(name: unknown, contentType: string): string {
+  const fallbackName = `documents/upload-${Date.now()}`;
+  const rawName = typeof name === "string" && name.trim() ? name : fallbackName;
+  const parts = rawName
+    .replace(/\\/g, "/")
+    .split("/")
+    .map(sanitizePathSegment)
+    .filter(Boolean);
+  const safeParts = parts.length > 0 ? parts : ["documents", `upload-${Date.now()}`];
+  const originalFileName = safeParts.pop() || `upload-${Date.now()}`;
+  const basename = originalFileName.replace(/\.[A-Za-z0-9]{1,8}$/, "") || "upload";
+  const extension = imageExtensionsByType[contentType] || ".bin";
+  const fileName = `${Date.now()}-${randomUUID()}-${basename}${extension}`;
+
+  return [...safeParts, fileName].join("/");
+}
+
+function resolveLocalObjectPath(objectPath: string): string {
+  if (!objectPath.startsWith(LOCAL_OBJECT_PREFIX)) {
+    throw new ObjectNotFoundError();
+  }
+
+  const relativePath = objectPath.slice(LOCAL_OBJECT_PREFIX.length);
+  if (!relativePath) {
+    throw new ObjectNotFoundError();
+  }
+
+  const root = getLocalStorageRoot();
+  const fullPath = path.resolve(root, relativePath);
+  const rootWithSeparator = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  if (fullPath !== root && !fullPath.startsWith(rootWithSeparator)) {
+    throw new ObjectNotFoundError();
+  }
+
+  return fullPath;
+}
+
+function contentTypeForFile(filePath: string): string {
+  switch (path.extname(filePath).toLowerCase()) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "application/octet-stream";
+  }
+}
 
 router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const { name, size, contentType } = req.body || {};
@@ -27,6 +142,35 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
   }
 });
 
+router.post("/storage/uploads/direct", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { buffer, contentType } = parseUploadImage(req.body);
+    const relativePath = buildLocalObjectPath(req.body?.name, contentType);
+    const objectPath = `${LOCAL_OBJECT_PREFIX}${relativePath.replace(/\\/g, "/")}`;
+    const fullPath = resolveLocalObjectPath(objectPath);
+
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.writeFile(fullPath, buffer, { flag: "wx" });
+
+    res.status(201).json({
+      objectPath,
+      metadata: {
+        name: req.body?.name || path.basename(relativePath),
+        size: buffer.length,
+        contentType,
+      },
+    });
+  } catch (error) {
+    if (error instanceof UploadValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+
+    logger.error({ err: error }, "Error saving direct upload");
+    res.status(500).json({ error: "Failed to save upload" });
+  }
+});
+
 router.get("/storage/file", requireAuth, async (req: Request, res: Response) => {
   const objectPath = req.query.path;
   if (typeof objectPath !== "string" || !objectPath) {
@@ -35,6 +179,29 @@ router.get("/storage/file", requireAuth, async (req: Request, res: Response) => 
   }
 
   try {
+    if (objectPath.startsWith(LOCAL_OBJECT_PREFIX)) {
+      const fullPath = resolveLocalObjectPath(objectPath);
+      let stats;
+      try {
+        stats = await fs.stat(fullPath);
+      } catch (error: any) {
+        if (error?.code === "ENOENT") {
+          throw new ObjectNotFoundError();
+        }
+        throw error;
+      }
+      if (!stats.isFile()) {
+        throw new ObjectNotFoundError();
+      }
+
+      const file = await fs.readFile(fullPath);
+      res.setHeader("Content-Type", contentTypeForFile(fullPath));
+      res.setHeader("Content-Length", String(stats.size));
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.status(200).send(file);
+      return;
+    }
+
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
     const objectResponse = await objectStorageService.downloadObject(objectFile);
 
