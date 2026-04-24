@@ -68,3 +68,13 @@ credentials.json
 
 # Design handoff assets (kept out of repo — tracked separately)
 design_handoff_minerva/
+
+# Local scratch and one-off production ops files. Promote into reviewed,
+# parameterized tooling before committing any of these.
+.omc/
+ARCHITECTURE_DUMP.md
+artifacts/api-server/scripts/
+artifacts/api-server/src/reseed-production-via-api.ts
+artifacts/api-server/src/reseed-workbook.ts
+artifacts/admin/src/components/dashboard-branch-performance-chart.tsx
+artifacts/admin/public/admin-logo-512.png

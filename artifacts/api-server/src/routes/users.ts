@@ -76,6 +76,10 @@ router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin",
     conditions.push(eq(usersTable.isActive, params.data.isActive));
   }
 
+  if (params.success && params.data.role !== undefined && rolesEnum.includes(params.data.role as UserRole)) {
+    conditions.push(eq(usersTable.role, params.data.role as UserRole));
+  }
+
   const rows = await db
     .select({
       id: usersTable.id,

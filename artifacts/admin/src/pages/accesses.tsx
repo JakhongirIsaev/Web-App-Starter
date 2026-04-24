@@ -71,7 +71,7 @@ export default function Accesses() {
   const [search, setSearch] = useState("");
 
   const { data: branches, isLoading: branchesLoading } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
-  const { data: users, isLoading: usersLoading } = useListUsers({ query: { queryKey: getListUsersQueryKey() } });
+  const { data: users, isLoading: usersLoading } = useListUsers(undefined, { query: { queryKey: getListUsersQueryKey() } });
 
   const isLoading = branchesLoading || usersLoading;
 
