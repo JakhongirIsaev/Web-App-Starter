@@ -124,6 +124,17 @@ function contentTypeForFile(filePath: string): string {
   }
 }
 
+function getOcrScriptPath(): string {
+  return path.resolve(process.cwd(), "src/ocr/paddle_ocr.py");
+}
+
+function getOcrTimeoutMs(): number {
+  const configuredTimeout = Number(process.env.OCR_TIMEOUT_MS);
+  return Number.isFinite(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 90_000;
+}
+
 router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const { name, size, contentType } = req.body || {};
   if (!name || !contentType) {
@@ -168,6 +179,55 @@ router.post("/storage/uploads/direct", requireAuth, async (req: Request, res: Re
 
     logger.error({ err: error }, "Error saving direct upload");
     res.status(500).json({ error: "Failed to save upload" });
+  }
+});
+
+router.get("/ocr/health", async (_req: Request, res: Response) => {
+  const scriptPath = getOcrScriptPath();
+
+  try {
+    const result = await new Promise<any>((resolve, reject) => {
+      const proc = spawn("python3", [scriptPath, "--health"], {
+        env: {
+          ...process.env,
+          PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",
+        },
+      });
+
+      let stdout = "";
+      let stderr = "";
+      const timeout = setTimeout(() => {
+        proc.kill("SIGKILL");
+        reject(new Error("OCR health check timed out"));
+      }, 10_000);
+
+      proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
+      proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
+
+      proc.on("close", (code: number) => {
+        clearTimeout(timeout);
+        if (code !== 0) {
+          reject(new Error(`OCR health check exited with code ${code}: ${stderr.slice(-500)}`));
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(stdout));
+        } catch {
+          reject(new Error("Failed to parse OCR health check output"));
+        }
+      });
+
+      proc.on("error", (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    res.json({ ...result, scriptPath });
+  } catch (error: any) {
+    logger.error({ err: error, scriptPath }, "OCR health check error");
+    res.status(500).json({ status: "error", error: error.message || "OCR health check failed" });
   }
 });
 
@@ -237,10 +297,8 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
   const base64Data = image.includes(",") ? image.split(",")[1] : image;
 
   try {
-    const scriptPath = path.resolve(
-      process.cwd(),
-      "src/ocr/paddle_ocr.py"
-    );
+    const scriptPath = getOcrScriptPath();
+    const timeoutMs = getOcrTimeoutMs();
 
     const result = await new Promise<any>((resolve, reject) => {
       // Optional extra LD path for environments that need a specific libgcc_s.
@@ -263,6 +321,23 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
 
       let stdout = "";
       let stderr = "";
+      let settled = false;
+
+      const finish = (error?: Error, value?: any) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(value);
+      };
+
+      const timeout = setTimeout(() => {
+        proc.kill("SIGKILL");
+        finish(new Error(`OCR timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
 
       proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
       proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
@@ -270,24 +345,25 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
       proc.on("close", (code: number) => {
         if (code !== 0) {
           logger.error({ stderr }, "PaddleOCR stderr");
-          reject(new Error(`PaddleOCR exited with code ${code}: ${stderr.slice(-500)}`));
+          finish(new Error(`OCR exited with code ${code}: ${stderr.slice(-500)}`));
         } else {
           try {
-            resolve(JSON.parse(stdout));
+            finish(undefined, JSON.parse(stdout));
           } catch {
-            reject(new Error("Failed to parse PaddleOCR output"));
+            finish(new Error("Failed to parse OCR output"));
           }
         }
       });
 
-      proc.on("error", reject);
+      proc.on("error", (error) => finish(error));
       proc.stdin.write(JSON.stringify({ image: base64Data }));
       proc.stdin.end();
     });
 
     if (result.success) {
-      res.json({ text: result.text, boxes: result.boxes });
+      res.json({ text: result.text, boxes: result.boxes, engine: result.engine });
     } else {
+      logger.error({ error: result.error }, "OCR script returned failure");
       res.status(500).json({ error: result.error || "OCR failed" });
     }
   } catch (error: any) {
