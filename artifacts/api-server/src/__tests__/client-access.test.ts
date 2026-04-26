@@ -149,7 +149,7 @@ describe("makeParamGuard — middleware deny paths", () => {
     const next = vi.fn() as NextFunction;
     await guard(req, res, next);
     expect(status).toHaveBeenCalledWith(401);
-    expect(json).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(json).toHaveBeenCalledWith({ error: "Требуется авторизация / Avtorizatsiya kerak" });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -159,6 +159,6 @@ describe("makeParamGuard — middleware deny paths", () => {
     const req = { params: { docId: "nope" } } as unknown as Request;
     const next = vi.fn() as NextFunction;
     await withCustomParam(req, res, next);
-    expect(json).toHaveBeenCalledWith({ error: "Invalid docId" });
+    expect(json).toHaveBeenCalledWith({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
   });
 });

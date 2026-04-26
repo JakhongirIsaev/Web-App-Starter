@@ -71,7 +71,6 @@ COPY --from=build /app/tsconfig.base.json /app/tsconfig.base.json
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/artifacts /app/artifacts
 COPY --from=build /app/lib /app/lib
-COPY --from=build /app/attached_assets /app/attached_assets
 
 RUN chmod +x /app/artifacts/api-server/start.sh \
   && chown -R appuser:appuser /app \

@@ -9,7 +9,9 @@ node_modules
 **/*.log
 npm-debug.log*
 pnpm-debug.log*
-attached_assets/**/*.tmp
+attached_assets
+design_handoff_minerva
+dist
 
 # Secrets and key material must never be copied into an image layer.
 .env

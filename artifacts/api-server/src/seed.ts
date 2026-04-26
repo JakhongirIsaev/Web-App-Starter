@@ -19,7 +19,14 @@ interface SeedOptions {
   force?: boolean;
 }
 
+function assertForceSeedAllowed() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Forced database reseed is disabled in production.");
+  }
+}
+
 async function truncateDemoTables() {
+  assertForceSeedAllowed();
   await db.execute(sql`
     TRUNCATE TABLE
       activity_log,
@@ -44,6 +51,10 @@ async function truncateDemoTables() {
 
 export async function seedDatabase(options: SeedOptions = {}) {
   const { force = false } = options;
+
+  if (force) {
+    assertForceSeedAllowed();
+  }
 
   // One-time idempotent migrations that must run on every boot regardless
   // of the "skip-if-seeded" guard. The WHERE clauses make each a no-op

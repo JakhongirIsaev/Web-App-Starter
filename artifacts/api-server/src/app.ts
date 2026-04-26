@@ -99,12 +99,21 @@ if (isProduction && allowedOrigins.length === 0) {
   );
 }
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !corsAllowAllInDev && !allowedOrigins.includes(origin)) {
+    res.status(403).json({ error: "CORS origin not allowed" });
+    return;
+  }
+  next();
+});
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
     if (corsAllowAllInDev) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`CORS: origin not allowed: ${origin}`));
+    return callback(null, false);
   },
   credentials: true,
 }));
@@ -119,8 +128,16 @@ const apiLimiter = rateLimit({
 
 app.use(apiLimiter);
 
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ extended: true, limit: "20mb" }));
+const defaultJsonParser = express.json({ limit: "100kb" });
+const documentJsonParser = express.json({ limit: "1mb" });
+const largeImageJsonParser = express.json({ limit: "20mb" });
+
+app.use("/api/storage/uploads/direct", largeImageJsonParser);
+app.use("/api/ocr/recognize", largeImageJsonParser);
+app.use("/api/mini-app/exports/auto-excel", documentJsonParser);
+app.use(/^\/api\/mini-app\/(?:clients\/[^/]+\/documents|documents\/[^/]+\/ocr)$/, documentJsonParser);
+app.use(defaultJsonParser);
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
 app.use("/api", router);
 
