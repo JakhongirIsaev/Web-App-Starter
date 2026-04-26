@@ -123,7 +123,7 @@ export default function Articles({ user }: { user?: { role: string } }) {
       isPublished: a.isPublished, targetAllBranches: a.targetAllBranches,
       author: a.author?.name || "", updatedAt: a.updatedAt,
     }));
-    downloadCsv(rows, `articles_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `maqolalar_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

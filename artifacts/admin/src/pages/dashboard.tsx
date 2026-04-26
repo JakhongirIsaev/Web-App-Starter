@@ -226,7 +226,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-summary", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/summary${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("So'rov bajarilmadi");
       return res.json();
     },
   });
@@ -235,7 +235,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-branch-stats", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/branch-stats${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("So'rov bajarilmadi");
       return res.json();
     },
   });
@@ -244,7 +244,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-client-status", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/client-status${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("So'rov bajarilmadi");
       return res.json();
     },
   });
@@ -253,7 +253,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-activity", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/activity${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("So'rov bajarilmadi");
       return res.json();
     },
   });
@@ -262,7 +262,7 @@ export default function Dashboard() {
     queryKey: ["ai-health"],
     queryFn: async () => {
       const res = await fetch(buildApiUrl("/api/ai/health"));
-      if (!res.ok) return { status: "degraded", ollamaReachable: false, model: "unknown", modelAvailable: false };
+      if (!res.ok) return { status: "degraded", ollamaReachable: false, model: "noma'lum", modelAvailable: false };
       return res.json();
     },
     refetchInterval: 60000,
@@ -578,7 +578,7 @@ export default function Dashboard() {
           </div>
           <Button variant="outline" size="sm" className="text-xs gap-1 h-7">
             <Download className="w-3 h-3" />
-            CSV
+            {t("common.export")}
           </Button>
         </div>
         <div className="p-5">

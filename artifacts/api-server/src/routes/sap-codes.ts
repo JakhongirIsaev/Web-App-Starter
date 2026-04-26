@@ -36,7 +36,7 @@ router.get("/sap-codes", requireAuth, async (req, res) => {
 
 router.post("/sap-codes", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { status, productId, name, productType, categoryId, categoryName } = req.body;
-  if (!name || !status) { res.status(400).json({ error: "Name and status required" }); return; }
+  if (!name || !status) { res.status(400).json({ error: "Название и статус обязательны / Nomi va holati majburiy" }); return; }
 
   const [created] = await db.insert(sapCodesTable).values({
     status, productId: productId || null, name,
@@ -44,13 +44,13 @@ router.post("/sap-codes", requireAuth, requireRole("superadmin", "head_office_ad
     categoryName: categoryName || null,
   }).returning();
 
-  await logActivity({ type: "sap_code_created", description: `SAP code "${productId || name}" created`, entityId: created.id, entityType: "sap_code", user: req.user });
+  await logActivity({ type: "sap_code_created", description: `SAP shifri "${productId || name}" yaratildi`, entityId: created.id, entityType: "sap_code", user: req.user });
   res.status(201).json(created);
 });
 
 router.put("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const updateData: any = { updatedAt: new Date() };
   const fields = ["status", "productId", "name", "productType", "categoryId", "categoryName"];
@@ -59,24 +59,24 @@ router.put("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office
   }
 
   const [updated] = await db.update(sapCodesTable).set(updateData).where(eq(sapCodesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
 
-  await logActivity({ type: "sap_code_updated", description: `SAP code "${updated.productId || updated.name}" updated`, entityId: updated.id, entityType: "sap_code", user: req.user });
+  await logActivity({ type: "sap_code_updated", description: `SAP shifri "${updated.productId || updated.name}" yangilandi`, entityId: updated.id, entityType: "sap_code", user: req.user });
   res.json(updated);
 });
 
 router.delete("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(sapCodesTable).where(eq(sapCodesTable.id, id));
-  await logActivity({ type: "sap_code_deleted", description: `SAP code deleted`, entityId: id, entityType: "sap_code", user: req.user });
+  await logActivity({ type: "sap_code_deleted", description: "Шифр продукта удален / Mahsulot shifri o'chirildi", entityId: id, entityType: "sap_code", user: req.user });
   res.status(204).send();
 });
 
 router.post("/sap-codes/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";
     const rows = isExcelUpload(req.file)
       ? parseSapCodesWorkbook(req.file.buffer)
       : parseCsvBuffer(req.file.buffer).map(mapSapCodeCsvRow);
@@ -115,13 +115,13 @@ router.post("/sap-codes/import", requireAuth, requireRole("superadmin", "head_of
     const imported = validRows.length;
     await logActivity({
       type: "sap_codes_imported",
-      description: `Replaced SAP codes with ${imported} rows from ${sourceLabel}`,
+      description: `Шифры продуктов обновлены: ${imported} строк из ${sourceLabel}`,
       entityType: "sap_code",
       user: req.user,
     });
     res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

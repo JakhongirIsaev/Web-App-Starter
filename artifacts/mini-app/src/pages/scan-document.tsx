@@ -52,7 +52,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => resolve(String(event.target?.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.onerror = () => reject(new Error("Rasmni o'qib bo'lmadi"));
     reader.readAsDataURL(file);
   });
 }
@@ -155,6 +155,7 @@ export default function ScanDocumentPage() {
       const blob = await api.postBlob("/mini-app/exports/auto-excel", {
         clientId: parseInt(params.clientId),
         docType,
+        language: i18n.language === "ru" ? "ru" : "uz",
         extractedData: extractedFields,
         ocrText,
         imageCount: photos.length,
@@ -162,7 +163,7 @@ export default function ScanDocumentPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `doc_${docType}_${params.clientId}.xlsx`;
+      anchor.download = `${i18n.language === "ru" ? "dokument" : "hujjat"}_${params.clientId}.xlsx`;
       anchor.click();
       URL.revokeObjectURL(url);
     },
@@ -389,7 +390,7 @@ export default function ScanDocumentPage() {
 
         const payload: Record<string, unknown> = {
           docType,
-          fileName: `scan_${docType}_${Date.now()}_p${index + 1}.jpg`,
+          fileName: `${i18n.language === "ru" ? "dokument" : "hujjat"}_${Date.now()}_${index + 1}.jpg`,
           storagePath,
         };
         if (photo.ocrText) payload.ocrText = photo.ocrText;
@@ -405,7 +406,7 @@ export default function ScanDocumentPage() {
       setState("done");
     },
     onError: (err: any) => {
-      setError(err?.body?.message || err?.message || "Upload failed");
+      setError(err?.body?.message || err?.message || t("scanDoc.uploadFailed"));
       setState("review");
     },
   });
@@ -499,7 +500,7 @@ export default function ScanDocumentPage() {
                     {t("scanDoc.photosCount", { count: photos.length })}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
-                    {MAX_PHOTOS} max
+                    {t("scanDoc.maxPhotosLabel", { max: MAX_PHOTOS })}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -507,7 +508,7 @@ export default function ScanDocumentPage() {
                     <div key={photo.id} className="relative group">
                       <img
                         src={photo.dataUrl}
-                        alt="Scan"
+                        alt={t("scanDoc.scanPhotoAlt")}
                         className="w-full h-20 object-cover rounded-lg border"
                       />
                       <button
@@ -553,7 +554,7 @@ export default function ScanDocumentPage() {
                 <div key={photo.id} className="relative">
                   <img
                     src={photo.dataUrl}
-                    alt={`Photo ${index + 1}`}
+                    alt={t("scanDoc.photoAlt", { index: index + 1 })}
                     className={`w-full h-14 object-cover rounded-lg border-2 transition-all ${
                       index === processingIndex
                         ? "border-primary ring-2 ring-primary/30"
@@ -600,7 +601,7 @@ export default function ScanDocumentPage() {
                   <img
                     key={photo.id}
                     src={photo.dataUrl}
-                    alt={`Photo ${index + 1}`}
+                    alt={t("scanDoc.photoAlt", { index: index + 1 })}
                     className="h-20 rounded-lg border flex-shrink-0 object-cover"
                   />
                 ))}

@@ -37,14 +37,16 @@
   },
   "login": {
     "title": "Вход в Minerva",
-    "subtitle": "Введите ваш Telegram ID и пароль",
-    "telegramId": "Telegram ID",
+    "subtitle": "Введите идентификатор Telegram и пароль",
+    "telegramId": "Идентификатор Telegram",
     "password": "Пароль",
     "signIn": "Войти",
     "authenticating": "Вход...",
     "telegramAuthFailed": "Автоматический вход через Telegram не удался",
-    "telegramAuthHint": "Ваш Telegram ID не зарегистрирован в системе. Войдите вручную или обратитесь к администратору.",
-    "backToTelegram": "Вернуться ко входу через Telegram"
+    "telegramAuthHint": "Ваш идентификатор Telegram не зарегистрирован в системе. Войдите вручную или обратитесь к администратору.",
+    "backToTelegram": "Вернуться ко входу через Telegram",
+    "status": "Статус",
+    "detected": "Обнаружен"
   },
   "home": {
     "greeting": "Здравствуйте, {{name}}!",
@@ -122,7 +124,11 @@
     "locationReceived": "Локация получена: {{lat}}, {{lng}}",
     "locationError": "Ошибка получения локации: ",
     "locationNotSupported": "Геолокация не поддерживается вашим браузером",
-    "businessLocation": "Локация бизнеса"
+    "businessLocation": "Локация бизнеса",
+    "productTypes": {
+      "credit": "Кредитный продукт",
+      "nonCredit": "Некредитный продукт"
+    }
   },
   "newClient": {
     "title": "Новый клиент",
@@ -172,9 +178,9 @@
     "submit": "Подобрать продукты",
     "submitting": "Анализ...",
     "amountMinError": "Сумма должна быть не менее 1 000 000",
-    "aiHeading": "AI уточняет профиль клиента",
+    "aiHeading": "ИИ уточняет профиль клиента",
     "aiDescription": "Дополнительные вопросы помогают точнее подобрать продукт, срок и комфортный ежемесячный платёж.",
-    "fallbackDescription": "AI временно недоступен, поэтому используются встроенные уточняющие вопросы.",
+    "fallbackDescription": "ИИ временно недоступен, поэтому используются встроенные уточняющие вопросы.",
     "getFollowUpQuestions": "Получить уточняющие вопросы",
     "nonCreditServiceLabel": "Какой некредитный сервис клиенту нужен в первую очередь?",
     "nonCreditServiceOptions": {
@@ -241,17 +247,22 @@
     "amount": "Сумма",
     "allProducts": "Все продукты",
     "recommended": "Рекомендованные",
-    "aiRank": "AI #{{rank}}",
+    "aiSelection": "Подбор ИИ",
+    "aiRank": "ИИ #{{rank}}",
     "aiConfidence": "Уверенность {{value}}%",
     "aiHint": "Система в фоне уточняет финальные рекомендации по каталогу...",
     "fillQuestionnaireFirst": "Сначала заполните анкету клиента, чтобы Minerva смогла задать уточняющие вопросы и подобрать подходящие продукты.",
     "backToQuestionnaire": "Вернуться к анкете",
-    "aiConsideredAnswers": "AI учёл ответы анкеты",
+    "aiConsideredAnswers": "ИИ учёл ответы анкеты",
     "aiSortedDescription": "Карточки ниже отсортированы по итоговому приоритету, а описания показываются только на выбранном языке.",
     "keyAdvantage": "Ключевое преимущество",
     "clientDescription": "Клиентское описание",
     "amountLabel": "Сумма: {{value}}.",
     "rateLabel": "Ставка: {{value}}."
+  },
+  "catalog": {
+    "aiBannerTitle": "Не знаете, что предложить?",
+    "aiBannerHint": "ИИ подберёт продукты под клиента"
   },
   "basket": {
     "title": "Корзина",
@@ -263,20 +274,30 @@
     "save": "Сохранить корзину",
     "saving": "Сохранение...",
     "saved": "Корзина сохранена",
-    "totalProducts": "Всего продуктов: {{count}}"
+    "totalProducts": "Всего продуктов: {{count}}",
+    "nextStep": "Следующий шаг",
+    "nextStepHint": "Сформировать коммерческое предложение и отправить клиенту в Telegram."
   },
   "pdf": {
     "generate": "Сформировать КП",
-    "generating": "Формирование PDF...",
+    "generating": "Формирование файла...",
     "generated": "КП сформировано",
-    "sentViaTelegram": "PDF отправлен в Telegram",
-    "notSentViaTelegram": "PDF создан (Telegram-бот не настроен)",
-    "downloadPdf": "Скачать PDF",
+    "sentViaTelegram": "Файл отправлен в Telegram",
+    "notSentViaTelegram": "Файл создан (бот Telegram не настроен)",
+    "downloadPdf": "Скачать файл",
     "sendTelegram": "Отправить в Telegram",
-    "generateAgain": "Сформировать заново"
+    "generateAgain": "Сформировать заново",
+    "generateFailed": "Не удалось сформировать файл"
+  },
+  "pdfShare": {
+    "chat": "В чат с клиентом",
+    "forward": "Переслать",
+    "download": "Скачать",
+    "copyLink": "Копировать ссылку"
   },
   "calculator": {
     "title": "Кредитный калькулятор",
+    "downloadTitle": "Результаты кредитного калькулятора",
     "creditType": "Тип кредита",
     "creditTypes": {
       "consumer": "Потребительский",
@@ -308,6 +329,7 @@
     "totalInterest": "Переплата",
     "principal": "Тело кредита",
     "schedule": "График платежей",
+    "scheduleMonth": "Месяц",
     "date": "Дата",
     "loanBalance": "Остаток кредита",
     "principalPart": "Сумма погашения кредита",
@@ -316,7 +338,8 @@
     "showAll": "Показать весь график",
     "saveToBasket": "Сохранить в корзину",
     "saved": "Расчёт сохранён",
-    "download": "Скачать результаты"
+    "download": "Скачать результаты",
+    "downloadFormat": "Таблица"
   },
   "knowledge": {
     "title": "База знаний",
@@ -363,11 +386,11 @@
     "processAll": "Распознать все ({{count}})",
     "processing": "Распознавание текста...",
     "processingPhoto": "Фото {{current}} из {{total}}...",
-    "preparingOcr": "Подготовка OCR...",
+    "preparingOcr": "Подготовка распознавания...",
     "extractedFields": "Извлечённые данные",
     "rawText": "Распознанный текст",
-    "translateToUz": "Перевести на UZ",
-    "translateToRu": "Перевести на RU",
+    "translateToUz": "Перевести на узбекский",
+    "translateToRu": "Перевести на русский",
     "translating": "Перевод...",
     "translatedUz": "Перевод на узбекский",
     "translatedRu": "Перевод на русский",
@@ -404,9 +427,14 @@
     "tooManyPhotos": "Можно добавить не более {{max}} фотографий за раз.",
     "invalidImage": "Добавляйте только изображения.",
     "translateFailed": "Перевод сейчас не удалось получить. Попробуйте еще раз.",
-    "extractFailed": "AI не смог полноценно извлечь данные по авто. OCR результат сохранен.",
-    "exportFailed": "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
-    "excelExport": "Excel выгрузка"
+    "extractFailed": "ИИ не смог полноценно извлечь данные по авто. Результат распознавания сохранен.",
+    "exportFailed": "Не удалось подготовить таблицу. Попробуйте еще раз.",
+    "excelExport": "Выгрузить таблицу",
+    "maxPhotosLabel": "до {{max}} фото",
+    "scanPhotoAlt": "Скан документа",
+    "photoAlt": "Фото {{index}}",
+    "uploadFailed": "Не удалось сохранить документ",
+    "previewAlt": "Предпросмотр"
   },
   "common": {
     "save": "Сохранить",
@@ -461,13 +489,13 @@
       "name": "Имя",
       "role": "Роль",
       "branch": "Филиал",
-      "telegramId": "Telegram ID",
-      "userId": "ID пользователя",
+      "telegramId": "Идентификатор Telegram",
+      "userId": "Идентификатор пользователя",
       "close": "Закрыть"
     },
     "notificationsSheet": {
       "title": "Уведомления",
-      "push": "Push-уведомления",
+      "push": "Всплывающие уведомления",
       "pushHint": "Новые клиенты и задачи",
       "sounds": "Звуковые сигналы",
       "soundsHint": "Звук при получении уведомлений",

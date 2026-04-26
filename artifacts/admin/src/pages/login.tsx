@@ -146,7 +146,7 @@ export default function Login() {
           <div className="space-y-5">
             <img
               src="/ipak-yuli-transparent.png"
-              alt="Ipak Yuli Bank"
+              alt="Ipak Yo'li Bank"
               className="h-10 w-auto"
             />
             <div className="flex items-center gap-2 text-white/40 text-sm font-medium">

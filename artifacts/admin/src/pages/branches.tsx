@@ -74,7 +74,7 @@ export default function Branches() {
   const handleExport = () => {
     if (!branches?.length) return;
     const rows = branches.map(b => ({ id: b.id, name: b.name, city: b.city, isActive: b.isActive }));
-    downloadCsv(rows, `branches_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `filiallar_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

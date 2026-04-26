@@ -190,7 +190,7 @@ export default function Layout({ children, user }: LayoutProps) {
                   variant="ghost"
                   size="icon"
                   className="md:hidden -ml-2 h-9 w-9"
-                  aria-label="Open navigation menu"
+                  aria-label={t("common.openNavigation")}
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
@@ -206,7 +206,7 @@ export default function Layout({ children, user }: LayoutProps) {
             <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
               <img
                 src="/ipak-yuli-header.png"
-                alt="Ipak Yuli Bank"
+                alt="Ipak Yo'li Bank"
                 className="hidden sm:block h-7 w-auto"
               />
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground px-2 md:px-3" onClick={toggleLanguage}>

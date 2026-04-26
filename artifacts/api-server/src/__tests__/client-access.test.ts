@@ -119,7 +119,7 @@ describe("makeParamGuard — middleware deny paths", () => {
     const next = vi.fn() as NextFunction;
     await guard(req, res, next);
     expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({ error: "Invalid id" });
+    expect(json).toHaveBeenCalledWith({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
     expect(next).not.toHaveBeenCalled();
   });
 

@@ -107,7 +107,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
       sessionId: c.sessionId,
       createdAt: c.createdAt,
     }));
-    downloadCsv(rows, `clients_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `mijozlar_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 

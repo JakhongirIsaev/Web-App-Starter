@@ -134,7 +134,7 @@ function parseFileToPreview(buffer: ArrayBuffer, fileName: string): PreviewRow[]
 }
 
 export default function Users() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [role, setRole] = useState<string>("all");
@@ -216,7 +216,7 @@ export default function Users() {
       id: u.id, name: u.name, telegramId: u.telegramId, role: u.role,
       branch: u.branch?.name || "", isActive: u.isActive, createdAt: u.createdAt,
     }));
-    downloadCsv(rows, `users_${formatAdminFileDate()}.xlsx`);
+    downloadCsv(rows, `foydalanuvchilar_${formatAdminFileDate()}.xlsx`);
     toast({ title: t("common.exportSuccess") });
   };
 
@@ -270,7 +270,8 @@ export default function Users() {
   const handleDownloadTemplate = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(buildApiUrl("/api/users/import-template"), {
+      const language = i18n.language === "ru" ? "ru" : "uz";
+      const res = await fetch(buildApiUrl(`/api/users/import-template?language=${language}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(await res.text());
@@ -278,7 +279,9 @@ export default function Users() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "users_import_template.xlsx";
+      a.download = language === "ru"
+        ? "shablon_importa_polzovateley.xlsx"
+        : "foydalanuvchilar_import_shabloni.xlsx";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -297,7 +300,7 @@ export default function Users() {
       branch: c.branch,
       password: c.password,
     }));
-    downloadCsv(rows, `credentials_${formatAdminFileDateTime()}.xlsx`);
+    downloadCsv(rows, `hisob_malumotlari_${formatAdminFileDateTime()}.xlsx`);
     toast({ title: t("users.credentialsDownloaded") });
   };
 

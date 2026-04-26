@@ -299,7 +299,7 @@ def process_image(image_data_b64):
                 if DEFAULT_ENGINE != "auto":
                     continue
 
-        raise RuntimeError("; ".join(errors) or "No OCR engine available")
+        raise RuntimeError("; ".join(errors) or "Matnni tanish xizmati topilmadi")
     finally:
         os.unlink(tmp_path)
 

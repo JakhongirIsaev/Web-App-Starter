@@ -52,7 +52,7 @@ export const MiniAppQuestionnaireBody = z.object({
 export const MiniAppRecommendBody = z.object({
   clientId: z.number().positive(),
   answers: z.array(z.object({ questionKey: z.string(), answer: z.string() })).optional().default([]),
-  language: z.enum(["ru", "uz", "en"]).optional(),
+  language: z.enum(["ru", "uz"]).optional(),
 });
 
 export const MiniAppBasketBody = z.object({
@@ -117,12 +117,13 @@ export const MiniAppOcrUpdateBody = z.object({
 export const MiniAppGeneratePdfBody = z.object({
   sendViaTelegram: z.boolean().optional(),
   telegramInitData: z.string().nullish(),
-  language: z.enum(["ru", "uz", "en"]).nullish(),
+  language: z.enum(["ru", "uz"]).nullish(),
 });
 
 export const MiniAppAutoExcelBody = z.object({
   clientId: z.coerce.number().int().positive().optional(),
   docType: z.string().optional(),
+  language: z.enum(["ru", "uz"]).optional(),
   ocrText: z.string().optional(),
   imageCount: z.coerce.number().int().min(0).optional(),
   extractedData: z.record(z.string(), z.unknown()).optional(),

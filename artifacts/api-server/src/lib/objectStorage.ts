@@ -215,7 +215,7 @@ function parseObjectPath(path: string): {
   }
   const pathParts = path.split("/");
   if (pathParts.length < 3) {
-    throw new Error("Invalid path: must contain at least a bucket name");
+    throw new Error("Noto'g'ri yo'l: saqlash bo'limi nomi kerak");
   }
 
   const bucketName = pathParts[1];
@@ -257,14 +257,13 @@ async function signObjectURL({
   );
   if (!response.ok) {
     throw new Error(
-      `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`
+      `Fayl manzilini imzolab bo'lmadi, kod: ${response.status}`
     );
   }
 
   const body = (await response.json()) as { signed_url?: string };
   if (typeof body.signed_url !== "string") {
-    throw new Error("Signed URL response missing signed_url field");
+    throw new Error("Imzolangan fayl manzili javobda topilmadi");
   }
   return body.signed_url;
 }

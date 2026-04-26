@@ -39,26 +39,26 @@ function normalizeImageContentType(value: unknown): string | null {
 function parseUploadImage(body: any): { buffer: Buffer; contentType: string } {
   const rawDataUrl = body?.dataUrl;
   if (typeof rawDataUrl !== "string" || !rawDataUrl.trim()) {
-    throw new UploadValidationError("Missing image data");
+    throw new UploadValidationError("Rasm ma'lumoti topilmadi");
   }
 
   const dataUrlMatch = rawDataUrl.match(/^data:([^;,]+);base64,(.*)$/s);
   const contentType = normalizeImageContentType(dataUrlMatch?.[1] || body?.contentType);
   if (!contentType) {
-    throw new UploadValidationError("Unsupported image content type");
+    throw new UploadValidationError("Rasm formati qo'llab-quvvatlanmaydi");
   }
 
   const base64Data = (dataUrlMatch ? dataUrlMatch[2] : rawDataUrl).replace(/\s/g, "");
   if (!base64Data || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Data)) {
-    throw new UploadValidationError("Invalid base64 image data");
+    throw new UploadValidationError("Rasm ma'lumoti noto'g'ri");
   }
 
   const buffer = Buffer.from(base64Data, "base64");
   if (!buffer.length) {
-    throw new UploadValidationError("Empty image upload");
+    throw new UploadValidationError("Bo'sh rasm yuklandi");
   }
   if (buffer.length > MAX_LOCAL_UPLOAD_BYTES) {
-    throw new UploadValidationError(`Image exceeds ${MAX_LOCAL_UPLOAD_BYTES} byte limit`);
+    throw new UploadValidationError(`Rasm hajmi ${MAX_LOCAL_UPLOAD_BYTES} baytdan oshmasligi kerak`);
   }
 
   return { buffer, contentType };
@@ -138,7 +138,7 @@ function getOcrTimeoutMs(): number {
 router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const { name, size, contentType } = req.body || {};
   if (!name || !contentType) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
+    res.status(400).json({ error: "Majburiy maydonlar yo'q yoki noto'g'ri" });
     return;
   }
 
@@ -149,7 +149,7 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
     res.json({ uploadURL, objectPath, metadata: { name, size, contentType } });
   } catch (error) {
     logger.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    res.status(500).json({ error: "Yuklash manzilini yaratib bo'lmadi" });
   }
 });
 
@@ -178,7 +178,7 @@ router.post("/storage/uploads/direct", requireAuth, async (req: Request, res: Re
     }
 
     logger.error({ err: error }, "Error saving direct upload");
-    res.status(500).json({ error: "Failed to save upload" });
+    res.status(500).json({ error: "Yuklangan rasmni saqlab bo'lmadi" });
   }
 });
 
@@ -198,7 +198,7 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
       let stderr = "";
       const timeout = setTimeout(() => {
         proc.kill("SIGKILL");
-        reject(new Error("OCR health check timed out"));
+        reject(new Error("Matnni tanish xizmati javob bermadi"));
       }, 10_000);
 
       proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
@@ -207,14 +207,14 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
       proc.on("close", (code: number) => {
         clearTimeout(timeout);
         if (code !== 0) {
-          reject(new Error(`OCR health check exited with code ${code}: ${stderr.slice(-500)}`));
+          reject(new Error(`Matnni tanish xizmati ishlamadi: ${code}`));
           return;
         }
 
         try {
           resolve(JSON.parse(stdout));
         } catch {
-          reject(new Error("Failed to parse OCR health check output"));
+          reject(new Error("Matnni tanish tekshiruvi natijasini o'qib bo'lmadi"));
         }
       });
 
@@ -227,14 +227,14 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
     res.json({ ...result, scriptPath });
   } catch (error: any) {
     logger.error({ err: error, scriptPath }, "OCR health check error");
-    res.status(500).json({ status: "error", error: error.message || "OCR health check failed" });
+    res.status(500).json({ status: "error", error: "Matnni tanish xizmati ishlamadi" });
   }
 });
 
 router.get("/storage/file", requireAuth, async (req: Request, res: Response) => {
   const objectPath = req.query.path;
   if (typeof objectPath !== "string" || !objectPath) {
-    res.status(400).json({ error: "Missing object path" });
+    res.status(400).json({ error: "Fayl yo'li ko'rsatilmagan" });
     return;
   }
 
@@ -279,18 +279,18 @@ router.get("/storage/file", requireAuth, async (req: Request, res: Response) => 
     nodeStream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
-      res.status(404).json({ error: "Object not found" });
+      res.status(404).json({ error: "Fayl topilmadi" });
       return;
     }
     logger.error({ err: error, objectPath }, "Error serving object");
-    res.status(500).json({ error: "Failed to serve object" });
+    res.status(500).json({ error: "Faylni ochib bo'lmadi" });
   }
 });
 
 router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) => {
   const { image } = req.body || {};
   if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "Missing image data (base64)" });
+    res.status(400).json({ error: "Rasm ma'lumoti ko'rsatilmagan" });
     return;
   }
 
@@ -336,7 +336,7 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
 
       const timeout = setTimeout(() => {
         proc.kill("SIGKILL");
-        finish(new Error(`OCR timed out after ${timeoutMs}ms`));
+        finish(new Error(`Matnni tanish uchun vaqt tugadi: ${timeoutMs}ms`));
       }, timeoutMs);
 
       proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
@@ -345,12 +345,12 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
       proc.on("close", (code: number) => {
         if (code !== 0) {
           logger.error({ stderr }, "PaddleOCR stderr");
-          finish(new Error(`OCR exited with code ${code}: ${stderr.slice(-500)}`));
+          finish(new Error(`Matnni tanish jarayoni xato bilan tugadi: ${code}`));
         } else {
           try {
             finish(undefined, JSON.parse(stdout));
           } catch {
-            finish(new Error("Failed to parse OCR output"));
+            finish(new Error("Matnni tanish natijasini o'qib bo'lmadi"));
           }
         }
       });
@@ -364,11 +364,11 @@ router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) =
       res.json({ text: result.text, boxes: result.boxes, engine: result.engine });
     } else {
       logger.error({ error: result.error }, "OCR script returned failure");
-      res.status(500).json({ error: result.error || "OCR failed" });
+      res.status(500).json({ error: "Hujjat matnini tanib bo'lmadi" });
     }
   } catch (error: any) {
     logger.error({ err: error }, "OCR error");
-    res.status(500).json({ error: error.message || "OCR processing failed" });
+    res.status(500).json({ error: "Hujjat matnini tanib bo'lmadi" });
   }
 });
 

@@ -5,6 +5,6 @@ export function downloadCsv(data: Record<string, unknown>[], filename: string) {
   const xlsxName = filename.replace(/\.csv$/, ".xlsx");
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data");
+  XLSX.utils.book_append_sheet(wb, ws, "Ma'lumotlar");
   XLSX.writeFile(wb, xlsxName);
 }

@@ -17,6 +17,20 @@ import { deleteSessionsForUser } from "../lib/session-store";
 
 const router: IRouter = Router();
 
+const INVALID_BODY_MESSAGE = "Некорректные данные / Noto'g'ri ma'lumot";
+const NOT_FOUND_MESSAGE = "Не найдено / Topilmadi";
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: "bosh administrator",
+  head_office_admin: "bosh ofis administratori",
+  branch_head: "filial rahbari",
+  hunter: "kredit eksperti",
+  editor: "muharrir",
+};
+
+function getRoleLabel(role: string) {
+  return ROLE_LABELS[role] || "noma'lum rol";
+}
+
 async function getUserWithBranch(id: number) {
   const rows = await db
     .select({
@@ -124,25 +138,29 @@ router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin",
 });
 
 router.get("/users/import-template", requireAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {
-  const templateData = [
-    {
-      "ФИО": "Иванов Иван Иванович",
-      "Telegram ID": "100000001",
-      "Роль": "branch_head",
-      "Филиал": "Главный офис",
-      "Телефон": "+998901234567",
-    },
-    {
-      "ФИО": "Петров Пётр Петрович",
-      "Telegram ID": "100000002",
-      "Роль": "hunter",
-      "Филиал": "Ташкент",
-      "Телефон": "+998907654321",
-    },
-  ];
+  const language = req.query.language === "ru" ? "ru" : "uz";
+  const copy = language === "ru"
+    ? {
+      headers: ["ФИО", "Идентификатор Telegram", "Роль", "Филиал", "Телефон"],
+      rows: [
+        ["Иванов Иван Иванович", "100000001", "начальник филиала", "Главный офис", "+998901234567"],
+        ["Петров Пётр Петрович", "100000002", "кредитный эксперт", "Ташкент", "+998907654321"],
+      ],
+      sheet: "Пользователи",
+      fileName: "shablon_importa_polzovateley.xlsx",
+    }
+    : {
+      headers: ["F.I.Sh.", "Telegram identifikatori", "Rol", "Filial", "Telefon"],
+      rows: [
+        ["Aliyev Ali Valiyevich", "100000001", "filial boshlig'i", "Bosh ofis", "+998901234567"],
+        ["Valiyev Vali Aliyevich", "100000002", "kredit eksperti", "Toshkent", "+998907654321"],
+      ],
+      sheet: "Foydalanuvchilar",
+      fileName: "foydalanuvchilar_import_shabloni.xlsx",
+    };
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(templateData);
+  const ws = XLSX.utils.aoa_to_sheet([copy.headers, ...copy.rows]);
 
   const colWidths = [
     { wch: 30 },
@@ -153,18 +171,18 @@ router.get("/users/import-template", requireAuth, requireRole("superadmin", "hea
   ];
   ws["!cols"] = colWidths;
 
-  XLSX.utils.book_append_sheet(wb, ws, "Users");
+  XLSX.utils.book_append_sheet(wb, ws, copy.sheet);
 
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", 'attachment; filename="users_import_template.xlsx"');
+  res.setHeader("Content-Disposition", `attachment; filename="${copy.fileName}"`);
   res.send(Buffer.from(buffer));
 });
 
 router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateUserBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error }); return; }
+  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE, details: parsed.error }); return; }
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   const [user] = await db.insert(usersTable).values({
     telegramId: parsed.data.telegramId,
@@ -175,7 +193,7 @@ router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"
     isActive: true,
   }).returning();
 
-  await logActivity({ type: "user_created", description: `User "${user.name}" created with role ${user.role}`, entityId: user.id, entityType: "user", user: req.user });
+  await logActivity({ type: "user_created", description: `Foydalanuvchi "${user.name}" ${getRoleLabel(user.role)} roli bilan yaratildi`, entityId: user.id, entityType: "user", user: req.user });
 
   const full = await getUserWithBranch(user.id);
   res.status(201).json(full);
@@ -183,17 +201,17 @@ router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"
 
 router.get("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
   const params = GetUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const user = await getUserWithBranch(params.data.id);
-  if (!user) { res.status(404).json({ error: "Not found" }); return; }
+  if (!user) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
   res.json(user);
 });
 
 router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateUserBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
 
   const updateData: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -205,9 +223,9 @@ router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_adm
   }
 
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
-  await logActivity({ type: "user_updated", description: `User "${updated.name}" updated`, entityId: updated.id, entityType: "user", user: req.user });
+  await logActivity({ type: "user_updated", description: `Foydalanuvchi "${updated.name}" yangilandi`, entityId: updated.id, entityType: "user", user: req.user });
 
   const full = await getUserWithBranch(updated.id);
   res.json(full);
@@ -215,22 +233,22 @@ router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_adm
 
 router.delete("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
 
-  await logActivity({ type: "user_deleted", description: `User deleted`, entityId: params.data.id, entityType: "user", user: req.user });
+  await logActivity({ type: "user_deleted", description: "Пользователь удален / Foydalanuvchi o'chirildi", entityId: params.data.id, entityType: "user", user: req.user });
 
   res.status(204).send();
 });
 
 router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
   await deleteSessionsForUser(updated.id);
-  await logActivity({ type: "user_deactivated", description: `User "${updated.name}" deactivated`, entityId: updated.id, entityType: "user", user: req.user });
+  await logActivity({ type: "user_deactivated", description: `Foydalanuvchi "${updated.name}" faolsizlantirildi`, entityId: updated.id, entityType: "user", user: req.user });
 
   const full = await getUserWithBranch(updated.id);
   res.json(full);
@@ -238,7 +256,7 @@ router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "hea
 
 router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const [target] = await db
     .select({ id: usersTable.id, name: usersTable.name })
@@ -246,12 +264,12 @@ router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin",
     .where(eq(usersTable.id, params.data.id))
     .limit(1);
 
-  if (!target) { res.status(404).json({ error: "Not found" }); return; }
+  if (!target) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
   await deleteSessionsForUser(target.id);
   await logActivity({
     type: "user_sessions_revoked",
-    description: `All sessions revoked for "${target.name}"`,
+    description: `"${target.name}" uchun barcha sessiyalar bekor qilindi`,
     entityId: target.id,
     entityType: "user",
     user: req.user,
@@ -262,11 +280,11 @@ router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin",
 
 router.post("/users/:id/activate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = ActivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: true, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
-  await logActivity({ type: "user_activated", description: `User "${updated.name}" activated`, entityId: updated.id, entityType: "user", user: req.user });
+  await logActivity({ type: "user_activated", description: `Foydalanuvchi "${updated.name}" faollashtirildi`, entityId: updated.id, entityType: "user", user: req.user });
 
   const full = await getUserWithBranch(updated.id);
   res.json(full);
@@ -326,11 +344,15 @@ const COLUMN_MAP: Record<string, string> = {
   "фио": "name",
   "ф.и.о.": "name",
   "ф.и.о": "name",
+  "f.i.sh.": "name",
+  "f.i.sh": "name",
   "имя": "name",
   "name": "name",
   "ism": "name",
   "to'liq ism": "name",
   "telegram id": "telegramId",
+  "идентификатор telegram": "telegramId",
+  "telegram identifikatori": "telegramId",
   "telegram_id": "telegramId",
   "telegramid": "telegramId",
   "роль": "role",
@@ -360,7 +382,7 @@ function normalizeRow(raw: Record<string, string>): Record<string, string> {
 
 router.post("/users/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
 
     const fileName = req.file.originalname || "";
     const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls") ||
@@ -461,14 +483,14 @@ router.post("/users/import", requireAuth, requireRole("superadmin", "head_office
 
     await logActivity({
       type: "users_imported",
-      description: `Imported ${created.length} users from ${isExcel ? "Excel" : "CSV"}, skipped ${skipped.length}`,
+      description: `Импортировано пользователей: ${created.length}; пропущено: ${skipped.length}`,
       entityType: "user",
       user: req.user,
     });
 
     res.json({ imported: created.length, skipped, created });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

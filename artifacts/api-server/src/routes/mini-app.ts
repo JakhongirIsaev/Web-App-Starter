@@ -51,7 +51,7 @@ import {
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
-type PdfLanguage = "ru" | "uz" | "en";
+type PdfLanguage = "ru" | "uz";
 
 interface DetailedBasketItem extends ProductLike {
   id: number;
@@ -93,7 +93,6 @@ function getSegmentAliases(value?: string | null) {
 
 function getNonCreditSegmentLabel(language: PdfLanguage) {
   if (language === "ru") return "Некредитный продукт";
-  if (language === "en") return "Non-credit product";
   return "Nokredit mahsulot";
 }
 
@@ -468,7 +467,130 @@ function buildProvisionalCalculations(
 }
 
 function resolvePdfLanguage(value: unknown): PdfLanguage {
-  return value === "ru" || value === "en" ? value : "uz";
+  return value === "ru" ? "ru" : "uz";
+}
+
+function getAutoExcelCopy(language: PdfLanguage) {
+  if (language === "ru") {
+    return {
+      sheetSummary: "Сводка",
+      sheetFields: "Данные",
+      sheetVehicle: "Авто",
+      sheetOcr: "Текст",
+      exportedAt: "Время выгрузки",
+      documentType: "Тип документа",
+      imageCount: "Количество фото",
+      clientBlock: "— Клиент —",
+      clientId: "Идентификатор клиента",
+      fullName: "ФИО",
+      phone: "Телефон",
+      status: "Статус",
+      createdAt: "Дата создания",
+      branch: "Филиал",
+      expertBlock: "— Кредитный эксперт —",
+      expertId: "Идентификатор эксперта",
+      name: "Имя",
+      role: "Роль",
+      field: "Поле",
+      value: "Значение",
+      recognizedText: "Распознанный текст",
+      filePrefix: "dokument",
+      previewName: "prosmotr",
+      vehicleFields: {
+        make: "Марка",
+        model: "Модель",
+        vehicleType: "Тип авто",
+        color: "Цвет",
+        plateText: "Гос. номер",
+        approximateYear: "Примерный год",
+        vin: "VIN",
+        visibleConditionNotes: "Заметки о состоянии",
+        confidence: "Уверенность",
+        rawNotes: "Доп. заметки",
+      },
+    } as const;
+  }
+
+  return {
+    sheetSummary: "Xulosa",
+    sheetFields: "Ma'lumotlar",
+    sheetVehicle: "Avto",
+    sheetOcr: "Matn",
+    exportedAt: "Yuklangan vaqt",
+    documentType: "Hujjat turi",
+    imageCount: "Suratlar soni",
+    clientBlock: "— Mijoz —",
+    clientId: "Mijoz identifikatori",
+    fullName: "F.I.Sh.",
+    phone: "Telefon",
+    status: "Holat",
+    createdAt: "Yaratilgan sana",
+    branch: "Filial",
+    expertBlock: "— Kredit eksperti —",
+    expertId: "Ekspert identifikatori",
+    name: "Ism",
+    role: "Rol",
+    field: "Maydon",
+    value: "Qiymat",
+    recognizedText: "Tanilgan matn",
+    filePrefix: "hujjat",
+    previewName: "korish",
+    vehicleFields: {
+      make: "Marka",
+      model: "Model",
+      vehicleType: "Avto turi",
+      color: "Rang",
+      plateText: "Davlat raqami",
+      approximateYear: "Taxminiy yil",
+      vin: "VIN",
+      visibleConditionNotes: "Holat bo'yicha izoh",
+      confidence: "Ishonch",
+      rawNotes: "Qo'shimcha izoh",
+    },
+  } as const;
+}
+
+function getDocumentTypeLabel(docType: string, language: PdfLanguage) {
+  const labels: Record<string, Record<PdfLanguage, string>> = {
+    passport: { ru: "Паспорт", uz: "Pasport" },
+    vehicle_doc: { ru: "Документ на авто", uz: "Avtomobil hujjati" },
+    certificate: { ru: "Справка или свидетельство", uz: "Ma'lumotnoma yoki guvohnoma" },
+    other: { ru: "Другой документ", uz: "Boshqa hujjat" },
+  };
+  return labels[docType]?.[language] ?? labels.other[language];
+}
+
+function getDocumentTypeFilePart(docType: string, language: PdfLanguage) {
+  const labels: Record<string, Record<PdfLanguage, string>> = {
+    passport: { ru: "pasport", uz: "pasport" },
+    vehicle_doc: { ru: "avto", uz: "avto" },
+    certificate: { ru: "spravka", uz: "guvohnoma" },
+    other: { ru: "drugoy", uz: "boshqa" },
+  };
+  return labels[docType]?.[language] ?? labels.other[language];
+}
+
+function getExtractedFieldLabel(key: string, language: PdfLanguage, index: number) {
+  const labels: Record<string, Record<PdfLanguage, string>> = {
+    fullName: { ru: "ФИО", uz: "F.I.Sh." },
+    passportNumber: { ru: "Номер паспорта", uz: "Pasport raqami" },
+    dateOfBirth: { ru: "Дата рождения", uz: "Tug'ilgan sana" },
+    phone: { ru: "Телефон", uz: "Telefon" },
+    address: { ru: "Адрес", uz: "Manzil" },
+    vin: { ru: "VIN", uz: "VIN" },
+    plateNumber: { ru: "Гос. номер", uz: "Davlat raqami" },
+    inn: { ru: "ИНН", uz: "STIR" },
+    make: { ru: "Марка", uz: "Marka" },
+    model: { ru: "Модель", uz: "Model" },
+    vehicleType: { ru: "Тип авто", uz: "Avto turi" },
+    color: { ru: "Цвет", uz: "Rang" },
+    plateText: { ru: "Гос. номер", uz: "Davlat raqami" },
+    approximateYear: { ru: "Примерный год", uz: "Taxminiy yil" },
+    visibleConditionNotes: { ru: "Заметки о состоянии", uz: "Holat bo'yicha izoh" },
+    confidence: { ru: "Уверенность", uz: "Ishonch" },
+    rawNotes: { ru: "Доп. заметки", uz: "Qo'shimcha izoh" },
+  };
+  return labels[key]?.[language] ?? (language === "ru" ? `Поле ${index + 1}` : `${index + 1}-maydon`);
 }
 
 async function buildPdfPayload(
@@ -727,7 +849,7 @@ router.post("/mini-app/clients", requireAuth, async (req, res) => {
   if (!assignedBranchId) {
     const [firstBranch] = await db.select().from(branchesTable).limit(1);
     if (!firstBranch) {
-      res.status(400).json({ error: "No branches exist in the system" });
+      res.status(400).json({ error: "Tizimda filiallar topilmadi" });
       return;
     }
     assignedBranchId = firstBranch.id;
@@ -791,7 +913,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
         if (doc.extractedData && typeof doc.extractedData === "object") {
           const entries = Object.entries(doc.extractedData as Record<string, string>);
           if (entries.length > 0) {
-            text += `: ${entries.map(([k, v]) => `${k}=${v}`).join(", ")}`;
+            text += `: ${entries.map(([k, v], index) => `${getExtractedFieldLabel(k, "uz", index)}=${v}`).join(", ")}`;
           }
         }
         text += `\n`;
@@ -827,7 +949,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
 
   const dateStr = formatFileDate();
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="all_clients_${dateStr}.txt"; filename*=UTF-8''${encodeURIComponent(`all_clients_export_${dateStr}.txt`)}`);
+  res.setHeader("Content-Disposition", `attachment; filename="mijozlar_${dateStr}.txt"; filename*=UTF-8''${encodeURIComponent(`mijozlar_eksport_${dateStr}.txt`)}`);
   res.send(text);
 });
 
@@ -840,7 +962,7 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
     .limit(1);
 
   if (!client) {
-    res.status(404).json({ error: "Client not found" });
+    res.status(404).json({ error: "Mijoz topilmadi" });
     return;
   }
 
@@ -1268,7 +1390,7 @@ router.get("/mini-app/articles", requireAuth, async (req, res) => {
 router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
   const branchId = req.user!.branchId;
   if (!branchId || req.user!.role !== "branch_head") {
-    res.status(403).json({ error: "Branch head only" });
+    res.status(403).json({ error: "Faqat filial rahbari uchun" });
     return;
   }
 
@@ -1315,12 +1437,12 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
 router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
+    res.status(403).json({ error: "Ruxsat yo'q" });
     return;
   }
   const parsed = MiniAppDocumentBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
   const { docType, fileName, storagePath, ocrText, extractedData } = parsed.data;
@@ -1339,7 +1461,7 @@ router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => 
 router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
+    res.status(403).json({ error: "Ruxsat yo'q" });
     return;
   }
   const docs = await db
@@ -1354,7 +1476,7 @@ router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
   const docId = Number(req.params.id);
   const parsed = MiniAppOcrUpdateBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
   const { ocrText, extractedData } = parsed.data;
@@ -1366,7 +1488,7 @@ router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
     })
     .where(eq(clientDocumentsTable.id, docId))
     .returning();
-  if (!updated) { res.status(404).json({ error: "Document not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Hujjat topilmadi" }); return; }
   res.json(updated);
 });
 
@@ -1376,13 +1498,14 @@ router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
     .delete(clientDocumentsTable)
     .where(eq(clientDocumentsTable.id, docId))
     .returning();
-  if (!deleted) { res.status(404).json({ error: "Document not found" }); return; }
+  if (!deleted) { res.status(404).json({ error: "Hujjat topilmadi" }); return; }
   res.json({ success: true });
 });
 
 router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   const user = req.user!;
+  const language = resolvePdfLanguage(req.body.language);
   const sendViaTelegram = req.body.sendViaTelegram !== false;
   const telegramInitData =
     typeof req.body.telegramInitData === "string"
@@ -1390,14 +1513,13 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
       : "";
 
   if (!(await verifyClientAccess(clientId, user))) {
-    res.status(403).json({ error: "Access denied" });
+    res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
     return;
   }
 
-  const language = resolvePdfLanguage(req.body.language);
   const payload = await buildPdfPayload(clientId, user, language);
   if (!payload) {
-    res.status(404).json({ error: "Client not found" });
+    res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
 
@@ -1422,8 +1544,12 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     }
 
     if (sendViaTelegram && targetTelegramId) {
-      const filename = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
-      const caption = `📋 Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\n👤 Ekspert: ${payload.expertName}`;
+      const filenamePrefix = language === "ru" ? "predlozhenie" : "taklif";
+      const fallbackName = language === "ru" ? "klient" : "mijoz";
+      const filename = `${filenamePrefix}_${(payload.client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
+      const caption = language === "ru"
+        ? `Коммерческое предложение: ${payload.client.fullName || "Клиент"}\nЭксперт: ${payload.expertName}`
+        : `Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\nEkspert: ${payload.expertName}`;
       telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
     }
 
@@ -1440,19 +1566,22 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) 
     });
   } catch (err: any) {
     console.error("PDF generation error:", err);
-    res.status(500).json({ error: "Failed to generate PDF" });
+    res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
   }
 });
 
 router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
   const parsed = MiniAppAutoExcelBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
   const { clientId, docType, ocrText, imageCount, extractedData } = parsed.data;
+  const language = resolvePdfLanguage(parsed.data.language);
+  const copy = getAutoExcelCopy(language);
   const extracted = extractedData ?? {};
   const normalizedDocType = (docType || "other").toString();
+  const documentTypeLabel = getDocumentTypeLabel(normalizedDocType, language);
 
   // Linkage: fetch client + assigned expert + branch so the Excel has both
   // sides of the relationship. All optional; export still works in preview mode.
@@ -1462,7 +1591,7 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
 
   if (typeof clientId === "number") {
     if (!(await verifyClientAccess(clientId, req.user!))) {
-      res.status(403).json({ error: "Access denied" });
+      res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
       return;
     }
     const [client] = await db
@@ -1517,39 +1646,39 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
 
   // Sheet 1: Summary with client ↔ expert linkage
   const summaryRows: Array<[string, string]> = [
-    ["Exported at", formatDateTimeInAppTimeZone(new Date())],
-    ["Document type", normalizedDocType],
-    ["Image count", String(imageCount ?? 0)],
+    [copy.exportedAt, formatDateTimeInAppTimeZone(new Date())],
+    [copy.documentType, documentTypeLabel],
+    [copy.imageCount, String(imageCount ?? 0)],
     [],
-    ["— Client —", ""],
-    ["Client ID", clientRow ? String(clientRow.id) : ""],
-    ["Full name", clientRow?.fullName ?? ""],
-    ["Phone", clientRow?.phone ?? ""],
-    ["Status", clientRow?.status ?? ""],
-    ["Created at", clientRow ? formatDateTimeInAppTimeZone(clientRow.createdAt) : ""],
-    ["Branch", branchName ?? ""],
+    [copy.clientBlock, ""],
+    [copy.clientId, clientRow ? String(clientRow.id) : ""],
+    [copy.fullName, clientRow?.fullName ?? ""],
+    [copy.phone, clientRow?.phone ?? ""],
+    [copy.status, clientRow?.status ?? ""],
+    [copy.createdAt, clientRow ? formatDateTimeInAppTimeZone(clientRow.createdAt) : ""],
+    [copy.branch, branchName ?? ""],
     [],
-    ["— Credit expert —", ""],
-    ["Expert ID", expertRow ? String(expertRow.id) : ""],
-    ["Name", expertRow?.name ?? ""],
-    ["Role", expertRow?.role ?? ""],
+    [copy.expertBlock, ""],
+    [copy.expertId, expertRow ? String(expertRow.id) : ""],
+    [copy.name, expertRow?.name ?? ""],
+    [copy.role, expertRow?.role ?? ""],
   ] as unknown as Array<[string, string]>;
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
   summarySheet["!cols"] = [{ wch: 22 }, { wch: 48 }];
-  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+  XLSX.utils.book_append_sheet(workbook, summarySheet, copy.sheetSummary);
 
   // Sheet 2: All extracted fields as key/value — generic for any doc type
-  const fieldRows: Array<[string, string]> = [["Field", "Value"]];
-  for (const [key, value] of Object.entries(extracted)) {
+  const fieldRows: Array<[string, string]> = [[copy.field, copy.value]];
+  for (const [index, [key, value]] of Object.entries(extracted).entries()) {
     if (value === null || value === undefined) continue;
     const stringValue =
       typeof value === "object" ? JSON.stringify(value) : String(value);
     if (stringValue.trim() === "") continue;
-    fieldRows.push([key, stringValue]);
+    fieldRows.push([getExtractedFieldLabel(key, language, index), stringValue]);
   }
   const fieldsSheet = XLSX.utils.aoa_to_sheet(fieldRows);
   fieldsSheet["!cols"] = [{ wch: 24 }, { wch: 60 }];
-  XLSX.utils.book_append_sheet(workbook, fieldsSheet, "Extracted Fields");
+  XLSX.utils.book_append_sheet(workbook, fieldsSheet, copy.sheetFields);
 
   // Sheet 3: Vehicle-specific structured row (only when relevant or the fields
   // exist — keeps backwards compatibility for vehicle_doc flows)
@@ -1557,38 +1686,53 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
     normalizedDocType === "vehicle_doc" ||
     Boolean(
       extracted.make || extracted.model || extracted.vin || extracted.plateText || extracted.plateNumber,
-    );
+  );
   if (hasVehicleFields) {
-    const vehicleSheet = XLSX.utils.json_to_sheet([
-      {
-        clientId: clientRow?.id ?? "",
-        exportedAt: formatDateTimeInAppTimeZone(new Date()),
-        imageCount: imageCount ?? 0,
-        make: String(extracted.make ?? ""),
-        model: String(extracted.model ?? ""),
-        vehicleType: String(extracted.vehicleType ?? ""),
-        color: String(extracted.color ?? ""),
-        plateText: String(extracted.plateText ?? extracted.plateNumber ?? ""),
-        approximateYear: String(extracted.approximateYear ?? ""),
-        vin: String(extracted.vin ?? ""),
-        visibleConditionNotes: String(extracted.visibleConditionNotes ?? ""),
-        confidence: String(extracted.confidence ?? ""),
-        rawNotes: String(extracted.rawNotes ?? ""),
-      },
+    const vehicleSheet = XLSX.utils.aoa_to_sheet([
+      [
+        copy.clientId,
+        copy.exportedAt,
+        copy.imageCount,
+        copy.vehicleFields.make,
+        copy.vehicleFields.model,
+        copy.vehicleFields.vehicleType,
+        copy.vehicleFields.color,
+        copy.vehicleFields.plateText,
+        copy.vehicleFields.approximateYear,
+        copy.vehicleFields.vin,
+        copy.vehicleFields.visibleConditionNotes,
+        copy.vehicleFields.confidence,
+        copy.vehicleFields.rawNotes,
+      ],
+      [
+        clientRow?.id ?? "",
+        formatDateTimeInAppTimeZone(new Date()),
+        imageCount ?? 0,
+        String(extracted.make ?? ""),
+        String(extracted.model ?? ""),
+        String(extracted.vehicleType ?? ""),
+        String(extracted.color ?? ""),
+        String(extracted.plateText ?? extracted.plateNumber ?? ""),
+        String(extracted.approximateYear ?? ""),
+        String(extracted.vin ?? ""),
+        String(extracted.visibleConditionNotes ?? ""),
+        String(extracted.confidence ?? ""),
+        String(extracted.rawNotes ?? ""),
+      ],
     ]);
-    XLSX.utils.book_append_sheet(workbook, vehicleSheet, "Vehicle");
+    XLSX.utils.book_append_sheet(workbook, vehicleSheet, copy.sheetVehicle);
   }
 
   // Sheet 4: Raw OCR text
   const ocrSheet = XLSX.utils.aoa_to_sheet([
-    ["OCR Text"],
+    [copy.recognizedText],
     [ocrText || ""],
   ]);
   ocrSheet["!cols"] = [{ wch: 120 }];
-  XLSX.utils.book_append_sheet(workbook, ocrSheet, "OCR");
+  XLSX.utils.book_append_sheet(workbook, ocrSheet, copy.sheetOcr);
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-  const fileName = `doc_${normalizedDocType}_${clientRow?.id ?? "preview"}_${formatFileDate()}.xlsx`;
+  const fileName = `${copy.filePrefix}_${getDocumentTypeFilePart(normalizedDocType, language)}_${clientRow?.id ?? copy.previewName}_${formatFileDate()}.xlsx`;
 
   res.setHeader(
     "Content-Type",
@@ -1606,13 +1750,13 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   const language = resolvePdfLanguage(req.query.language);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
+    res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
     return;
   }
 
   const payload = await buildPdfPayload(clientId, req.user!, language);
   if (!payload) {
-    res.status(404).json({ error: "Client not found" });
+    res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
 
@@ -1623,14 +1767,16 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
     });
 
     const fileDate = formatFileDate();
-    const safeName = `KP_${payload.client.id}_${fileDate}.pdf`;
-    const displayName = `KP_${(payload.client.fullName || "client").replace(/\s+/g, "_")}_${fileDate}.pdf`;
+    const filePrefix = language === "ru" ? "predlozhenie" : "taklif";
+    const fallbackName = language === "ru" ? "klient" : "mijoz";
+    const safeName = `${filePrefix}_${payload.client.id}_${fileDate}.pdf`;
+    const displayName = `${filePrefix}_${(payload.client.fullName || fallbackName).replace(/\s+/g, "_")}_${fileDate}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);
   } catch (err: any) {
     console.error("PDF download error:", err);
-    res.status(500).json({ error: "Failed to generate PDF" });
+    res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
   }
 });
 
@@ -1638,7 +1784,7 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   const clientId = Number(req.params.id);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Access denied" });
+    res.status(403).json({ error: "Ruxsat yo'q" });
     return;
   }
 
@@ -1649,7 +1795,7 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
     .limit(1);
 
   if (!client) {
-    res.status(404).json({ error: "Client not found" });
+    res.status(404).json({ error: "Mijoz topilmadi" });
     return;
   }
 
@@ -1678,14 +1824,14 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   if (docs.length > 0) {
     text += `=== HUJJATLAR (${docs.length}) ===\n`;
     for (const doc of docs) {
-      text += `\n--- ${doc.docType} (${doc.fileName}) ---\n`;
+      text += `\n--- ${getDocumentTypeLabel(doc.docType || "other", "uz")} (${doc.fileName}) ---\n`;
       if (doc.extractedData && typeof doc.extractedData === "object") {
-        for (const [k, v] of Object.entries(doc.extractedData as Record<string, string>)) {
-          text += `  ${k}: ${v}\n`;
+        for (const [index, [k, v]] of Object.entries(doc.extractedData as Record<string, string>).entries()) {
+          text += `  ${getExtractedFieldLabel(k, "uz", index)}: ${v}\n`;
         }
       }
       if (doc.ocrText) {
-        text += `  OCR matn: ${doc.ocrText}\n`;
+        text += `  Tanilgan matn: ${doc.ocrText}\n`;
       }
     }
     text += `\n`;
@@ -1707,11 +1853,8 @@ router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
   }
 
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="client_${clientId}.txt"; filename*=UTF-8''${encodeURIComponent(`client_${clientId}_export.txt`)}`);
+  res.setHeader("Content-Disposition", `attachment; filename="mijoz_${clientId}.txt"; filename*=UTF-8''${encodeURIComponent(`mijoz_${clientId}_eksport.txt`)}`);
   res.send(text);
 });
 
 export default router;
-
-
-

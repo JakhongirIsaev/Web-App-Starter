@@ -135,10 +135,10 @@ export default function CatalogPage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-bold text-white tracking-tight">
-              Не знаете, что предложить?
+              {t("catalog.aiBannerTitle")}
             </div>
             <div className="text-[12px] text-white/80 mt-0.5 leading-snug">
-              AI подберёт продукты под клиента
+              {t("catalog.aiBannerHint")}
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-white/60 shrink-0" />

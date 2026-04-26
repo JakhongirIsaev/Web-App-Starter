@@ -14,6 +14,25 @@ import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
 
+const INVALID_BODY_MESSAGE = "Некорректные данные / Noto'g'ri ma'lumot";
+const NOT_FOUND_MESSAGE = "Не найдено / Topilmadi";
+const CLIENT_FALLBACK_NAME = "Ismsiz mijoz";
+const STATUS_LABELS: Record<string, string> = {
+  draft: "qoralama",
+  questionnaire: "so'rovnoma",
+  recommendation: "tavsiya",
+  basket: "tanlangan mahsulotlar",
+  pdf_generated: "taklif tayyor",
+  under_review: "ko'rib chiqilmoqda",
+  approved: "tasdiqlangan",
+  completed: "yakunlangan",
+  rejected: "rad etilgan",
+};
+
+function getStatusLabel(status: string) {
+  return STATUS_LABELS[status] || "noma'lum holat";
+}
+
 function buildClientResponse(c: any, branch: any, assignedTo: any) {
   return {
     id: c.id,
@@ -98,7 +117,7 @@ router.get("/clients", requireAuth, async (req, res) => {
 
 router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admin", "editor", "hunter"), async (req, res) => {
   const parsed = CreateClientBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
   const [client] = await db.insert(clientsTable).values({
     sessionId: randomUUID(),
     fullName: parsed.data.fullName,
@@ -110,7 +129,7 @@ router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admi
 
   await logActivity({
     type: "client_created",
-    description: `New client ${parsed.data.fullName || "Anonymous"} added`,
+    description: `Yangi mijoz ${parsed.data.fullName || CLIENT_FALLBACK_NAME} qo'shildi`,
     entityId: client.id,
     entityType: "client",
     user: req.user,
@@ -122,12 +141,12 @@ router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admi
 router.get("/clients/:id", requireAuth, async (req, res) => {
   const user = req.user!;
   const params = GetClientParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const conditions: any[] = [eq(clientsTable.id, params.data.id)];
   if (user.role === "branch_head") {
     if (!user.branchId) {
-      res.status(404).json({ error: "Not found" });
+      res.status(404).json({ error: NOT_FOUND_MESSAGE });
       return;
     }
     conditions.push(eq(clientsTable.branchId, user.branchId));
@@ -156,7 +175,7 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
     .where(and(...conditions))
     .limit(1);
 
-  if (!rows.length) { res.status(404).json({ error: "Not found" }); return; }
+  if (!rows.length) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
   const c = rows[0];
   const base = buildClientResponse(
     c,
@@ -206,12 +225,12 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
 router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const user = req.user!;
   const params = UpdateClientParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateClientBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
 
   if (user.role === "branch_head") {
-    res.status(403).json({ error: "Branch heads have view-only access to clients" });
+    res.status(403).json({ error: "Rahbarlar mijozlarni faqat ko'rishi mumkin" });
     return;
   }
 
@@ -222,13 +241,13 @@ router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) =>
   if (parsed.data.assignedToId !== undefined) updateData.assignedToId = parsed.data.assignedToId;
 
   const [updated] = await db.update(clientsTable).set(updateData).where(eq(clientsTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
   if (parsed.data.status) {
     const statusLabel = parsed.data.status === "completed" ? "client_completed" : parsed.data.status === "rejected" ? "client_rejected" : "client_updated";
     await logActivity({
       type: statusLabel,
-      description: `Client ${updated.fullName || "Anonymous"} status changed to ${parsed.data.status.replace(/_/g, " ")}`,
+      description: `Mijoz ${updated.fullName || CLIENT_FALLBACK_NAME} holati ${getStatusLabel(parsed.data.status)} ga o'zgartirildi`,
       entityId: updated.id,
       entityType: "client",
       user: req.user,
@@ -238,7 +257,7 @@ router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) =>
   if (parsed.data.assignedToId !== undefined) {
     await logActivity({
       type: "client_reassigned",
-      description: `Client ${updated.fullName || "Anonymous"} reassigned to user #${parsed.data.assignedToId}`,
+      description: `Mijoz ${updated.fullName || CLIENT_FALLBACK_NAME} foydalanuvchi #${parsed.data.assignedToId} ga biriktirildi`,
       entityId: updated.id,
       entityType: "client",
       user: req.user,
@@ -250,7 +269,7 @@ router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) =>
 
 router.post("/clients/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
@@ -280,10 +299,10 @@ router.post("/clients/import", requireAuth, requireRole("superadmin", "head_offi
         imported++;
       }
     });
-    await logActivity({ type: "clients_imported", description: `Imported ${imported} clients from CSV`, entityType: "client", user: req.user });
+    await logActivity({ type: "clients_imported", description: `Импортировано клиентов: ${imported} / Import qilingan mijozlar: ${imported}`, entityType: "client", user: req.user });
     res.json({ imported, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

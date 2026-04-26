@@ -37,14 +37,16 @@
   },
   "login": {
     "title": "Minerva ga kirish",
-    "subtitle": "Telegram ID va parolingizni kiriting",
-    "telegramId": "Telegram ID",
+    "subtitle": "Telegram identifikatori va parolingizni kiriting",
+    "telegramId": "Telegram identifikatori",
     "password": "Parol",
     "signIn": "Kirish",
     "authenticating": "Kirish...",
     "telegramAuthFailed": "Telegram orqali avtomatik kirish amalga oshmadi",
-    "telegramAuthHint": "Sizning Telegram ID tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling.",
-    "backToTelegram": "Telegram akkauntiga qaytish"
+    "telegramAuthHint": "Sizning Telegram identifikatoringiz tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling.",
+    "backToTelegram": "Telegram akkauntiga qaytish",
+    "status": "Holat",
+    "detected": "Aniqlandi"
   },
   "home": {
     "greeting": "Assalomu alaykum, {{name}}!",
@@ -122,7 +124,11 @@
     "locationReceived": "Joylashuv olindi: {{lat}}, {{lng}}",
     "locationError": "Joylashuv olish xatosi: ",
     "locationNotSupported": "Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi",
-    "businessLocation": "Biznes joylashuvi"
+    "businessLocation": "Biznes joylashuvi",
+    "productTypes": {
+      "credit": "Kredit mahsuloti",
+      "nonCredit": "Nokredit mahsulot"
+    }
   },
   "newClient": {
     "title": "Yangi mijoz",
@@ -172,9 +178,9 @@
     "submit": "Mahsulotlarni tanlash",
     "submitting": "Tahlil...",
     "amountMinError": "Summa kamida 1 000 000 bo'lishi kerak",
-    "aiHeading": "AI mijoz profilini aniqlashtirmoqda",
+    "aiHeading": "SI mijoz profilini aniqlashtirmoqda",
     "aiDescription": "Qo'shimcha savollar mahsulot, muddat va qulay oylik to'lovni aniqroq tanlashga yordam beradi.",
-    "fallbackDescription": "AI vaqtincha band, shu sababli ichki aniqlashtiruvchi savollar ishlatilmoqda.",
+    "fallbackDescription": "SI vaqtincha band, shu sababli ichki aniqlashtiruvchi savollar ishlatilmoqda.",
     "getFollowUpQuestions": "Aniqlashtiruvchi savollarni olish",
     "nonCreditServiceLabel": "Mijozga qanday nokredit xizmat birinchi navbatda kerak?",
     "nonCreditServiceOptions": {
@@ -241,17 +247,22 @@
     "amount": "Summa",
     "allProducts": "Barcha mahsulotlar",
     "recommended": "Tavsiya etilgan",
-    "aiRank": "AI #{{rank}}",
+    "aiSelection": "SI tanlovi",
+    "aiRank": "SI #{{rank}}",
     "aiConfidence": "Ishonch {{value}}%",
     "aiHint": "Mos mahsulotlar fon rejimida yana bir bor tekshirilmoqda...",
     "fillQuestionnaireFirst": "Avval mijoz anketasini to'ldiring, shunda Minerva aniqlashtiruvchi savollar berib, mos mahsulotlarni tavsiya qiladi.",
     "backToQuestionnaire": "So'rovnomaga qaytish",
-    "aiConsideredAnswers": "AI so'rovnoma javoblarini hisobga oldi",
+    "aiConsideredAnswers": "SI so'rovnoma javoblarini hisobga oldi",
     "aiSortedDescription": "Quyidagi kartalar yakuniy ustuvorlik bo'yicha saralangan va tavsiflar faqat tanlangan tilda ko'rsatiladi.",
     "keyAdvantage": "Asosiy afzallik",
     "clientDescription": "Mijoz uchun qisqa tavsif",
     "amountLabel": "Summa: {{value}}.",
     "rateLabel": "Stavka: {{value}}."
+  },
+  "catalog": {
+    "aiBannerTitle": "Nima taklif qilishni bilmayapsizmi?",
+    "aiBannerHint": "SI mijozga mos mahsulotlarni tanlaydi"
   },
   "basket": {
     "title": "Savat",
@@ -263,20 +274,30 @@
     "save": "Savatni saqlash",
     "saving": "Saqlanmoqda...",
     "saved": "Savat saqlandi",
-    "totalProducts": "Jami mahsulotlar: {{count}}"
+    "totalProducts": "Jami mahsulotlar: {{count}}",
+    "nextStep": "Keyingi qadam",
+    "nextStepHint": "Tijorat taklifini shakllantirib, mijozga Telegram orqali yuborish."
   },
   "pdf": {
     "generate": "KP yaratish",
-    "generating": "PDF shakllantirilmoqda...",
+    "generating": "Fayl shakllantirilmoqda...",
     "generated": "KP tayyor",
-    "sentViaTelegram": "PDF Telegramga yuborildi",
-    "notSentViaTelegram": "PDF yaratildi (Telegram-bot sozlanmagan)",
-    "downloadPdf": "PDF yuklab olish",
+    "sentViaTelegram": "Fayl Telegramga yuborildi",
+    "notSentViaTelegram": "Fayl yaratildi (Telegram boti sozlanmagan)",
+    "downloadPdf": "Faylni yuklab olish",
     "sendTelegram": "Telegramga yuborish",
-    "generateAgain": "Qaytadan yaratish"
+    "generateAgain": "Qaytadan yaratish",
+    "generateFailed": "Faylni shakllantirib bo'lmadi"
+  },
+  "pdfShare": {
+    "chat": "Mijoz chatiga",
+    "forward": "Yuborish",
+    "download": "Yuklab olish",
+    "copyLink": "Havolani nusxalash"
   },
   "calculator": {
     "title": "Kredit kalkulyatori",
+    "downloadTitle": "Kredit kalkulyatori natijalari",
     "creditType": "Kredit turi",
     "creditTypes": {
       "consumer": "Iste'mol",
@@ -308,6 +329,7 @@
     "totalInterest": "Ortiqcha to'lov",
     "principal": "Kredit tanasi",
     "schedule": "To'lov jadvali",
+    "scheduleMonth": "Oy",
     "date": "Sana",
     "loanBalance": "Kredit qoldig'i",
     "principalPart": "Kredit to'lovi summasi",
@@ -316,7 +338,8 @@
     "showAll": "Butun jadvalni ko'rsatish",
     "saveToBasket": "Savatga saqlash",
     "saved": "Hisob saqlandi",
-    "download": "Natijalarni yuklash"
+    "download": "Natijalarni yuklash",
+    "downloadFormat": "Jadval"
   },
   "knowledge": {
     "title": "Bilimlar bazasi",
@@ -363,13 +386,13 @@
     "processAll": "Hammasini tanib olish ({{count}})",
     "processing": "Matnni tanib olish...",
     "processingPhoto": "Surat {{current}} / {{total}}...",
-    "preparingOcr": "OCR tayyorlanmoqda...",
+    "preparingOcr": "Matn tanish tayyorlanmoqda...",
     "extractedFields": "Ajratilgan ma'lumotlar",
     "rawText": "Tanilgan matn",
-    "translateToUz": "UZ ga tarjima",
-    "translateToRu": "RU ga tarjima",
+    "translateToUz": "O'zbekchaga tarjima",
+    "translateToRu": "Ruschaga tarjima",
     "translating": "Tarjima qilinmoqda...",
-    "translatedUz": "Uzbekcha tarjima",
+    "translatedUz": "O'zbekcha tarjima",
     "translatedRu": "Ruscha tarjima",
     "retake": "Qayta olish",
     "removePhoto": "O'chirish",
@@ -380,7 +403,7 @@
     "scanAnother": "Yana skanerlash",
     "backToClient": "Mijozga qaytish",
     "fields": {
-      "fullName": "F.I.O",
+      "fullName": "F.I.Sh.",
       "passportNumber": "Pasport raqami",
       "dateOfBirth": "Tug'ilgan sana",
       "phone": "Telefon",
@@ -404,9 +427,14 @@
     "tooManyPhotos": "{{max}} tadan ko'p surat biriktirib bo'lmaydi.",
     "invalidImage": "Faqat rasm fayllarini yuklang.",
     "translateFailed": "Tarjimani hozir olib bo'lmadi. Qayta urinib ko'ring.",
-    "extractFailed": "AI avtomobil ma'lumotlarini to'liq ajratib ololmadi. OCR natijasi saqlandi.",
-    "exportFailed": "Excel faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
-    "excelExport": "Excel eksport"
+    "extractFailed": "SI avtomobil ma'lumotlarini to'liq ajratib ololmadi. Matn tanish natijasi saqlandi.",
+    "exportFailed": "Jadval faylini tayyorlab bo'lmadi. Yana urinib ko'ring.",
+    "excelExport": "Jadvalni eksport qilish",
+    "maxPhotosLabel": "{{max}} tagacha surat",
+    "scanPhotoAlt": "Hujjat skani",
+    "photoAlt": "{{index}}-surat",
+    "uploadFailed": "Hujjatni saqlab bo'lmadi",
+    "previewAlt": "Ko'rib chiqish"
   },
   "common": {
     "save": "Saqlash",
@@ -461,13 +489,13 @@
       "name": "Ism",
       "role": "Rol",
       "branch": "Filial",
-      "telegramId": "Telegram ID",
-      "userId": "Foydalanuvchi ID",
+      "telegramId": "Telegram identifikatori",
+      "userId": "Foydalanuvchi identifikatori",
       "close": "Yopish"
     },
     "notificationsSheet": {
       "title": "Bildirishnomalar",
-      "push": "Push bildirishnomalari",
+      "push": "Bildirishnomalar",
       "pushHint": "Yangi mijozlar va vazifalar",
       "sounds": "Tovush signallari",
       "soundsHint": "Bildirishnoma kelganda tovush",

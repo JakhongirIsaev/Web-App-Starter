@@ -266,7 +266,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
       notes: item.notes || "",
       section: item.section || "",
     }));
-    downloadCsv(rows, `credit_lines_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `kredit_liniyalari_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

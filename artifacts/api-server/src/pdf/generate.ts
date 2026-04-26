@@ -8,7 +8,7 @@ interface PreferenceItem {
   value: string;
 }
 
-type PdfLanguage = "ru" | "uz" | "en";
+type PdfLanguage = "ru" | "uz";
 type FontName = "body" | "bold";
 type PdfDoc = InstanceType<typeof PDFDocument>;
 
@@ -119,7 +119,6 @@ function ensureSpace(doc: PdfDoc, y: number, needed: number) {
 
 function resolveLocale(language: PdfLanguage) {
   if (language === "ru") return "ru-RU";
-  if (language === "en") return "en-US";
   return "uz-UZ";
 }
 
@@ -167,7 +166,7 @@ function isCompatibleWithLanguage(
     return latin === 0;
   }
 
-  return true;
+  return false;
 }
 
 function buildRateSummary(item: PdfBasketItem) {
@@ -245,59 +244,8 @@ function getPdfCopy(language: PdfLanguage) {
       footerNote:
         "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа. *Информация актуальна на дату формирования документа.",
       interestRatePlaceholder: "Процентная ставка определяется исходя из проекта заемщика",
+      clientFallbackName: "Клиент",
       footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`,
-    } as const;
-  }
-
-  if (language === "en") {
-    return {
-      title: "Commercial offer for the client",
-      subtitle: "MINERVA - credit expert assistant",
-      metaDate: "Date",
-      metaExpert: "Expert",
-      metaBranch: "Branch",
-      metaCase: "Case number",
-      clientSection: "Client information",
-      clientName: "Client name",
-      clientPhone: "Phone",
-      clientCreatedAt: "Registered on",
-      preferencesSection: "Client needs and preferences",
-      productsSection: "Selected product details",
-      noProducts:
-        "There are no products in the basket yet. Select suitable options for the client first.",
-      productIndex: "Product",
-      sapCode: "SAP code",
-      segment: "Segment",
-      loanAmount: "Loan amount",
-      availableTerms: "Available terms",
-      disbursementForm: "Disbursement form",
-      gracePeriod: "Grace period",
-      rates: "Rates",
-      purpose: "Product purpose",
-      highlight: "Key advantage",
-      calculationsSection: "Calculation results",
-      noCalculations:
-        "No saved loan calculation is available for this client yet.",
-      interestRate: "Interest rate",
-      term: "Term",
-      repaymentType: "Repayment type",
-      initialPayment: "Initial payment",
-      monthlyPayment: "Monthly payment",
-      totalPayment: "Total payment",
-      totalInterest: "Total interest",
-      monthsSuffix: "months",
-      repaymentAnnuity: "Annuity",
-      repaymentDifferentiated: "Differentiated",
-      scheduleSection: "Monthly payment schedule",
-      scheduleMonth: "Month",
-      schedulePayment: "Payment",
-      schedulePrincipal: "Principal",
-      scheduleInterest: "Interest",
-      scheduleRemaining: "Balance",
-      footerNote:
-        "This document is prepared for preliminary discussion. Final financing terms are confirmed by the bank after document review and risk analysis. *Information is current as of the document generation date.",
-      interestRatePlaceholder: "Interest rate is determined based on the borrower's project",
-      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. All rights reserved.`,
     } as const;
   }
 
@@ -348,6 +296,7 @@ function getPdfCopy(language: PdfLanguage) {
     footerNote:
       "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi. *Ma'lumotlar hujjat shakllantirilgan sana holatiga dolzarbdir.",
     interestRatePlaceholder: "Foiz stavkasi qarz oluvchining loyihasidan kelib chiqqan holda belgilanadi",
+    clientFallbackName: "Mijoz",
     footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
   } as const;
 }
@@ -360,7 +309,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       size: "A4",
       margin: 50,
       info: {
-        Title: `${copy.title} - ${data.client.fullName || "Client"}`,
+        Title: `${copy.title} - ${data.client.fullName || copy.clientFallbackName}`,
         Author: "Ipak Yo'li Bank - Minerva",
       },
     });

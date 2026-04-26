@@ -30,7 +30,7 @@ const router = Router();
 router.post("/telegram/webhook", async (req, res) => {
   const bot = getBot();
   if (!bot) {
-    res.status(503).json({ error: "Bot not initialized" });
+    res.status(503).json({ error: "Telegram xizmati ishga tushmagan" });
     return;
   }
 
@@ -40,7 +40,7 @@ router.post("/telegram/webhook", async (req, res) => {
   );
 
   if (decision.action === "reject") {
-    res.status(403).json({ error: "Webhook not configured" });
+    res.status(403).json({ error: "Telegram ulanishi sozlanmagan" });
     return;
   }
 

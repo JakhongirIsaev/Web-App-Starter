@@ -106,7 +106,7 @@ router.get("/articles", requireAuth, async (req, res) => {
 
 router.post("/articles", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateArticleBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
 
   const [article] = await db.insert(articlesTable).values({
     title: parsed.data.title,
@@ -123,7 +123,7 @@ router.post("/articles", requireAuth, requireRole("superadmin", "head_office_adm
     );
   }
 
-  await logActivity({ type: "article_created", description: `Article "${article.title}" created`, entityId: article.id, entityType: "article", user: req.user });
+  await logActivity({ type: "article_created", description: `Maqola "${article.title}" yaratildi`, entityId: article.id, entityType: "article", user: req.user });
 
   const full = await getArticleWithBranchIds(article.id);
   res.status(201).json(full);
@@ -131,17 +131,17 @@ router.post("/articles", requireAuth, requireRole("superadmin", "head_office_adm
 
 router.get("/articles/:id", requireAuth, async (req, res) => {
   const params = GetArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const article = await getArticleWithBranchIds(params.data.id);
-  if (!article) { res.status(404).json({ error: "Not found" }); return; }
+  if (!article) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
   res.json(article);
 });
 
 router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateArticleBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
 
   const updateData: Partial<typeof articlesTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
@@ -151,7 +151,7 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
   if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
 
   const [updated] = await db.update(articlesTable).set(updateData).where(eq(articlesTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
 
   if (parsed.data.branchIds !== undefined) {
     await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
@@ -162,7 +162,7 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
     }
   }
 
-  await logActivity({ type: "article_updated", description: `Article "${updated.title}" updated`, entityId: updated.id, entityType: "article", user: req.user });
+  await logActivity({ type: "article_updated", description: `Maqola "${updated.title}" yangilandi`, entityId: updated.id, entityType: "article", user: req.user });
 
   const full = await getArticleWithBranchIds(params.data.id);
   res.json(full);
@@ -170,18 +170,18 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
 
 router.delete("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
   await db.delete(articlesTable).where(eq(articlesTable.id, params.data.id));
 
-  await logActivity({ type: "article_deleted", description: `Article deleted`, entityId: params.data.id, entityType: "article", user: req.user });
+  await logActivity({ type: "article_deleted", description: "Статья удалена / Maqola o'chirildi", entityId: params.data.id, entityType: "article", user: req.user });
 
   res.status(204).send();
 });
 
 router.post("/articles/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
@@ -199,10 +199,10 @@ router.post("/articles/import", requireAuth, requireRole("superadmin", "head_off
         imported++;
       }
     });
-    await logActivity({ type: "articles_imported", description: `Imported ${imported} articles from CSV`, entityType: "article", user: req.user });
+    await logActivity({ type: "articles_imported", description: `Импортировано статей: ${imported} / Import qilingan maqolalar: ${imported}`, entityType: "article", user: req.user });
     res.json({ imported, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

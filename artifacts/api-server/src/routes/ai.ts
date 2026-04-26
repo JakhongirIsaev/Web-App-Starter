@@ -28,6 +28,25 @@ function getDurationMs(startedAt: number) {
   return Date.now() - startedAt;
 }
 
+function resolveResponseLanguage(req: Request): "ru" | "uz" {
+  const body = req.body as { language?: unknown; targetLanguage?: unknown } | undefined;
+  if (body?.language === "ru" || body?.targetLanguage === "ru") return "ru";
+  return "uz";
+}
+
+function getAiErrorMessage(req: Request, key: "invalid" | "questions" | "recommendations" | "summary" | "translation" | "vehicle") {
+  const language = resolveResponseLanguage(req);
+  const copy = {
+    invalid: { ru: "Некорректный запрос", uz: "Noto'g'ri so'rov" },
+    questions: { ru: "Не удалось сформировать вопросы", uz: "Savollarni shakllantirib bo'lmadi" },
+    recommendations: { ru: "Не удалось получить рекомендации", uz: "Tavsiyalarni olib bo'lmadi" },
+    summary: { ru: "Не удалось сформировать краткое предложение", uz: "Qisqa taklifni shakllantirib bo'lmadi" },
+    translation: { ru: "Не удалось выполнить перевод", uz: "Tarjimani bajarib bo'lmadi" },
+    vehicle: { ru: "Не удалось извлечь данные автомобиля", uz: "Avtomobil ma'lumotlarini ajratib bo'lmadi" },
+  } as const;
+  return copy[key][language];
+}
+
 function logAiResult(req: Request, endpoint: string, success: boolean, startedAt: number, err?: unknown) {
   const { model } = getOllamaConfig();
   const payload = {
@@ -69,7 +88,7 @@ router.post("/ai/generate-questionnaire", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateQuestionsBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: getAiErrorMessage(req, "invalid"), issues: parsed.error.flatten() });
     return;
   }
 
@@ -80,7 +99,7 @@ router.post("/ai/generate-questionnaire", requireAuth, async (req, res) => {
   } catch (error) {
     logAiResult(req, "/api/ai/generate-questionnaire", false, startedAt, error);
     const status = error instanceof OllamaRequestError ? error.status : 503;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Question generation failed" });
+    res.status(status).json({ error: getAiErrorMessage(req, "questions") });
   }
 });
 
@@ -88,7 +107,7 @@ router.post("/ai/recommend-products", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiRecommendProductsBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: getAiErrorMessage(req, "invalid"), issues: parsed.error.flatten() });
     return;
   }
 
@@ -99,7 +118,7 @@ router.post("/ai/recommend-products", requireAuth, async (req, res) => {
   } catch (error) {
     logAiResult(req, "/api/ai/recommend-products", false, startedAt, error);
     const status = error instanceof OllamaRequestError ? error.status : 503;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Recommendation failed" });
+    res.status(status).json({ error: getAiErrorMessage(req, "recommendations") });
   }
 });
 
@@ -107,7 +126,7 @@ router.post("/ai/generate-offer-summary", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateOfferSummaryBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: getAiErrorMessage(req, "invalid"), issues: parsed.error.flatten() });
     return;
   }
 
@@ -118,7 +137,7 @@ router.post("/ai/generate-offer-summary", requireAuth, async (req, res) => {
   } catch (error) {
     logAiResult(req, "/api/ai/generate-offer-summary", false, startedAt, error);
     const status = error instanceof OllamaRequestError ? error.status : 503;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Summary generation failed" });
+    res.status(status).json({ error: getAiErrorMessage(req, "summary") });
   }
 });
 
@@ -126,7 +145,7 @@ router.post("/ai/translate", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiTranslateBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: getAiErrorMessage(req, "invalid"), issues: parsed.error.flatten() });
     return;
   }
 
@@ -137,7 +156,7 @@ router.post("/ai/translate", requireAuth, async (req, res) => {
   } catch (error) {
     logAiResult(req, "/api/ai/translate", false, startedAt, error);
     const status = error instanceof OllamaRequestError ? error.status : 503;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Translation failed" });
+    res.status(status).json({ error: getAiErrorMessage(req, "translation") });
   }
 });
 
@@ -145,7 +164,7 @@ router.post("/ai/extract-auto", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiExtractAutoBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body", issues: parsed.error.flatten() });
+    res.status(400).json({ error: getAiErrorMessage(req, "invalid"), issues: parsed.error.flatten() });
     return;
   }
 
@@ -156,7 +175,7 @@ router.post("/ai/extract-auto", requireAuth, async (req, res) => {
   } catch (error) {
     logAiResult(req, "/api/ai/extract-auto", false, startedAt, error);
     const status = error instanceof OllamaRequestError ? error.status : 503;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Vehicle extraction failed" });
+    res.status(status).json({ error: getAiErrorMessage(req, "vehicle") });
   }
 });
 

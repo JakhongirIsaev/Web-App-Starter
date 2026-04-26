@@ -199,7 +199,7 @@ export default function LoginPage() {
             >
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#94A3B8" }}>
-                  {t("login.telegramId") || "Telegram ID"}
+                  {t("login.telegramId")}
                 </p>
                 <p className="text-[14px] font-bold mt-0.5" style={{ color: "#0F172A" }}>
                   {detectedTelegramId}
@@ -207,10 +207,10 @@ export default function LoginPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#94A3B8" }}>
-                  Статус
+                  {t("login.status")}
                 </p>
                 <p className="text-[14px] font-bold mt-0.5" style={{ color: "#16A34A" }}>
-                  Обнаружен
+                  {t("login.detected")}
                 </p>
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function LoginPage() {
               <path d="M12 8h.01" />
             </svg>
             <p className="text-[12px] leading-relaxed" style={{ color: "#1E40AF" }}>
-              {t("login.subtitle") || "Вход выполняется автоматически при открытии через Telegram. При проблемах обратитесь к администратору."}
+              {t("login.subtitle")}
             </p>
           </div>
 

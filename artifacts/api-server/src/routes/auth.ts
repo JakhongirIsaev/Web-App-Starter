@@ -22,7 +22,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  message: { error: "Too many login attempts. Try again later." },
+  message: { error: "Kirishga urinishlar juda ko'p. Keyinroq qayta urinib ko'ring." },
 });
 
 const telegramLoginLimiter = rateLimit({
@@ -30,7 +30,7 @@ const telegramLoginLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many login attempts. Try again later." },
+  message: { error: "Kirishga urinishlar juda ko'p. Keyinroq qayta urinib ko'ring." },
 });
 
 const resetRequestLimiter = rateLimit({
@@ -38,7 +38,7 @@ const resetRequestLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many reset requests. Try again later." },
+  message: { error: "Parolni tiklash so'rovlari juda ko'p. Keyinroq qayta urinib ko'ring." },
 });
 
 const resetConfirmLimiter = rateLimit({
@@ -46,7 +46,7 @@ const resetConfirmLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many confirm attempts. Try again later." },
+  message: { error: "Tasdiqlash urinishlari juda ko'p. Keyinroq qayta urinib ko'ring." },
 });
 
 const ResetRequestBody = z.object({
@@ -56,12 +56,12 @@ const ResetRequestBody = z.object({
 const ResetConfirmBody = z.object({
   telegramId: z.string().min(1),
   token: z.string().length(8),
-  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  newPassword: z.string().min(8, "Parol kamida 8 ta belgidan iborat bo'lishi kerak"),
 });
 
 const ChangePasswordBody = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  newPassword: z.string().min(8, "Parol kamida 8 ta belgidan iborat bo'lishi kerak"),
 });
 
 const changePasswordLimiter = rateLimit({
@@ -69,20 +69,20 @@ const changePasswordLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many password change attempts. Try again later." },
+  message: { error: "Parolni almashtirish urinishlari juda ko'p. Keyinroq qayta urinib ko'ring." },
 });
 
 
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
   const userId = await findSessionUserId(token);
   if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
@@ -106,7 +106,7 @@ router.get("/auth/me", async (req, res) => {
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
@@ -136,7 +136,7 @@ router.get("/auth/me", async (req, res) => {
 router.post("/auth/login", loginLimiter, async (req, res) => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body" });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
     return;
   }
 
@@ -150,14 +150,14 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Invalid credentials" });
+    res.status(401).json({ error: "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri" });
     return;
   }
 
   const user = users[0];
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    res.status(401).json({ error: "Invalid credentials" });
+    res.status(401).json({ error: "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri" });
     return;
   }
 
@@ -194,7 +194,7 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
 // still in the field gets a clear 403 instead of a hard 404.
 router.post("/auth/telegram", telegramLoginLimiter, async (_req, res) => {
   res.status(403).json({
-    error: "Telegram auto-login is disabled. Please use password login.",
+    error: "Telegram orqali avtomatik kirish o'chirilgan. Parol bilan kiring.",
   });
 });
 
@@ -213,32 +213,32 @@ router.post("/auth/logout", async (req, res) => {
 router.post("/auth/change-password", changePasswordLimiter, async (req, res) => {
   const token = extractBearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
   const userId = await findSessionUserId(token);
   if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
   const parsed = ChangePasswordBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid body" });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
     return;
   }
 
   const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Ruxsat yo'q" });
     return;
   }
 
   const user = users[0];
   const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
   if (!valid) {
-    res.status(400).json({ error: "Current password is incorrect" });
+    res.status(400).json({ error: "Текущий пароль неверный / Joriy parol noto'g'ri" });
     return;
   }
 
@@ -254,7 +254,7 @@ router.post("/auth/change-password", changePasswordLimiter, async (req, res) => 
 router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res) => {
   const parsed = ResetRequestBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body" });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
     return;
   }
 
@@ -268,7 +268,7 @@ router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res
 
   if (!userRes.length) {
     // Prevent enumeration. Always return success.
-    res.json({ success: true, message: "If the account exists, instructions were sent." });
+    res.json({ success: true, message: "Agar akkaunt mavjud bo'lsa, ko'rsatma yuborildi." });
     return;
   }
 
@@ -294,20 +294,20 @@ router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res
   // Send OTP via Telegram. If the message fails, roll back the token so the
   // user gets a clean error and can immediately retry (no TTL/rate-limit block).
   try {
-    await sendMessage(telegramId, `🔑 <b>Minerva Password Reset</b>\n\nYour reset code is: <code>${otp}</code>\n\nThis code expires in 15 minutes. If you did not request this, please ignore this message.`);
+    await sendMessage(telegramId, `🔑 <b>Minerva parolni tiklash</b>\n\nTiklash kodi: <code>${otp}</code>\n\nKod 15 daqiqa amal qiladi. Agar bu so'rovni siz yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`);
   } catch {
     await db.update(passwordResetTokensTable).set({ used: true }).where(eq(passwordResetTokensTable.id, inserted.id));
-    res.status(500).json({ error: "Failed to send reset code. Please try again." });
+    res.status(500).json({ error: "Tiklash kodini yuborib bo'lmadi. Qayta urinib ko'ring." });
     return;
   }
 
-  res.json({ success: true, message: "If the account exists, instructions were sent." });
+  res.json({ success: true, message: "Agar akkaunt mavjud bo'lsa, ko'rsatma yuborildi." });
 });
 
 router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res) => {
   const parsed = ResetConfirmBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid input data", details: parsed.error.issues });
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
     return;
   }
 
@@ -316,7 +316,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
 
   // Use a single opaque error for all failure modes (user not found, bad OTP,
   // expired OTP) so the confirm endpoint cannot be used to enumerate accounts.
-  const INVALID = { error: "Invalid or expired code" } as const;
+  const INVALID = { error: "Kod noto'g'ri yoki muddati tugagan" } as const;
 
   const userRes = await db
     .select({ id: usersTable.id })
@@ -365,7 +365,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
   // Invalidate ALL sessions instantly
   await deleteSessionsForUser(userId);
 
-  res.json({ success: true, message: "Password updated successfully" });
+  res.json({ success: true, message: "Parol yangilandi" });
 });
 
 export default router;

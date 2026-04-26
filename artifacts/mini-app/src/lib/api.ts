@@ -30,8 +30,8 @@ async function request(path: string, options: RequestInit = {}) {
 
   const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(err.error || "Request failed");
+    const err = await res.json().catch(() => ({ error: "So'rov bajarilmadi" }));
+    throw new Error(err.error || "So'rov bajarilmadi");
   }
   return res.json();
 }
@@ -48,7 +48,7 @@ async function requestBlob(path: string, options: RequestInit = {}) {
 
   const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
   if (!res.ok) {
-    throw new Error("Request failed");
+    throw new Error("So'rov bajarilmadi");
   }
   return res.blob();
 }
@@ -77,7 +77,7 @@ export async function login(telegramId: string, password: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ telegramId, password }),
   });
-  if (!res.ok) throw new Error("Invalid credentials");
+  if (!res.ok) throw new Error("Kirish ma'lumotlari noto'g'ri");
   const data = await res.json();
   setToken(data.token);
   return data;
@@ -90,8 +90,8 @@ export async function loginWithTelegram(initData: string) {
     body: JSON.stringify({ initData }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Telegram auth failed" }));
-    throw new Error(err.error || "Telegram auth failed");
+    const err = await res.json().catch(() => ({ error: "Telegram orqali kirib bo'lmadi" }));
+    throw new Error(err.error || "Telegram orqali kirib bo'lmadi");
   }
   const data = await res.json();
   setToken(data.token);

@@ -305,10 +305,10 @@ export default function BasketPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-semibold text-[#15803D] leading-snug">
-                  Следующий шаг
+                  {t("basket.nextStep")}
                 </div>
                 <div className="text-[12px] text-[#16A34A]/80 mt-1 leading-relaxed">
-                  Сгенерировать коммерческое предложение в PDF и отправить клиенту в Telegram.
+                  {t("basket.nextStepHint")}
                 </div>
               </div>
             </div>
@@ -329,7 +329,7 @@ export default function BasketPage() {
             ) : (
               <FileText className="w-5 h-5" />
             )}
-            {pdfLoading ? "Генерация..." : "Сгенерировать PDF"}
+            {pdfLoading ? t("pdf.generating") : t("pdf.generate")}
           </button>
         </div>
       )}

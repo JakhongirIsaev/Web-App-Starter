@@ -137,7 +137,7 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
       categoryId: item.categoryId || "",
       categoryName: item.categoryName || "",
     }));
-    downloadCsv(rows, `sap_codes_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `sap_shifrlari_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 

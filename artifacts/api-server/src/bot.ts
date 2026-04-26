@@ -55,8 +55,8 @@ function isAdminRole(role: string) {
 
 function formatRole(role: string) {
   const labels: Record<string, string> = {
-    superadmin: "superadmin",
-    head_office_admin: "bosh ofis admini",
+    superadmin: "bosh administrator",
+    head_office_admin: "bosh ofis administratori",
     branch_head: "filial boshligi",
     hunter: "kredit eksperti",
     editor: "muharrir",
@@ -103,8 +103,8 @@ export async function startBot(miniAppUrl: string) {
       await ctx.reply(
         `Assalomu alaykum, <b>${user.name}</b>.\n\n` +
           `Siz tizimda <b>${formatRole(user.role)}</b> sifatida ro'yxatdan o'tgansiz.\n` +
-          `Mini-ilovani ochib, mijozlar, tavsiyalar va PDF takliflar bilan ishlashingiz mumkin.\n` +
-          `Demo uchun boshqa akkaunt kerak bo'lsa, mini-ilovada logout qiling va <b>10000001</b> / <b>password</b> bilan kiring.\n\n` +
+          `Mini-ilovani ochib, mijozlar, tavsiyalar va tayyor takliflar bilan ishlashingiz mumkin.\n` +
+          `Sinov uchun boshqa akkaunt kerak bo'lsa, mini-ilovadan chiqing va <b>10000001</b> / <b>password</b> bilan kiring.\n\n` +
           `Buyruqlar:\n` +
           `/stats - ko'rsatkichlar\n` +
           `/clients - mijozlar ro'yxati\n` +
@@ -118,7 +118,7 @@ export async function startBot(miniAppUrl: string) {
     await ctx.reply(
       "Assalomu alaykum.\n\n" +
         "Sizning Telegram akkauntingiz hali Minerva foydalanuvchisi sifatida biriktirilmagan.\n" +
-        `Aniqlangan Telegram ID: <b>${telegramId || "noma'lum"}</b>\n\n` +
+        `Aniqlangan Telegram identifikatori: <b>${telegramId || "noma'lum"}</b>\n\n` +
         "Administrator ushbu ID ni foydalanuvchiga bog'lagach, mini-ilovaga avtomatik kirish ishlaydi. Hozircha qo'lda kirishdan foydalanishingiz mumkin.",
       { parse_mode: "HTML", reply_markup: keyboard },
     );
@@ -130,7 +130,7 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("Sizning Telegram ID tizimda topilmadi. Avval administratorga murojaat qiling.");
+      await ctx.reply("Sizning Telegram identifikatoringiz tizimda topilmadi. Avval administratorga murojaat qiling.");
       return;
     }
 
@@ -193,7 +193,7 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("Sizning Telegram ID tizimda topilmadi.");
+      await ctx.reply("Sizning Telegram identifikatoringiz tizimda topilmadi.");
       return;
     }
 
@@ -230,11 +230,20 @@ export async function startBot(miniAppUrl: string) {
       completed: "✅",
       rejected: "❌",
     };
+    const statusLabel: Record<string, string> = {
+      draft: "qoralama",
+      questionnaire: "so'rovnoma",
+      recommendation: "tavsiya",
+      basket: "tanlangan mahsulotlar",
+      pdf_generated: "taklif tayyor",
+      completed: "yakunlangan",
+      rejected: "rad etilgan",
+    };
 
     let msg = `📋 <b>Mijozlar ro'yxati (${clients.length})</b>\n\n`;
     for (const client of clients) {
       msg += `${statusEmoji[client.status] || "📌"} <b>${client.fullName || "Ismsiz mijoz"}</b>\n`;
-      msg += `   ${client.phone || "Telefon yo'q"} · ${client.status}\n\n`;
+      msg += `   ${client.phone || "Telefon yo'q"} · ${statusLabel[client.status] || "noma'lum holat"}\n\n`;
     }
 
     await ctx.reply(msg, { parse_mode: "HTML" });
@@ -246,7 +255,7 @@ export async function startBot(miniAppUrl: string) {
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      await ctx.reply("Sizning Telegram ID tizimda topilmadi.");
+      await ctx.reply("Sizning Telegram identifikatoringiz tizimda topilmadi.");
       return;
     }
 
@@ -285,6 +294,12 @@ export async function startBot(miniAppUrl: string) {
       proposal: "📄",
       documents: "📁",
     };
+    const typeLabel: Record<string, string> = {
+      follow_up: "qayta aloqa",
+      meeting: "uchrashuv",
+      proposal: "taklif",
+      documents: "hujjatlar",
+    };
 
     const priorityEmoji: Record<string, string> = {
       high: "🔴",
@@ -297,7 +312,7 @@ export async function startBot(miniAppUrl: string) {
       const date = action.actionDate ? formatDateInAppTimeZone(action.actionDate) : "Sana yo'q";
       const overdue = action.actionDate && new Date(action.actionDate) < new Date();
       msg += `${typeEmoji[action.actionType] || "📌"} ${priorityEmoji[action.priority || "medium"] || "🟠"} <b>${action.clientName || "Ismsiz mijoz"}</b>\n`;
-      msg += `   ${action.actionType} · ${date}${overdue ? " · kechikkan" : ""}\n\n`;
+      msg += `   ${typeLabel[action.actionType] || "vazifa"} · ${date}${overdue ? " · kechikkan" : ""}\n\n`;
     }
 
     await ctx.reply(msg, { parse_mode: "HTML" });
@@ -311,7 +326,7 @@ export async function startBot(miniAppUrl: string) {
         "/clients - mijozlar ro'yxatini ko'rish\n" +
         "/todo - yaqin vazifalarni ko'rish\n" +
         "/help - yordam matnini qayta ochish\n\n" +
-        "Mini-ilova ichida so'rovnoma, tavsiya, kalkulyator va PDF taklif yaratish funksiyalari mavjud.",
+        "Mini-ilova ichida so'rovnoma, tavsiya, kalkulyator va tayyor taklif yaratish funksiyalari mavjud.",
       { parse_mode: "HTML" },
     );
   });

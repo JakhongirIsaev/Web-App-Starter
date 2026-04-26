@@ -65,24 +65,31 @@ export default function CalculatorPage() {
   const handleDownload = () => {
     if (!result) return;
     const lines: string[] = [];
-    lines.push("Credit Calculator Results");
+    lines.push(t("calculator.downloadTitle"));
     lines.push("");
-    lines.push("Parameters");
-    lines.push(`Credit Type,${t(`calculator.creditTypes.${creditType}`)}`);
-    lines.push(`Product Cost,${formatWithSpaces(cost)} ${currency}`);
-    lines.push(`Down Payment,${dpPct}% (${formatWithSpaces(downPaymentAmount)} ${currency})`);
-    lines.push(`Loan Amount,${formatWithSpaces(loanAmount)} ${currency}`);
-    lines.push(`Interest Rate,${interestRate}% ${rateType === "annual" ? t("calculator.rateAnnual") : t("calculator.rateMonthly")}`);
-    lines.push(`Term,${termMonths} ${t("calculator.months")}`);
-    lines.push(`Repayment Type,${repaymentType === "annuity" ? t("calculator.annuity") : t("calculator.differentiated")}`);
+    lines.push(t("calculator.loanParams"));
+    lines.push(`${t("calculator.creditType")},${t(`calculator.creditTypes.${creditType}`)}`);
+    lines.push(`${t("calculator.productCost")},${formatWithSpaces(cost)} ${currency}`);
+    lines.push(`${t("calculator.downPaymentPct")},${dpPct}% (${formatWithSpaces(downPaymentAmount)} ${currency})`);
+    lines.push(`${t("calculator.loanAmount")},${formatWithSpaces(loanAmount)} ${currency}`);
+    lines.push(`${t("calculator.interestRate")},${interestRate}% ${rateType === "annual" ? t("calculator.rateAnnual") : t("calculator.rateMonthly")}`);
+    lines.push(`${t("calculator.loanTerm")},${termMonths} ${t("calculator.months")}`);
+    lines.push(`${t("calculator.repaymentType")},${repaymentType === "annuity" ? t("calculator.annuity") : t("calculator.differentiated")}`);
     lines.push("");
-    lines.push("Summary");
-    lines.push(`Monthly Payment,${formatWithSpaces(result.summary.totalPayment / parseInt(termMonths))} ${currency}`);
-    lines.push(`Total Payment,${formatWithSpaces(result.summary.totalPayment)} ${currency}`);
-    lines.push(`Total Interest,${formatWithSpaces(result.summary.totalInterest)} ${currency}`);
+    lines.push(t("calculator.calcResults"));
+    lines.push(`${t("calculator.monthlyPayment")},${formatWithSpaces(result.summary.totalPayment / parseInt(termMonths))} ${currency}`);
+    lines.push(`${t("calculator.totalPayment")},${formatWithSpaces(result.summary.totalPayment)} ${currency}`);
+    lines.push(`${t("calculator.totalInterest")},${formatWithSpaces(result.summary.totalInterest)} ${currency}`);
     lines.push("");
-    lines.push("Payment Schedule");
-    lines.push("Month,Date,Balance,Principal,Interest,Total Payment");
+    lines.push(t("calculator.schedule"));
+    lines.push([
+      t("calculator.scheduleMonth"),
+      t("calculator.date"),
+      t("calculator.loanBalance"),
+      t("calculator.principalPart"),
+      t("calculator.interestPart"),
+      t("calculator.totalDue"),
+    ].join(","));
     result.schedule.forEach((row: any) => {
       lines.push(
         `${row.month},${getPaymentDate(row.month)},${formatWithSpaces(row.remaining + row.principal)},${formatWithSpaces(row.principal)},${formatWithSpaces(row.interest)},${formatWithSpaces(row.payment)}`
@@ -452,7 +459,7 @@ export default function CalculatorPage() {
               style={{ color: "#0F172A" }}
             >
               <Download className="w-4 h-4" style={{ color: "#64748B" }} />
-              CSV
+              {t("calculator.downloadFormat")}
             </button>
             <button
               onClick={handleShare}

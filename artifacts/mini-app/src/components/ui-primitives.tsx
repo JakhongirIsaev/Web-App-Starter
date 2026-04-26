@@ -12,7 +12,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   questionnaire:  { label: "Анкета",   cls: "mn-chip-questionnaire" },
   recommendation: { label: "Подбор",   cls: "mn-chip-recommendation" },
   basket:         { label: "Корзина",  cls: "mn-chip-basket" },
-  pdf_generated:  { label: "PDF готов",cls: "mn-chip-pdf_generated" },
+  pdf_generated:  { label: "КП готово",cls: "mn-chip-pdf_generated" },
   under_review:   { label: "На рассм.",cls: "mn-chip-under_review" },
   approved:       { label: "Одобрен",  cls: "mn-chip-approved" },
   completed:      { label: "Завершён", cls: "mn-chip-completed" },

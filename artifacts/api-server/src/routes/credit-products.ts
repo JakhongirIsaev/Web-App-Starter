@@ -36,7 +36,7 @@ router.get("/credit-products", requireAuth, async (req, res) => {
 
 router.post("/credit-products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = req.body;
-  if (!name) { res.status(400).json({ error: "Name required" }); return; }
+  if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
 
   const [created] = await db.insert(creditProductsTable).values({
     number: num || null, name, sapCode: sapCode || null, segment: segment || null,
@@ -47,13 +47,13 @@ router.post("/credit-products", requireAuth, requireRole("superadmin", "head_off
     purpose: purpose || null, highlight: highlight || null,
   }).returning();
 
-  await logActivity({ type: "credit_product_created", description: `Credit product "${name}" created`, entityId: created.id, entityType: "credit_product", user: req.user });
+  await logActivity({ type: "credit_product_created", description: `Kredit mahsuloti "${name}" yaratildi`, entityId: created.id, entityType: "credit_product", user: req.user });
   res.status(201).json(created);
 });
 
 router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const updateData: any = { updatedAt: new Date() };
   const fields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"];
@@ -62,24 +62,24 @@ router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_
   }
 
   const [updated] = await db.update(creditProductsTable).set(updateData).where(eq(creditProductsTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
 
-  await logActivity({ type: "credit_product_updated", description: `Credit product "${updated.name}" updated`, entityId: updated.id, entityType: "credit_product", user: req.user });
+  await logActivity({ type: "credit_product_updated", description: `Kredit mahsuloti "${updated.name}" yangilandi`, entityId: updated.id, entityType: "credit_product", user: req.user });
   res.json(updated);
 });
 
 router.delete("/credit-products/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(creditProductsTable).where(eq(creditProductsTable.id, id));
-  await logActivity({ type: "credit_product_deleted", description: `Credit product deleted`, entityId: id, entityType: "credit_product", user: req.user });
+  await logActivity({ type: "credit_product_deleted", description: "Кредитный продукт удален / Kredit mahsuloti o'chirildi", entityId: id, entityType: "credit_product", user: req.user });
   res.status(204).send();
 });
 
 router.post("/credit-products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";
     const rows = isExcelUpload(req.file)
       ? parseCreditProductsWorkbook(req.file.buffer)
       : parseCsvBuffer(req.file.buffer).map(mapCreditProductCsvRow);
@@ -141,13 +141,13 @@ router.post("/credit-products/import", requireAuth, requireRole("superadmin", "h
     const imported = validRows.length;
     await logActivity({
       type: "credit_products_imported",
-      description: `Replaced credit products with ${imported} rows from ${sourceLabel}`,
+      description: `Кредитные продукты обновлены: ${imported} строк из ${sourceLabel}`,
       entityType: "credit_product",
       user: req.user,
     });
     res.json({ imported, cleared, detachedBasketItems, replaced: true, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

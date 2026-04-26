@@ -314,7 +314,7 @@ export default function RecommendationPage() {
     },
     onSuccess: () => navigate(`/basket/${params.clientId}`),
     onError: (err: any) => {
-      const message = err?.body?.message || err?.message || "Failed to save basket";
+      const message = err?.body?.message || err?.message || t("common.error");
       window.alert(message);
     },
   });
@@ -406,7 +406,7 @@ export default function RecommendationPage() {
             className="text-[11px] font-bold tracking-[0.08em] uppercase"
             style={{ color: "#A855F7" }}
           >
-            AI-ПОДБОР
+            {t("recommendation.aiSelection")}
           </span>
         </div>
 

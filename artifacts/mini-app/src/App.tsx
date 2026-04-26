@@ -6,6 +6,7 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useTranslation } from "react-i18next";
 import "@/i18n";
 import MiniAppLayout from "@/components/mini-app-layout";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -31,6 +32,7 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const queryClient = new QueryClient();
 
 function FullScreenLoader() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--tg-bg,#F4F4F5)] px-6">
       <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-[28px] border border-white/80 bg-white/90 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
@@ -39,7 +41,7 @@ function FullScreenLoader() {
         </div>
         <div className="space-y-1">
           <p className="text-sm font-semibold text-[#0F172A]">Minerva</p>
-          <p className="text-xs text-[#64748B]">Preparing your workspace...</p>
+          <p className="text-xs text-[#64748B]">{t("common.loading")}</p>
         </div>
       </div>
     </div>

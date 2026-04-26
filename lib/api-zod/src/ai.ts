@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const languageSchema = z.enum(["ru", "uz", "en"]);
+const languageSchema = z.enum(["ru", "uz"]);
 
 export const AiAllowedProductSchema = z.object({
   id: z.number().int().positive().optional(),

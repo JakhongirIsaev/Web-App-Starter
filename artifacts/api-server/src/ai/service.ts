@@ -145,7 +145,7 @@ const LOCALIZED_PRODUCTS_RESPONSE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-type SupportedLanguage = "ru" | "uz" | "en";
+type SupportedLanguage = "ru" | "uz";
 
 interface LocalizedProductPresentation {
   productId?: number | null;
@@ -161,9 +161,10 @@ interface LocalizedProductPresentation {
 }
 
 function languageInstruction(language: SupportedLanguage) {
-  if (language === "ru") return "Write the user-facing text in Russian.";
-  if (language === "en") return "Write the user-facing text in English.";
-  return "Write the user-facing text in Uzbek.";
+  if (language === "ru") {
+    return "Весь текст для пользователя пишите только на естественном русском языке кириллицей. Английские слова не выводите.";
+  }
+  return "Foydalanuvchiga ko'rinadigan barcha matnni faqat o'zbek lotin yozuvida yozing. Inglizcha so'z chiqarmang.";
 }
 
 function compactJson(value: unknown): string {
@@ -214,11 +215,9 @@ function buildQuestionOption(
   value: string,
   uz: string,
   ru: string,
-  en: string,
   language: SupportedLanguage,
 ) {
   if (language === "ru") return { value, label: ru };
-  if (language === "en") return { value, label: en };
   return { value, label: uz };
 }
 
@@ -241,21 +240,17 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Какой банковский сервис нужен клиенту в первую очередь?"
-          : language === "en"
-            ? "Which banking service is the highest priority for the client?"
-            : "Mijoz uchun qaysi bank xizmati birinchi navbatda muhim?",
+          : "Mijoz uchun qaysi bank xizmati birinchi navbatda muhim?",
       type: "select" as const,
       helperText:
         language === "ru"
           ? "Это помогает сразу убрать неподходящие некредитные продукты."
-          : language === "en"
-            ? "This quickly narrows down the non-credit offers."
-            : "Bu nokredit mahsulotlarni tezroq aniqroq tanlashga yordam beradi.",
+          : "Bu nokredit mahsulotlarni tezroq aniqroq tanlashga yordam beradi.",
       options: [
-        buildQuestionOption("settlement_account", "Hisob-kitob xizmati", "Расчетный счет", "Settlement account", language),
-        buildQuestionOption("payment_acceptance", "To'lovlarni qabul qilish", "Прием платежей", "Payment acceptance", language),
-        buildQuestionOption("payroll", "Ish haqi loyihasi", "Зарплатный проект", "Payroll service", language),
-        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+        buildQuestionOption("settlement_account", "Hisob-kitob xizmati", "Расчетный счет", language),
+        buildQuestionOption("payment_acceptance", "To'lovlarni qabul qilish", "Прием платежей", language),
+        buildQuestionOption("payroll", "Ish haqi loyihasi", "Зарплатный проект", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", language),
       ],
     },
     {
@@ -263,15 +258,13 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Какой ежемесячный оборот ожидается по сервису?"
-          : language === "en"
-            ? "What monthly turnover is expected for the service?"
-            : "Xizmat bo'yicha kutilayotgan oylik aylanma qancha?",
+          : "Xizmat bo'yicha kutilayotgan oylik aylanma qancha?",
       type: "select" as const,
       options: [
-        buildQuestionOption("up_to_100m", "100 mln so'mgacha", "До 100 млн сум", "Up to 100m UZS", language),
-        buildQuestionOption("100m_to_500m", "100-500 mln so'm", "100-500 млн сум", "100m to 500m UZS", language),
-        buildQuestionOption("over_500m", "500 mln so'mdan yuqori", "Свыше 500 млн сум", "Over 500m UZS", language),
-        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", "Not sure yet", language),
+        buildQuestionOption("up_to_100m", "100 mln so'mgacha", "До 100 млн сум", language),
+        buildQuestionOption("100m_to_500m", "100-500 mln so'm", "100-500 млн сум", language),
+        buildQuestionOption("over_500m", "500 mln so'mdan yuqori", "Свыше 500 млн сум", language),
+        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", language),
       ],
     },
     {
@@ -279,14 +272,12 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Нужны ли клиенту терминалы или онлайн-прием платежей?"
-          : language === "en"
-            ? "Does the client need terminals or online payment acceptance?"
-            : "Mijozga terminal yoki onlayn to'lov qabul qilish kerakmi?",
+          : "Mijozga terminal yoki onlayn to'lov qabul qilish kerakmi?",
       type: "select" as const,
       options: [
-        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
-        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
-        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+        buildQuestionOption("yes", "Ha", "Да", language),
+        buildQuestionOption("no", "Yo'q", "Нет", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", language),
       ],
     },
     {
@@ -294,14 +285,12 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Есть ли потребность в валютных или международных платежах?"
-          : language === "en"
-            ? "Is there a need for FX or international payments?"
-            : "Valyuta yoki xalqaro to'lovlarga ehtiyoj bormi?",
+          : "Valyuta yoki xalqaro to'lovlarga ehtiyoj bormi?",
       type: "select" as const,
       options: [
-        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
-        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
-        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+        buildQuestionOption("yes", "Ha", "Да", language),
+        buildQuestionOption("no", "Yo'q", "Нет", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", language),
       ],
     },
   ] : [
@@ -310,21 +299,17 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "В какой валюте клиенту удобнее оформить продукт?"
-          : language === "en"
-            ? "Which currency is most convenient for the client?"
-            : "Mijozga mahsulot qaysi valyutada qulayroq?",
+          : "Mijozga mahsulot qaysi valyutada qulayroq?",
       type: "select" as const,
       helperText:
         language === "ru"
           ? "Это помогает сразу убрать неподходящие валютные варианты."
-          : language === "en"
-            ? "This helps narrow down the most suitable products."
-            : "Bu mos bo'lmagan valyuta variantlarini darhol qisqartirishga yordam beradi.",
+          : "Bu mos bo'lmagan valyuta variantlarini darhol qisqartirishga yordam beradi.",
       options: [
-        buildQuestionOption("uzs", "So'm", "Сум", "UZS", language),
-        buildQuestionOption("usd", "Dollar", "Доллар США", "USD", language),
-        buildQuestionOption("eur", "Yevro", "Евро", "EUR", language),
-        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+        buildQuestionOption("uzs", "So'm", "Сум", language),
+        buildQuestionOption("usd", "AQSh dollari", "Доллар США", language),
+        buildQuestionOption("eur", "Yevro", "Евро", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", language),
       ],
     },
     {
@@ -332,21 +317,17 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Какой ежемесячный платеж для клиента комфортен?"
-          : language === "en"
-            ? "What monthly payment level is comfortable for the client?"
-            : "Mijoz uchun qaysi oylik to'lov diapazoni qulay?",
+          : "Mijoz uchun qaysi oylik to'lov diapazoni qulay?",
       type: "select" as const,
       helperText:
         language === "ru"
           ? "Это помогает подобрать сумму и срок без лишней нагрузки на клиента."
-          : language === "en"
-            ? "This helps fit the amount and term to the client's cash flow."
-            : "Bu summa va muddatni mijozning pul oqimiga moslashtirishga yordam beradi.",
+          : "Bu summa va muddatni mijozning pul oqimiga moslashtirishga yordam beradi.",
       options: [
-        buildQuestionOption("up_to_10m", "10 mln so'mgacha", "До 10 млн сум", "Up to 10m UZS", language),
-        buildQuestionOption("10m_to_30m", "10-30 mln so'm", "10-30 млн сум", "10m to 30m UZS", language),
-        buildQuestionOption("over_30m", "30 mln so'mdan yuqori", "Свыше 30 млн сум", "Over 30m UZS", language),
-        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", "Not sure yet", language),
+        buildQuestionOption("up_to_10m", "10 mln so'mgacha", "До 10 млн сум", language),
+        buildQuestionOption("10m_to_30m", "10-30 mln so'm", "10-30 млн сум", language),
+        buildQuestionOption("over_30m", "30 mln so'mdan yuqori", "Свыше 30 млн сум", language),
+        buildQuestionOption("not_sure", "Hali aniq emas", "Пока неясно", language),
       ],
     },
     {
@@ -354,20 +335,17 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Какой график погашения клиенту удобнее?"
-          : language === "en"
-            ? "Which repayment style is more convenient for the client?"
-            : "Mijozga qaysi to'lov jadvali qulayroq?",
+          : "Mijozga qaysi to'lov jadvali qulayroq?",
       type: "select" as const,
       options: [
-        buildQuestionOption("annuity", "Har oy bir xil to'lov", "Равный платеж каждый месяц", "Equal monthly payment", language),
+        buildQuestionOption("annuity", "Har oy bir xil to'lov", "Равный платеж каждый месяц", language),
         buildQuestionOption(
           "differentiated",
           "Boshlanishida katta, keyin kamayadigan",
           "Сначала выше, затем уменьшается",
-          "Higher at first, then lower",
           language,
         ),
-        buildQuestionOption("not_sure", "Ekspert tavsiya bersin", "Пусть эксперт подскажет", "Expert can suggest", language),
+        buildQuestionOption("not_sure", "Ekspert tavsiya bersin", "Пусть эксперт подскажет", language),
       ],
     },
     {
@@ -375,15 +353,13 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Какой первоначальный взнос клиент готов внести?"
-          : language === "en"
-            ? "What down payment is the client ready to contribute?"
-            : "Mijoz qancha boshlang'ich to'lov kiritishga tayyor?",
+          : "Mijoz qancha boshlang'ich to'lov kiritishga tayyor?",
       type: "select" as const,
       options: [
-        buildQuestionOption("none", "Boshlang'ich to'lovsiz", "Без первоначального взноса", "No down payment", language),
-        buildQuestionOption("up_to_20", "20% gacha", "До 20%", "Up to 20%", language),
-        buildQuestionOption("20_to_40", "20-40%", "20-40%", "20-40%", language),
-        buildQuestionOption("over_40", "40% dan yuqori", "Свыше 40%", "Over 40%", language),
+        buildQuestionOption("none", "Boshlang'ich to'lovsiz", "Без первоначального взноса", language),
+        buildQuestionOption("up_to_20", "20% gacha", "До 20%", language),
+        buildQuestionOption("20_to_40", "20-40%", "20-40%", language),
+        buildQuestionOption("over_40", "40% dan yuqori", "Свыше 40%", language),
       ],
     },
     {
@@ -391,14 +367,12 @@ function buildFallbackQuestions(
       label:
         language === "ru"
           ? "Нужен ли клиенту льготный период до начала основных платежей?"
-          : language === "en"
-            ? "Does the client need a grace period before principal payments start?"
-            : "Mijozga asosiy to'lovlar boshlanishidan oldin imtiyozli davr kerakmi?",
+          : "Mijozga asosiy to'lovlar boshlanishidan oldin imtiyozli davr kerakmi?",
       type: "select" as const,
       options: [
-        buildQuestionOption("yes", "Ha", "Да", "Yes", language),
-        buildQuestionOption("no", "Yo'q", "Нет", "No", language),
-        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", "Not decided yet", language),
+        buildQuestionOption("yes", "Ha", "Да", language),
+        buildQuestionOption("no", "Yo'q", "Нет", language),
+        buildQuestionOption("not_sure", "Hali aniqlanmagan", "Пока не определено", language),
       ],
     },
   ];
@@ -506,31 +480,48 @@ function mergeLocalizedPresentation(
 }
 
 function fallbackRecommendation(input: AiRecommendProductsBodyType) {
-  const recommendations = input.allowedProducts.slice(0, 5).map((product, index) => ({
-    productId: product.id ?? null,
-    productName: product.name,
-    rank: index + 1,
-    confidence: Number((Math.max(0.35, 0.8 - index * 0.1)).toFixed(2)),
-    explanation:
-      trimText(product.whySuitable || "") ||
-      trimText(
-        [
-          product.segment ? `Segment: ${product.segment}.` : "",
-          product.purpose ? `Fits the stated need: ${product.purpose}.` : "",
-          product.highlight ? `Key advantage: ${product.highlight}.` : "",
-        ].join(" "),
-      ) ||
-      "Selected from the allowed catalog because it fits the current questionnaire profile.",
-    localizedSegment: product.segment ?? null,
-    localizedPurpose: product.purpose ?? null,
-    localizedHighlight: product.highlight ?? null,
-    localizedLoanAmount: product.loanAmount ?? null,
-    localizedRate: [product.rateUZS, product.rateUSD, product.rateEUR].filter(Boolean).join(" | ") || null,
-    localizedRelevantTerm:
-      [product.termWorkingCapital, product.termFixedAssets, product.termUntargeted].filter(Boolean).join(" | ") || null,
-    localizedDisbursementForm: product.disbursementForm ?? null,
-    localizedGracePeriod: null,
-  }));
+  const language = input.language === "ru" ? "ru" : "uz";
+  const recommendations = input.allowedProducts.slice(0, 5).map((product, index) => {
+    const fallbackParts = [
+      product.segment
+        ? language === "ru"
+          ? `Сегмент: ${product.segment}.`
+          : `Segment: ${product.segment}.`
+        : "",
+      product.purpose
+        ? language === "ru"
+          ? `Потребность клиента: ${product.purpose}.`
+          : `Mijoz ehtiyoji: ${product.purpose}.`
+        : "",
+      product.highlight
+        ? language === "ru"
+          ? `Ключевое преимущество: ${product.highlight}.`
+          : `Asosiy afzallik: ${product.highlight}.`
+        : "",
+    ].join(" ");
+
+    return {
+      productId: product.id ?? null,
+      productName: product.name,
+      rank: index + 1,
+      confidence: Number((Math.max(0.35, 0.8 - index * 0.1)).toFixed(2)),
+      explanation:
+        trimText(product.whySuitable || "") ||
+        trimText(fallbackParts) ||
+        (language === "ru"
+          ? "Выбрано из разрешенного каталога по текущему профилю клиента."
+          : "Joriy mijoz profili bo'yicha ruxsat etilgan katalogdan tanlandi."),
+      localizedSegment: product.segment ?? null,
+      localizedPurpose: product.purpose ?? null,
+      localizedHighlight: product.highlight ?? null,
+      localizedLoanAmount: product.loanAmount ?? null,
+      localizedRate: [product.rateUZS, product.rateUSD, product.rateEUR].filter(Boolean).join(" | ") || null,
+      localizedRelevantTerm:
+        [product.termWorkingCapital, product.termFixedAssets, product.termUntargeted].filter(Boolean).join(" | ") || null,
+      localizedDisbursementForm: product.disbursementForm ?? null,
+      localizedGracePeriod: null,
+    };
+  });
 
   return AiRecommendProductsResponse.parse({ recommendations });
 }
@@ -538,8 +529,7 @@ function fallbackRecommendation(input: AiRecommendProductsBodyType) {
 function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
   const [firstProduct] = input.selectedProducts;
   const calc = input.calculatorResult;
-  const language: SupportedLanguage =
-    input.language === "ru" || input.language === "en" ? input.language : "uz";
+  const language: SupportedLanguage = input.language === "ru" ? "ru" : "uz";
 
   const summaryPartsByLanguage = {
     uz: [
@@ -560,16 +550,6 @@ function fallbackOfferSummary(input: AiGenerateOfferSummaryBodyType) {
       calc?.termMonths ? `Рекомендуемый срок: ${calc.termMonths} мес.` : "",
       calc?.monthlyPayment && calc?.currency
         ? `Ориентировочный ежемесячный платеж: ${calc.monthlyPayment} ${calc.currency}.`
-        : "",
-    ],
-    en: [
-      `The main offer for ${input.clientName} is ${firstProduct.productName}.`,
-      calc?.loanAmount && calc?.currency
-        ? `The calculated loan amount is ${calc.loanAmount} ${calc.currency}.`
-        : "",
-      calc?.termMonths ? `Recommended term: ${calc.termMonths} months.` : "",
-      calc?.monthlyPayment && calc?.currency
-        ? `Estimated monthly payment: ${calc.monthlyPayment} ${calc.currency}.`
         : "",
     ],
   } as const;
@@ -629,9 +609,6 @@ export async function localizeProductPresentation(
   language: SupportedLanguage,
 ) {
   if (products.length === 0) return [];
-  if (language === "en") {
-    return buildFallbackLocalizedProducts(products);
-  }
 
   try {
     const { data } = await ollamaChatJson<unknown>({
@@ -647,6 +624,7 @@ export async function localizeProductPresentation(
             language === "ru"
               ? "Translate all user-facing fields to natural Russian in Cyrillic only."
               : "Translate all user-facing fields to Uzbek in Latin script only.",
+            "Never output English user-facing words.",
             "Keep productName unchanged.",
             "Do not invent values.",
             "Preserve numbers, currencies, and product identifiers.",
@@ -787,6 +765,7 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
             "Use only the allowed product catalog provided by the backend.",
             "Rank at most 5 products.",
             "The explanation must be concise, natural, and entirely in the target language.",
+            "Never output English user-facing text.",
             "Keep each explanation under 220 characters and no more than two short sentences.",
             "Also localize the product presentation fields into the same target language.",
             "Keep productName unchanged.",
@@ -824,13 +803,6 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
     });
 
     const parsed = AiRecommendProductsResponse.parse(data);
-    if (input.language === "en") {
-      return {
-        ...parsed,
-        model,
-      };
-    }
-
     const localizedProducts = await localizeProductPresentation(
       sanitizedProducts
         .filter((product) =>
@@ -879,10 +851,11 @@ export async function generateOfferSummary(input: AiGenerateOfferSummaryBodyType
         {
           role: "system",
           content: [
-            "You are a banking workflow assistant.",
-            "Write one concise polished offer summary for a client-ready PDF.",
-            "Write only client-facing text.",
-            "Do not mention internal reasoning or why the product was selected.",
+            "Siz bank jarayonlari bo'yicha yordamchisiz.",
+            "Mijozga tayyor taklif uchun bitta qisqa va ravon xulosa yozing.",
+            "Faqat mijozga ko'rinadigan matnni yozing.",
+            "Inglizcha foydalanuvchi matnini chiqarmang.",
+            "Ichki mulohazalar yoki mahsulot nima uchun tanlangani haqida yozmang.",
             "Do not invent products, rates, or terms.",
             "Use only the provided data.",
             languageInstruction(input.language),

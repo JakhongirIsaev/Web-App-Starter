@@ -45,7 +45,7 @@ router.get("/credit-lines", requireAuth, async (req, res) => {
 
 router.post("/credit-lines", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { name, number: num, department, agreementDate, agreementAmount, receivedAmount, currency, interestRate, disbursedAmount, remainingBalance, projectCount, specialConditions, notes, section } = req.body;
-  if (!name) { res.status(400).json({ error: "Name required" }); return; }
+  if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
 
   const [created] = await db.insert(creditLinesTable).values({
     number: num || null, name, department: department || null,
@@ -57,13 +57,13 @@ router.post("/credit-lines", requireAuth, requireRole("superadmin", "head_office
     specialConditions: specialConditions || null, notes: notes || null, section: section || null,
   }).returning();
 
-  await logActivity({ type: "credit_line_created", description: `Credit line "${name}" created`, entityId: created.id, entityType: "credit_line", user: req.user });
+  await logActivity({ type: "credit_line_created", description: `Kredit liniyasi "${name}" yaratildi`, entityId: created.id, entityType: "credit_line", user: req.user });
   res.status(201).json(created);
 });
 
 router.put("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const updateData: any = { updatedAt: new Date() };
   const fields = ["name", "number", "department", "agreementDate", "agreementAmount", "receivedAmount", "currency", "interestRate", "disbursedAmount", "remainingBalance", "projectCount", "specialConditions", "notes", "section"];
@@ -80,24 +80,24 @@ router.put("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_off
   }
 
   const [updated] = await db.update(creditLinesTable).set(updateData).where(eq(creditLinesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
 
-  await logActivity({ type: "credit_line_updated", description: `Credit line "${updated.name}" updated`, entityId: updated.id, entityType: "credit_line", user: req.user });
+  await logActivity({ type: "credit_line_updated", description: `Kredit liniyasi "${updated.name}" yangilandi`, entityId: updated.id, entityType: "credit_line", user: req.user });
   res.json(updated);
 });
 
 router.delete("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(creditLinesTable).where(eq(creditLinesTable.id, id));
-  await logActivity({ type: "credit_line_deleted", description: `Credit line deleted`, entityId: id, entityType: "credit_line", user: req.user });
+  await logActivity({ type: "credit_line_deleted", description: "Кредитная линия удалена / Kredit liniyasi o'chirildi", entityId: id, entityType: "credit_line", user: req.user });
   res.status(204).send();
 });
 
 router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-    const sourceLabel = isExcelUpload(req.file) ? "workbook" : "CSV";
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";
     const rows = isExcelUpload(req.file)
       ? parseCreditLinesWorkbook(req.file.buffer)
       : parseCsvBuffer(req.file.buffer).map(mapCreditLineCsvRow);
@@ -144,13 +144,13 @@ router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head
     const imported = validRows.length;
     await logActivity({
       type: "credit_lines_imported",
-      description: `Replaced credit lines with ${imported} rows from ${sourceLabel}`,
+      description: `Кредитные линии обновлены: ${imported} строк из ${sourceLabel}`,
       entityType: "credit_line",
       user: req.user,
     });
     res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

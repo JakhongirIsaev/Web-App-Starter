@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 export default function PdfSharePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams<{ clientId: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -50,13 +50,15 @@ export default function PdfSharePage() {
   const initials = getInitials(client.fullName);
   const productsCount = basketItems.length;
   const pagesCount = Math.max(productsCount + 1, 2);
-  const fileName = `КП_${(client.fullName || "Client").replace(/\s+/g, "_")}.pdf`;
+  const filePrefix = i18n.language === "ru" ? "predlozhenie" : "taklif";
+  const fallbackName = i18n.language === "ru" ? "klient" : "mijoz";
+  const fileName = `${filePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}.pdf`;
   const fileSize = `${(0.8 + productsCount * 0.3).toFixed(1)} MB`;
 
   /* ── Action grid items ── */
   const shareActions = [
     {
-      label: "В чат с клиентом",
+      label: t("pdfShare.chat"),
       Icon: MessageCircle,
       primary: true,
       onClick: () => {
@@ -64,7 +66,7 @@ export default function PdfSharePage() {
       },
     },
     {
-      label: "Переслать",
+      label: t("pdfShare.forward"),
       Icon: Forward,
       primary: false,
       onClick: () => {
@@ -72,7 +74,7 @@ export default function PdfSharePage() {
       },
     },
     {
-      label: "Скачать",
+      label: t("pdfShare.download"),
       Icon: Download,
       primary: false,
       onClick: () => {
@@ -80,7 +82,7 @@ export default function PdfSharePage() {
       },
     },
     {
-      label: "Копировать ссылку",
+      label: t("pdfShare.copyLink"),
       Icon: Link2,
       primary: false,
       onClick: () => {
@@ -114,7 +116,7 @@ export default function PdfSharePage() {
           <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-3">
             <CheckCircle className="w-8 h-8 text-white" />
           </div>
-          <div className="text-[18px] font-bold text-white">PDF сгенерирован</div>
+          <div className="text-[18px] font-bold text-white">{t("pdf.generated")}</div>
           <div className="flex items-center gap-2 mt-2 text-[12px] text-white/80">
             <FileText className="w-3.5 h-3.5" />
             <span>{fileName}</span>
@@ -133,7 +135,7 @@ export default function PdfSharePage() {
               </div>
               <div>
                 <div className="text-[13px] font-bold text-[#0F172A]">
-                  Ipak Yuli Bank
+                  Ipak Yo'li Bank
                 </div>
                 <div className="text-[9px] text-[#64748B]">
                   Коммерческое предложение

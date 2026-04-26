@@ -58,7 +58,7 @@ function makeParamGuard(resolver: ClientIdResolver, notFoundMessage: string, par
   return async function guard(req: Request, res: Response, next: NextFunction) {
     const id = parsePositiveInt(req.params[paramName]);
     if (id === null) {
-      res.status(400).json({ error: `Invalid ${paramName}` });
+      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
       return;
     }
     const owner = await resolver(id);
@@ -67,20 +67,20 @@ function makeParamGuard(resolver: ClientIdResolver, notFoundMessage: string, par
       return;
     }
     if (!req.user) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: "Требуется авторизация / Avtorizatsiya kerak" });
       return;
     }
     if (!(await verifyClientAccess(owner.clientId, req.user))) {
-      res.status(403).json({ error: "Access denied" });
+      res.status(403).json({ error: "Доступ запрещен / Ruxsat yo'q" });
       return;
     }
     next();
   };
 }
 
-export const requireClientAccess = makeParamGuard(resolveClientSelf, "Client not found");
-export const requireDocumentAccess = makeParamGuard(resolveDocumentOwner, "Document not found");
-export const requireNextActionAccess = makeParamGuard(resolveNextActionOwner, "Next action not found");
+export const requireClientAccess = makeParamGuard(resolveClientSelf, "Клиент не найден / Mijoz topilmadi");
+export const requireDocumentAccess = makeParamGuard(resolveDocumentOwner, "Документ не найден / Hujjat topilmadi");
+export const requireNextActionAccess = makeParamGuard(resolveNextActionOwner, "Действие не найдено / Harakat topilmadi");
 
 export function requireClientAccessFromBody(
   field = "clientId",
@@ -93,20 +93,20 @@ export function requireClientAccessFromBody(
         next();
         return;
       }
-      res.status(400).json({ error: `Missing ${field}` });
+      res.status(400).json({ error: "Не указан идентификатор / Identifikator ko'rsatilmagan" });
       return;
     }
     const id = parsePositiveInt(raw);
     if (id === null) {
-      res.status(400).json({ error: `Invalid ${field}` });
+      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
       return;
     }
     if (!req.user) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: "Требуется авторизация / Avtorizatsiya kerak" });
       return;
     }
     if (!(await verifyClientAccess(id, req.user))) {
-      res.status(403).json({ error: "Access denied" });
+      res.status(403).json({ error: "Доступ запрещен / Ruxsat yo'q" });
       return;
     }
     next();

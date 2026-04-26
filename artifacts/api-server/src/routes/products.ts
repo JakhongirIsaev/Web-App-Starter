@@ -39,13 +39,13 @@ router.get("/product-categories", requireAuth, async (_req, res) => {
 
 router.post("/product-categories", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductCategoryBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
   const [cat] = await db.insert(productCategoriesTable).values({
     name: parsed.data.name,
     description: parsed.data.description,
   }).returning();
 
-  await logActivity({ type: "category_created", description: `Product category "${cat.name}" created`, entityId: cat.id, entityType: "product_category", user: req.user });
+  await logActivity({ type: "category_created", description: `Mahsulot toifasi "${cat.name}" yaratildi`, entityId: cat.id, entityType: "product_category", user: req.user });
 
   res.status(201).json(cat);
 });
@@ -92,7 +92,7 @@ router.get("/products", requireAuth, async (req, res) => {
 
 router.post("/products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
   const [product] = await db.insert(productsTable).values({
     name: parsed.data.name,
     type: parsed.data.type,
@@ -106,14 +106,14 @@ router.post("/products", requireAuth, requireRole("superadmin", "head_office_adm
     isActive: parsed.data.isActive ?? true,
   }).returning();
 
-  await logActivity({ type: "product_created", description: `Product "${product.name}" created`, entityId: product.id, entityType: "product", user: req.user });
+  await logActivity({ type: "product_created", description: `Mahsulot "${product.name}" yaratildi`, entityId: product.id, entityType: "product", user: req.user });
 
   res.status(201).json(buildProductResponse(product, null));
 });
 
 router.get("/products/:id", requireAuth, async (req, res) => {
   const params = GetProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const rows = await db
     .select({
       id: productsTable.id,
@@ -138,16 +138,16 @@ router.get("/products/:id", requireAuth, async (req, res) => {
     .leftJoin(productCategoriesTable, eq(productsTable.categoryId, productCategoriesTable.id))
     .where(eq(productsTable.id, params.data.id))
     .limit(1);
-  if (!rows.length) { res.status(404).json({ error: "Not found" }); return; }
+  if (!rows.length) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
   const p = rows[0];
   res.json(buildProductResponse(p, p.catId ? { id: p.catId, name: p.catName, description: p.catDescription ?? null, createdAt: p.catCreatedAt } : null));
 });
 
 router.put("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateProductBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
 
   const updateData: any = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -162,26 +162,26 @@ router.put("/products/:id", requireAuth, requireRole("superadmin", "head_office_
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
 
   const [updated] = await db.update(productsTable).set(updateData).where(eq(productsTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
 
-  await logActivity({ type: "product_updated", description: `Product "${updated.name}" updated`, entityId: updated.id, entityType: "product", user: req.user });
+  await logActivity({ type: "product_updated", description: `Mahsulot "${updated.name}" yangilandi`, entityId: updated.id, entityType: "product", user: req.user });
 
   res.json(buildProductResponse(updated, null));
 });
 
 router.delete("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
 
-  await logActivity({ type: "product_deleted", description: `Product deleted`, entityId: params.data.id, entityType: "product", user: req.user });
+  await logActivity({ type: "product_deleted", description: "Продукт удален / Mahsulot o'chirildi", entityId: params.data.id, entityType: "product", user: req.user });
 
   res.status(204).send();
 });
 
 router.post("/products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
@@ -203,10 +203,10 @@ router.post("/products/import", requireAuth, requireRole("superadmin", "head_off
         imported++;
       }
     });
-    await logActivity({ type: "products_imported", description: `Imported ${imported} products from CSV`, entityType: "product", user: req.user });
+    await logActivity({ type: "products_imported", description: `Импортировано продуктов: ${imported} / Import qilingan mahsulotlar: ${imported}`, entityType: "product", user: req.user });
     res.json({ imported, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
   }
 });
 

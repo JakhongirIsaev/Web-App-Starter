@@ -135,7 +135,7 @@ export default function ClientDetailPage() {
       setPdfResult(result);
     },
     onError: (err: any) => {
-      setPdfError(err?.message || String(err) || "Failed to generate PDF");
+      setPdfError(err?.message || String(err) || t("pdf.generateFailed"));
     },
   });
 
@@ -184,6 +184,24 @@ export default function ClientDetailPage() {
   };
 
   const nextStep = getNextAction();
+
+  const getActionTypeLabel = (value: string) => ({
+    follow_up: t("home.followUp"),
+    meeting: t("home.meeting"),
+    proposal: t("home.proposal"),
+    documents: t("home.documents"),
+  }[value] ?? value);
+
+  const getPriorityLabel = (value: string) => ({
+    high: t("clientDetail.high"),
+    medium: t("clientDetail.medium"),
+    low: t("clientDetail.low"),
+  }[value] ?? value);
+
+  const getProductTypeLabel = (value: string) => ({
+    credit: t("clientDetail.productTypes.credit"),
+    non_credit: t("clientDetail.productTypes.nonCredit"),
+  }[value] ?? value);
 
   const getDocImageUrl = (doc: any) => {
     if (doc.storagePath && doc.storagePath.startsWith("http")) return doc.storagePath;
@@ -509,10 +527,10 @@ export default function ClientDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold text-[#0F172A]">
-                    {a.actionType}
+                    {getActionTypeLabel(a.actionType)}
                   </div>
                   <div className="text-[12px] text-[#64748B] mt-0.5">
-                    {fmtDate(a.actionDate)} &middot; {a.priority}
+                    {fmtDate(a.actionDate)} &middot; {getPriorityLabel(a.priority)}
                   </div>
                 </div>
                 <button
@@ -622,7 +640,7 @@ export default function ClientDetailPage() {
                 {item.productName}
               </div>
               <div className="text-[12px] text-[#64748B] mt-0.5">
-                {item.productType}
+                {getProductTypeLabel(item.productType)}
               </div>
               {item.notes && (
                 <div className="mt-2 text-[12px] text-[#64748B] leading-relaxed line-clamp-3">
@@ -771,7 +789,7 @@ export default function ClientDetailPage() {
           </button>
           <img
             src={previewImage}
-            alt="Preview"
+            alt={t("scanDoc.previewAlt")}
             className="max-w-full max-h-full object-contain rounded-lg"
           />
         </div>

@@ -21,26 +21,25 @@ export interface ProductLike {
 }
 
 const BUSINESS_TYPE_LABELS = {
-  trade: { uz: "Savdo", ru: "Торговля", en: "Trade" },
-  services: { uz: "Xizmatlar", ru: "Услуги", en: "Services" },
-  production: { uz: "Ishlab chiqarish", ru: "Производство", en: "Production" },
-  agriculture: { uz: "Qishloq xo'jaligi", ru: "Сельское хозяйство", en: "Agriculture" },
-  other: { uz: "Boshqa", ru: "Другое", en: "Other" },
+  trade: { uz: "Savdo", ru: "Торговля" },
+  services: { uz: "Xizmatlar", ru: "Услуги" },
+  production: { uz: "Ishlab chiqarish", ru: "Производство" },
+  agriculture: { uz: "Qishloq xo'jaligi", ru: "Сельское хозяйство" },
+  other: { uz: "Boshqa", ru: "Другое" },
 };
 
 const BUSINESS_SIZE_LABELS = {
-  micro: { uz: "Mikro biznes", ru: "Микробизнес", en: "Micro business" },
-  small: { uz: "Kichik biznes", ru: "Малый бизнес", en: "Small business" },
-  medium: { uz: "O'rta biznes", ru: "Средний бизнес", en: "Medium business" },
+  micro: { uz: "Mikro biznes", ru: "Микробизнес" },
+  small: { uz: "Kichik biznes", ru: "Малый бизнес" },
+  medium: { uz: "O'rta biznes", ru: "Средний бизнес" },
 };
 
 const NEED_TYPE_LABELS = {
-  credit: { uz: "Kredit mahsuloti", ru: "Кредитный продукт", en: "Credit product" },
-  non_credit: { uz: "Nokredit mahsulot", ru: "Некредитный продукт", en: "Non-credit product" },
+  credit: { uz: "Kredit mahsuloti", ru: "Кредитный продукт" },
+  non_credit: { uz: "Nokredit mahsulot", ru: "Некредитный продукт" },
   both: {
     uz: "Kredit va qo'shimcha bank mahsulotlari",
     ru: "Кредит и дополнительные банковские продукты",
-    en: "Credit and additional banking products",
   },
 };
 
@@ -48,15 +47,13 @@ const LOAN_PURPOSE_LABELS = {
   working_capital: {
     uz: "Aylanma mablag'ni to'ldirish",
     ru: "Пополнение оборотных средств",
-    en: "Working capital",
   },
   fixed_assets: {
     uz: "Asosiy vositalarni sotib olish",
     ru: "Приобретение основных средств",
-    en: "Fixed assets",
   },
-  untargeted: { uz: "Erkin maqsad", ru: "Свободная цель", en: "Untargeted use" },
-  not_sure: { uz: "Maqsad hali aniqlanmagan", ru: "Цель пока не определена", en: "Purpose not decided yet" },
+  untargeted: { uz: "Erkin maqsad", ru: "Свободная цель" },
+  not_sure: { uz: "Maqsad hali aniqlanmagan", ru: "Цель пока не определена" },
 };
 
 export interface ClientPreferenceProfile {
@@ -82,39 +79,39 @@ export interface ClientPreferenceProfile {
   needsGracePeriodLabel?: string;
 }
 
-type SupportedLanguage = "ru" | "uz" | "en";
+type SupportedLanguage = "ru" | "uz";
 
 const CURRENCY_LABELS = {
-  uzs: { uz: "So'm", ru: "Сум", en: "UZS" },
-  usd: { uz: "AQSh dollari", ru: "Доллар США", en: "USD" },
-  eur: { uz: "Yevro", ru: "Евро", en: "EUR" },
-  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено", en: "Not decided yet" },
+  uzs: { uz: "So'm", ru: "Сум" },
+  usd: { uz: "AQSh dollari", ru: "Доллар США" },
+  eur: { uz: "Yevro", ru: "Евро" },
+  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено" },
 };
 
 const MONTHLY_PAYMENT_LABELS = {
-  up_to_10m: { uz: "10 mln so'mgacha", ru: "До 10 млн сум", en: "Up to 10m UZS" },
-  "10m_to_30m": { uz: "10-30 mln so'm", ru: "10-30 млн сум", en: "10m to 30m UZS" },
-  over_30m: { uz: "30 mln so'mdan yuqori", ru: "Свыше 30 млн сум", en: "Over 30m UZS" },
-  not_sure: { uz: "Hali aniq emas", ru: "Пока неясно", en: "Not sure yet" },
+  up_to_10m: { uz: "10 mln so'mgacha", ru: "До 10 млн сум" },
+  "10m_to_30m": { uz: "10-30 mln so'm", ru: "10-30 млн сум" },
+  over_30m: { uz: "30 mln so'mdan yuqori", ru: "Свыше 30 млн сум" },
+  not_sure: { uz: "Hali aniq emas", ru: "Пока неясно" },
 };
 
 const REPAYMENT_PREFERENCE_LABELS = {
-  annuity: { uz: "Har oy bir xil to'lov", ru: "Равный платеж каждый месяц", en: "Equal monthly payment" },
-  differentiated: { uz: "Boshlanishida katta, keyin kamayadigan", ru: "Сначала выше, затем меньше", en: "Higher first, then lower" },
-  not_sure: { uz: "Ekspert tavsiya bersin", ru: "Пусть эксперт подскажет", en: "Expert can suggest" },
+  annuity: { uz: "Har oy bir xil to'lov", ru: "Равный платеж каждый месяц" },
+  differentiated: { uz: "Boshlanishida katta, keyin kamayadigan", ru: "Сначала выше, затем меньше" },
+  not_sure: { uz: "Ekspert tavsiya bersin", ru: "Пусть эксперт подскажет" },
 };
 
 const DOWN_PAYMENT_LABELS = {
-  none: { uz: "Boshlang'ich to'lovsiz", ru: "Без первоначального взноса", en: "No down payment" },
-  up_to_20: { uz: "20% gacha", ru: "До 20%", en: "Up to 20%" },
-  "20_to_40": { uz: "20-40%", ru: "20-40%", en: "20-40%" },
-  over_40: { uz: "40% dan yuqori", ru: "Свыше 40%", en: "Over 40%" },
+  none: { uz: "Boshlang'ich to'lovsiz", ru: "Без первоначального взноса" },
+  up_to_20: { uz: "20% gacha", ru: "До 20%" },
+  "20_to_40": { uz: "20-40%", ru: "20-40%" },
+  over_40: { uz: "40% dan yuqori", ru: "Свыше 40%" },
 };
 
 const GRACE_PERIOD_LABELS = {
-  yes: { uz: "Ha", ru: "Да", en: "Yes" },
-  no: { uz: "Yo'q", ru: "Нет", en: "No" },
-  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено", en: "Not decided yet" },
+  yes: { uz: "Ha", ru: "Да" },
+  no: { uz: "Yo'q", ru: "Нет" },
+  not_sure: { uz: "Hali aniqlanmagan", ru: "Пока не определено" },
 };
 
 function toAnswerMap(answers: QuestionnaireAnswer[] = []) {
@@ -122,7 +119,7 @@ function toAnswerMap(answers: QuestionnaireAnswer[] = []) {
 }
 
 function getLabel(
-  labels: Record<string, { uz: string; ru: string; en: string }>,
+  labels: Record<string, { uz: string; ru: string }>,
   value: string | undefined,
   language: SupportedLanguage,
 ) {
@@ -177,18 +174,18 @@ export function summarizeClientPreferences(
   language: SupportedLanguage = "uz",
 ): Array<{ label: string; value: string }> {
   const labels = {
-    businessType: language === "ru" ? "Тип бизнеса" : language === "en" ? "Business type" : "Biznes turi",
-    businessSize: language === "ru" ? "Размер бизнеса" : language === "en" ? "Business size" : "Biznes hajmi",
-    needType: language === "ru" ? "Тип потребности" : language === "en" ? "Need type" : "Ehtiyoj turi",
-    purpose: language === "ru" ? "Цель" : language === "en" ? "Purpose" : "Maqsad",
-    amount: language === "ru" ? "Нужная сумма" : language === "en" ? "Requested amount" : "Kerakli summa",
-    term: language === "ru" ? "Нужный срок" : language === "en" ? "Requested term" : "Kerakli muddat",
-    currency: language === "ru" ? "Валюта" : language === "en" ? "Currency" : "Valyuta",
-    monthlyPayment: language === "ru" ? "Комфортный ежемесячный платеж" : language === "en" ? "Comfortable monthly payment" : "Qulay oylik to'lov",
-    repayment: language === "ru" ? "Предпочтительный график" : language === "en" ? "Preferred repayment style" : "Afzal to'lov jadvali",
-    downPayment: language === "ru" ? "Первоначальный взнос" : language === "en" ? "Down payment" : "Boshlang'ich to'lov",
-    gracePeriod: language === "ru" ? "Нужен льготный период" : language === "en" ? "Needs grace period" : "Imtiyozli davr kerak",
-    months: language === "ru" ? "мес." : language === "en" ? "months" : "oy",
+    businessType: language === "ru" ? "Тип бизнеса" : "Biznes turi",
+    businessSize: language === "ru" ? "Размер бизнеса" : "Biznes hajmi",
+    needType: language === "ru" ? "Тип потребности" : "Ehtiyoj turi",
+    purpose: language === "ru" ? "Цель" : "Maqsad",
+    amount: language === "ru" ? "Нужная сумма" : "Kerakli summa",
+    term: language === "ru" ? "Нужный срок" : "Kerakli muddat",
+    currency: language === "ru" ? "Валюта" : "Valyuta",
+    monthlyPayment: language === "ru" ? "Комфортный ежемесячный платеж" : "Qulay oylik to'lov",
+    repayment: language === "ru" ? "Предпочтительный график" : "Afzal to'lov jadvali",
+    downPayment: language === "ru" ? "Первоначальный взнос" : "Boshlang'ich to'lov",
+    gracePeriod: language === "ru" ? "Нужен льготный период" : "Imtiyozli davr kerak",
+    months: language === "ru" ? "мес." : "oy",
   };
 
   return [
@@ -266,16 +263,6 @@ export function buildRecommendationNote(
       disbursement: (value: string) => `Форма выдачи: ${value}.`,
       highlight: (value: string) => `Ключевое преимущество: ${value}.`,
       fallback: "Продукт добавлен на основе анкеты клиента и выбора эксперта.",
-    },
-    en: {
-      need: (value: string) => `The product was selected because the client's primary need is ${value.toLowerCase()}.`,
-      segment: (segment: string, size: string) => `The product segment is ${segment}, which fits a ${size.toLowerCase()} client.`,
-      purpose: (value: string) => `The product focus matches the client's goal: ${value.toLowerCase()}.`,
-      amount: "The requested amount fits the product limits.",
-      term: "The requested term is covered by the current product terms.",
-      disbursement: (value: string) => `Disbursement format: ${value}.`,
-      highlight: (value: string) => `Key advantage: ${value}.`,
-      fallback: "The product was added based on the client questionnaire and expert choice.",
     },
   }[language];
 

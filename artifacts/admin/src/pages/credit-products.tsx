@@ -233,7 +233,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
       purpose: item.purpose || "",
       highlight: item.highlight || "",
     }));
-    downloadCsv(rows, `credit_products_${formatAdminFileDate()}.csv`);
+    downloadCsv(rows, `kredit_mahsulotlari_${formatAdminFileDate()}.csv`);
     toast({ title: t("common.exportSuccess") });
   };
 
