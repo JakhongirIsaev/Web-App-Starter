@@ -143,7 +143,7 @@ export function calculateEstimateTotals(input: {
   const coveragePercent = (totalAcceptedValue / requestedLoanAmount) * 100;
   const maxLoanAmount = totalAcceptedValue / input.coverageRatio;
   const resultStatus: CollateralResultStatus =
-    coveragePercent >= input.coverageRatio * 100 ? "enough" : "not_enough";
+    roundMoney(totalAcceptedValue) >= roundMoney(requiredCollateralValue) ? "enough" : "not_enough";
   const shortfall = Math.max(0, requiredCollateralValue - totalAcceptedValue);
 
   return {

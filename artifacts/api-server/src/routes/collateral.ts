@@ -37,6 +37,38 @@ const DISCLAIMER_RU =
   "Расчёт предварительный и не является официальной оценкой залога или решением банка.";
 
 const ADMIN_ROLES = ["superadmin", "head_office_admin"] as const;
+const SUPPORTED_COLLATERAL_CURRENCY = "UZS";
+
+function normalizeText(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseCollateralCurrency(raw: string | null | undefined): string | null {
+  const currency = (raw ?? SUPPORTED_COLLATERAL_CURRENCY).trim().toUpperCase();
+  return currency === SUPPORTED_COLLATERAL_CURRENCY ? currency : null;
+}
+
+function validatePositiveMoney(value: number, field: string): string | null {
+  if (!Number.isFinite(value) || value <= 0) {
+    return `${field} должно быть больше 0`;
+  }
+  return null;
+}
+
+function validateCollateralItemIds(ids: number[]): string | null {
+  if (ids.length === 0) {
+    return "Выберите хотя бы один предмет залога";
+  }
+  if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+    return "Некорректный идентификатор предмета залога";
+  }
+  if (new Set(ids).size !== ids.length) {
+    return "Предметы залога не должны повторяться";
+  }
+  return null;
+}
 
 // ─── Collateral types ───────────────────────────────────────────────────────
 
@@ -164,7 +196,25 @@ router.post(
       res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
       return;
     }
-    if (parsed.data.isThirdParty && !parsed.data.thirdPartyOwnerName) {
+
+    const title = normalizeText(parsed.data.title);
+    if (!title) {
+      res.status(400).json({ error: "Название залога обязательно" });
+      return;
+    }
+    const moneyError = validatePositiveMoney(parsed.data.marketValue, "Рыночная стоимость");
+    if (moneyError) {
+      res.status(400).json({ error: moneyError });
+      return;
+    }
+    const currency = parseCollateralCurrency(parsed.data.currency);
+    if (!currency) {
+      res.status(400).json({ error: "Расчёт залога поддерживает только валюту UZS" });
+      return;
+    }
+    const isThirdParty = parsed.data.isThirdParty ?? false;
+    const thirdPartyOwnerName = normalizeText(parsed.data.thirdPartyOwnerName);
+    if (isThirdParty && !thirdPartyOwnerName) {
       res.status(400).json({ error: "Для залога третьего лица укажите имя владельца" });
       return;
     }
@@ -197,15 +247,15 @@ router.post(
       .values({
         clientId,
         collateralTypeId: type.id,
-        title: parsed.data.title,
+        title,
         description: parsed.data.description ?? null,
         marketValue: String(parsed.data.marketValue),
         acceptedValue: String(accepted.acceptedValue),
         discountApplied: accepted.discountApplied !== null ? String(accepted.discountApplied) : null,
         discountReason: accepted.discountReason,
-        currency: parsed.data.currency ?? "UZS",
-        isThirdParty: parsed.data.isThirdParty ?? false,
-        thirdPartyOwnerName: parsed.data.thirdPartyOwnerName ?? null,
+        currency,
+        isThirdParty,
+        thirdPartyOwnerName: isThirdParty ? thirdPartyOwnerName : null,
         metadata: parsed.data.metadata ?? {},
         createdBy: req.user?.id ?? null,
         updatedBy: req.user?.id ?? null,
@@ -242,10 +292,6 @@ router.patch(
       res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
       return;
     }
-    if (parsed.data.isThirdParty === true && !parsed.data.thirdPartyOwnerName) {
-      res.status(400).json({ error: "Для залога третьего лица укажите имя владельца" });
-      return;
-    }
 
     const [existing] = await db
       .select()
@@ -270,8 +316,28 @@ router.patch(
 
     const settings = await getCollateralSettings();
     const nextMarketValue = parsed.data.marketValue ?? Number(existing.marketValue);
+    const moneyError = validatePositiveMoney(nextMarketValue, "Рыночная стоимость");
+    if (moneyError) {
+      res.status(400).json({ error: moneyError });
+      return;
+    }
     const nextMetadata =
       parsed.data.metadata ?? (existing.metadata as Record<string, unknown> | null);
+    const nextTitle =
+      parsed.data.title === undefined ? existing.title : normalizeText(parsed.data.title);
+    if (!nextTitle) {
+      res.status(400).json({ error: "Название залога обязательно" });
+      return;
+    }
+    const nextIsThirdParty = parsed.data.isThirdParty ?? existing.isThirdParty;
+    const nextThirdPartyOwnerName =
+      parsed.data.thirdPartyOwnerName === undefined
+        ? normalizeText(existing.thirdPartyOwnerName)
+        : normalizeText(parsed.data.thirdPartyOwnerName);
+    if (nextIsThirdParty && !nextThirdPartyOwnerName) {
+      res.status(400).json({ error: "Для залога третьего лица укажите имя владельца" });
+      return;
+    }
     const accepted = calculateAcceptedValue({
       typeCode: type.code,
       marketValue: nextMarketValue,
@@ -283,18 +349,15 @@ router.patch(
       .update(collateralItemsTable)
       .set({
         collateralTypeId: typeId,
-        title: parsed.data.title ?? existing.title,
+        title: nextTitle,
         description:
           parsed.data.description === undefined ? existing.description : parsed.data.description,
         marketValue: String(nextMarketValue),
         acceptedValue: String(accepted.acceptedValue),
         discountApplied: accepted.discountApplied !== null ? String(accepted.discountApplied) : null,
         discountReason: accepted.discountReason,
-        isThirdParty: parsed.data.isThirdParty ?? existing.isThirdParty,
-        thirdPartyOwnerName:
-          parsed.data.thirdPartyOwnerName === undefined
-            ? existing.thirdPartyOwnerName
-            : (parsed.data.thirdPartyOwnerName ?? null),
+        isThirdParty: nextIsThirdParty,
+        thirdPartyOwnerName: nextIsThirdParty ? nextThirdPartyOwnerName : null,
         metadata: nextMetadata ?? {},
         updatedBy: req.user?.id ?? null,
         updatedAt: new Date(),
@@ -356,6 +419,24 @@ router.post(
       res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
       return;
     }
+    const moneyError = validatePositiveMoney(
+      parsed.data.requestedLoanAmount,
+      "Запрошенная сумма",
+    );
+    if (moneyError) {
+      res.status(400).json({ error: moneyError });
+      return;
+    }
+    const idsError = validateCollateralItemIds(parsed.data.collateralItemIds);
+    if (idsError) {
+      res.status(400).json({ error: idsError });
+      return;
+    }
+    const currency = parseCollateralCurrency(parsed.data.currency);
+    if (!currency) {
+      res.status(400).json({ error: "Расчёт залога поддерживает только валюту UZS" });
+      return;
+    }
 
     const [product] = await db
       .select()
@@ -375,6 +456,7 @@ router.post(
         marketValue: collateralItemsTable.marketValue,
         acceptedValue: collateralItemsTable.acceptedValue,
         discountApplied: collateralItemsTable.discountApplied,
+        currency: collateralItemsTable.currency,
         typeCode: collateralTypesTable.code,
       })
       .from(collateralItemsTable)
@@ -396,6 +478,10 @@ router.post(
       res.status(400).json({ error: "Среди выбранных есть архивные предметы залога" });
       return;
     }
+    if (items.some((it) => it.currency !== currency)) {
+      res.status(400).json({ error: "Все предметы залога должны быть в валюте UZS" });
+      return;
+    }
 
     const settings = await getCollateralSettings();
     const calcItems = items.map((it) => ({
@@ -411,40 +497,42 @@ router.post(
 
     const rate = extractAnnualRate(product.rateUZS);
 
-    const [estimate] = await db
-      .insert(collateralEstimatesTable)
-      .values({
-        clientId,
-        creditProductId: product.id,
-        requestedLoanAmount: String(parsed.data.requestedLoanAmount),
-        currency: parsed.data.currency ?? "UZS",
-        totalMarketValue: String(totals.totalMarketValue),
-        totalAcceptedValue: String(totals.totalAcceptedValue),
-        coverageRatioApplied: String(settings.coverageRatio),
-        requiredCollateralValue: String(totals.requiredCollateralValue),
-        coveragePercent: String(totals.coveragePercent),
-        maxLoanAmount: String(totals.maxLoanAmount),
-        annualRateApplied: rate.numeric !== null ? String(rate.numeric) : null,
-        annualRateAppliedRaw: rate.raw,
-        resultStatus: totals.resultStatus,
-        disclaimer: DISCLAIMER_RU,
-        notes: parsed.data.notes ?? null,
-        hasEquipmentOnly: isEquipmentOnly(calcItems),
-        createdBy: req.user?.id ?? null,
-      })
-      .returning();
+    const estimate = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(collateralEstimatesTable)
+        .values({
+          clientId,
+          creditProductId: product.id,
+          requestedLoanAmount: String(parsed.data.requestedLoanAmount),
+          currency,
+          totalMarketValue: String(totals.totalMarketValue),
+          totalAcceptedValue: String(totals.totalAcceptedValue),
+          coverageRatioApplied: String(settings.coverageRatio),
+          requiredCollateralValue: String(totals.requiredCollateralValue),
+          coveragePercent: String(totals.coveragePercent),
+          maxLoanAmount: String(totals.maxLoanAmount),
+          annualRateApplied: rate.numeric !== null ? String(rate.numeric) : null,
+          annualRateAppliedRaw: rate.raw,
+          resultStatus: totals.resultStatus,
+          disclaimer: DISCLAIMER_RU,
+          notes: parsed.data.notes ?? null,
+          hasEquipmentOnly: isEquipmentOnly(calcItems),
+          createdBy: req.user?.id ?? null,
+        })
+        .returning();
 
-    if (items.length > 0) {
-      await db.insert(collateralEstimateItemsTable).values(
+      await tx.insert(collateralEstimateItemsTable).values(
         items.map((it) => ({
-          estimateId: estimate.id,
+          estimateId: created.id,
           collateralItemId: it.id,
           marketValueSnapshot: it.marketValue,
           discountAppliedSnapshot: it.discountApplied,
           acceptedValueSnapshot: it.acceptedValue,
         })),
       );
-    }
+
+      return created;
+    });
 
     await logActivity({
       type: "collateral_estimate_created",
@@ -525,5 +613,12 @@ router.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   logger.error({ err }, "Collateral route error");
   res.status(500).json({ error: "Внутренняя ошибка" });
 });
+
+export const __testing = {
+  normalizeText,
+  parseCollateralCurrency,
+  validateCollateralItemIds,
+  validatePositiveMoney,
+};
 
 export default router;
