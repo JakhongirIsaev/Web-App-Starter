@@ -26,6 +26,7 @@ const PdfSharePage = lazy(() => import("@/pages/pdf-share"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
 const ProductsPage = lazy(() => import("@/pages/products"));
 const ScanDocumentPage = lazy(() => import("@/pages/scan-document"));
+const CollateralPage = lazy(() => import("@/pages/collateral"));
 const CreditLinesPage = lazy(() => import("@/pages/credit-lines"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -110,6 +111,13 @@ function AuthGate() {
             {() => (
               <PageSuspense>
                 <ClientDetailPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/clients/:id/collateral">
+            {() => (
+              <PageSuspense>
+                <CollateralPage />
               </PageSuspense>
             )}
           </Route>

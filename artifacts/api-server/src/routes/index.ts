@@ -14,6 +14,7 @@ import miniAppRouter from "./mini-app";
 import storageRouter from "./storage";
 import aiRouter from "./ai";
 import telegramRouter from "./telegram";
+import collateralRouter from "./collateral";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(creditProductsRouter);
 router.use(sapCodesRouter);
 router.use(creditLinesRouter);
 router.use(miniAppRouter);
+router.use(collateralRouter);
 
 export default router;

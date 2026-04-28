@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard, InputFile, webhookCallback } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, clientsTable, clientNextActionsTable } from "@workspace/db";

@@ -1046,3 +1046,232 @@ export const GetRejectionReasonsResponseItem = zod.object({
 export const GetRejectionReasonsResponse = zod.array(
   GetRejectionReasonsResponseItem,
 );
+
+/**
+ * @summary List active collateral types
+ */
+export const ListCollateralTypesResponseItem = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  nameRu: zod.string(),
+  nameUz: zod.string().nullish(),
+  nameEn: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sortOrder: zod.number(),
+});
+export const ListCollateralTypesResponse = zod.array(
+  ListCollateralTypesResponseItem,
+);
+
+/**
+ * @summary Update a collateral type (admin only)
+ */
+export const UpdateCollateralTypeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCollateralTypeBody = zod.object({
+  nameRu: zod.string().optional(),
+  nameUz: zod.string().nullish(),
+  nameEn: zod.string().nullish(),
+  isActive: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+export const UpdateCollateralTypeResponse = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  nameRu: zod.string(),
+  nameUz: zod.string().nullish(),
+  nameEn: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sortOrder: zod.number(),
+});
+
+/**
+ * @summary Read system-wide collateral settings (admin only)
+ */
+export const GetCollateralSettingsResponse = zod.object({
+  coverageRatio: zod.number(),
+  transportAgeThreshold: zod.number(),
+  transportAgeDiscount: zod.number(),
+});
+
+/**
+ * @summary Update system-wide collateral settings (admin only)
+ */
+export const UpdateCollateralSettingsBody = zod.object({
+  coverageRatio: zod.number(),
+  transportAgeThreshold: zod.number(),
+  transportAgeDiscount: zod.number(),
+});
+
+export const UpdateCollateralSettingsResponse = zod.object({
+  coverageRatio: zod.number(),
+  transportAgeThreshold: zod.number(),
+  transportAgeDiscount: zod.number(),
+});
+
+/**
+ * @summary List active collateral items for a client
+ */
+export const ListCollateralItemsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListCollateralItemsResponseItem = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  collateralTypeId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  marketValue: zod.string(),
+  acceptedValue: zod.string(),
+  discountApplied: zod.string().nullish(),
+  discountReason: zod.string().nullish(),
+  currency: zod.string(),
+  isThirdParty: zod.boolean(),
+  thirdPartyOwnerName: zod.string().nullish(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  isActive: zod.boolean(),
+});
+export const ListCollateralItemsResponse = zod.array(
+  ListCollateralItemsResponseItem,
+);
+
+/**
+ * @summary Create a collateral item for a client
+ */
+export const CreateCollateralItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateCollateralItemBody = zod.object({
+  collateralTypeId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  marketValue: zod.number(),
+  currency: zod.string().optional(),
+  isThirdParty: zod.boolean().optional(),
+  thirdPartyOwnerName: zod.string().nullish(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+/**
+ * @summary Update a collateral item
+ */
+export const UpdateCollateralItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCollateralItemBody = zod.object({
+  collateralTypeId: zod.number().optional(),
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  marketValue: zod.number().optional(),
+  isThirdParty: zod.boolean().optional(),
+  thirdPartyOwnerName: zod.string().nullish(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const UpdateCollateralItemResponse = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  collateralTypeId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  marketValue: zod.string(),
+  acceptedValue: zod.string(),
+  discountApplied: zod.string().nullish(),
+  discountReason: zod.string().nullish(),
+  currency: zod.string(),
+  isThirdParty: zod.boolean(),
+  thirdPartyOwnerName: zod.string().nullish(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  isActive: zod.boolean(),
+});
+
+/**
+ * @summary Archive a collateral item (soft delete)
+ */
+export const ArchiveCollateralItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ArchiveCollateralItemResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary List saved collateral estimates for a client
+ */
+export const ListCollateralEstimatesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListCollateralEstimatesResponseItem = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  creditProductId: zod.number(),
+  requestedLoanAmount: zod.string(),
+  currency: zod.string(),
+  totalMarketValue: zod.string().optional(),
+  totalAcceptedValue: zod.string(),
+  coverageRatioApplied: zod.string(),
+  requiredCollateralValue: zod.string().optional(),
+  coveragePercent: zod.string(),
+  maxLoanAmount: zod.string(),
+  annualRateApplied: zod.string().nullish(),
+  annualRateAppliedRaw: zod.string().nullish(),
+  resultStatus: zod.enum(["enough", "not_enough"]),
+  disclaimer: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  hasEquipmentOnly: zod.boolean(),
+  createdAt: zod.coerce.date().optional(),
+});
+export const ListCollateralEstimatesResponse = zod.array(
+  ListCollateralEstimatesResponseItem,
+);
+
+/**
+ * @summary Create a saved collateral estimate
+ */
+export const CreateCollateralEstimateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateCollateralEstimateBody = zod.object({
+  creditProductId: zod.number(),
+  requestedLoanAmount: zod.number(),
+  currency: zod.string().optional(),
+  collateralItemIds: zod.array(zod.number()),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Read a saved estimate with item snapshots
+ */
+export const GetCollateralEstimateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetCollateralEstimateResponse = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  creditProductId: zod.number(),
+  requestedLoanAmount: zod.string(),
+  currency: zod.string(),
+  totalMarketValue: zod.string().optional(),
+  totalAcceptedValue: zod.string(),
+  coverageRatioApplied: zod.string(),
+  requiredCollateralValue: zod.string().optional(),
+  coveragePercent: zod.string(),
+  maxLoanAmount: zod.string(),
+  annualRateApplied: zod.string().nullish(),
+  annualRateAppliedRaw: zod.string().nullish(),
+  resultStatus: zod.enum(["enough", "not_enough"]),
+  disclaimer: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  hasEquipmentOnly: zod.boolean(),
+  createdAt: zod.coerce.date().optional(),
+});

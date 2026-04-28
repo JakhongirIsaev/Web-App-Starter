@@ -7,6 +7,7 @@
  */
 
 export * from "./activityItem";
+export * from "./archiveCollateralItem200";
 export * from "./article";
 export * from "./branch";
 export * from "./branchStat";
@@ -15,11 +16,20 @@ export * from "./clientClientType";
 export * from "./clientGender";
 export * from "./clientListResponse";
 export * from "./clientStatus";
+export * from "./collateralEstimate";
+export * from "./collateralEstimateResultStatus";
+export * from "./collateralItem";
+export * from "./collateralItemMetadata";
+export * from "./collateralSettings";
+export * from "./collateralType";
 export * from "./createArticleBody";
 export * from "./createBranchBody";
 export * from "./createClientBody";
 export * from "./createClientBodyClientType";
 export * from "./createClientBodyGender";
+export * from "./createCollateralEstimateBody";
+export * from "./createCollateralItemBody";
+export * from "./createCollateralItemBodyMetadata";
 export * from "./createProductBody";
 export * from "./createProductBodyType";
 export * from "./createProductCategoryBody";
@@ -47,6 +57,9 @@ export * from "./updateClientBody";
 export * from "./updateClientBodyClientType";
 export * from "./updateClientBodyGender";
 export * from "./updateClientBodyStatus";
+export * from "./updateCollateralItemBody";
+export * from "./updateCollateralItemBodyMetadata";
+export * from "./updateCollateralTypeBody";
 export * from "./updateProductBody";
 export * from "./updateProductBodyType";
 export * from "./updateUserBody";

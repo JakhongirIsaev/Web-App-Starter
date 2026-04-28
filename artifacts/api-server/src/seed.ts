@@ -5,8 +5,11 @@ import {
   articlesTable,
   branchesTable,
   clientsTable,
+  collateralTypesTable,
   productCategoriesTable,
   productsTable,
+  systemSettingKeys,
+  systemSettingsTable,
   usersTable,
 } from "@workspace/db";
 import { and, eq, ne, sql } from "drizzle-orm";
@@ -49,6 +52,31 @@ async function truncateDemoTables() {
   `);
 }
 
+// Reference data for the collateral feature: 5 type rows + 3 default system
+// settings. Idempotent — uses ON CONFLICT DO NOTHING so re-runs are safe and
+// runs every boot regardless of whether demo data has been seeded.
+async function seedCollateralReferenceData() {
+  await db
+    .insert(collateralTypesTable)
+    .values([
+      { code: "real_estate", nameRu: "Недвижимость", nameUz: "Ko'chmas mulk", sortOrder: 10 },
+      { code: "transport", nameRu: "Транспорт", nameUz: "Transport", sortOrder: 20 },
+      { code: "jewelry", nameRu: "Драгоценности", nameUz: "Zargarlik buyumlari", sortOrder: 30 },
+      { code: "land_plot", nameRu: "Земельный участок", nameUz: "Yer uchastkasi", sortOrder: 40 },
+      { code: "equipment", nameRu: "Оборудование", nameUz: "Uskunalar", sortOrder: 50 },
+    ])
+    .onConflictDoNothing({ target: collateralTypesTable.code });
+
+  await db
+    .insert(systemSettingsTable)
+    .values([
+      { key: systemSettingKeys.collateralCoverageRatio, value: 1.25 },
+      { key: systemSettingKeys.collateralTransportAgeThreshold, value: 7 },
+      { key: systemSettingKeys.collateralTransportAgeDiscount, value: 0.4 },
+    ])
+    .onConflictDoNothing({ target: systemSettingsTable.key });
+}
+
 export async function seedDatabase(options: SeedOptions = {}) {
   const { force = false } = options;
 
@@ -68,6 +96,8 @@ export async function seedDatabase(options: SeedOptions = {}) {
         ne(usersTable.name, "Jahongir Isayev"),
       ),
     );
+
+  await seedCollateralReferenceData();
 
   // Seed the credit product catalogue, SAP dictionary, and credit-line
   // balances. The function is independently idempotent per-table so it is

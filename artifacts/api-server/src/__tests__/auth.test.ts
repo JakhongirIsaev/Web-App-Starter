@@ -34,22 +34,16 @@ describe("extractBearerToken", () => {
 });
 
 describe("extractAuthToken", () => {
-  it("uses Bearer token first", () => {
+  it("returns Bearer token from Authorization header", () => {
     const req = {
       headers: { authorization: "Bearer header-token" },
-      method: "GET",
-      query: { token: "query-token" },
+      query: {},
     } as any;
     expect(extractAuthToken(req)).toBe("header-token");
   });
 
-  it("allows query token fallback for GET requests", () => {
+  it("does not accept token from query string (session tokens must not appear in URLs)", () => {
     const req = { headers: {}, method: "GET", query: { token: "query-token" } } as any;
-    expect(extractAuthToken(req)).toBe("query-token");
-  });
-
-  it("does not allow query token fallback for non-GET requests", () => {
-    const req = { headers: {}, method: "POST", query: { token: "query-token" } } as any;
     expect(extractAuthToken(req)).toBeUndefined();
   });
 });

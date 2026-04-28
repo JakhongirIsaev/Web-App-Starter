@@ -17,14 +17,19 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+if (process.env.NODE_ENV === "production" && !process.env.SIGNED_URL_SECRET) {
+  throw new Error(
+    "SIGNED_URL_SECRET must be set in production (used to sign object URLs).",
+  );
+}
+
 function resolveMiniAppUrl() {
   const miniAppUrlEnv = process.env["MINI_APP_URL"]?.trim();
   if (process.env.NODE_ENV === "production" && !miniAppUrlEnv) {
     throw new Error("MINI_APP_URL must be set in production.");
   }
 
-  const domain = process.env["REPLIT_DEV_DOMAIN"] || process.env["REPLIT_DOMAINS"]?.split(",")[0];
-  return miniAppUrlEnv || (domain ? `https://${domain}/mini-app/` : "https://example.com/mini-app/");
+  return miniAppUrlEnv || "https://example.com/mini-app/";
 }
 
 function shouldSeedOnBoot() {

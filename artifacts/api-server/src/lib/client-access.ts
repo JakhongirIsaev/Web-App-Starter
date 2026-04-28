@@ -1,6 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
-import { clientsTable, clientDocumentsTable, clientNextActionsTable } from "@workspace/db";
+import {
+  clientsTable,
+  clientDocumentsTable,
+  clientNextActionsTable,
+  collateralItemsTable,
+  collateralEstimatesTable,
+} from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { AuthUser } from "../middleware/auth";
 
@@ -78,9 +84,35 @@ function makeParamGuard(resolver: ClientIdResolver, notFoundMessage: string, par
   };
 }
 
+const resolveCollateralItemOwner: ClientIdResolver = async (id) => {
+  const [row] = await db
+    .select({ clientId: collateralItemsTable.clientId })
+    .from(collateralItemsTable)
+    .where(eq(collateralItemsTable.id, id))
+    .limit(1);
+  return row ?? null;
+};
+
+const resolveCollateralEstimateOwner: ClientIdResolver = async (id) => {
+  const [row] = await db
+    .select({ clientId: collateralEstimatesTable.clientId })
+    .from(collateralEstimatesTable)
+    .where(eq(collateralEstimatesTable.id, id))
+    .limit(1);
+  return row ?? null;
+};
+
 export const requireClientAccess = makeParamGuard(resolveClientSelf, "Клиент не найден / Mijoz topilmadi");
 export const requireDocumentAccess = makeParamGuard(resolveDocumentOwner, "Документ не найден / Hujjat topilmadi");
 export const requireNextActionAccess = makeParamGuard(resolveNextActionOwner, "Действие не найдено / Harakat topilmadi");
+export const requireCollateralItemAccess = makeParamGuard(
+  resolveCollateralItemOwner,
+  "Предмет залога не найден / Garov topilmadi",
+);
+export const requireCollateralEstimateAccess = makeParamGuard(
+  resolveCollateralEstimateOwner,
+  "Расчёт залога не найден / Garov hisobi topilmadi",
+);
 
 export function requireClientAccessFromBody(
   field = "clientId",

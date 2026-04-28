@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { findSessionUserId } from "../lib/session-store";
+import { verifySignedObjectParams } from "../lib/signedUrl";
 
 export interface AuthUser {
   id: number;
@@ -14,6 +15,7 @@ export interface AuthUser {
 }
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- canonical Express type augmentation
   namespace Express {
     interface Request {
       user?: AuthUser;
@@ -30,15 +32,7 @@ export function extractBearerToken(req: Request): string | undefined {
 }
 
 export function extractAuthToken(req: Request): string | undefined {
-  const bearerToken = extractBearerToken(req);
-  if (bearerToken) return bearerToken;
-
-  // Browser <img> requests cannot attach Authorization headers. Allow token
-  // query fallback only for GET endpoints such as authenticated document files.
-  if (req.method !== "GET") return undefined;
-  const queryToken = req.query?.token;
-  if (typeof queryToken !== "string") return undefined;
-  return queryToken.trim() || undefined;
+  return extractBearerToken(req);
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -74,6 +68,24 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   req.user = users[0] as AuthUser;
   next();
+}
+
+// Used only by GET /api/storage/file — accepts either a valid session bearer
+// OR a short-lived HMAC-signed URL (for <img src> which cannot send headers).
+// All other authenticated routes must use requireAuth (bearer-only).
+export async function requireAuthOrSignedUrl(req: Request, res: Response, next: NextFunction) {
+  const { path: objectPath, exp, sig } = req.query;
+
+  if (typeof exp === "string" && typeof sig === "string") {
+    if (typeof objectPath === "string" && verifySignedObjectParams(objectPath, exp, sig)) {
+      next();
+      return;
+    }
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  return requireAuth(req, res, next);
 }
 
 export function requireRole(...roles: string[]) {

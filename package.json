@@ -14,18 +14,31 @@
     "start:mini-app": "pnpm --filter @workspace/mini-app run start",
     "reseed:api-server-demo": "pnpm exec tsx artifacts/api-server/src/reseed-demo.ts",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.60.1",
-    "@tailwindcss/oxide-win32-x64-msvc": "^4.2.2",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.5.0",
     "lightningcss": "^1.32.0",
-    "lightningcss-win32-x64-msvc": "^1.32.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
+    "typescript-eslint": "^8.59.0",
     "vitest": "^4.1.5"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.1",
+    "@tailwindcss/oxide-win32-x64-msvc": "^4.2.2",
+    "lightningcss-win32-x64-msvc": "^1.32.0"
   },
   "dependencies": {
     "tsx": "catalog:"

@@ -78,7 +78,7 @@ router.get("/articles", requireAuth, async (req, res) => {
     .orderBy(articlesTable.createdAt);
 
   const allIds = rows.map(r => r.id);
-  let visibilityMap: Map<number, number[]> = new Map();
+  const visibilityMap: Map<number, number[]> = new Map();
   if (allIds.length > 0) {
     const vis = await db.select().from(articleVisibilityTable).where(inArray(articleVisibilityTable.articleId, allIds));
     for (const v of vis) {

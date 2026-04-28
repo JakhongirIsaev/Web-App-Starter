@@ -18,7 +18,6 @@ import {
   Package,
   Landmark,
   Users,
-  CalendarCheck,
   TrendingUp,
   Phone,
   Calendar,

@@ -74,7 +74,7 @@ router.get("/dashboard/activity", requireAuth, async (req, res) => {
   const params = GetRecentActivityQueryParams.safeParse(req.query);
   const limit = params.success && params.data.limit ? params.data.limit : 20;
 
-  let query = db.select().from(activityLogTable)
+  const query = db.select().from(activityLogTable)
     .orderBy(sql`${activityLogTable.createdAt} desc`)
     .limit(limit);
 

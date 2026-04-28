@@ -23,6 +23,8 @@ tags:
     description: Knowledge base articles
   - name: dashboard
     description: Dashboard and analytics
+  - name: collateral
+    description: Collateral qualification calculator (rough estimate, not a bank decision)
 
 paths:
   /healthz:
@@ -793,6 +795,265 @@ paths:
                 items:
                   $ref: "#/components/schemas/RejectionReasonCount"
 
+  /collateral-types:
+    get:
+      operationId: listCollateralTypes
+      tags: [collateral]
+      summary: List active collateral types
+      responses:
+        "200":
+          description: Active collateral types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollateralType"
+
+  /admin/collateral-types/{id}:
+    patch:
+      operationId: updateCollateralType
+      tags: [collateral]
+      summary: Update a collateral type (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nameRu: { type: string }
+                nameUz: { type: string, nullable: true }
+                nameEn: { type: string, nullable: true }
+                isActive: { type: boolean }
+                sortOrder: { type: integer }
+      responses:
+        "200":
+          description: Updated type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralType"
+
+  /admin/collateral-settings:
+    get:
+      operationId: getCollateralSettings
+      tags: [collateral]
+      summary: Read system-wide collateral settings (admin only)
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralSettings"
+    put:
+      operationId: updateCollateralSettings
+      tags: [collateral]
+      summary: Update system-wide collateral settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollateralSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralSettings"
+
+  /clients/{id}/collateral-items:
+    get:
+      operationId: listCollateralItems
+      tags: [collateral]
+      summary: List active collateral items for a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollateralItem"
+    post:
+      operationId: createCollateralItem
+      tags: [collateral]
+      summary: Create a collateral item for a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [collateralTypeId, title, marketValue]
+              properties:
+                collateralTypeId: { type: integer }
+                title: { type: string }
+                description: { type: string, nullable: true }
+                marketValue: { type: number }
+                currency: { type: string }
+                isThirdParty: { type: boolean }
+                thirdPartyOwnerName: { type: string, nullable: true }
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralItem"
+
+  /collateral-items/{id}:
+    patch:
+      operationId: updateCollateralItem
+      tags: [collateral]
+      summary: Update a collateral item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                collateralTypeId: { type: integer }
+                title: { type: string }
+                description: { type: string, nullable: true }
+                marketValue: { type: number }
+                isThirdParty: { type: boolean }
+                thirdPartyOwnerName: { type: string, nullable: true }
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralItem"
+    delete:
+      operationId: archiveCollateralItem
+      tags: [collateral]
+      summary: Archive a collateral item (soft delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                required: [success]
+
+  /clients/{id}/collateral-estimates:
+    get:
+      operationId: listCollateralEstimates
+      tags: [collateral]
+      summary: List saved collateral estimates for a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Estimates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollateralEstimate"
+    post:
+      operationId: createCollateralEstimate
+      tags: [collateral]
+      summary: Create a saved collateral estimate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [creditProductId, requestedLoanAmount, collateralItemIds]
+              properties:
+                creditProductId: { type: integer }
+                requestedLoanAmount: { type: number }
+                currency: { type: string }
+                collateralItemIds:
+                  type: array
+                  items: { type: integer }
+                notes: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralEstimate"
+
+  /collateral-estimates/{id}:
+    get:
+      operationId: getCollateralEstimate
+      tags: [collateral]
+      summary: Read a saved estimate with item snapshots
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Estimate detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralEstimate"
+
 components:
   schemas:
     RejectionReasonCount:
@@ -1315,3 +1576,140 @@ components:
         count:
           type: integer
       required: [status, count]
+
+    CollateralType:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        nameRu:
+          type: string
+        nameUz:
+          type: string
+          nullable: true
+        nameEn:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+      required: [id, code, nameRu, isActive, sortOrder]
+
+    CollateralItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        collateralTypeId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        marketValue:
+          type: string
+        acceptedValue:
+          type: string
+        discountApplied:
+          type: string
+          nullable: true
+        discountReason:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        isThirdParty:
+          type: boolean
+        thirdPartyOwnerName:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        isActive:
+          type: boolean
+      required:
+        - id
+        - clientId
+        - collateralTypeId
+        - title
+        - marketValue
+        - acceptedValue
+        - currency
+        - isThirdParty
+        - isActive
+
+    CollateralEstimate:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        creditProductId:
+          type: integer
+        requestedLoanAmount:
+          type: string
+        currency:
+          type: string
+        totalMarketValue:
+          type: string
+        totalAcceptedValue:
+          type: string
+        coverageRatioApplied:
+          type: string
+        requiredCollateralValue:
+          type: string
+        coveragePercent:
+          type: string
+        maxLoanAmount:
+          type: string
+        annualRateApplied:
+          type: string
+          nullable: true
+        annualRateAppliedRaw:
+          type: string
+          nullable: true
+        resultStatus:
+          type: string
+          enum: [enough, not_enough]
+        disclaimer:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        hasEquipmentOnly:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - creditProductId
+        - requestedLoanAmount
+        - currency
+        - totalAcceptedValue
+        - coverageRatioApplied
+        - coveragePercent
+        - maxLoanAmount
+        - resultStatus
+        - hasEquipmentOnly
+
+    CollateralSettings:
+      type: object
+      properties:
+        coverageRatio:
+          type: number
+        transportAgeThreshold:
+          type: number
+        transportAgeDiscount:
+          type: number
+      required: [coverageRatio, transportAgeThreshold, transportAgeDiscount]

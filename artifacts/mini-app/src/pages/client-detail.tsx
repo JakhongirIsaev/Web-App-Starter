@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, getAuthImageUrl } from "@/lib/api";
+import { api, getSignedImageUrl } from "@/lib/api";
 import { getTelegramInitData } from "@/lib/telegram";
 import { useLocation, useParams } from "wouter";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
@@ -10,31 +10,65 @@ import {
   StatusChip,
   SectionHeader,
   getInitials,
-  fmtMoney,
-  fmtShort,
 } from "@/components/ui-primitives";
 import {
   ArrowLeft,
   Phone,
   MessageSquare,
   Calendar,
-  CreditCard,
   ShoppingBag,
-  FileText,
-  Plus,
   Check,
   Calculator,
   Scan,
-  Trash2,
   Send,
   Loader2,
   CheckCircle,
   Image as ImageIcon,
   X,
   MapPin,
-  Clock,
   ChevronRight,
 } from "lucide-react";
+
+function SignedDocImage({
+  doc,
+  onPreview,
+}: {
+  doc: any;
+  onPreview: (url: string) => void;
+}) {
+  const isAbsolute = typeof doc.storagePath === "string" && doc.storagePath.startsWith("http");
+
+  const { data: signedUrl } = useQuery({
+    queryKey: ["signed-image", doc.storagePath],
+    queryFn: () => getSignedImageUrl(doc.storagePath),
+    enabled: !!doc.storagePath && !isAbsolute,
+    staleTime: 4 * 60 * 1000,
+  });
+
+  const src = isAbsolute ? doc.storagePath : signedUrl;
+
+  return (
+    <div className="relative group">
+      {src ? (
+        <img
+          src={src}
+          alt={doc.fileName}
+          className="w-full h-24 object-cover rounded-xl border border-[#E2E8F0] cursor-pointer"
+          onClick={() => onPreview(src)}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      <div
+        className={`${src ? "hidden" : ""} w-full h-24 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex flex-col items-center justify-center`}
+      >
+        <ImageIcon className="w-6 h-6 text-[#94A3B8]" />
+      </div>
+    </div>
+  );
+}
 
 const statusFlow = [
   "draft",
@@ -203,16 +237,6 @@ export default function ClientDetailPage() {
     non_credit: t("clientDetail.productTypes.nonCredit"),
   }[value] ?? value);
 
-  const getDocImageUrl = (doc: any) => {
-    if (doc.storagePath && doc.storagePath.startsWith("http")) return doc.storagePath;
-    if (doc.storagePath) {
-      return getAuthImageUrl(
-        `/storage/file?path=${encodeURIComponent(doc.storagePath)}`,
-      );
-    }
-    return null;
-  };
-
   /* ── timeline events from notes ── */
   const timelineColors: Record<string, { bg: string; fg: string }> = {
     note: { bg: "#DBEAFE", fg: "#2563EB" },
@@ -280,6 +304,16 @@ export default function ClientDetailPage() {
           </button>
         </div>
       )}
+
+      {/* ═══════════════ COLLATERAL ENTRY ═══════════════ */}
+      <div className="mx-4 mt-3">
+        <button
+          onClick={() => navigate(`/clients/${client.id}/collateral`)}
+          className="w-full h-11 rounded-xl text-[14px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] active:scale-[0.98] transition-transform"
+        >
+          {t("collateral.title")} / {t("collateral.estimateTitle")}
+        </button>
+      </div>
 
       {/* ═══════════════ KEY FIGURES ═══════════════ */}
       {(calculations?.length > 0 || basketItems?.length > 0) && (
@@ -554,51 +588,25 @@ export default function ClientDetailPage() {
           />
 
           <div className="grid grid-cols-3 gap-2 mb-2">
-            {(documents as any[]).map((doc: any) => {
-              const imgUrl = getDocImageUrl(doc);
-              return (
-                <div key={doc.id} className="relative group">
-                  {imgUrl ? (
-                    <img
-                      src={imgUrl}
-                      alt={doc.fileName}
-                      className="w-full h-24 object-cover rounded-xl border border-[#E2E8F0] cursor-pointer"
-                      onClick={() => setPreviewImage(imgUrl)}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                        (
-                          e.target as HTMLImageElement
-                        ).nextElementSibling?.classList.remove("hidden");
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={`${imgUrl ? "hidden" : ""} w-full h-24 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex flex-col items-center justify-center`}
-                  >
-                    <ImageIcon className="w-6 h-6 text-[#94A3B8]" />
-                    <span className="text-[9px] text-[#94A3B8] mt-1">
-                      {t(
-                        `scanDoc.types.${doc.docType === "vehicle_doc" ? "vehicleDoc" : doc.docType}`,
-                      )}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => deleteDocMutation.mutate(doc.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#EF4444] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                  {doc.extractedData &&
-                    Object.keys(doc.extractedData).length > 0 && (
-                      <div className="absolute bottom-1 left-1 right-1">
-                        <div className="bg-black/60 text-white text-[8px] rounded px-1 py-0.5 truncate">
-                          {Object.values(doc.extractedData)[0] as string}
-                        </div>
+            {(documents as any[]).map((doc: any) => (
+              <div key={doc.id} className="relative group">
+                <SignedDocImage doc={doc} onPreview={setPreviewImage} />
+                <button
+                  onClick={() => deleteDocMutation.mutate(doc.id)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#EF4444] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                {doc.extractedData &&
+                  Object.keys(doc.extractedData).length > 0 && (
+                    <div className="absolute bottom-1 left-1 right-1">
+                      <div className="bg-black/60 text-white text-[8px] rounded px-1 py-0.5 truncate">
+                        {Object.values(doc.extractedData)[0] as string}
                       </div>
-                    )}
-                </div>
-              );
-            })}
+                    </div>
+                  )}
+              </div>
+            ))}
           </div>
 
           {(documents as any[]).some(

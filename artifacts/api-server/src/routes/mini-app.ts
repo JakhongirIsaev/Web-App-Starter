@@ -19,8 +19,12 @@ import {
   calculationsTable,
   clientDocumentsTable,
   creditLinesTable,
+  collateralEstimatesTable,
+  collateralEstimateItemsTable,
+  collateralItemsTable,
+  collateralTypesTable,
 } from "@workspace/db";
-import { eq, and, desc, sql, count, gte, lte, isNull, or, inArray } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
@@ -648,6 +652,62 @@ async function buildPdfPayload(
     ? await db.select().from(branchesTable).where(eq(branchesTable.id, client.branchId)).limit(1)
     : [null];
 
+  // Most recent collateral estimate (with item snapshots and type names) so
+  // the offer PDF can include a collateral summary section. Optional —
+  // returns null when the client has never had a collateral estimate.
+  const [latestEstimate] = await db
+    .select()
+    .from(collateralEstimatesTable)
+    .where(eq(collateralEstimatesTable.clientId, clientId))
+    .orderBy(desc(collateralEstimatesTable.createdAt))
+    .limit(1);
+
+  let collateralEstimate: {
+    requestedLoanAmount: string;
+    totalAcceptedValue: string;
+    coveragePercent: string;
+    maxLoanAmount: string;
+    resultStatus: "enough" | "not_enough";
+    items: Array<{ title: string; typeName: string; marketValue: string; acceptedValue: string }>;
+    currency: string;
+  } | null = null;
+
+  if (latestEstimate) {
+    const estimateItems = await db
+      .select({
+        title: collateralItemsTable.title,
+        typeNameRu: collateralTypesTable.nameRu,
+        typeNameUz: collateralTypesTable.nameUz,
+        marketValueSnapshot: collateralEstimateItemsTable.marketValueSnapshot,
+        acceptedValueSnapshot: collateralEstimateItemsTable.acceptedValueSnapshot,
+      })
+      .from(collateralEstimateItemsTable)
+      .innerJoin(
+        collateralItemsTable,
+        eq(collateralEstimateItemsTable.collateralItemId, collateralItemsTable.id),
+      )
+      .innerJoin(
+        collateralTypesTable,
+        eq(collateralItemsTable.collateralTypeId, collateralTypesTable.id),
+      )
+      .where(eq(collateralEstimateItemsTable.estimateId, latestEstimate.id));
+
+    collateralEstimate = {
+      requestedLoanAmount: latestEstimate.requestedLoanAmount,
+      totalAcceptedValue: latestEstimate.totalAcceptedValue,
+      coveragePercent: latestEstimate.coveragePercent,
+      maxLoanAmount: latestEstimate.maxLoanAmount,
+      resultStatus: latestEstimate.resultStatus as "enough" | "not_enough",
+      currency: latestEstimate.currency,
+      items: estimateItems.map((it) => ({
+        title: it.title,
+        typeName: language === "ru" ? it.typeNameRu : (it.typeNameUz ?? it.typeNameRu),
+        marketValue: it.marketValueSnapshot,
+        acceptedValue: it.acceptedValueSnapshot,
+      })),
+    };
+  }
+
   return {
     client,
     basketItems: localizedBasketItems,
@@ -657,6 +717,7 @@ async function buildPdfPayload(
     expertTelegramId: expert?.telegramId || null,
     branchName: branch?.name || "-",
     language,
+    collateralEstimate,
   };
 }
 

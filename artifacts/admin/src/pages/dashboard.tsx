@@ -1,26 +1,17 @@
-import {
-  useGetDashboardSummary, getGetDashboardSummaryQueryKey,
-  useGetBranchStats, getGetBranchStatsQueryKey,
-  useGetClientStatusBreakdown, getGetClientStatusBreakdownQueryKey,
-  useGetRecentActivity, getGetRecentActivityQueryKey,
-  type ActivityItem,
-} from "@workspace/api-client-react";
+import { type ActivityItem } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff,
   Phone, Calendar, FileText, Clock, AlertTriangle, ChevronRight, ChevronDown,
-  TrendingUp, TrendingDown, Download,
+  TrendingUp, Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  FunnelChart, Funnel, Cell, Legend, LabelList
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
 import { useLocation } from "wouter";

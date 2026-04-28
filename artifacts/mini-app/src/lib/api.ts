@@ -53,10 +53,11 @@ async function requestBlob(path: string, options: RequestInit = {}) {
   return res.blob();
 }
 
-export function getAuthImageUrl(path: string): string {
-  const token = getToken();
-  const base = buildApiUrl(`${API_BASE}${path}`);
-  return token ? `${base}${base.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : base;
+export async function getSignedImageUrl(objectPath: string): Promise<string> {
+  const data = await api.post("/storage/signed-url", { path: objectPath }) as { exp: number; sig: string };
+  return buildApiUrl(
+    `${API_BASE}/storage/file?path=${encodeURIComponent(objectPath)}&exp=${data.exp}&sig=${data.sig}`,
+  );
 }
 
 export const api = {

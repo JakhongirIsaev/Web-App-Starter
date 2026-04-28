@@ -9,6 +9,7 @@ export async function logActivity(params: {
   entityId?: number;
   entityType?: string;
   user?: AuthUser | null;
+  metadata?: Record<string, unknown> | null;
 }) {
   let branchName: string | null = null;
   if (params.user?.branchId) {
@@ -24,5 +25,6 @@ export async function logActivity(params: {
     userId: params.user?.id ?? null,
     userName: params.user?.name ?? null,
     branchName,
+    metadata: params.metadata ?? null,
   });
 }

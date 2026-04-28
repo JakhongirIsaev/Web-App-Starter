@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getStatusBadge } from "./clients";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { buildApiUrl } from "@/lib/api";
+import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatAdminLongDate } from "@/lib/time";
 import {
@@ -346,6 +348,8 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
               </CardContent>
             </Card>
           )}
+
+          <CollateralEstimatesCard clientId={client.id} />
         </div>
 
         {/* Right sidebar */}
@@ -471,5 +475,88 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+interface CollateralEstimateRow {
+  id: number;
+  createdAt: string;
+  creditProductId: number;
+  requestedLoanAmount: string;
+  totalAcceptedValue: string;
+  coveragePercent: string;
+  resultStatus: "enough" | "not_enough";
+  hasEquipmentOnly: boolean;
+  createdBy: number | null;
+}
+
+const moneyFmt = new Intl.NumberFormat("ru-RU");
+function fmtMoney(value: string | number) {
+  const n = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(n)) return String(value);
+  return moneyFmt.format(n);
+}
+
+function CollateralEstimatesCard({ clientId }: { clientId: number }) {
+  const { t } = useTranslation();
+  const { data, isLoading } = useQuery<CollateralEstimateRow[]>({
+    queryKey: ["admin/collateral-estimates", clientId],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(buildApiUrl(`/api/clients/${clientId}/collateral-estimates`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
+
+  const rows = data ?? [];
+
+  return (
+    <Card className="shadow-sm border-border/50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Coins className="h-5 w-5 text-primary" />
+          {t("collateralAdmin.estimatesOnClient")}
+        </CardTitle>
+        <CardDescription>{t("collateralAdmin.estimatesOnClientHint")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">{t("collateralAdmin.noEstimates")}</p>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">
+                    {fmtMoney(row.requestedLoanAmount)} UZS
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      → {fmtMoney(row.totalAcceptedValue)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatAdminLongDate(row.createdAt)} ·{" "}
+                    {Number(row.coveragePercent).toFixed(0)}%
+                    {row.hasEquipmentOnly ? ` · ${t("collateralAdmin.equipOnlyTag")}` : ""}
+                  </div>
+                </div>
+                <Badge variant={row.resultStatus === "enough" ? "default" : "destructive"}>
+                  {row.resultStatus === "enough"
+                    ? t("collateralAdmin.statusEnough")
+                    : t("collateralAdmin.statusNotEnough")}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

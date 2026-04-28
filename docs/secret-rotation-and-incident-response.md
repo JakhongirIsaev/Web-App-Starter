@@ -9,6 +9,7 @@ Scope: api-server (`artifacts/api-server`), admin SPA (`artifacts/admin`), mini-
 | `DATABASE_URL` | Railway env, `.env` (dev) | 90 days or on suspected compromise | Full data read/write; user PII + calc history |
 | `TELEGRAM_BOT_TOKEN` | Railway env | On compromise | Bot hijack: can receive all webhook events, post to channels the bot is in, read initData submissions |
 | `SESSION_TTL_MS` | Railway env (optional) | N/A (not a secret) | — |
+| `SIGNED_URL_SECRET` | Railway env | On compromise | Short-lived document image URLs can be forged; existing signed URLs expire within 5 min on their own |
 | bcrypt user password hashes | `users.password_hash` column | User self-serve reset | Offline crack → login access |
 | auth_sessions tokens | `auth_sessions.token_hash` (SHA-256 of bearer token) | Per-session TTL (30 days default) | Raw bearer tokens live only client-side; DB dump exposes hashes only |
 | Object storage creds (if any) | Railway env (`PUBLIC_OBJECT_SEARCH_PATHS`, `PRIVATE_OBJECT_DIR`) | On compromise | Uploaded document read/write |

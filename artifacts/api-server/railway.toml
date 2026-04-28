@@ -17,7 +17,10 @@ watchPatterns = [
 
 [deploy]
 healthcheckPath = "/api/healthz"
-healthcheckTimeout = 300
+# 60s is enough for the API to come up; the seed runs in the background and
+# is gated by SEED_DATABASE_ON_BOOT (default: off in production). A longer
+# window means a stuck container blocks the deploy without failing fast.
+healthcheckTimeout = 60
 startCommand = "pnpm run start:api-server"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

@@ -7,7 +7,8 @@ Minerva is a full-stack platform for Ipak Yuli Bank with two products: (1) **Adm
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
+- **Node.js version**: 22 (pinned via `.nvmrc` and root `engines.node`)
+- **Deploy**: Railway (per-service `railway.toml` + Dockerfiles under `artifacts/*`)
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
 - **API framework**: Express 5
@@ -216,7 +217,7 @@ Mini App auth token stored in `localStorage` as `miniapp_auth_token`.
 
 - **Bot**: `@minerva_1_bot` (grammy framework, long-polling with 409 conflict recovery)
 - **Bot code**: `artifacts/api-server/src/bot.ts`
-- **Secret**: `TELEGRAM_BOT_TOKEN` (stored in Replit Secrets)
+- **Secret**: `TELEGRAM_BOT_TOKEN` (stored as a Railway environment variable; rotation procedure in `docs/secret-rotation-and-incident-response.md`)
 - **Commands**: `/start` (opens Mini App), `/stats` (personal metrics), `/clients` (client list), `/todo` (pending tasks), `/help` (shows help text)
 - **Document sending**: `sendDocument()` function sends PDF files to users via bot chat
 - **PDF Generation**: `POST /api/mini-app/clients/:id/generate-pdf` — generates commercial proposal PDF with client info, basket products, calculations; auto-sends via Telegram bot to expert's chat
@@ -250,4 +251,4 @@ pnpm --filter @workspace/api-spec run codegen
 Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all lib packages as project references.
 
 - **Always typecheck from the root** — run `pnpm run typecheck`
-- Production migrations are handled by Replit when publishing.
+- Production migrations live in `lib/db/drizzle/` and are applied with `pnpm run db:push` (see `docs/migrations.md` and `docs/railway-deployment.md`).

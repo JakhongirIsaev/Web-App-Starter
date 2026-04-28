@@ -382,6 +382,70 @@ export interface StatusCount {
   count: number;
 }
 
+export interface CollateralType {
+  id: number;
+  code: string;
+  nameRu: string;
+  nameUz?: string | null;
+  nameEn?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type CollateralItemMetadata = { [key: string]: unknown };
+
+export interface CollateralItem {
+  id: number;
+  clientId: number;
+  collateralTypeId: number;
+  title: string;
+  description?: string | null;
+  marketValue: string;
+  acceptedValue: string;
+  discountApplied?: string | null;
+  discountReason?: string | null;
+  currency: string;
+  isThirdParty: boolean;
+  thirdPartyOwnerName?: string | null;
+  metadata?: CollateralItemMetadata;
+  isActive: boolean;
+}
+
+export type CollateralEstimateResultStatus =
+  (typeof CollateralEstimateResultStatus)[keyof typeof CollateralEstimateResultStatus];
+
+export const CollateralEstimateResultStatus = {
+  enough: "enough",
+  not_enough: "not_enough",
+} as const;
+
+export interface CollateralEstimate {
+  id: number;
+  clientId: number;
+  creditProductId: number;
+  requestedLoanAmount: string;
+  currency: string;
+  totalMarketValue?: string;
+  totalAcceptedValue: string;
+  coverageRatioApplied: string;
+  requiredCollateralValue?: string;
+  coveragePercent: string;
+  maxLoanAmount: string;
+  annualRateApplied?: string | null;
+  annualRateAppliedRaw?: string | null;
+  resultStatus: CollateralEstimateResultStatus;
+  disclaimer?: string | null;
+  notes?: string | null;
+  hasEquipmentOnly: boolean;
+  createdAt?: string;
+}
+
+export interface CollateralSettings {
+  coverageRatio: number;
+  transportAgeThreshold: number;
+  transportAgeDiscount: number;
+}
+
 export type ListUsersParams = {
   branchId?: number;
   role?: string;
@@ -429,4 +493,49 @@ export type GetRejectionReasonsParams = {
   clientType?: string;
   clientSegment?: string;
   gender?: string;
+};
+
+export type UpdateCollateralTypeBody = {
+  nameRu?: string;
+  nameUz?: string | null;
+  nameEn?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+export type CreateCollateralItemBodyMetadata = { [key: string]: unknown };
+
+export type CreateCollateralItemBody = {
+  collateralTypeId: number;
+  title: string;
+  description?: string | null;
+  marketValue: number;
+  currency?: string;
+  isThirdParty?: boolean;
+  thirdPartyOwnerName?: string | null;
+  metadata?: CreateCollateralItemBodyMetadata;
+};
+
+export type UpdateCollateralItemBodyMetadata = { [key: string]: unknown };
+
+export type UpdateCollateralItemBody = {
+  collateralTypeId?: number;
+  title?: string;
+  description?: string | null;
+  marketValue?: number;
+  isThirdParty?: boolean;
+  thirdPartyOwnerName?: string | null;
+  metadata?: UpdateCollateralItemBodyMetadata;
+};
+
+export type ArchiveCollateralItem200 = {
+  success: boolean;
+};
+
+export type CreateCollateralEstimateBody = {
+  creditProductId: number;
+  requestedLoanAmount: number;
+  currency?: string;
+  collateralItemIds: number[];
+  notes?: string | null;
 };

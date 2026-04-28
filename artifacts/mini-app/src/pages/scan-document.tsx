@@ -18,7 +18,6 @@ import {
   CreditCard,
   Car,
   FileCheck,
-  Plus,
   X,
   ImageIcon,
   Download,

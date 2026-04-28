@@ -21,9 +21,12 @@ Create this managed service:
 
 - `PostgreSQL`
 
-Recommended external dependency:
+Object storage:
 
-- S3-compatible or GCS object storage for scanned document images
+- Scanned document images are written to a local volume (`FILE_STORAGE_DIR`,
+  default `./uploads`). Mount a Railway volume to that path for persistence.
+  External S3/GCS support was removed when the Replit object-storage sidecar
+  was retired.
 
 ## AI architecture
 
@@ -50,7 +53,9 @@ Each of those files pins the correct Dockerfile, start command, and healthcheck 
 ### `backend-api`
 
 - Install: `pnpm install --frozen-lockfile`
-- First deploy against a fresh database: `pnpm run db:push`
+- Schema setup:
+  - Fresh database: `pnpm --filter @workspace/db run push` once, then switch to `migrate`.
+  - Existing database: baseline the migrations table per `docs/migrations.md`, then run `pnpm --filter @workspace/db run migrate` on every deploy.
 - Build: `pnpm run build:api-server`
 - Start: `pnpm run start:api-server`
 - Public: `true`
@@ -71,14 +76,13 @@ Required in production (process refuses to start without these):
 - `TELEGRAM_WEBHOOK_URL` — public HTTPS webhook endpoint.
 - `TELEGRAM_WEBHOOK_SECRET` — verified against `X-Telegram-Bot-Api-Secret-Token`.
 - `TELEGRAM_BOT_TOKEN` — required to start the bot / webhook handler.
+- `SIGNED_URL_SECRET` — HMAC key for short-lived document image URLs. Generate with `openssl rand -hex 32`. Process refuses to start without it.
 
 Optional env vars:
 
 - `LOG_LEVEL`
 - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
 - `OLLAMA_MODEL=gemma3:4b`
-- `PUBLIC_OBJECT_SEARCH_PATHS`
-- `PRIVATE_OBJECT_DIR`
 - `TRUST_PROXY=true` (or number of hops) behind Railway's proxy.
 - `SESSION_TTL_MS` (default 7 days).
 

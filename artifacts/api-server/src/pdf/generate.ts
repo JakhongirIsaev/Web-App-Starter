@@ -55,6 +55,23 @@ interface PdfCalculation {
   currency: string;
 }
 
+interface PdfCollateralItem {
+  title: string;
+  typeName: string;
+  marketValue: string;
+  acceptedValue: string;
+}
+
+interface PdfCollateralEstimate {
+  requestedLoanAmount: string;
+  totalAcceptedValue: string;
+  coveragePercent: string;
+  maxLoanAmount: string;
+  resultStatus: "enough" | "not_enough";
+  items: PdfCollateralItem[];
+  currency: string;
+}
+
 interface PdfData {
   client: {
     id: number;
@@ -70,6 +87,7 @@ interface PdfData {
   preferenceSummary?: PreferenceItem[];
   offerSummary?: string | null;
   language?: PdfLanguage;
+  collateralEstimate?: PdfCollateralEstimate | null;
 }
 
 function resolveFontCandidates() {
@@ -245,6 +263,16 @@ function getPdfCopy(language: PdfLanguage) {
         "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа. *Информация актуальна на дату формирования документа.",
       interestRatePlaceholder: "Процентная ставка определяется исходя из проекта заемщика",
       clientFallbackName: "Клиент",
+      collateralSection: "Предварительный расчёт залога",
+      collateralRequested: "Запрашиваемая сумма",
+      collateralAccepted: "Общая стоимость залога",
+      collateralCoverage: "Покрытие",
+      collateralMaxLoan: "Максимальный кредит",
+      collateralEnough: "✓ Залога предварительно достаточно",
+      collateralNotEnough: "⚠ Залога предварительно недостаточно",
+      collateralItemsTitle: "Предметы залога",
+      collateralDisclaimer:
+        "Расчёт предварительный и не является официальной оценкой залога или решением банка.",
       footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`,
     } as const;
   }
@@ -297,6 +325,16 @@ function getPdfCopy(language: PdfLanguage) {
       "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi. *Ma'lumotlar hujjat shakllantirilgan sana holatiga dolzarbdir.",
     interestRatePlaceholder: "Foiz stavkasi qarz oluvchining loyihasidan kelib chiqqan holda belgilanadi",
     clientFallbackName: "Mijoz",
+    collateralSection: "Garov bo'yicha dastlabki hisob",
+    collateralRequested: "So'ralgan summa",
+    collateralAccepted: "Garovning umumiy qiymati",
+    collateralCoverage: "Qoplama",
+    collateralMaxLoan: "Maksimal kredit",
+    collateralEnough: "✓ Garov dastlabki hisob bo'yicha yetarli",
+    collateralNotEnough: "⚠ Garov dastlabki hisob bo'yicha yetarli emas",
+    collateralItemsTitle: "Garov predmetlari",
+    collateralDisclaimer:
+      "Ushbu hisob dastlabki bo'lib, bankning rasmiy baholashi yoki qarori hisoblanmaydi.",
     footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
   } as const;
 }
@@ -666,6 +704,57 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
           y = drawScheduleTable(calculation, y);
         });
       }
+    }
+
+    if (data.collateralEstimate) {
+      const est = data.collateralEstimate;
+      y = drawSectionTitle(copy.collateralSection, y + 8);
+      y = drawRow(
+        copy.collateralRequested,
+        `${fmtNum(est.requestedLoanAmount, language)} ${est.currency}`,
+        y,
+      );
+      y = drawRow(
+        copy.collateralAccepted,
+        `${fmtNum(est.totalAcceptedValue, language)} ${est.currency}`,
+        y,
+      );
+      y = drawRow(
+        copy.collateralCoverage,
+        `${Number(est.coveragePercent).toFixed(0)}%`,
+        y,
+      );
+      y = drawRow(
+        copy.collateralMaxLoan,
+        `${fmtNum(est.maxLoanAmount, language)} ${est.currency}`,
+        y,
+      );
+
+      y = drawParagraph(
+        est.resultStatus === "enough" ? copy.collateralEnough : copy.collateralNotEnough,
+        y + 4,
+        { color: est.resultStatus === "enough" ? green : "#B45309" },
+      );
+
+      if (est.items.length > 0) {
+        useFont("bold");
+        doc.fontSize(10).fillColor(darkText).text(copy.collateralItemsTitle, 50, y, {
+          width: contentWidth,
+        });
+        y += 16;
+        est.items.forEach((item, i) => {
+          y = drawRow(
+            `${i + 1}. ${item.title}`,
+            `${fmtNum(item.acceptedValue, language)} ${est.currency} (${item.typeName})`,
+            y,
+          );
+        });
+      }
+
+      y = drawParagraph(copy.collateralDisclaimer, y + 4, {
+        color: muted,
+        size: 9,
+      });
     }
 
     y += 6;

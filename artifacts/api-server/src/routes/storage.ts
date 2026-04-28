@@ -1,15 +1,24 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { Readable } from "stream";
 import { spawn } from "child_process";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireAuthOrSignedUrl } from "../middleware/auth";
+import { createSignedObjectParams } from "../lib/signedUrl";
+import { db } from "@workspace/db";
+import { clientDocumentsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { verifyClientAccess } from "../lib/client-access";
 import { logger } from "../lib/logger";
 
+class ObjectNotFoundError extends Error {
+  constructor() {
+    super("Object not found");
+    this.name = "ObjectNotFoundError";
+  }
+}
+
 const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
 const LOCAL_OBJECT_PREFIX = "/local-objects/";
 const DEFAULT_MAX_LOCAL_UPLOAD_BYTES = 12 * 1024 * 1024;
 const configuredMaxUploadBytes = Number(process.env.FILE_STORAGE_MAX_BYTES);
@@ -135,24 +144,6 @@ function getOcrTimeoutMs(): number {
     : 90_000;
 }
 
-router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
-  const { name, size, contentType } = req.body || {};
-  if (!name || !contentType) {
-    res.status(400).json({ error: "Majburiy maydonlar yo'q yoki noto'g'ri" });
-    return;
-  }
-
-  try {
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-    res.json({ uploadURL, objectPath, metadata: { name, size, contentType } });
-  } catch (error) {
-    logger.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Yuklash manzilini yaratib bo'lmadi" });
-  }
-});
-
 router.post("/storage/uploads/direct", requireAuth, async (req: Request, res: Response) => {
   try {
     const { buffer, contentType } = parseUploadImage(req.body);
@@ -231,11 +222,56 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/storage/file", requireAuth, async (req: Request, res: Response) => {
+router.post("/storage/signed-url", requireAuth, async (req: Request, res: Response) => {
+  const { path: objectPath } = req.body || {};
+  if (typeof objectPath !== "string" || !objectPath) {
+    res.status(400).json({ error: "path majburiy" });
+    return;
+  }
+
+  // Confirm the requester has access to the document at this path before
+  // signing. Without this check any logged-in user could mint a signed URL
+  // for any other user's documents (IDOR).
+  const [doc] = await db
+    .select({ clientId: clientDocumentsTable.clientId })
+    .from(clientDocumentsTable)
+    .where(eq(clientDocumentsTable.storagePath, objectPath))
+    .limit(1);
+
+  // Same opaque "not found" for missing docs and access-denied to avoid
+  // leaking which paths exist for clients the requester can't see.
+  if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
+    res.status(404).json({ error: "Hujjat topilmadi" });
+    return;
+  }
+
+  const { exp, sig, expiresAt } = createSignedObjectParams(objectPath);
+  res.json({ exp, sig, expiresAt });
+});
+
+router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Response) => {
   const objectPath = req.query.path;
   if (typeof objectPath !== "string" || !objectPath) {
     res.status(400).json({ error: "Fayl yo'li ko'rsatilmagan" });
     return;
+  }
+
+  // Bearer-authenticated requests need an explicit access check. Signed-URL
+  // requests are implicitly authorized: issuance via POST /storage/signed-url
+  // already ran the same check, and the HMAC proves the path was approved.
+  const usedSignedUrl =
+    typeof req.query.exp === "string" && typeof req.query.sig === "string";
+  if (!usedSignedUrl) {
+    const [doc] = await db
+      .select({ clientId: clientDocumentsTable.clientId })
+      .from(clientDocumentsTable)
+      .where(eq(clientDocumentsTable.storagePath, objectPath))
+      .limit(1);
+
+    if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
+      res.status(404).json({ error: "Fayl topilmadi" });
+      return;
+    }
   }
 
   try {
@@ -262,21 +298,9 @@ router.get("/storage/file", requireAuth, async (req: Request, res: Response) => 
       return;
     }
 
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-    const objectResponse = await objectStorageService.downloadObject(objectFile);
-
-    objectResponse.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-
-    if (!objectResponse.body) {
-      res.status(objectResponse.status).end();
-      return;
-    }
-
-    res.status(objectResponse.status);
-    const nodeStream = Readable.fromWeb(objectResponse.body as globalThis.ReadableStream);
-    nodeStream.pipe(res);
+    // Only local-storage paths are served. The legacy GCS/Replit-sidecar
+    // path was removed; if a stale doc record points elsewhere, 404.
+    throw new ObjectNotFoundError();
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Fayl topilmadi" });
