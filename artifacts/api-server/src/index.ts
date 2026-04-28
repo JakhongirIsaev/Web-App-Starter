@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedDatabase } from "./seed";
+import { seedDatabase, seedCollateralReferenceData } from "./seed";
 import { startBot, stopBot } from "./bot";
 
 const rawPort = process.env["PORT"];
@@ -40,6 +40,13 @@ function shouldSeedOnBoot() {
 }
 
 const miniAppUrl = resolveMiniAppUrl();
+
+// Reference data (5 collateral types + 3 default system settings) runs every
+// boot. Idempotent via ON CONFLICT DO NOTHING. NOT gated by
+// SEED_DATABASE_ON_BOOT — that flag is for demo/dummy data only.
+seedCollateralReferenceData().catch((err) => {
+  logger.error({ err }, "Failed to seed collateral reference data");
+});
 
 if (shouldSeedOnBoot()) {
   seedDatabase().catch((err) => {

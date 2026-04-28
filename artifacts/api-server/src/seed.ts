@@ -53,9 +53,10 @@ async function truncateDemoTables() {
 }
 
 // Reference data for the collateral feature: 5 type rows + 3 default system
-// settings. Idempotent — uses ON CONFLICT DO NOTHING so re-runs are safe and
-// runs every boot regardless of whether demo data has been seeded.
-async function seedCollateralReferenceData() {
+// settings. Idempotent — uses ON CONFLICT DO NOTHING so re-runs are safe.
+// Called unconditionally on every boot from index.ts, NOT gated by
+// SEED_DATABASE_ON_BOOT (that flag is for demo data only).
+export async function seedCollateralReferenceData() {
   await db
     .insert(collateralTypesTable)
     .values([
