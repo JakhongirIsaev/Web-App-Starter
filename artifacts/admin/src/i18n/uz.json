@@ -218,6 +218,17 @@
     "unknownBranch": "Noma'lum filial",
     "unassigned": "Tayinlanmagan"
   },
+  "clientsImport": {
+    "title": "Mijozlarni import qilish — oldindan ko'rish",
+    "fileLabel": "Fayl: {{name}}",
+    "total": "Jami qatorlar",
+    "willImport": "Import qilinadi",
+    "willSkip": "O'tkazib yuboriladi",
+    "statusCol": "Qator holati",
+    "ok": "OK",
+    "invalid": "Noto'g'ri",
+    "confirm": "Import qilish ({{count}})"
+  },
   "clientDetail": {
     "clientNotFound": "Mijoz topilmadi",
     "backToClients": "Mijozlarga qaytish",

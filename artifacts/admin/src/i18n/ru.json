@@ -218,6 +218,17 @@
     "unknownBranch": "Неизвестный филиал",
     "unassigned": "Не назначен"
   },
+  "clientsImport": {
+    "title": "Предпросмотр импорта клиентов",
+    "fileLabel": "Файл: {{name}}",
+    "total": "Всего строк",
+    "willImport": "Будут импортированы",
+    "willSkip": "Будут пропущены",
+    "statusCol": "Статус строки",
+    "ok": "ОК",
+    "invalid": "Не валидно",
+    "confirm": "Импортировать ({{count}})"
+  },
   "clientDetail": {
     "clientNotFound": "Клиент не найден",
     "backToClients": "Вернуться к клиентам",
