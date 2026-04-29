@@ -7,7 +7,7 @@ import {
   CreateClientBody, UpdateClientBody, GetClientParams,
   UpdateClientParams, ListClientsQueryParams
 } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -49,7 +49,7 @@ function buildClientResponse(c: any, branch: any, assignedTo: any) {
   };
 }
 
-router.get("/clients", requireAuth, async (req, res) => {
+router.get("/clients", guestAuth, async (req, res) => {
   const user = req.user!;
   const params = ListClientsQueryParams.safeParse(req.query);
   const page = params.success && params.data.page ? params.data.page : 1;
@@ -115,7 +115,7 @@ router.get("/clients", requireAuth, async (req, res) => {
   res.json({ data, total, page, pageSize });
 });
 
-router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admin", "editor", "hunter"), async (req, res) => {
+router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin", "editor", "hunter"), async (req, res) => {
   const parsed = CreateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
   const [client] = await db.insert(clientsTable).values({
@@ -138,7 +138,7 @@ router.post("/clients", requireAuth, requireRole("superadmin", "head_office_admi
   res.status(201).json(client);
 });
 
-router.get("/clients/:id", requireAuth, async (req, res) => {
+router.get("/clients/:id", guestAuth, async (req, res) => {
   const user = req.user!;
   const params = GetClientParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
@@ -222,7 +222,7 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
   });
 });
 
-router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
+router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   const user = req.user!;
   const params = UpdateClientParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
@@ -267,7 +267,7 @@ router.put("/clients/:id", requireAuth, requireClientAccess, async (req, res) =>
   res.json(updated);
 });
 
-router.post("/clients/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/clients/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { creditLinesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import {
@@ -13,7 +13,7 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/credit-lines", requireAuth, async (req, res) => {
+router.get("/credit-lines", guestAuth, async (req, res) => {
   const { search, section, currency, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
   if (search) conditions.push(ilike(creditLinesTable.name, `%${search}%`));
@@ -43,7 +43,7 @@ router.get("/credit-lines", requireAuth, async (req, res) => {
   res.json({ data: mapped, total, page: pageNum, pageSize: limit });
 });
 
-router.post("/credit-lines", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { name, number: num, department, agreementDate, agreementAmount, receivedAmount, currency, interestRate, disbursedAmount, remainingBalance, projectCount, specialConditions, notes, section } = req.body;
   if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
 
@@ -61,7 +61,7 @@ router.post("/credit-lines", requireAuth, requireRole("superadmin", "head_office
   res.status(201).json(created);
 });
 
-router.put("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
@@ -86,7 +86,7 @@ router.put("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_off
   res.json(updated);
 });
 
-router.delete("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(creditLinesTable).where(eq(creditLinesTable.id, id));
@@ -94,7 +94,7 @@ router.delete("/credit-lines/:id", requireAuth, requireRole("superadmin", "head_
   res.status(204).send();
 });
 
-router.post("/credit-lines/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/credit-lines/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";

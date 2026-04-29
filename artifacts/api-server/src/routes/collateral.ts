@@ -15,7 +15,7 @@ import {
   UpdateCollateralSettingsBody,
   UpdateCollateralTypeBody,
 } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import {
   requireClientAccess,
   requireCollateralEstimateAccess,
@@ -72,7 +72,7 @@ function validateCollateralItemIds(ids: number[]): string | null {
 
 // ─── Collateral types ───────────────────────────────────────────────────────
 
-router.get("/collateral-types", requireAuth, async (_req, res) => {
+router.get("/collateral-types", guestAuth, async (_req, res) => {
   const rows = await db
     .select()
     .from(collateralTypesTable)
@@ -83,7 +83,7 @@ router.get("/collateral-types", requireAuth, async (_req, res) => {
 
 router.patch(
   "/admin/collateral-types/:id",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (req, res) => {
     const id = Number(req.params.id);
@@ -130,7 +130,7 @@ router.patch(
 
 router.get(
   "/admin/collateral-settings",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (_req, res) => {
     const settings = await getCollateralSettings();
@@ -140,7 +140,7 @@ router.get(
 
 router.put(
   "/admin/collateral-settings",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (req, res) => {
     const parsed = UpdateCollateralSettingsBody.safeParse(req.body);
@@ -167,7 +167,7 @@ router.put(
 
 router.get(
   "/clients/:id/collateral-items",
-  requireAuth,
+  guestAuth,
   requireClientAccess,
   async (req, res) => {
     const clientId = Number(req.params.id);
@@ -187,7 +187,7 @@ router.get(
 
 router.post(
   "/clients/:id/collateral-items",
-  requireAuth,
+  guestAuth,
   requireClientAccess,
   async (req, res) => {
     const clientId = Number(req.params.id);
@@ -283,7 +283,7 @@ router.post(
 
 router.patch(
   "/collateral-items/:id",
-  requireAuth,
+  guestAuth,
   requireCollateralItemAccess,
   async (req, res) => {
     const id = Number(req.params.id);
@@ -380,7 +380,7 @@ router.patch(
 
 router.delete(
   "/collateral-items/:id",
-  requireAuth,
+  guestAuth,
   requireCollateralItemAccess,
   async (req, res) => {
     const id = Number(req.params.id);
@@ -410,7 +410,7 @@ router.delete(
 
 router.post(
   "/clients/:id/collateral-estimates",
-  requireAuth,
+  guestAuth,
   requireClientAccess,
   async (req, res) => {
     const clientId = Number(req.params.id);
@@ -558,7 +558,7 @@ router.post(
 
 router.get(
   "/clients/:id/collateral-estimates",
-  requireAuth,
+  guestAuth,
   requireClientAccess,
   async (req, res) => {
     const clientId = Number(req.params.id);
@@ -573,7 +573,7 @@ router.get(
 
 router.get(
   "/collateral-estimates/:id",
-  requireAuth,
+  guestAuth,
   requireCollateralEstimateAccess,
   async (req, res) => {
     const id = Number(req.params.id);

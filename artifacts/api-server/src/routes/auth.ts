@@ -97,16 +97,15 @@ router.get("/auth/guest", async (_req, res) => {
 
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
-    return;
+  let userId: number | null = null;
+
+  if (token) {
+    userId = await findSessionUserId(token);
   }
 
-  const userId = await findSessionUserId(token);
-  if (!userId) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
-    return;
-  }
+  const whereClause = userId
+    ? eq(usersTable.id, userId)
+    : eq(usersTable.isActive, true);
 
   const users = await db
     .select({
@@ -124,7 +123,7 @@ router.get("/auth/me", async (req, res) => {
     })
     .from(usersTable)
     .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
-    .where(eq(usersTable.id, userId))
+    .where(whereClause)
     .limit(1);
 
   if (!users.length || !users[0].isActive) {

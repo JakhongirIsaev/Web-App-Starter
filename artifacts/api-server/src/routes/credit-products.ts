@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { basketItemsTable, creditProductsTable } from "@workspace/db";
 import { eq, ilike, and, isNotNull, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import {
@@ -13,7 +13,7 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/credit-products", requireAuth, async (req, res) => {
+router.get("/credit-products", guestAuth, async (req, res) => {
   const { search, segment, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
   if (search) conditions.push(ilike(creditProductsTable.name, `%${search}%`));
@@ -34,7 +34,7 @@ router.get("/credit-products", requireAuth, async (req, res) => {
   res.json({ data: rows, total, page: pageNum, pageSize: limit });
 });
 
-router.post("/credit-products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/credit-products", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = req.body;
   if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
 
@@ -51,7 +51,7 @@ router.post("/credit-products", requireAuth, requireRole("superadmin", "head_off
   res.status(201).json(created);
 });
 
-router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.put("/credit-products/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
@@ -68,7 +68,7 @@ router.put("/credit-products/:id", requireAuth, requireRole("superadmin", "head_
   res.json(updated);
 });
 
-router.delete("/credit-products/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/credit-products/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(creditProductsTable).where(eq(creditProductsTable.id, id));
@@ -76,7 +76,7 @@ router.delete("/credit-products/:id", requireAuth, requireRole("superadmin", "he
   res.status(204).send();
 });
 
-router.post("/credit-products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/credit-products/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";

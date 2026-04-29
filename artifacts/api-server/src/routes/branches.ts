@@ -3,18 +3,18 @@ import { db } from "@workspace/db";
 import { branchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { CreateBranchBody, UpdateBranchBody, GetBranchParams, UpdateBranchParams, DeleteBranchParams } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
 const router: IRouter = Router();
 
-router.get("/branches", requireAuth, async (_req, res) => {
+router.get("/branches", guestAuth, async (_req, res) => {
   const branches = await db.select().from(branchesTable).orderBy(branchesTable.name);
   res.json(branches);
 });
 
-router.post("/branches", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.post("/branches", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateBranchBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
   const [branch] = await db.insert(branchesTable).values({
@@ -28,7 +28,7 @@ router.post("/branches", requireAuth, requireRole("superadmin", "head_office_adm
   res.status(201).json(branch);
 });
 
-router.get("/branches/:id", requireAuth, async (req, res) => {
+router.get("/branches/:id", guestAuth, async (req, res) => {
   const params = GetBranchParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, params.data.id)).limit(1);
@@ -36,7 +36,7 @@ router.get("/branches/:id", requireAuth, async (req, res) => {
   res.json(branch);
 });
 
-router.put("/branches/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.put("/branches/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateBranchParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateBranchBody.safeParse(req.body);
@@ -55,7 +55,7 @@ router.put("/branches/:id", requireAuth, requireRole("superadmin", "head_office_
   res.json(updated);
 });
 
-router.delete("/branches/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/branches/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteBranchParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(branchesTable).where(eq(branchesTable.id, params.data.id));
@@ -65,7 +65,7 @@ router.delete("/branches/:id", requireAuth, requireRole("superadmin", "head_offi
   res.status(204).send();
 });
 
-router.post("/branches/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/branches/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);

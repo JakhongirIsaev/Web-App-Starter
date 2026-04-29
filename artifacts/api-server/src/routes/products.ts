@@ -7,7 +7,7 @@ import {
   UpdateProductParams, DeleteProductParams, ListProductsQueryParams,
   CreateProductCategoryBody
 } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
@@ -32,12 +32,12 @@ function buildProductResponse(p: any, cat: any) {
   };
 }
 
-router.get("/product-categories", requireAuth, async (_req, res) => {
+router.get("/product-categories", guestAuth, async (_req, res) => {
   const cats = await db.select().from(productCategoriesTable).orderBy(productCategoriesTable.name);
   res.json(cats);
 });
 
-router.post("/product-categories", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/product-categories", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductCategoryBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
   const [cat] = await db.insert(productCategoriesTable).values({
@@ -50,7 +50,7 @@ router.post("/product-categories", requireAuth, requireRole("superadmin", "head_
   res.status(201).json(cat);
 });
 
-router.get("/products", requireAuth, async (req, res) => {
+router.get("/products", guestAuth, async (req, res) => {
   const params = ListProductsQueryParams.safeParse(req.query);
   const conditions: any[] = [];
   if (params.success) {
@@ -90,7 +90,7 @@ router.get("/products", requireAuth, async (req, res) => {
   res.json(products);
 });
 
-router.post("/products", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/products", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
   const [product] = await db.insert(productsTable).values({
@@ -111,7 +111,7 @@ router.post("/products", requireAuth, requireRole("superadmin", "head_office_adm
   res.status(201).json(buildProductResponse(product, null));
 });
 
-router.get("/products/:id", requireAuth, async (req, res) => {
+router.get("/products/:id", guestAuth, async (req, res) => {
   const params = GetProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const rows = await db
@@ -143,7 +143,7 @@ router.get("/products/:id", requireAuth, async (req, res) => {
   res.json(buildProductResponse(p, p.catId ? { id: p.catId, name: p.catName, description: p.catDescription ?? null, createdAt: p.catCreatedAt } : null));
 });
 
-router.put("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.put("/products/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateProductBody.safeParse(req.body);
@@ -169,7 +169,7 @@ router.put("/products/:id", requireAuth, requireRole("superadmin", "head_office_
   res.json(buildProductResponse(updated, null));
 });
 
-router.delete("/products/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/products/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteProductParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
@@ -179,7 +179,7 @@ router.delete("/products/:id", requireAuth, requireRole("superadmin", "head_offi
   res.status(204).send();
 });
 
-router.post("/products/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/products/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);

@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,7 +9,6 @@ import Layout from "@/components/layout";
 import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
-const Login = lazy(() => import("@/pages/login"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Clients = lazy(() => import("@/pages/clients"));
 const ClientDetail = lazy(() => import("@/pages/client-detail"));
@@ -69,26 +68,19 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: ProtectedRouteProps) {
-  const [, setLocation] = useLocation();
   const { t } = useTranslation();
-  const { data: user, isLoading, error } = useGetMe({
+  const { data: user, isLoading } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
       retry: false,
     },
   });
 
-  useEffect(() => {
-    if (!isLoading && error) {
-      setLocation("/login");
-    }
-  }, [isLoading, error, setLocation]);
-
   if (isLoading) {
     return <FullScreenLoader />;
   }
 
-  if (error || !user) return null;
+  if (!user) return <FullScreenLoader />;
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
     return (
@@ -113,13 +105,6 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
 function Router() {
   return (
     <Switch>
-      <Route path="/login">
-        {() => (
-          <Suspense fallback={<FullScreenLoader />}>
-            <Login />
-          </Suspense>
-        )}
-      </Route>
       <Route path="/">
         {() => <ProtectedRoute component={Dashboard} />}
       </Route>

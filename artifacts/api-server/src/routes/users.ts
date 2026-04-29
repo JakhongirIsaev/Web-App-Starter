@@ -10,7 +10,7 @@ import {
   CreateUserBody, UpdateUserBody, GetUserParams, UpdateUserParams,
   DeleteUserParams, DeactivateUserParams, ActivateUserParams, ListUsersQueryParams
 } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import { deleteSessionsForUser } from "../lib/session-store";
@@ -75,7 +75,7 @@ async function getUserWithBranch(id: number) {
   };
 }
 
-router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
+router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
   const user = req.user!;
   const params = ListUsersQueryParams.safeParse(req.query);
   const conditions: any[] = [];
@@ -137,7 +137,7 @@ router.get("/users", requireAuth, requireRole("superadmin", "head_office_admin",
   res.json(users);
 });
 
-router.get("/users/import-template", requireAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {
+router.get("/users/import-template", guestAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {
   const language = req.query.language === "ru" ? "ru" : "uz";
   const copy = language === "ru"
     ? {
@@ -180,7 +180,7 @@ router.get("/users/import-template", requireAuth, requireRole("superadmin", "hea
   res.send(Buffer.from(buffer));
 });
 
-router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.post("/users", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE, details: parsed.error }); return; }
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
@@ -199,7 +199,7 @@ router.post("/users", requireAuth, requireRole("superadmin", "head_office_admin"
   res.status(201).json(full);
 });
 
-router.get("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
+router.get("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
   const params = GetUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const user = await getUserWithBranch(params.data.id);
@@ -207,7 +207,7 @@ router.get("/users/:id", requireAuth, requireRole("superadmin", "head_office_adm
   res.json(user);
 });
 
-router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.put("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateUserBody.safeParse(req.body);
@@ -231,7 +231,7 @@ router.put("/users/:id", requireAuth, requireRole("superadmin", "head_office_adm
   res.json(full);
 });
 
-router.delete("/users/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
@@ -241,7 +241,7 @@ router.delete("/users/:id", requireAuth, requireRole("superadmin", "head_office_
   res.status(204).send();
 });
 
-router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.post("/users/:id/deactivate", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
@@ -254,7 +254,7 @@ router.post("/users/:id/deactivate", requireAuth, requireRole("superadmin", "hea
   res.json(full);
 });
 
-router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.post("/users/:id/revoke-sessions", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
@@ -278,7 +278,7 @@ router.post("/users/:id/revoke-sessions", requireAuth, requireRole("superadmin",
   res.json({ success: true });
 });
 
-router.post("/users/:id/activate", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.post("/users/:id/activate", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = ActivateUserParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const [updated] = await db.update(usersTable).set({ isActive: true, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
@@ -380,7 +380,7 @@ function normalizeRow(raw: Record<string, string>): Record<string, string> {
   return result;
 }
 
-router.post("/users/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/users/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
 

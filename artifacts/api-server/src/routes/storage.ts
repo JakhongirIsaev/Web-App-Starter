@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
-import { requireAuth, requireAuthOrSignedUrl } from "../middleware/auth";
+import { guestAuth, requireAuthOrSignedUrl } from "../middleware/auth";
 import { createSignedObjectParams } from "../lib/signedUrl";
 import { db } from "@workspace/db";
 import { clientDocumentsTable } from "@workspace/db";
@@ -144,7 +144,7 @@ function getOcrTimeoutMs(): number {
     : 90_000;
 }
 
-router.post("/storage/uploads/direct", requireAuth, async (req: Request, res: Response) => {
+router.post("/storage/uploads/direct", guestAuth, async (req: Request, res: Response) => {
   try {
     const { buffer, contentType } = parseUploadImage(req.body);
     const relativePath = buildLocalObjectPath(req.body?.name, contentType);
@@ -222,7 +222,7 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/storage/signed-url", requireAuth, async (req: Request, res: Response) => {
+router.post("/storage/signed-url", guestAuth, async (req: Request, res: Response) => {
   const { path: objectPath } = req.body || {};
   if (typeof objectPath !== "string" || !objectPath) {
     res.status(400).json({ error: "path majburiy" });
@@ -311,7 +311,7 @@ router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Re
   }
 });
 
-router.post("/ocr/recognize", requireAuth, async (req: Request, res: Response) => {
+router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => {
   const { image } = req.body || {};
   if (!image || typeof image !== "string") {
     res.status(400).json({ error: "Rasm ma'lumoti ko'rsatilmagan" });

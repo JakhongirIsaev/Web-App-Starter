@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sapCodesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import {
@@ -13,7 +13,7 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/sap-codes", requireAuth, async (req, res) => {
+router.get("/sap-codes", guestAuth, async (req, res) => {
   const { search, status, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
   if (search) conditions.push(ilike(sapCodesTable.name, `%${search}%`));
@@ -34,7 +34,7 @@ router.get("/sap-codes", requireAuth, async (req, res) => {
   res.json({ data: rows, total, page: pageNum, pageSize: limit });
 });
 
-router.post("/sap-codes", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/sap-codes", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { status, productId, name, productType, categoryId, categoryName } = req.body;
   if (!name || !status) { res.status(400).json({ error: "Название и статус обязательны / Nomi va holati majburiy" }); return; }
 
@@ -48,7 +48,7 @@ router.post("/sap-codes", requireAuth, requireRole("superadmin", "head_office_ad
   res.status(201).json(created);
 });
 
-router.put("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.put("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
@@ -65,7 +65,7 @@ router.put("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office
   res.json(updated);
 });
 
-router.delete("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(sapCodesTable).where(eq(sapCodesTable.id, id));
@@ -73,7 +73,7 @@ router.delete("/sap-codes/:id", requireAuth, requireRole("superadmin", "head_off
   res.status(204).send();
 });
 
-router.post("/sap-codes/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/sap-codes/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";

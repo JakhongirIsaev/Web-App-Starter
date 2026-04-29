@@ -6,7 +6,7 @@ import {
   CreateArticleBody, UpdateArticleBody, GetArticleParams,
   UpdateArticleParams, DeleteArticleParams, ListArticlesQueryParams
 } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
@@ -53,7 +53,7 @@ async function getArticleWithBranchIds(id: number) {
   };
 }
 
-router.get("/articles", requireAuth, async (req, res) => {
+router.get("/articles", guestAuth, async (req, res) => {
   const params = ListArticlesQueryParams.safeParse(req.query);
   const conditions: any[] = [];
   if (params.success) {
@@ -104,7 +104,7 @@ router.get("/articles", requireAuth, async (req, res) => {
   res.json(articles);
 });
 
-router.post("/articles", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.post("/articles", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateArticleBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
 
@@ -129,7 +129,7 @@ router.post("/articles", requireAuth, requireRole("superadmin", "head_office_adm
   res.status(201).json(full);
 });
 
-router.get("/articles/:id", requireAuth, async (req, res) => {
+router.get("/articles/:id", guestAuth, async (req, res) => {
   const params = GetArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const article = await getArticleWithBranchIds(params.data.id);
@@ -137,7 +137,7 @@ router.get("/articles/:id", requireAuth, async (req, res) => {
   res.json(article);
 });
 
-router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
+router.put("/articles/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateArticleBody.safeParse(req.body);
@@ -168,7 +168,7 @@ router.put("/articles/:id", requireAuth, requireRole("superadmin", "head_office_
   res.json(full);
 });
 
-router.delete("/articles/:id", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+router.delete("/articles/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteArticleParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
@@ -179,7 +179,7 @@ router.delete("/articles/:id", requireAuth, requireRole("superadmin", "head_offi
   res.status(204).send();
 });
 
-router.post("/articles/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
+router.post("/articles/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
     const rows = parseCsvBuffer(req.file.buffer);

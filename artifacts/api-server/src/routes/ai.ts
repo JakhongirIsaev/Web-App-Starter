@@ -7,7 +7,7 @@ import {
   AiTranslateBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { requireAuth } from "../middleware/auth";
+import { guestAuth } from "../middleware/auth";
 import { getOllamaConfig, getOllamaHealth, OllamaRequestError } from "../ai/ollama";
 import {
   extractAutoDetails,
@@ -84,7 +84,7 @@ router.get("/ai/health", async (req, res) => {
   }
 });
 
-router.post("/ai/generate-questionnaire", requireAuth, async (req, res) => {
+router.post("/ai/generate-questionnaire", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateQuestionsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -103,7 +103,7 @@ router.post("/ai/generate-questionnaire", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/recommend-products", requireAuth, async (req, res) => {
+router.post("/ai/recommend-products", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiRecommendProductsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -122,7 +122,7 @@ router.post("/ai/recommend-products", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/generate-offer-summary", requireAuth, async (req, res) => {
+router.post("/ai/generate-offer-summary", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateOfferSummaryBody.safeParse(req.body);
   if (!parsed.success) {
@@ -141,7 +141,7 @@ router.post("/ai/generate-offer-summary", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/translate", requireAuth, async (req, res) => {
+router.post("/ai/translate", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiTranslateBody.safeParse(req.body);
   if (!parsed.success) {
@@ -160,7 +160,7 @@ router.post("/ai/translate", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/extract-auto", requireAuth, async (req, res) => {
+router.post("/ai/extract-auto", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiExtractAutoBody.safeParse(req.body);
   if (!parsed.success) {

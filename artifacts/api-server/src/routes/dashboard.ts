@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
 import { eq, and, sql, gte, lte, desc, inArray, count } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
-import { requireAuth } from "../middleware/auth";
+import { guestAuth } from "../middleware/auth";
 import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 
 const router: IRouter = Router();
@@ -31,7 +31,7 @@ function getClientFilters(req: any, user: any) {
   return conditions;
 }
 
-router.get("/dashboard/summary", requireAuth, async (req, res) => {
+router.get("/dashboard/summary", guestAuth, async (req, res) => {
   const user = req.user!;
   const branchScoped = user.role === "branch_head" && user.branchId;
   const clientFilters = getClientFilters(req, user);
@@ -75,7 +75,7 @@ router.get("/dashboard/summary", requireAuth, async (req, res) => {
   });
 });
 
-router.get("/dashboard/activity", requireAuth, async (req, res) => {
+router.get("/dashboard/activity", guestAuth, async (req, res) => {
   const user = req.user!;
   const params = GetRecentActivityQueryParams.safeParse(req.query);
   const limit = params.success && params.data.limit ? params.data.limit : 20;
@@ -100,7 +100,7 @@ router.get("/dashboard/activity", requireAuth, async (req, res) => {
   res.json(activities);
 });
 
-router.get("/dashboard/branch-stats", requireAuth, async (req, res) => {
+router.get("/dashboard/branch-stats", guestAuth, async (req, res) => {
   const user = req.user!;
   const branchFilter = user.role === "branch_head" && user.branchId
     ? and(eq(branchesTable.isActive, true), eq(branchesTable.id, user.branchId))
@@ -152,7 +152,7 @@ router.get("/dashboard/branch-stats", requireAuth, async (req, res) => {
   res.json(stats);
 });
 
-router.get("/dashboard/client-status", requireAuth, async (req, res) => {
+router.get("/dashboard/client-status", guestAuth, async (req, res) => {
   const user = req.user!;
   const conditions = getClientFilters(req, user);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -167,7 +167,7 @@ router.get("/dashboard/client-status", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.get("/dashboard/rejection-reasons", requireAuth, async (req, res) => {
+router.get("/dashboard/rejection-reasons", guestAuth, async (req, res) => {
   const user = req.user!;
   const conditions = getClientFilters(req, user);
   conditions.push(eq(clientsTable.status, "rejected"));
@@ -183,7 +183,7 @@ router.get("/dashboard/rejection-reasons", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.get("/dashboard/tasks", requireAuth, async (req, res) => {
+router.get("/dashboard/tasks", guestAuth, async (req, res) => {
   const user = req.user!;
   const now = new Date();
   const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
