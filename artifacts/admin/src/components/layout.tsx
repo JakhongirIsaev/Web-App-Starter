@@ -53,6 +53,7 @@ const navItems = [
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
+  { href: "/recommendations", labelKey: "nav.recommendations", icon: BookOpen, roles: ["superadmin", "head_office_admin"], badge: false },
 ];
 
 export function getRoleColor(role: string) {
