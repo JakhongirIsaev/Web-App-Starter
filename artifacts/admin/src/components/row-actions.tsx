@@ -32,16 +32,26 @@ interface RowActionsProps {
   align?: "start" | "center" | "end";
 }
 
+// Exported for unit testing — splits the actions list into the two render
+// groups (safe + dangerous) and drops hidden ones. Pure: no DOM access.
+export function partitionRowActions(actions: RowAction[]): {
+  safe: RowAction[];
+  dangerous: RowAction[];
+} {
+  const visible = actions.filter((a) => !a.hidden);
+  return {
+    safe: visible.filter((a) => !a.danger),
+    dangerous: visible.filter((a) => a.danger),
+  };
+}
+
 /**
  * Standard row-level overflow menu. One trigger ("..."), action items inside.
  * Destructive actions (`danger: true`) are visually separated and red.
  */
 export function RowActions({ actions, triggerLabel = "Actions", header, align = "end" }: RowActionsProps) {
-  const visible = actions.filter((a) => !a.hidden);
-  if (visible.length === 0) return null;
-
-  const safe = visible.filter((a) => !a.danger);
-  const dangerous = visible.filter((a) => a.danger);
+  const { safe, dangerous } = partitionRowActions(actions);
+  if (safe.length === 0 && dangerous.length === 0) return null;
 
   return (
     <DropdownMenu>
