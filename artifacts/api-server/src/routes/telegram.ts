@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { webhookCallback } from "grammy";
 import { getBot } from "../bot";
+import { logger } from "../lib/logger";
 
 type WebhookSecretDecision =
   | { action: "verify"; secret: string }
@@ -27,6 +28,28 @@ export function decideWebhookSecret(
 
 const router = Router();
 
+function sanitizeWebhookError(error: unknown) {
+  const botError = error as {
+    name?: string;
+    message?: string;
+    error?: {
+      name?: string;
+      message?: string;
+      description?: string;
+      code?: number;
+    };
+  };
+
+  return {
+    name: botError?.name,
+    message: botError?.message,
+    causeName: botError?.error?.name,
+    causeMessage: botError?.error?.message,
+    description: botError?.error?.description,
+    code: botError?.error?.code,
+  };
+}
+
 router.post("/telegram/webhook", async (req, res) => {
   const bot = getBot();
   if (!bot) {
@@ -48,7 +71,14 @@ router.post("/telegram/webhook", async (req, res) => {
     secretToken: decision.action === "verify" ? decision.secret : undefined,
   });
 
-  return cb(req, res);
+  try {
+    return await cb(req, res);
+  } catch (err) {
+    logger.error({ err: sanitizeWebhookError(err) }, "Telegram webhook error");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Telegram webhook processing failed" });
+    }
+  }
 });
 
 export default router;
