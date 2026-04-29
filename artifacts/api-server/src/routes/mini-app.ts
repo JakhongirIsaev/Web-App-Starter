@@ -46,16 +46,34 @@ import {
   type ProductLike,
   type QuestionnaireAnswer,
 } from "../lib/recommendation";
-import { buildCalculationSummary } from "../lib/calculations";
+import { buildCalculationSummary, buildPaymentSchedule } from "../lib/calculations";
 import {
+  requireClientAccess,
+  requireClientAccessFromBody,
+  requireDocumentAccess,
+  requireNextActionAccess,
+  verifyClientAccess,
+} from "../lib/client-access";
+import {
+  MiniAppBasketBody,
+  MiniAppCalculateBody,
+  MiniAppCreateClientBody,
   MiniAppDocumentBody,
+  MiniAppGeneratePdfBody,
+  MiniAppNextActionBody,
+  MiniAppNoteBody,
   MiniAppOcrUpdateBody,
   MiniAppAutoExcelBody,
+  MiniAppQuestionnaireBody,
+  MiniAppRecommendBody,
+  MiniAppUpdateClientBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
 type PdfLanguage = "ru" | "uz";
+
+const INVALID_BODY_ERROR = "Некорректные данные / Noto'g'ri ma'lumot";
 
 interface DetailedBasketItem extends ProductLike {
   id: number;
@@ -68,18 +86,6 @@ interface DetailedBasketItem extends ProductLike {
   notes?: string | null;
   whySuitable?: string | null;
   sapCode?: string | null;
-}
-
-async function verifyClientAccess(clientId: number, user: { id: number; role: string; branchId: number | null }): Promise<boolean> {
-  const [client] = await db
-    .select({ assignedToId: clientsTable.assignedToId, branchId: clientsTable.branchId })
-    .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
-    .limit(1);
-  if (!client) return false;
-  if (user.role === "superadmin" || user.role === "head_office_admin") return true;
-  if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
-  return client.assignedToId === user.id;
 }
 
 function getSegmentAliases(value?: string | null) {
@@ -724,7 +730,6 @@ async function buildPdfPayload(
 router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
-  const branchId = req.user!.branchId;
   const today = startOfAppDay();
   const monthStart = startOfAppMonth();
   const isAdmin = adminRoles.includes(role);
@@ -864,20 +869,21 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
   const role = req.user!.role;
   const branchId = req.user!.branchId;
   const status = typeof req.query.status === "string" ? req.query.status as ClientStatus : undefined;
+  const gender =
+    req.query.gender === "male" || req.query.gender === "female"
+      ? req.query.gender
+      : undefined;
   const isAdmin = adminRoles.includes(role);
 
-  let whereClause;
-  if (isAdmin) {
-    whereClause = status ? eq(clientsTable.status, status) : undefined;
-  } else if (role === "branch_head" && branchId) {
-    whereClause = status
-      ? and(eq(clientsTable.branchId, branchId), eq(clientsTable.status, status))
-      : eq(clientsTable.branchId, branchId);
-  } else {
-    whereClause = status
-      ? and(eq(clientsTable.assignedToId, userId), eq(clientsTable.status, status))
-      : eq(clientsTable.assignedToId, userId);
+  const conditions: any[] = [];
+  if (status) conditions.push(eq(clientsTable.status, status));
+  if (gender) conditions.push(eq(clientsTable.gender, gender));
+  if (role === "branch_head" && branchId) {
+    conditions.push(eq(clientsTable.branchId, branchId));
+  } else if (!isAdmin) {
+    conditions.push(eq(clientsTable.assignedToId, userId));
   }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const clients = await db
     .select({
@@ -886,6 +892,7 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
       fullName: clientsTable.fullName,
       phone: clientsTable.phone,
       status: clientsTable.status,
+      gender: clientsTable.gender,
       branchId: clientsTable.branchId,
       assignedToId: clientsTable.assignedToId,
       createdAt: clientsTable.createdAt,
@@ -903,7 +910,12 @@ router.post("/mini-app/clients", requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const branchId = req.user!.branchId;
 
-  const { fullName, phone } = req.body;
+  const parsed = MiniAppCreateClientBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { fullName, phone } = parsed.data;
   const sessionId = `S-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
   let assignedBranchId = branchId;
@@ -1014,7 +1026,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
   res.send(text);
 });
 
-router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const [client] = await db
     .select()
@@ -1073,14 +1085,24 @@ router.get("/mini-app/clients/:id", requireAuth, async (req, res) => {
   });
 });
 
-router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
+router.put("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { fullName, phone, status } = req.body;
+  const parsed = MiniAppUpdateClientBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { fullName, phone, status, latitude, longitude, gender, clientType, clientSegment } = parsed.data;
 
   const updates: any = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone;
   if (status !== undefined) updates.status = status;
+  if (latitude !== undefined) updates.latitude = latitude.toString();
+  if (longitude !== undefined) updates.longitude = longitude.toString();
+  if (gender !== undefined) updates.gender = gender;
+  if (clientType !== undefined) updates.clientType = clientType;
+  if (clientSegment !== undefined) updates.clientSegment = clientSegment;
 
   const [updated] = await db
     .update(clientsTable)
@@ -1091,9 +1113,14 @@ router.put("/mini-app/clients/:id", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/notes", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { type, content } = req.body;
+  const parsed = MiniAppNoteBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { type, content } = parsed.data;
 
   const [note] = await db
     .insert(clientNotesTable)
@@ -1103,9 +1130,19 @@ router.post("/mini-app/clients/:id/notes", requireAuth, async (req, res) => {
   res.json(note);
 });
 
-router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/next-action", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
-  const { actionType, actionDate, priority, description } = req.body;
+  const parsed = MiniAppNextActionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { actionType, actionDate, priority, description } = parsed.data;
+  const parsedActionDate = new Date(actionDate);
+  if (Number.isNaN(parsedActionDate.getTime())) {
+    res.status(400).json({ error: INVALID_BODY_ERROR });
+    return;
+  }
 
   const [action] = await db
     .insert(clientNextActionsTable)
@@ -1113,7 +1150,7 @@ router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) =
       clientId,
       userId: req.user!.id,
       actionType,
-      actionDate: new Date(actionDate),
+      actionDate: parsedActionDate,
       priority: priority || "medium",
       description,
     })
@@ -1122,7 +1159,7 @@ router.post("/mini-app/clients/:id/next-action", requireAuth, async (req, res) =
   res.json(action);
 });
 
-router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) => {
+router.put("/mini-app/next-actions/:id/complete", requireAuth, requireNextActionAccess, async (req, res) => {
   const [action] = await db
     .update(clientNextActionsTable)
     .set({ isCompleted: true, updatedAt: new Date() })
@@ -1132,8 +1169,13 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, async (req, res) 
   res.json(action);
 });
 
-router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
-  const { clientId, answers } = req.body;
+router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+  const parsed = MiniAppQuestionnaireBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { clientId, answers, clearBasket } = parsed.data;
 
   const session = await db.transaction(async (tx) => {
     const [createdSession] = await tx
@@ -1146,28 +1188,28 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
       })
       .returning();
 
-    if (answers && Array.isArray(answers)) {
-      for (const a of answers) {
-        await tx.insert(questionnaireAnswersTable).values({
-          sessionId: createdSession.id,
-          questionKey: a.questionKey,
-          answer: a.answer,
-        });
+    for (const a of answers) {
+      await tx.insert(questionnaireAnswersTable).values({
+        sessionId: createdSession.id,
+        questionKey: a.questionKey,
+        answer: a.answer,
+      });
+    }
+
+    if (clearBasket) {
+      const activeBaskets = await tx
+        .select({ id: basketsTable.id })
+        .from(basketsTable)
+        .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
+
+      if (activeBaskets.length > 0) {
+        const basketIds = activeBaskets.map((item) => item.id);
+        await tx.delete(basketItemsTable).where(inArray(basketItemsTable.basketId, basketIds));
+        await tx.delete(basketsTable).where(inArray(basketsTable.id, basketIds));
       }
+
+      await tx.delete(calculationsTable).where(eq(calculationsTable.clientId, clientId));
     }
-
-    const activeBaskets = await tx
-      .select({ id: basketsTable.id })
-      .from(basketsTable)
-      .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
-
-    if (activeBaskets.length > 0) {
-      const basketIds = activeBaskets.map((item) => item.id);
-      await tx.delete(basketItemsTable).where(inArray(basketItemsTable.basketId, basketIds));
-      await tx.delete(basketsTable).where(inArray(basketsTable.id, basketIds));
-    }
-
-    await tx.delete(calculationsTable).where(eq(calculationsTable.clientId, clientId));
 
     await tx
       .update(clientsTable)
@@ -1180,11 +1222,15 @@ router.post("/mini-app/questionnaire", requireAuth, async (req, res) => {
   res.json(session);
 });
 
-router.post("/mini-app/recommend", requireAuth, async (req, res) => {
-  const { clientId, answers = [] } = req.body;
-  const language = resolvePdfLanguage(req.body.language);
-  const answerList = Array.isArray(answers) ? answers : [];
-  const profile = buildClientPreferenceProfile(answerList, language);
+router.post("/mini-app/recommend", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+  const parsed = MiniAppRecommendBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { clientId, answers, language: rawLanguage } = parsed.data;
+  const language = resolvePdfLanguage(rawLanguage);
+  const profile = buildClientPreferenceProfile(answers, language);
 
   const allProducts = await getRecommendationCatalog(language, profile.needType);
 
@@ -1225,12 +1271,10 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
     rateSummary: getRateSummary(product as ProductLike),
   }));
 
-  if (clientId) {
-    await db
-      .update(clientsTable)
-      .set({ status: "recommendation", updatedAt: new Date() })
-      .where(eq(clientsTable.id, clientId));
-  }
+  await db
+    .update(clientsTable)
+    .set({ status: "recommendation", updatedAt: new Date() })
+    .where(eq(clientsTable.id, clientId));
 
   res.json({
     recommended: enrichedRecommended,
@@ -1240,8 +1284,13 @@ router.post("/mini-app/recommend", requireAuth, async (req, res) => {
   });
 });
 
-router.post("/mini-app/basket", requireAuth, async (req, res) => {
-  const { clientId, items } = req.body;
+router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+  const parsed = MiniAppBasketBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
+  const { clientId, items } = parsed.data;
 
   const existing = await db
     .select()
@@ -1265,17 +1314,15 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
     basketId = basket.id;
   }
 
-  if (items && Array.isArray(items)) {
-    for (const item of items) {
-      await db.insert(basketItemsTable).values({
-        basketId,
-        productId:
-          item.productType === "non_credit" ? null : item.productId || null,
-        productType: item.productType || "credit",
-        productName: item.productName,
-        notes: item.notes || null,
-      });
-    }
+  for (const item of items) {
+    await db.insert(basketItemsTable).values({
+      basketId,
+      productId:
+        item.productType === "non_credit" ? null : item.productId || null,
+      productType: item.productType,
+      productName: item.productName,
+      notes: item.notes || null,
+    });
   }
 
   await db
@@ -1286,107 +1333,67 @@ router.post("/mini-app/basket", requireAuth, async (req, res) => {
   res.json({ basketId });
 });
 
-router.post("/mini-app/calculate", requireAuth, async (req, res) => {
+router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
+  const parsed = MiniAppCalculateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
+    return;
+  }
   const {
     clientId,
     productName,
     loanAmount,
     interestRate,
     termMonths,
-    repaymentType,
-    initialPayment,
-    gracePeriodMonths,
-    currency,
-  } = req.body;
+    repaymentType = "annuity",
+    initialPayment = 0,
+    gracePeriodMonths = 0,
+    currency = "UZS",
+  } = parsed.data;
 
-  const principal = parseFloat(loanAmount) - (parseFloat(initialPayment) || 0);
-  const monthlyRate = parseFloat(interestRate) / 100 / 12;
-  const grace = parseInt(gracePeriodMonths) || 0;
-  const term = parseInt(termMonths);
-  const paymentTerm = term - grace;
-
-  let monthlyPayment: number;
-  let totalPayment: number;
-  let totalInterest: number;
-  const schedule: any[] = [];
-
-  if (repaymentType === "differentiated") {
-    const principalPayment = principal / paymentTerm;
-    let remaining = principal;
-    totalPayment = 0;
-    totalInterest = 0;
-
-    for (let i = 1; i <= term; i++) {
-      if (i <= grace) {
-        const interest = remaining * monthlyRate;
-        totalPayment += interest;
-        totalInterest += interest;
-        schedule.push({ month: i, principal: 0, interest: +interest.toFixed(2), payment: +interest.toFixed(2), remaining: +remaining.toFixed(2) });
-      } else {
-        const interest = remaining * monthlyRate;
-        const payment = principalPayment + interest;
-        remaining -= principalPayment;
-        totalPayment += payment;
-        totalInterest += interest;
-        schedule.push({ month: i, principal: +principalPayment.toFixed(2), interest: +interest.toFixed(2), payment: +payment.toFixed(2), remaining: +Math.max(0, remaining).toFixed(2) });
-      }
-    }
-    monthlyPayment = principalPayment + principal * monthlyRate;
-  } else {
-    let remaining = principal;
-    totalPayment = 0;
-    totalInterest = 0;
-
-    if (grace > 0) {
-      for (let i = 1; i <= grace; i++) {
-        const interest = remaining * monthlyRate;
-        totalPayment += interest;
-        totalInterest += interest;
-        schedule.push({ month: i, principal: 0, interest: +interest.toFixed(2), payment: +interest.toFixed(2), remaining: +remaining.toFixed(2) });
-      }
-    }
-
-    const annuityCoeff = (monthlyRate * Math.pow(1 + monthlyRate, paymentTerm)) / (Math.pow(1 + monthlyRate, paymentTerm) - 1);
-    monthlyPayment = principal * annuityCoeff;
-
-    for (let i = grace + 1; i <= term; i++) {
-      const interest = remaining * monthlyRate;
-      const principalPart = monthlyPayment - interest;
-      remaining -= principalPart;
-      totalPayment += monthlyPayment;
-      totalInterest += interest;
-      schedule.push({ month: i, principal: +principalPart.toFixed(2), interest: +interest.toFixed(2), payment: +monthlyPayment.toFixed(2), remaining: +Math.max(0, remaining).toFixed(2) });
-    }
+  const principal = loanAmount - initialPayment;
+  if (principal <= 0 || gracePeriodMonths >= termMonths) {
+    res.status(400).json({ error: INVALID_BODY_ERROR });
+    return;
   }
+
+  const calculationInput = {
+    loanAmount: principal,
+    interestRate,
+    termMonths,
+    repaymentType,
+    gracePeriodMonths,
+  };
+  const summary = buildCalculationSummary(calculationInput);
+  if (!summary) {
+    res.status(400).json({ error: INVALID_BODY_ERROR });
+    return;
+  }
+  const schedule = buildPaymentSchedule(calculationInput);
 
   const [calc] = await db
     .insert(calculationsTable)
     .values({
-      clientId: clientId || null,
+      clientId: clientId ?? null,
       userId: req.user!.id,
-      productName,
+      productName: productName || "Расчёт кредита / Kredit hisobi",
       loanAmount: principal.toString(),
       interestRate: interestRate.toString(),
-      termMonths: term,
-      repaymentType: repaymentType || "annuity",
-      initialPayment: (parseFloat(initialPayment) || 0).toString(),
-      gracePeriodMonths: grace,
-      monthlyPayment: monthlyPayment.toFixed(2),
-      totalPayment: totalPayment.toFixed(2),
-      totalInterest: totalInterest.toFixed(2),
-      currency: currency || "UZS",
+      termMonths,
+      repaymentType,
+      initialPayment: initialPayment.toString(),
+      gracePeriodMonths,
+      monthlyPayment: summary.monthlyPayment.toFixed(2),
+      totalPayment: summary.totalPayment.toFixed(2),
+      totalInterest: summary.totalInterest.toFixed(2),
+      currency,
     })
     .returning();
 
   res.json({
     calculation: calc,
     schedule,
-    summary: {
-      monthlyPayment: +monthlyPayment.toFixed(2),
-      totalPayment: +totalPayment.toFixed(2),
-      totalInterest: +totalInterest.toFixed(2),
-      principal: +principal.toFixed(2),
-    },
+    summary,
   });
 });
 
@@ -1533,7 +1540,7 @@ router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   res.json(docs);
 });
 
-router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
+router.put("/mini-app/documents/:id/ocr", requireAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const parsed = MiniAppOcrUpdateBody.safeParse(req.body);
   if (!parsed.success) {
@@ -1553,7 +1560,7 @@ router.put("/mini-app/documents/:id/ocr", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
+router.delete("/mini-app/documents/:id", requireAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const [deleted] = await db
     .delete(clientDocumentsTable)
@@ -1563,20 +1570,20 @@ router.delete("/mini-app/documents/:id", requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-router.post("/mini-app/clients/:id/generate-pdf", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const user = req.user!;
-  const language = resolvePdfLanguage(req.body.language);
-  const sendViaTelegram = req.body.sendViaTelegram !== false;
-  const telegramInitData =
-    typeof req.body.telegramInitData === "string"
-      ? req.body.telegramInitData.trim()
-      : "";
-
-  if (!(await verifyClientAccess(clientId, user))) {
-    res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
+  const parsed = MiniAppGeneratePdfBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
+  const language = resolvePdfLanguage(parsed.data.language);
+  const sendViaTelegram = parsed.data.sendViaTelegram !== false;
+  const telegramInitData =
+    typeof parsed.data.telegramInitData === "string"
+      ? parsed.data.telegramInitData.trim()
+      : "";
 
   const payload = await buildPdfPayload(clientId, user, language);
   if (!payload) {

@@ -205,10 +205,10 @@ export default function Dashboard() {
 
   const filterParams = new URLSearchParams();
   if (filters.branchId) filterParams.set("branchId", filters.branchId);
-  if (filters.periodStart) filterParams.set("createdFrom", filters.periodStart);
-  if (filters.periodEnd) filterParams.set("createdTo", filters.periodEnd);
+  if (filters.periodStart) filterParams.set("periodStart", filters.periodStart);
+  if (filters.periodEnd) filterParams.set("periodEnd", filters.periodEnd);
   if (filters.clientType !== "all") filterParams.set("clientType", filters.clientType);
-  if (filters.clientSegment !== "all") filterParams.set("segment", filters.clientSegment);
+  if (filters.clientSegment !== "all") filterParams.set("clientSegment", filters.clientSegment);
   if (filters.gender !== "all") filterParams.set("gender", filters.gender);
   const filterQs = filterParams.toString();
   const filterKey = filterQs || "none";

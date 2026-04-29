@@ -35,13 +35,19 @@ export default function ClientsPage() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["mini-clients", statusFilter],
-    queryFn: () =>
-      api.get(`/mini-app/clients${statusFilter ? `?status=${statusFilter}` : ""}`),
+    queryKey: ["mini-clients", statusFilter, genderFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set("status", statusFilter);
+      if (genderFilter) params.set("gender", genderFilter);
+      const qs = params.toString();
+      return api.get(`/mini-app/clients${qs ? `?${qs}` : ""}`);
+    },
   });
 
   const filtered = useMemo(() => {
@@ -82,6 +88,11 @@ export default function ClientsPage() {
     { key: "date_asc", label: t("clients.sortDateOldest") },
     { key: "name_asc", label: t("clients.sortName") },
     { key: "amount_desc", label: t("clients.sortAmount") },
+  ];
+  const genderOptions = [
+    { key: "", label: t("clients.allGenders") },
+    { key: "male", label: t("clients.genderMale") },
+    { key: "female", label: t("clients.genderFemale") },
   ];
 
   return (
@@ -262,6 +273,31 @@ export default function ClientsPage() {
                     }}
                   >
                     {s ? t(`statuses.${s}`) : t("clients.allStatuses")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide mb-2 px-1">
+              {t("clients.filterByGender")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {genderOptions.map((opt) => {
+                const active = genderFilter === opt.key;
+                return (
+                  <button
+                    key={opt.key || "all-genders"}
+                    onClick={() => setGenderFilter(opt.key)}
+                    className="px-3.5 py-[7px] rounded-full text-[12px] font-semibold transition-colors"
+                    style={{
+                      background: active ? "#0F172A" : "#FFFFFF",
+                      color: active ? "#FFFFFF" : "#0F172A",
+                      border: active ? "none" : "1px solid #E2E8F0",
+                    }}
+                  >
+                    {opt.label}
                   </button>
                 );
               })}

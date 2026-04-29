@@ -34,28 +34,34 @@ function getClientFilters(req: any, user: any) {
 router.get("/dashboard/summary", requireAuth, async (req, res) => {
   const user = req.user!;
   const branchScoped = user.role === "branch_head" && user.branchId;
+  const clientFilters = getClientFilters(req, user);
 
   const startOfDay = startOfAppDay();
   const startOfMonth = startOfAppMonth();
 
-  const branchFilter = branchScoped ? eq(clientsTable.branchId, user.branchId!) : undefined;
+  const withClientFilters = (...extra: any[]) => {
+    const filters = [...clientFilters, ...extra];
+    return filters.length > 0 ? and(...filters) : undefined;
+  };
+  const selectedBranchId =
+    branchScoped ? user.branchId! : req.query.branchId ? Number(req.query.branchId) : null;
 
-  const [totalClients] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable).where(branchFilter);
+  const [totalClients] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable).where(withClientFilters());
   const [totalActiveClients] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable)
-    .where(branchScoped ? and(branchFilter, sql`status NOT IN ('completed', 'rejected')`) : sql`status NOT IN ('completed', 'rejected')`);
+    .where(withClientFilters(sql`status NOT IN ('completed', 'rejected')`));
   const [completedToday] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable)
-    .where(branchScoped ? and(branchFilter, eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfDay)) : and(eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfDay)));
+    .where(withClientFilters(eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfDay)));
   const [totalBranches] = await db.select({ count: sql<number>`count(*)::int` }).from(branchesTable)
-    .where(branchScoped ? and(eq(branchesTable.isActive, true), eq(branchesTable.id, user.branchId!)) : eq(branchesTable.isActive, true));
+    .where(selectedBranchId ? and(eq(branchesTable.isActive, true), eq(branchesTable.id, selectedBranchId)) : eq(branchesTable.isActive, true));
   const [totalHunters] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable)
-    .where(branchScoped
-      ? and(eq(usersTable.branchId, user.branchId!), eq(usersTable.role, "hunter"), eq(usersTable.isActive, true))
+    .where(selectedBranchId
+      ? and(eq(usersTable.branchId, selectedBranchId), eq(usersTable.role, "hunter"), eq(usersTable.isActive, true))
       : and(eq(usersTable.role, "hunter"), eq(usersTable.isActive, true)));
   const [totalProducts] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
   const [completedMonth] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable)
-    .where(branchScoped ? and(branchFilter, eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfMonth)) : and(eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfMonth)));
+    .where(withClientFilters(eq(clientsTable.status, "completed"), gte(clientsTable.updatedAt, startOfMonth)));
   const [rejectedMonth] = await db.select({ count: sql<number>`count(*)::int` }).from(clientsTable)
-    .where(branchScoped ? and(branchFilter, eq(clientsTable.status, "rejected"), gte(clientsTable.updatedAt, startOfMonth)) : and(eq(clientsTable.status, "rejected"), gte(clientsTable.updatedAt, startOfMonth)));
+    .where(withClientFilters(eq(clientsTable.status, "rejected"), gte(clientsTable.updatedAt, startOfMonth)));
 
   res.json({
     totalClients: totalClients?.count ?? 0,

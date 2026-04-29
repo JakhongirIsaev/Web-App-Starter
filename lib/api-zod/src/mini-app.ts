@@ -28,7 +28,7 @@ const desiredAmountSchema = z
   );
 
 export const MiniAppCalculateBody = z.object({
-  clientId: z.number().optional(),
+  clientId: z.coerce.number().int().positive().nullish(),
   productName: z.string().min(1).optional(),
   loanAmount: z.coerce.number().positive(),
   interestRate: z.coerce.number().min(0),
@@ -80,13 +80,28 @@ export const MiniAppCreateClientBody = z.object({
 export const MiniAppUpdateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
-  status: z.string().optional(),
+  status: z.enum([
+    "draft",
+    "questionnaire",
+    "recommendation",
+    "basket",
+    "pdf_generated",
+    "under_review",
+    "approved",
+    "completed",
+    "rejected",
+  ]).optional(),
   businessType: z.string().optional(),
   businessSize: z.string().optional(),
   needType: z.string().optional(),
   loanPurpose: z.string().optional(),
   desiredAmount: desiredAmountSchema,
   desiredTerm: z.string().optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  clientType: z.enum(["individual", "corporate"]).optional(),
+  clientSegment: z.string().optional(),
 });
 
 export const MiniAppNoteBody = z.object({

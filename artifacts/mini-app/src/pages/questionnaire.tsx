@@ -39,16 +39,6 @@ interface QuestionDefinition {
   helperText?: string | null;
 }
 
-function isQuestionDefinition(value: unknown): value is QuestionDefinition {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as QuestionDefinition;
-  return (
-    typeof candidate.key === "string" &&
-    typeof candidate.label === "string" &&
-    (candidate.type === "select" || candidate.type === "input")
-  );
-}
-
 function getFallbackQuestions(
   t: (key: string, params?: Record<string, unknown>) => string,
   needType?: string,
@@ -138,23 +128,6 @@ function getFallbackQuestions(
       ],
     },
   ];
-}
-
-function mergeFollowUpQuestions(
-  generatedQuestions: QuestionDefinition[],
-  fallbackQuestions: QuestionDefinition[],
-) {
-  const usedKeys = new Set<string>();
-  const merged: QuestionDefinition[] = [];
-
-  for (const question of [...generatedQuestions, ...fallbackQuestions]) {
-    if (!question.key || usedKeys.has(question.key)) continue;
-    usedKeys.add(question.key);
-    merged.push(question);
-    if (merged.length >= 4) break;
-  }
-
-  return merged;
 }
 
 export default function QuestionnairePage() {
@@ -312,20 +285,6 @@ export default function QuestionnairePage() {
     });
   };
 
-  const generateQuestionsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post("/ai/generate-questionnaire", {
-        language: currentLanguage,
-        existingAnswers: answers,
-        maxQuestions: 4,
-      });
-
-      return Array.isArray(response.questions)
-        ? response.questions.filter(isQuestionDefinition)
-        : [];
-    },
-  });
-
   const submitMutation = useMutation({
     mutationFn: async () => {
       await api.post("/mini-app/questionnaire", {
@@ -352,19 +311,9 @@ export default function QuestionnairePage() {
     const needType =
       answers.find((item) => item.questionKey === "need_type")?.answer ?? undefined;
     const fallbackQuestions = getFallbackQuestions(t, needType);
-
-    try {
-      const generated = await generateQuestionsMutation.mutateAsync();
-      const merged = mergeFollowUpQuestions(generated, fallbackQuestions);
-      setAiQuestions(merged);
-      setFollowUpSource(generated.length > 0 ? "ai" : "fallback");
-      setStep(baseQuestions.length);
-      return;
-    } catch {
-      setAiQuestions(fallbackQuestions);
-      setFollowUpSource("fallback");
-      setStep(baseQuestions.length);
-    }
+    setAiQuestions(fallbackQuestions);
+    setFollowUpSource("fallback");
+    setStep(baseQuestions.length);
   };
 
   const handleNext = async () => {
@@ -392,7 +341,7 @@ export default function QuestionnairePage() {
   const aiDescription = t("questionnaire.aiDescription");
   const fallbackDescription = t("questionnaire.fallbackDescription");
   const getFollowUpButtonLabel = () => {
-    if (submitMutation.isPending || generateQuestionsMutation.isPending) {
+    if (submitMutation.isPending) {
       return t("questionnaire.submitting");
     }
     if (isLastStep) {
@@ -514,17 +463,14 @@ export default function QuestionnairePage() {
         onClick={handleNext}
         disabled={
           !canProceed ||
-          submitMutation.isPending ||
-          generateQuestionsMutation.isPending
+          submitMutation.isPending
         }
       >
-        {(submitMutation.isPending || generateQuestionsMutation.isPending) && (
+        {submitMutation.isPending && (
           <Loader2 className="h-4 w-4 animate-spin" />
         )}
         {getFollowUpButtonLabel()}
-        {!submitMutation.isPending &&
-          !generateQuestionsMutation.isPending &&
-          !isLastStep && <ChevronRight className="h-4 w-4" />}
+        {!submitMutation.isPending && !isLastStep && <ChevronRight className="h-4 w-4" />}
       </Button>
     </div>
   );

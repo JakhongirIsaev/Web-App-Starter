@@ -26,6 +26,7 @@ import {
   Image as ImageIcon,
   X,
   MapPin,
+  Landmark,
   ChevronRight,
 } from "lucide-react";
 
@@ -147,6 +148,23 @@ export default function ClientDetailPage() {
     },
   });
 
+  const saveLocationMutation = useMutation({
+    mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
+      api.put(`/mini-app/clients/${params.id}`, { latitude, longitude }),
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      alert(
+        t("clientDetail.locationSaved", {
+          lat: Number(updated?.latitude).toFixed(6),
+          lng: Number(updated?.longitude).toFixed(6),
+        }),
+      );
+    },
+    onError: (err: any) => {
+      alert(t("clientDetail.locationError") + (err?.message || String(err)));
+    },
+  });
+
   const [pdfResult, setPdfResult] = useState<{
     success: boolean;
     telegramSent: boolean;
@@ -197,6 +215,30 @@ export default function ClientDetailPage() {
 
   const { client, notes, nextActions, basketItems, calculations } = data;
   const currentIdx = statusFlow.indexOf(client.status);
+  const savedLatitude = client.latitude !== null && client.latitude !== undefined ? Number(client.latitude) : null;
+  const savedLongitude = client.longitude !== null && client.longitude !== undefined ? Number(client.longitude) : null;
+  const hasBusinessLocation =
+    Number.isFinite(savedLatitude) && Number.isFinite(savedLongitude);
+  const mapUrl = hasBusinessLocation
+    ? `https://maps.google.com/?q=${savedLatitude},${savedLongitude}`
+    : null;
+
+  const handleSaveBusinessLocation = () => {
+    if (!navigator.geolocation) {
+      alert(t("clientDetail.locationNotSupported"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        saveLocationMutation.mutate({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        }),
+      (err) => alert(t("clientDetail.locationError") + err.message),
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  };
 
   const getNextAction = () => {
     if (client.status === "draft")
@@ -309,9 +351,21 @@ export default function ClientDetailPage() {
       <div className="mx-4 mt-3">
         <button
           onClick={() => navigate(`/clients/${client.id}/collateral`)}
-          className="w-full h-11 rounded-xl text-[14px] font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] active:scale-[0.98] transition-transform"
+          className="w-full rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-[0_10px_24px_rgba(13,61,26,0.16)]"
+          style={{ background: "linear-gradient(135deg, #0D3D1A 0%, #16A34A 100%)" }}
         >
-          {t("collateral.title")} / {t("collateral.estimateTitle")}
+          <div className="flex items-center gap-3 text-white">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/16">
+              <Landmark className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] font-bold">{t("collateral.title")}</div>
+              <div className="mt-0.5 text-[12px] font-medium text-white/78">
+                {t("collateral.estimateTitle")}
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-white/75" />
+          </div>
         </button>
       </div>
 
@@ -405,6 +459,38 @@ export default function ClientDetailPage() {
               </div>
             </div>
           )}
+          {client.gender && (
+            <div className="flex items-center gap-3 px-4 py-3.5 border-t border-[#F1F5F9]">
+              <div className="w-4 h-4 rounded-full bg-[#E2E8F0] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[#64748B]">
+                  {t("clientDetail.gender")}
+                </div>
+                <div className="text-[14px] font-semibold text-[#0F172A]">
+                  {client.gender === "female"
+                    ? t("clientDetail.genderFemale")
+                    : t("clientDetail.genderMale")}
+                </div>
+              </div>
+            </div>
+          )}
+          {hasBusinessLocation && mapUrl && (
+            <button
+              onClick={() => window.open(mapUrl, "_blank", "noopener,noreferrer")}
+              className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+            >
+              <MapPin className="w-4 h-4 text-[#16A34A] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[#64748B]">
+                  {t("clientDetail.businessLocation")}
+                </div>
+                <div className="text-[14px] font-semibold text-[#0F172A]">
+                  {Number(savedLatitude).toFixed(6)}, {Number(savedLongitude).toFixed(6)}
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -418,23 +504,9 @@ export default function ClientDetailPage() {
           {t("clientDetail.addNote")}
         </button>
         <button
-          onClick={() => {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                (pos) =>
-                  alert(
-                    t("clientDetail.locationReceived", {
-                      lat: pos.coords.latitude,
-                      lng: pos.coords.longitude,
-                    }),
-                  ),
-                (err) => alert(t("clientDetail.locationError") + err.message),
-              );
-            } else {
-              alert(t("clientDetail.locationNotSupported"));
-            }
-          }}
-          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"
+          onClick={handleSaveBusinessLocation}
+          disabled={saveLocationMutation.isPending}
+          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform disabled:opacity-60"
         >
           <MapPin className="w-4 h-4 text-[#64748B]" />
           {t("clientDetail.businessLocation")}
