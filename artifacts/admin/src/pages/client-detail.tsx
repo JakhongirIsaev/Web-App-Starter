@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
-import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +54,14 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
   const queryClient = useQueryClient();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [editClientOpen, setEditClientOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phone: "",
+    gender: "" as "" | "male" | "female",
+    clientType: "" as "" | "individual" | "corporate",
+    clientSegment: "",
+  });
   const lang = i18n.language === "ru" ? "ru" : "uz";
 
   const canManage = currentUser && adminRoles.includes(currentUser.role);
@@ -105,6 +115,47 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
         toast({ variant: "destructive", title: t("clientDetail.failedToReassign"), description: error.message || t("common.error") });
       }
     });
+  };
+
+  const openEditClient = () => {
+    if (!client) return;
+    setEditForm({
+      fullName: client.fullName ?? "",
+      phone: client.phone ?? "",
+      gender: (client.gender as "male" | "female" | null) ?? "",
+      clientType: (client.clientType as "individual" | "corporate" | null) ?? "",
+      clientSegment: client.clientSegment ?? "",
+    });
+    setEditClientOpen(true);
+  };
+
+  const handleSaveClient = () => {
+    updateClient.mutate(
+      {
+        id: clientId,
+        data: {
+          fullName: editForm.fullName.trim() || null,
+          phone: editForm.phone.trim() || null,
+          gender: editForm.gender || null,
+          clientType: editForm.clientType || null,
+          clientSegment: editForm.clientSegment.trim() || null,
+        } as any,
+      },
+      {
+        onSuccess: () => {
+          toast({ title: t("clientDetail.clientUpdated") });
+          setEditClientOpen(false);
+          queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
+        },
+        onError: (error: any) => {
+          toast({
+            variant: "destructive",
+            title: t("clientDetail.failedToUpdate"),
+            description: error.message || t("common.error"),
+          });
+        },
+      },
+    );
   };
 
   if (isLoading) {
@@ -189,9 +240,17 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
         <div className="md:col-span-2 space-y-6">
           {/* Client details card */}
           <Card className="shadow-sm border-border/50">
-            <CardHeader>
-              <CardTitle>{t("clientDetail.clientDetails")}</CardTitle>
-              <CardDescription>{t("clientDetail.clientDetailsDesc")}</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle>{t("clientDetail.clientDetails")}</CardTitle>
+                <CardDescription>{t("clientDetail.clientDetailsDesc")}</CardDescription>
+              </div>
+              {canManage && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={openEditClient}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  {t("common.edit")}
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
@@ -207,6 +266,39 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.phone")}</dt>
                     <dd className="text-base text-foreground mt-1">{client.phone || t("clientDetail.notProvided")}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <VenetianMask className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.gender")}</dt>
+                    <dd className="text-base text-foreground mt-1">
+                      {client.gender === "male"
+                        ? t("clientDetail.genderMale")
+                        : client.gender === "female"
+                          ? t("clientDetail.genderFemale")
+                          : t("clientDetail.notProvided")}
+                    </dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Briefcase className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.clientType")}</dt>
+                    <dd className="text-base text-foreground mt-1">
+                      {client.clientType === "individual"
+                        ? t("clientDetail.clientTypeIndividual")
+                        : client.clientType === "corporate"
+                          ? t("clientDetail.clientTypeCorporate")
+                          : t("clientDetail.notProvided")}
+                    </dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Sparkles className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.clientSegment")}</dt>
+                    <dd className="text-base text-foreground mt-1">{client.clientSegment || t("clientDetail.notProvided")}</dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -470,6 +562,84 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
             <Button variant="outline" onClick={() => setReassignOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleReassign} disabled={!selectedUserId || updateClient.isPending}>
               {updateClient.isPending ? t("clientDetail.reassigning") : t("clientDetail.reassign")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editClientOpen} onOpenChange={setEditClientOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("clientDetail.editTitle")}</DialogTitle>
+            <DialogDescription>{t("clientDetail.editDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>{t("clientDetail.fullName")}</Label>
+                <Input
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>{t("clientDetail.phone")}</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>{t("clientDetail.gender")}</Label>
+                <Select
+                  value={editForm.gender || "_unset"}
+                  onValueChange={(v) =>
+                    setEditForm((f) => ({ ...f, gender: v === "_unset" ? "" : (v as "male" | "female") }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_unset">—</SelectItem>
+                    <SelectItem value="male">{t("clientDetail.genderMale")}</SelectItem>
+                    <SelectItem value="female">{t("clientDetail.genderFemale")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("clientDetail.clientType")}</Label>
+                <Select
+                  value={editForm.clientType || "_unset"}
+                  onValueChange={(v) =>
+                    setEditForm((f) => ({
+                      ...f,
+                      clientType: v === "_unset" ? "" : (v as "individual" | "corporate"),
+                    }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_unset">—</SelectItem>
+                    <SelectItem value="individual">{t("clientDetail.clientTypeIndividual")}</SelectItem>
+                    <SelectItem value="corporate">{t("clientDetail.clientTypeCorporate")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>{t("clientDetail.clientSegment")}</Label>
+                <Input
+                  value={editForm.clientSegment}
+                  onChange={(e) => setEditForm((f) => ({ ...f, clientSegment: e.target.value }))}
+                  placeholder={t("clientDetail.clientSegmentPlaceholder")}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditClientOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleSaveClient} disabled={updateClient.isPending}>
+              {updateClient.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
