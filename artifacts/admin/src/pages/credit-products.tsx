@@ -28,10 +28,18 @@ import { RowActions } from "@/components/row-actions";
 
 const getToken = () => localStorage.getItem("auth_token");
 
+function buildJsonHeaders(options?: RequestInit): HeadersInit {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options?.body) headers["Content-Type"] = "application/json";
+  return { ...headers, ...options?.headers };
+}
+
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
-    headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...options?.headers },
+    headers: buildJsonHeaders(options),
   });
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
@@ -246,9 +254,10 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
     formData.append("file", file);
 
     try {
+      const token = getToken();
       const res = await fetch(buildApiUrl("/api/credit-products/import"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

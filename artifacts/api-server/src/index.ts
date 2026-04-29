@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase, seedCollateralReferenceData } from "./seed";
+import { seedExcelData } from "./seed-excel";
 import { startBot, stopBot } from "./bot";
 
 const rawPort = process.env["PORT"];
@@ -39,6 +40,7 @@ function shouldSeedOnBoot() {
 }
 
 const miniAppUrl = resolveMiniAppUrl();
+const seedDemoOnBoot = shouldSeedOnBoot();
 
 // Reference data (5 collateral types + 3 default system settings) runs every
 // boot. Idempotent via ON CONFLICT DO NOTHING. NOT gated by
@@ -47,11 +49,17 @@ seedCollateralReferenceData().catch((err) => {
   logger.error({ err }, "Failed to seed collateral reference data");
 });
 
-if (shouldSeedOnBoot()) {
+if (seedDemoOnBoot) {
   seedDatabase().catch((err) => {
     logger.error({ err }, "Failed to seed database");
   });
 } else {
+  // Credit products, SAP codes, and credit-line balances are reference data,
+  // not demo users/clients. Keep them available even when dummy data seeding is
+  // disabled for production.
+  seedExcelData().catch((err) => {
+    logger.error({ err }, "Failed to seed Excel reference data");
+  });
   logger.info("Skipping database seed on production boot");
 }
 

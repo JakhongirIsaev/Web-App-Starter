@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { findSessionUserId } from "../lib/session-store";
 import { verifySignedObjectParams } from "../lib/signedUrl";
 
@@ -123,6 +123,16 @@ export async function guestAuth(req: Request, res: Response, next: NextFunction)
     })
     .from(usersTable)
     .where(eq(usersTable.isActive, true))
+    .orderBy(sql`
+      CASE ${usersTable.role}
+        WHEN 'superadmin' THEN 0
+        WHEN 'head_office_admin' THEN 1
+        WHEN 'editor' THEN 2
+        WHEN 'branch_head' THEN 3
+        WHEN 'hunter' THEN 4
+        ELSE 5
+      END
+    `, usersTable.id)
     .limit(1);
 
   if (!guest) {

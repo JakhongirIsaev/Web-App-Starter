@@ -84,13 +84,22 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
-const allowedOrigins = [
+const isProduction = process.env.NODE_ENV === "production";
+
+const productionFallbackOrigins = isProduction
+  ? [
+      "https://workspaceadmin-production-7e8d.up.railway.app",
+      "https://workspacemini-app-production.up.railway.app",
+    ]
+  : [];
+
+const allowedOrigins = Array.from(new Set([
   process.env.ADMIN_URL,
   process.env.MINI_APP_URL,
   ...((process.env.EXTRA_CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)),
-].filter((value): value is string => Boolean(value));
+  ...productionFallbackOrigins,
+].filter((value): value is string => Boolean(value))));
 
-const isProduction = process.env.NODE_ENV === "production";
 const corsAllowAllInDev = !isProduction && allowedOrigins.length === 0;
 
 if (isProduction && allowedOrigins.length === 0) {
