@@ -8,17 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatAdminDateTime } from "@/lib/time";
 
-const getToken = () => localStorage.getItem("auth_token");
-
 async function apiFetch<T>(url: string): Promise<T> {
   const res = await fetch(buildApiUrl(`/api${url}`), {
-    headers: { Authorization: `Bearer ${getToken()}` },
+    headers: buildAuthHeaders(),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();

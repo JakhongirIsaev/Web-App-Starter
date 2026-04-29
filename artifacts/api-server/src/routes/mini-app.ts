@@ -56,6 +56,7 @@ import {
   requireNextActionAccess,
   verifyClientAccess,
 } from "../lib/client-access";
+import { logger } from "../lib/logger";
 import {
   MiniAppBasketBody,
   MiniAppCalculateBody,
@@ -1281,11 +1282,16 @@ router.post("/mini-app/recommend", guestAuth, requireClientAccessFromBody("clien
   // Match knowledge-base docs to the request: any doc whose tag matches the
   // profile (need type, business size, loan purpose) or one of the
   // recommended products' segments shows up under "related knowledge".
-  const allDocs = await db
-    .select()
-    .from(recommendationDocumentsTable)
-    .where(eq(recommendationDocumentsTable.isActive, true))
-    .orderBy(asc(recommendationDocumentsTable.sortOrder));
+  let allDocs: (typeof recommendationDocumentsTable.$inferSelect)[] = [];
+  try {
+    allDocs = await db
+      .select()
+      .from(recommendationDocumentsTable)
+      .where(eq(recommendationDocumentsTable.isActive, true))
+      .orderBy(asc(recommendationDocumentsTable.sortOrder));
+  } catch (err) {
+    logger.warn({ err }, "Recommendation knowledge lookup failed; continuing without related docs");
+  }
   const productSegments = enrichedRecommended
     .map((p) => p.segment)
     .filter((s): s is string => typeof s === "string" && s.length > 0);

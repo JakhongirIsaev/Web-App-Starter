@@ -33,6 +33,12 @@ function getStatusLabel(status: string) {
   return STATUS_LABELS[status] || "noma'lum holat";
 }
 
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function buildClientResponse(c: any, branch: any, assignedTo: any) {
   return {
     id: c.id,
@@ -44,6 +50,12 @@ function buildClientResponse(c: any, branch: any, assignedTo: any) {
     branch: branch ?? null,
     assignedToId: c.assignedToId ?? null,
     assignedTo: assignedTo ?? null,
+    clientType: c.clientType ?? null,
+    clientSegment: c.clientSegment ?? null,
+    gender: c.gender ?? null,
+    latitude: toNullableNumber(c.latitude),
+    longitude: toNullableNumber(c.longitude),
+    rejectionReason: c.rejectionReason ?? null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -90,6 +102,12 @@ router.get("/clients", guestAuth, async (req, res) => {
       status: clientsTable.status,
       branchId: clientsTable.branchId,
       assignedToId: clientsTable.assignedToId,
+      clientType: clientsTable.clientType,
+      clientSegment: clientsTable.clientSegment,
+      gender: clientsTable.gender,
+      latitude: clientsTable.latitude,
+      longitude: clientsTable.longitude,
+      rejectionReason: clientsTable.rejectionReason,
       createdAt: clientsTable.createdAt,
       updatedAt: clientsTable.updatedAt,
       branchName: branchesTable.name,
@@ -124,6 +142,12 @@ router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin"
     phone: parsed.data.phone,
     branchId: parsed.data.branchId,
     assignedToId: parsed.data.assignedToId,
+    clientType: parsed.data.clientType,
+    clientSegment: parsed.data.clientSegment,
+    gender: parsed.data.gender,
+    latitude: parsed.data.latitude !== undefined ? String(parsed.data.latitude) : undefined,
+    longitude: parsed.data.longitude !== undefined ? String(parsed.data.longitude) : undefined,
+    rejectionReason: parsed.data.rejectionReason,
     status: "draft",
   }).returning();
 
@@ -135,7 +159,7 @@ router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin"
     user: req.user,
   });
 
-  res.status(201).json(client);
+  res.status(201).json(buildClientResponse(client, null, null));
 });
 
 router.get("/clients/:id", guestAuth, async (req, res) => {
@@ -161,6 +185,12 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
       status: clientsTable.status,
       branchId: clientsTable.branchId,
       assignedToId: clientsTable.assignedToId,
+      clientType: clientsTable.clientType,
+      clientSegment: clientsTable.clientSegment,
+      gender: clientsTable.gender,
+      latitude: clientsTable.latitude,
+      longitude: clientsTable.longitude,
+      rejectionReason: clientsTable.rejectionReason,
       createdAt: clientsTable.createdAt,
       updatedAt: clientsTable.updatedAt,
       branchName: branchesTable.name,
@@ -239,6 +269,12 @@ router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   if (parsed.data.phone !== undefined) updateData.phone = parsed.data.phone;
   if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
   if (parsed.data.assignedToId !== undefined) updateData.assignedToId = parsed.data.assignedToId;
+  if (parsed.data.clientType !== undefined) updateData.clientType = parsed.data.clientType;
+  if (parsed.data.clientSegment !== undefined) updateData.clientSegment = parsed.data.clientSegment;
+  if (parsed.data.gender !== undefined) updateData.gender = parsed.data.gender;
+  if (parsed.data.latitude !== undefined) updateData.latitude = String(parsed.data.latitude);
+  if (parsed.data.longitude !== undefined) updateData.longitude = String(parsed.data.longitude);
+  if (parsed.data.rejectionReason !== undefined) updateData.rejectionReason = parsed.data.rejectionReason;
 
   const [updated] = await db.update(clientsTable).set(updateData).where(eq(clientsTable.id, params.data.id)).returning();
   if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
@@ -264,7 +300,7 @@ router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
     });
   }
 
-  res.json(updated);
+  res.json(buildClientResponse(updated, null, null));
 });
 
 // Dry-run + commit. Pass ?dryRun=1 to validate + preview without writing.

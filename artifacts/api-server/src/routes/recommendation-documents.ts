@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { recommendationDocumentsTable } from "@workspace/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 
 const router: IRouter = Router();
@@ -27,7 +27,7 @@ const UpdateDocumentBody = z.object({
 });
 
 // Public read — any authenticated user can see active documents.
-router.get("/recommendation-documents", requireAuth, async (_req, res) => {
+router.get("/recommendation-documents", guestAuth, async (_req, res) => {
   const rows = await db
     .select()
     .from(recommendationDocumentsTable)
@@ -39,7 +39,7 @@ router.get("/recommendation-documents", requireAuth, async (_req, res) => {
 // Admin list — includes inactive docs.
 router.get(
   "/admin/recommendation-documents",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (_req, res) => {
     const rows = await db
@@ -52,7 +52,7 @@ router.get(
 
 router.post(
   "/admin/recommendation-documents",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (req: Request, res: Response) => {
     const parsed = CreateDocumentBody.safeParse(req.body);
@@ -84,7 +84,7 @@ router.post(
 
 router.patch(
   "/admin/recommendation-documents/:id",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
@@ -129,7 +129,7 @@ router.patch(
 
 router.delete(
   "/admin/recommendation-documents/:id",
-  requireAuth,
+  guestAuth,
   requireRole(...ADMIN_ROLES),
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);

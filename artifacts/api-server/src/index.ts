@@ -35,8 +35,9 @@ function resolveMiniAppUrl() {
 
 function shouldSeedOnBoot() {
   const raw = process.env["SEED_DATABASE_ON_BOOT"]?.trim().toLowerCase();
+  if (raw === "true") return true;
   if (raw === "false") return false;
-  return true;
+  return process.env.NODE_ENV !== "production";
 }
 
 const miniAppUrl = resolveMiniAppUrl();

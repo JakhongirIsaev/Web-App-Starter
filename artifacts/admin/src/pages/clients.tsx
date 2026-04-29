@@ -16,6 +16,7 @@ import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 import { downloadCsv } from "@/lib/csv";
 import { formatAdminFileDate, formatAdminShortDate } from "@/lib/time";
 
@@ -124,8 +125,6 @@ export default function Clients({ user }: { user?: { role: string } }) {
   } | null>(null);
   const [committing, setCommitting] = useState(false);
 
-  const importToken = () => localStorage.getItem("auth_token");
-
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -138,7 +137,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
     try {
       const res = await fetch(buildApiUrl("/api/clients/import?dryRun=1"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${importToken()}` },
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
@@ -159,7 +158,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
     try {
       const res = await fetch(buildApiUrl("/api/clients/import"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${importToken()}` },
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

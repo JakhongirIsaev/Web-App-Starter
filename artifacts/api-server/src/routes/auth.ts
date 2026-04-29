@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { LoginBody } from "@workspace/api-zod";
 import { validateTelegramInitData } from "../lib/telegram";
@@ -85,6 +85,16 @@ router.get("/auth/guest", async (_req, res) => {
     })
     .from(usersTable)
     .where(eq(usersTable.isActive, true))
+    .orderBy(sql`
+      CASE ${usersTable.role}
+        WHEN 'superadmin' THEN 0
+        WHEN 'head_office_admin' THEN 1
+        WHEN 'editor' THEN 2
+        WHEN 'branch_head' THEN 3
+        WHEN 'hunter' THEN 4
+        ELSE 5
+      END
+    `, usersTable.id)
     .limit(1);
 
   if (!user) {
@@ -124,6 +134,16 @@ router.get("/auth/me", async (req, res) => {
     .from(usersTable)
     .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
     .where(whereClause)
+    .orderBy(sql`
+      CASE ${usersTable.role}
+        WHEN 'superadmin' THEN 0
+        WHEN 'head_office_admin' THEN 1
+        WHEN 'editor' THEN 2
+        WHEN 'branch_head' THEN 3
+        WHEN 'hunter' THEN 4
+        ELSE 5
+      END
+    `, usersTable.id)
     .limit(1);
 
   if (!users.length || !users[0].isActive) {

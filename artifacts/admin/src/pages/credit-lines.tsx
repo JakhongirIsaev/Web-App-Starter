@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
 import { downloadCsv } from "@/lib/csv";
 import { localizeSection, localizeDepartment, localizeSpecialConditions, localizeNotes } from "@/lib/localize";
 import { formatAdminFileDate } from "@/lib/time";
@@ -26,12 +27,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RowActions } from "@/components/row-actions";
 
-const getToken = () => localStorage.getItem("auth_token");
-
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
-    headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json", ...options?.headers },
+    headers: buildJsonHeaders(options?.headers),
   });
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
@@ -280,7 +279,7 @@ export default function CreditLines({ user }: { user?: { role: string } }) {
     try {
       const res = await fetch(buildApiUrl("/api/credit-lines/import"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 
 export interface ImportPreviewRow {
   rowNumber: number;
@@ -48,8 +49,6 @@ interface Props<TRow extends ImportPreviewRow> {
   onCommitted: (result: { imported: number; skipped: number[] }) => void;
 }
 
-const getToken = () => localStorage.getItem("auth_token");
-
 export function ImportPreviewDialog<TRow extends ImportPreviewRow>({
   endpoint,
   open,
@@ -75,7 +74,7 @@ export function ImportPreviewDialog<TRow extends ImportPreviewRow>({
       try {
         const res = await fetch(buildApiUrl(`/api${endpoint}?dryRun=1`), {
           method: "POST",
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: buildAuthHeaders(),
           body: formData,
         });
         if (!res.ok) throw new Error(await res.text());
@@ -105,7 +104,7 @@ export function ImportPreviewDialog<TRow extends ImportPreviewRow>({
     try {
       const res = await fetch(buildApiUrl(`/api${endpoint}`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
+import { buildJsonHeaders } from "@/lib/auth-headers";
 import {
   Table,
   TableBody,
@@ -28,16 +29,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const getToken = () => localStorage.getItem("auth_token");
-
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    headers: buildJsonHeaders(options?.headers),
   });
   if (!res.ok) {
     const text = await res.text();

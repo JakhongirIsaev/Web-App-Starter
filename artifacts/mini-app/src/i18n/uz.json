@@ -147,7 +147,9 @@
     "phonePlaceholder": "+998 ...",
     "create": "Mijoz yaratish",
     "creating": "Yaratilmoqda...",
-    "created": "Mijoz yaratildi"
+    "created": "Mijoz yaratildi",
+    "step": "1-qadam / 1",
+    "saveDraft": "Qoralama saqlash"
   },
   "questionnaire": {
     "title": "Mijoz so'rovnomasi",

@@ -147,7 +147,9 @@
     "phonePlaceholder": "+998 ...",
     "create": "Создать клиента",
     "creating": "Создание...",
-    "created": "Клиент создан"
+    "created": "Клиент создан",
+    "step": "Шаг 1 из 1",
+    "saveDraft": "Сохранить черновик"
   },
   "questionnaire": {
     "title": "Анкета клиента",

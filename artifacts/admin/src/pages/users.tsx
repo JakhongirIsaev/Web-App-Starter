@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 import { downloadCsv } from "@/lib/csv";
 import { formatAdminFileDate, formatAdminFileDateTime, formatAdminMonthYear } from "@/lib/time";
 import * as XLSX from "xlsx";
@@ -248,10 +249,9 @@ export default function Users() {
     setImporting(true);
     setPreviewOpen(false);
     try {
-      const token = localStorage.getItem("auth_token");
       const res = await fetch(buildApiUrl("/api/users/import"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
@@ -270,10 +270,9 @@ export default function Users() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
       const language = i18n.language === "ru" ? "ru" : "uz";
       const res = await fetch(buildApiUrl(`/api/users/import-template?language=${language}`), {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();

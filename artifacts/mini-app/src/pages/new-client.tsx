@@ -39,7 +39,7 @@ export default function NewClientPage() {
             className="text-[13px] font-semibold"
             style={{ color: "#64748B" }}
           >
-            Шаг 1 из 1
+            {t("newClient.step")}
           </span>
           <div className="w-9" />
         </div>
@@ -193,7 +193,7 @@ export default function NewClientPage() {
             }}
           >
             <Save className="w-4 h-4" />
-            Сохранить черновик
+            {t("newClient.saveDraft")}
           </button>
         </div>
       </div>

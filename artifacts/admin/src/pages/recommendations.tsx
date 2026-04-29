@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
+import { buildJsonHeaders } from "@/lib/auth-headers";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -23,16 +24,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RowActions } from "@/components/row-actions";
 
-const getToken = () => localStorage.getItem("auth_token");
-
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    headers: buildJsonHeaders(options?.headers),
   });
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
