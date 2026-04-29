@@ -4,7 +4,8 @@ import {
   useCreateUser, useUpdateUser, useActivateUser, useDeactivateUser
 } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
-import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye, Building2, ChevronRight, ChevronDown, List, LayoutGrid, Users2 } from "lucide-react";
+import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye, Building2, ChevronRight, ChevronDown, List, LayoutGrid, Users2, Pencil, Power } from "lucide-react";
+import { RowActions } from "@/components/row-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -464,12 +465,17 @@ export default function Users() {
                                     : <div className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><UserX className="h-4 w-4" /> {t("common.inactive")}</div>}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => openEdit(user)}>{t("common.edit")}</Button>
-                                    <Button variant="ghost" size="sm" className={user.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"} onClick={() => toggleActive(user)}>
-                                      {user.isActive ? t("users.deactivate") : t("users.activate")}
-                                    </Button>
-                                  </div>
+                                  <RowActions
+                                    actions={[
+                                      { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(user) },
+                                      {
+                                        label: user.isActive ? t("users.deactivate") : t("users.activate"),
+                                        icon: Power,
+                                        danger: user.isActive,
+                                        onClick: () => toggleActive(user),
+                                      },
+                                    ]}
+                                  />
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -531,12 +537,17 @@ export default function Users() {
                           : <div className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><UserX className="h-4 w-4" /> {t("common.inactive")}</div>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(user)}>{t("common.edit")}</Button>
-                          <Button variant="ghost" size="sm" className={user.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-green-600 hover:text-green-700 hover:bg-green-50"} onClick={() => toggleActive(user)}>
-                            {user.isActive ? t("users.deactivate") : t("users.activate")}
-                          </Button>
-                        </div>
+                        <RowActions
+                          actions={[
+                            { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(user) },
+                            {
+                              label: user.isActive ? t("users.deactivate") : t("users.activate"),
+                              icon: Power,
+                              danger: user.isActive,
+                              onClick: () => toggleActive(user),
+                            },
+                          ]}
+                        />
                       </TableCell>
                     </TableRow>
                   ))

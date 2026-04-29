@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useListBranches, getListBranchesQueryKey, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@workspace/api-client-react";
 import type { Branch } from "@workspace/api-client-react";
-import { Plus, Building2, MapPin, Trash2, Download, Upload } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Trash2, Download, Upload } from "lucide-react";
+import { RowActions } from "@/components/row-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -173,13 +174,13 @@ export default function Branches() {
                   <MapPin className="h-4 w-4" />
                   {branch.city}
                 </div>
-                <div className="pt-4 border-t border-border/50 flex justify-between items-center">
-                  <Button variant="ghost" size="sm" className="h-8 px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/10" onClick={() => openEdit(branch)}>
-                    {t("branches.editDetails")}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(branch)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="pt-4 border-t border-border/50 flex justify-end items-center">
+                  <RowActions
+                    actions={[
+                      { label: t("branches.editDetails"), icon: Pencil, onClick: () => openEdit(branch) },
+                      { label: t("common.delete"), icon: Trash2, danger: true, onClick: () => setDeleteTarget(branch) },
+                    ]}
+                  />
                 </div>
               </CardContent>
             </Card>

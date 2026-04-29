@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Settings, Tag } from "lucide-react";
+import { RowActions } from "@/components/row-actions";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,9 +220,15 @@ export default function CollateralAdmin() {
                 <TableCell className="text-center">{type.isActive ? "✓" : "—"}</TableCell>
                 <TableCell className="text-right">{type.sortOrder}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(type)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
+                  <RowActions
+                    actions={[
+                      {
+                        label: t("common.edit"),
+                        icon: Pencil,
+                        onClick: () => setEditing(type),
+                      },
+                    ]}
+                  />
                 </TableCell>
               </TableRow>
             ))}

@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RowActions } from "@/components/row-actions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -237,14 +238,12 @@ export default function Articles({ user }: { user?: { role: string } }) {
                   <div className="flex items-center gap-2">
                     <span>{formatAdminShortDate(article.updatedAt)}</span>
                     {canWrite && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(article)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(article)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
+                      <RowActions
+                        actions={[
+                          { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(article) },
+                          { label: t("common.delete"), icon: Trash2, danger: true, onClick: () => setDeleteTarget(article) },
+                        ]}
+                      />
                     )}
                   </div>
                 </CardFooter>

@@ -22,6 +22,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { RowActions } from "@/components/row-actions";
 
 const getToken = () => localStorage.getItem("auth_token");
 
@@ -260,16 +261,12 @@ export default function SapCodes({ user }: { user?: { role: string } }) {
                     <TableCell className="text-muted-foreground">{item.categoryName || "-"}</TableCell>
                     {canWrite ? (
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(item)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {canAdmin && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(item)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <RowActions
+                          actions={[
+                            { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(item) },
+                            { label: t("common.delete"), icon: Trash2, danger: true, hidden: !canAdmin, onClick: () => setDeleteTarget(item) },
+                          ]}
+                        />
                       </TableCell>
                     ) : <TableCell />}
                   </TableRow>
