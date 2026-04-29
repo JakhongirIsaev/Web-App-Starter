@@ -248,7 +248,7 @@ export default function LoginPage() {
                 <input
                   value={telegramId}
                   onChange={(e) => setTelegramId(e.target.value)}
-                  placeholder="399083740"
+                  placeholder="123456789"
                   className="mn-input"
                 />
               </div>

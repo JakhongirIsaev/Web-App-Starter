@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { getMe, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
+import { getMe, getGuestUser, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
 import { getDetectedTelegramId, getTelegramInitData, isTelegramWebApp } from "./telegram";
 
 interface Branch {
@@ -78,11 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Telegram auto-login is intentionally disabled. Every visitor —
-      // including users opening the mini-app from inside Telegram — has to
-      // go through the manual Telegram-ID + password form. This keeps a
-      // single, consistent entry point regardless of where the page is
-      // opened from.
+      try {
+        const guest = await getGuestUser();
+        setUser(guest.user || guest);
+      } catch {
+        // no users in system — app will show login page
+      }
 
       setLoading(false);
     };

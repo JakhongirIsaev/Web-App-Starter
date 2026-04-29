@@ -11,7 +11,6 @@ import "@/i18n";
 import MiniAppLayout from "@/components/mini-app-layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 
-const LoginPage = lazy(() => import("@/pages/login"));
 const HomePage = lazy(() => import("@/pages/home"));
 const ClientsPage = lazy(() => import("@/pages/clients"));
 const NewClientPage = lazy(() => import("@/pages/new-client"));
@@ -68,18 +67,10 @@ function PageSuspense({ children }: { children: ReactNode }) {
 }
 
 function AuthGate() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return <FullScreenLoader />;
-  }
-
-  if (!user) {
-    return (
-      <Suspense fallback={<FullScreenLoader />}>
-        <LoginPage />
-      </Suspense>
-    );
   }
 
   return (

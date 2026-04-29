@@ -88,6 +88,52 @@ export async function requireAuthOrSignedUrl(req: Request, res: Response, next: 
   return requireAuth(req, res, next);
 }
 
+export async function guestAuth(req: Request, res: Response, next: NextFunction) {
+  const token = extractAuthToken(req);
+  if (token) {
+    const userId = await findSessionUserId(token);
+    if (userId) {
+      const users = await db
+        .select({
+          id: usersTable.id,
+          telegramId: usersTable.telegramId,
+          name: usersTable.name,
+          role: usersTable.role,
+          branchId: usersTable.branchId,
+          isActive: usersTable.isActive,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+      if (users.length && users[0].isActive) {
+        req.user = users[0] as AuthUser;
+        return next();
+      }
+    }
+  }
+
+  const [guest] = await db
+    .select({
+      id: usersTable.id,
+      telegramId: usersTable.telegramId,
+      name: usersTable.name,
+      role: usersTable.role,
+      branchId: usersTable.branchId,
+      isActive: usersTable.isActive,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.isActive, true))
+    .limit(1);
+
+  if (!guest) {
+    res.status(503).json({ error: "No active users in system" });
+    return;
+  }
+
+  req.user = guest as AuthUser;
+  next();
+}
+
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {

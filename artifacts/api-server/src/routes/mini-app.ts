@@ -25,7 +25,7 @@ import {
   collateralTypesTable,
 } from "@workspace/db";
 import { eq, and, desc, count, gte, lte, or, inArray } from "drizzle-orm";
-import { requireAuth } from "../middleware/auth";
+import { guestAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
@@ -727,7 +727,7 @@ async function buildPdfPayload(
   };
 }
 
-router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
+router.get("/mini-app/dashboard", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const today = startOfAppDay();
@@ -806,7 +806,7 @@ router.get("/mini-app/dashboard", requireAuth, async (req, res) => {
   });
 });
 
-router.get("/mini-app/todo", requireAuth, async (req, res) => {
+router.get("/mini-app/todo", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const now = new Date();
@@ -864,7 +864,7 @@ router.get("/mini-app/todo", requireAuth, async (req, res) => {
   res.json({ pendingActions, incompleteClients: draftClients });
 });
 
-router.get("/mini-app/clients", requireAuth, async (req, res) => {
+router.get("/mini-app/clients", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const branchId = req.user!.branchId;
@@ -906,7 +906,7 @@ router.get("/mini-app/clients", requireAuth, async (req, res) => {
   res.json(clients);
 });
 
-router.post("/mini-app/clients", requireAuth, async (req, res) => {
+router.post("/mini-app/clients", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const branchId = req.user!.branchId;
 
@@ -943,7 +943,7 @@ router.post("/mini-app/clients", requireAuth, async (req, res) => {
   res.json(client);
 });
 
-router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/export-all", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
   const branchId = req.user!.branchId;
@@ -1026,7 +1026,7 @@ router.get("/mini-app/clients/export-all", requireAuth, async (req, res) => {
   res.send(text);
 });
 
-router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
+router.get("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const [client] = await db
     .select()
@@ -1085,7 +1085,7 @@ router.get("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req
   });
 });
 
-router.put("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req, res) => {
+router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = MiniAppUpdateClientBody.safeParse(req.body);
   if (!parsed.success) {
@@ -1113,7 +1113,7 @@ router.put("/mini-app/clients/:id", requireAuth, requireClientAccess, async (req
   res.json(updated);
 });
 
-router.post("/mini-app/clients/:id/notes", requireAuth, requireClientAccess, async (req, res) => {
+router.post("/mini-app/clients/:id/notes", guestAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = MiniAppNoteBody.safeParse(req.body);
   if (!parsed.success) {
@@ -1130,7 +1130,7 @@ router.post("/mini-app/clients/:id/notes", requireAuth, requireClientAccess, asy
   res.json(note);
 });
 
-router.post("/mini-app/clients/:id/next-action", requireAuth, requireClientAccess, async (req, res) => {
+router.post("/mini-app/clients/:id/next-action", guestAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const parsed = MiniAppNextActionBody.safeParse(req.body);
   if (!parsed.success) {
@@ -1159,7 +1159,7 @@ router.post("/mini-app/clients/:id/next-action", requireAuth, requireClientAcces
   res.json(action);
 });
 
-router.put("/mini-app/next-actions/:id/complete", requireAuth, requireNextActionAccess, async (req, res) => {
+router.put("/mini-app/next-actions/:id/complete", guestAuth, requireNextActionAccess, async (req, res) => {
   const [action] = await db
     .update(clientNextActionsTable)
     .set({ isCompleted: true, updatedAt: new Date() })
@@ -1169,7 +1169,7 @@ router.put("/mini-app/next-actions/:id/complete", requireAuth, requireNextAction
   res.json(action);
 });
 
-router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+router.post("/mini-app/questionnaire", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppQuestionnaireBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
@@ -1222,7 +1222,7 @@ router.post("/mini-app/questionnaire", requireAuth, requireClientAccessFromBody(
   res.json(session);
 });
 
-router.post("/mini-app/recommend", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+router.post("/mini-app/recommend", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppRecommendBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
@@ -1284,7 +1284,7 @@ router.post("/mini-app/recommend", requireAuth, requireClientAccessFromBody("cli
   });
 });
 
-router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
+router.post("/mini-app/basket", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppBasketBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
@@ -1333,7 +1333,7 @@ router.post("/mini-app/basket", requireAuth, requireClientAccessFromBody("client
   res.json({ basketId });
 });
 
-router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
+router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
   const parsed = MiniAppCalculateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
@@ -1397,7 +1397,7 @@ router.post("/mini-app/calculate", requireAuth, requireClientAccessFromBody("cli
   });
 });
 
-router.get("/mini-app/products", requireAuth, async (req, res) => {
+router.get("/mini-app/products", guestAuth, async (req, res) => {
   const needType =
     typeof req.query.needType === "string" ? req.query.needType : undefined;
   const products = await getRecommendationCatalog("uz", needType);
@@ -1405,7 +1405,7 @@ router.get("/mini-app/products", requireAuth, async (req, res) => {
   res.json(products);
 });
 
-router.get("/mini-app/credit-lines", requireAuth, async (_req, res) => {
+router.get("/mini-app/credit-lines", guestAuth, async (_req, res) => {
   const rows = await db
     .select()
     .from(creditLinesTable)
@@ -1422,7 +1422,7 @@ router.get("/mini-app/credit-lines", requireAuth, async (_req, res) => {
   res.json(mapped);
 });
 
-router.get("/mini-app/articles", requireAuth, async (req, res) => {
+router.get("/mini-app/articles", guestAuth, async (req, res) => {
   const branchId = req.user!.branchId;
 
   const articles = await db
@@ -1455,7 +1455,7 @@ router.get("/mini-app/articles", requireAuth, async (req, res) => {
   res.json(filtered);
 });
 
-router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
+router.get("/mini-app/branch-summary", guestAuth, async (req, res) => {
   const branchId = req.user!.branchId;
   if (!branchId || req.user!.role !== "branch_head") {
     res.status(403).json({ error: "Faqat filial rahbari uchun" });
@@ -1502,7 +1502,7 @@ router.get("/mini-app/branch-summary", requireAuth, async (req, res) => {
   res.json({ workers: workerStats, totalBranchClients: branchTotal.count });
 });
 
-router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+router.post("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
     res.status(403).json({ error: "Ruxsat yo'q" });
@@ -1526,7 +1526,7 @@ router.post("/mini-app/clients/:id/documents", requireAuth, async (req, res) => 
   res.status(201).json(doc);
 });
 
-router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
     res.status(403).json({ error: "Ruxsat yo'q" });
@@ -1540,7 +1540,7 @@ router.get("/mini-app/clients/:id/documents", requireAuth, async (req, res) => {
   res.json(docs);
 });
 
-router.put("/mini-app/documents/:id/ocr", requireAuth, requireDocumentAccess, async (req, res) => {
+router.put("/mini-app/documents/:id/ocr", guestAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const parsed = MiniAppOcrUpdateBody.safeParse(req.body);
   if (!parsed.success) {
@@ -1560,7 +1560,7 @@ router.put("/mini-app/documents/:id/ocr", requireAuth, requireDocumentAccess, as
   res.json(updated);
 });
 
-router.delete("/mini-app/documents/:id", requireAuth, requireDocumentAccess, async (req, res) => {
+router.delete("/mini-app/documents/:id", guestAuth, requireDocumentAccess, async (req, res) => {
   const docId = Number(req.params.id);
   const [deleted] = await db
     .delete(clientDocumentsTable)
@@ -1570,7 +1570,7 @@ router.delete("/mini-app/documents/:id", requireAuth, requireDocumentAccess, asy
   res.json({ success: true });
 });
 
-router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAccess, async (req, res) => {
+router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess, async (req, res) => {
   const clientId = Number(req.params.id);
   const user = req.user!;
   const parsed = MiniAppGeneratePdfBody.safeParse(req.body);
@@ -1638,7 +1638,7 @@ router.post("/mini-app/clients/:id/generate-pdf", requireAuth, requireClientAcce
   }
 });
 
-router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
+router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
   const parsed = MiniAppAutoExcelBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
@@ -1813,7 +1813,7 @@ router.post("/mini-app/exports/auto-excel", requireAuth, async (req, res) => {
   res.send(buffer);
 });
 
-router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   const language = resolvePdfLanguage(req.query.language);
 
@@ -1848,7 +1848,7 @@ router.get("/mini-app/clients/:id/download-pdf", requireAuth, async (req, res) =
   }
 });
 
-router.get("/mini-app/clients/:id/export", requireAuth, async (req, res) => {
+router.get("/mini-app/clients/:id/export", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {

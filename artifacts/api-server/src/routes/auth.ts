@@ -73,6 +73,28 @@ const changePasswordLimiter = rateLimit({
 });
 
 
+router.get("/auth/guest", async (_req, res) => {
+  const [user] = await db
+    .select({
+      id: usersTable.id,
+      telegramId: usersTable.telegramId,
+      name: usersTable.name,
+      role: usersTable.role,
+      branchId: usersTable.branchId,
+      isActive: usersTable.isActive,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.isActive, true))
+    .limit(1);
+
+  if (!user) {
+    res.status(503).json({ error: "No active users" });
+    return;
+  }
+
+  res.json(user);
+});
+
 router.get("/auth/me", async (req, res) => {
   const token = extractBearerToken(req);
   if (!token) {

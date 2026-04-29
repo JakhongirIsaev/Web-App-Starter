@@ -85,19 +85,6 @@ export async function seedDatabase(options: SeedOptions = {}) {
     assertForceSeedAllowed();
   }
 
-  // One-time idempotent migrations that must run on every boot regardless
-  // of the "skip-if-seeded" guard. The WHERE clauses make each a no-op
-  // once it has already been applied.
-  await db
-    .update(usersTable)
-    .set({ name: "Jahongir Isayev" })
-    .where(
-      and(
-        eq(usersTable.telegramId, "399083740"),
-        ne(usersTable.name, "Jahongir Isayev"),
-      ),
-    );
-
   await seedCollateralReferenceData();
 
   // Seed the credit product catalogue, SAP dictionary, and credit-line
@@ -129,16 +116,18 @@ export async function seedDatabase(options: SeedOptions = {}) {
     { name: "Andijon filiali", city: "Andijon", isActive: true },
   ]).returning();
 
+  // Synthetic demo users only. Real personal Telegram IDs must NEVER be
+  // hardcoded here — provision real superadmins via the Users admin page or
+  // a one-off SQL on the prod DB.
   const users = await db.insert(usersTable).values([
-    { telegramId: "399083740", name: "Jahongir Isayev", role: "superadmin", branchId: null, passwordHash, isActive: true },
     { telegramId: "10000001", name: "Minerva Demo Admin", role: "superadmin", branchId: null, passwordHash, isActive: true },
-    { telegramId: "100000001", name: "Nodira Karimova", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
-    { telegramId: "100000002", name: "Dilshod Rasulov", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
-    { telegramId: "100000003", name: "Madina Tursunova", role: "hunter", branchId: branches[1].id, passwordHash, isActive: true },
-    { telegramId: "100000004", name: "Bekzod Yuldashev", role: "hunter", branchId: branches[1].id, passwordHash, isActive: true },
-    { telegramId: "100000005", name: "Shahnoza Ergasheva", role: "branch_head", branchId: branches[2].id, passwordHash, isActive: true },
-    { telegramId: "100000006", name: "Ulugbek Axmedov", role: "hunter", branchId: branches[2].id, passwordHash, isActive: true },
-    { telegramId: "100000007", name: "Sevara Ibrohimova", role: "editor", branchId: branches[0].id, passwordHash, isActive: true },
+    { telegramId: "100000001", name: "Demo Head Office Admin", role: "head_office_admin", branchId: branches[0].id, passwordHash, isActive: true },
+    { telegramId: "100000002", name: "Demo Branch Head A", role: "branch_head", branchId: branches[1].id, passwordHash, isActive: true },
+    { telegramId: "100000003", name: "Demo Hunter A1", role: "hunter", branchId: branches[1].id, passwordHash, isActive: true },
+    { telegramId: "100000004", name: "Demo Hunter A2", role: "hunter", branchId: branches[1].id, passwordHash, isActive: true },
+    { telegramId: "100000005", name: "Demo Branch Head B", role: "branch_head", branchId: branches[2].id, passwordHash, isActive: true },
+    { telegramId: "100000006", name: "Demo Hunter B1", role: "hunter", branchId: branches[2].id, passwordHash, isActive: true },
+    { telegramId: "100000007", name: "Demo Editor", role: "editor", branchId: branches[0].id, passwordHash, isActive: true },
   ]).returning();
 
   const categories = await db.insert(productCategoriesTable).values([

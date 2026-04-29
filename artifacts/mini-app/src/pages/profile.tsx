@@ -1,21 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { api, changePassword } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getInitials } from "@/components/ui-primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import {
   User,
   Bell,
   Globe,
-  Shield,
   ChevronRight,
-  LogOut,
   Landmark,
   Calculator,
   Package,
@@ -214,119 +210,13 @@ function NotificationsSheet({
   );
 }
 
-function SecuritySheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
-
-  const mutation = useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
-      changePassword(currentPassword, newPassword),
-    onSuccess: () => {
-      toast.success(t("profile.securitySheet.success"));
-      setCurrent("");
-      setNext("");
-      setConfirm("");
-      onOpenChange(false);
-    },
-    onError: (err: Error) => {
-      const msg = err.message || "";
-      if (/current password/i.test(msg)) {
-        toast.error(t("profile.securitySheet.wrongCurrent"));
-      } else {
-        toast.error(msg || t("common.error"));
-      }
-    },
-  });
-
-  const submit = () => {
-    if (next.length < 8) {
-      toast.error(t("profile.securitySheet.tooShort"));
-      return;
-    }
-    if (next !== confirm) {
-      toast.error(t("profile.securitySheet.mismatch"));
-      return;
-    }
-    mutation.mutate({ currentPassword: current, newPassword: next });
-  };
-
-  const disabled = mutation.isPending || !current || !next || !confirm;
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{t("profile.securitySheet.title")}</SheetTitle>
-        </SheetHeader>
-        <div className="mt-4 flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium" style={{ color: "#64748B" }}>
-              {t("profile.securitySheet.currentPassword")}
-            </span>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium" style={{ color: "#64748B" }}>
-              {t("profile.securitySheet.newPassword")}
-            </span>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-            />
-            <span className="text-[11px]" style={{ color: "#94A3B8" }}>
-              {t("profile.securitySheet.hint")}
-            </span>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium" style={{ color: "#64748B" }}>
-              {t("profile.securitySheet.confirmPassword")}
-            </span>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          </label>
-          <button
-            onClick={submit}
-            disabled={disabled}
-            className="mt-2 w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white disabled:opacity-50"
-            style={{ background: "#16A34A" }}
-          >
-            {mutation.isPending
-              ? t("profile.securitySheet.submitting")
-              : t("profile.securitySheet.submit")}
-          </button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
 
   const [personalOpen, setPersonalOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [securityOpen, setSecurityOpen] = useState(false);
 
   const { data: dashboard } = useQuery({
     queryKey: ["mini-dashboard"],
@@ -416,14 +306,6 @@ export default function ProfilePage() {
       subtitle: t("profile.languageHint"),
       value: currentLang,
       onClick: toggleLanguage,
-    },
-    {
-      icon: Shield,
-      iconBg: "#FAF5FF",
-      iconColor: "#7C3AED",
-      label: t("profile.security"),
-      subtitle: t("profile.securityHint"),
-      onClick: () => setSecurityOpen(true),
     },
   ];
 
@@ -517,22 +399,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ═══════════════ LOGOUT BUTTON ═══════════════ */}
-      <div className="px-4 pt-6">
-        <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14px] font-semibold"
-          style={{
-            border: "1.5px solid #FCA5A5",
-            color: "#DC2626",
-            background: "#fff",
-          }}
-        >
-          <LogOut className="w-[18px] h-[18px]" />
-          {t("profile.logout")}
-        </button>
-      </div>
-
       {/* ═══════════════ VERSION ═══════════════ */}
       <div className="text-center pt-5 pb-2">
         <span
@@ -546,7 +412,6 @@ export default function ProfilePage() {
       {/* ═══════════════ SHEETS ═══════════════ */}
       <PersonalDataSheet open={personalOpen} onOpenChange={setPersonalOpen} />
       <NotificationsSheet open={notifOpen} onOpenChange={setNotifOpen} />
-      <SecuritySheet open={securityOpen} onOpenChange={setSecurityOpen} />
     </div>
   );
 }
