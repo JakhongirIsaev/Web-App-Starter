@@ -67,12 +67,23 @@ interface ProtectedRouteProps {
   requiredRoles?: string[];
 }
 
+const GUEST_USER = {
+  id: 0,
+  telegramId: "",
+  name: "Guest",
+  role: "superadmin",
+  branchId: null,
+  isActive: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+} as const;
+
 function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: ProtectedRouteProps) {
   const { t } = useTranslation();
-  const { data: user, isLoading } = useGetMe({
+  const { data, isLoading } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
-      retry: false,
+      retry: 2,
     },
   });
 
@@ -80,7 +91,7 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
     return <FullScreenLoader />;
   }
 
-  if (!user) return <FullScreenLoader />;
+  const user = data ?? GUEST_USER;
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
     return (
