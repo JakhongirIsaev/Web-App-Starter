@@ -6,8 +6,11 @@ import {
   collateralItemsTable,
   collateralTypesTable,
   creditProductsTable,
+  clientsTable,
+  branchesTable,
+  usersTable,
 } from "@workspace/db";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import {
   CreateCollateralEstimateBody,
   CreateCollateralItemBody,
@@ -407,6 +410,86 @@ router.delete(
 );
 
 // ─── Estimates ──────────────────────────────────────────────────────────────
+
+// Admin cross-branch view of all collateral estimates. Paginated + filterable
+// by branch / result status / date range. Used by head-office to spot-check
+// volume and not_enough ratio across branches.
+router.get(
+  "/admin/collateral-estimates",
+  requireAuth,
+  requireRole(...ADMIN_ROLES),
+  async (req: Request, res: Response) => {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 25));
+
+    const conditions: any[] = [];
+    if (typeof req.query.branchId === "string" && req.query.branchId.length > 0) {
+      const branchId = Number(req.query.branchId);
+      if (Number.isInteger(branchId) && branchId > 0) {
+        conditions.push(eq(clientsTable.branchId, branchId));
+      }
+    }
+    if (typeof req.query.resultStatus === "string" && req.query.resultStatus.length > 0) {
+      const status = req.query.resultStatus;
+      if (status === "enough" || status === "not_enough") {
+        conditions.push(eq(collateralEstimatesTable.resultStatus, status));
+      }
+    }
+    if (typeof req.query.from === "string" && req.query.from.length > 0) {
+      const fromDate = new Date(req.query.from);
+      if (!Number.isNaN(fromDate.getTime())) {
+        conditions.push(gte(collateralEstimatesTable.createdAt, fromDate));
+      }
+    }
+    if (typeof req.query.to === "string" && req.query.to.length > 0) {
+      const toDate = new Date(req.query.to);
+      if (!Number.isNaN(toDate.getTime())) {
+        conditions.push(lte(collateralEstimatesTable.createdAt, toDate));
+      }
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(collateralEstimatesTable)
+      .innerJoin(clientsTable, eq(collateralEstimatesTable.clientId, clientsTable.id))
+      .where(where);
+
+    const data = await db
+      .select({
+        id: collateralEstimatesTable.id,
+        clientId: collateralEstimatesTable.clientId,
+        clientName: clientsTable.fullName,
+        branchId: clientsTable.branchId,
+        branchName: branchesTable.name,
+        creditProductId: collateralEstimatesTable.creditProductId,
+        productName: creditProductsTable.name,
+        requestedLoanAmount: collateralEstimatesTable.requestedLoanAmount,
+        currency: collateralEstimatesTable.currency,
+        totalAcceptedValue: collateralEstimatesTable.totalAcceptedValue,
+        coveragePercent: collateralEstimatesTable.coveragePercent,
+        maxLoanAmount: collateralEstimatesTable.maxLoanAmount,
+        resultStatus: collateralEstimatesTable.resultStatus,
+        hasEquipmentOnly: collateralEstimatesTable.hasEquipmentOnly,
+        createdAt: collateralEstimatesTable.createdAt,
+        createdBy: collateralEstimatesTable.createdBy,
+        createdByName: usersTable.name,
+      })
+      .from(collateralEstimatesTable)
+      .innerJoin(clientsTable, eq(collateralEstimatesTable.clientId, clientsTable.id))
+      .leftJoin(branchesTable, eq(clientsTable.branchId, branchesTable.id))
+      .innerJoin(creditProductsTable, eq(collateralEstimatesTable.creditProductId, creditProductsTable.id))
+      .leftJoin(usersTable, eq(collateralEstimatesTable.createdBy, usersTable.id))
+      .where(where)
+      .orderBy(desc(collateralEstimatesTable.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    res.json({ data, total, page, pageSize });
+  },
+);
+
 
 router.post(
   "/clients/:id/collateral-estimates",

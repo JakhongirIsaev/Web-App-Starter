@@ -129,7 +129,18 @@
     "noEstimates": "Hisob-kitoblar hali yaratilmagan",
     "statusEnough": "Yetarli",
     "statusNotEnough": "Yetarli emas",
-    "equipOnlyTag": "faqat uskunalar"
+    "statusAll": "Barcha holatlar",
+    "equipOnlyTag": "faqat uskunalar",
+    "allEstimatesTitle": "Filiallar bo'yicha barcha garov hisob-kitoblari",
+    "colDate": "Sana",
+    "colClient": "Mijoz",
+    "colBranch": "Filial",
+    "colProduct": "Mahsulot",
+    "colRequested": "So'rov",
+    "colAccepted": "Garov",
+    "colCoverage": "Qoplama",
+    "colStatus": "Holat",
+    "colCreatedBy": "Kim yaratgan"
   },
   "accesses": {
     "title": "Ruxsatlar",

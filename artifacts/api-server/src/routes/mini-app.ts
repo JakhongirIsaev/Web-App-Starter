@@ -23,8 +23,10 @@ import {
   collateralEstimateItemsTable,
   collateralItemsTable,
   collateralTypesTable,
+  recommendationDocumentsTable,
 } from "@workspace/db";
-import { eq, and, desc, count, gte, lte, or, inArray } from "drizzle-orm";
+import { matchKnowledgeDocs } from "../lib/knowledge-match";
+import { eq, and, asc, desc, count, gte, lte, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
 import { sendDocument } from "../bot";
@@ -1276,11 +1278,29 @@ router.post("/mini-app/recommend", requireAuth, requireClientAccessFromBody("cli
     .set({ status: "recommendation", updatedAt: new Date() })
     .where(eq(clientsTable.id, clientId));
 
+  // Match knowledge-base docs to the request: any doc whose tag matches the
+  // profile (need type, business size, loan purpose) or one of the
+  // recommended products' segments shows up under "related knowledge".
+  const allDocs = await db
+    .select()
+    .from(recommendationDocumentsTable)
+    .where(eq(recommendationDocumentsTable.isActive, true))
+    .orderBy(asc(recommendationDocumentsTable.sortOrder));
+  const productSegments = enrichedRecommended
+    .map((p) => p.segment)
+    .filter((s): s is string => typeof s === "string" && s.length > 0);
+  const relatedKnowledge = matchKnowledgeDocs(
+    allDocs,
+    [profile.needType, profile.businessSize, profile.loanPurpose, ...productSegments],
+    5,
+  );
+
   res.json({
     recommended: enrichedRecommended,
     preferenceProfile: profile,
     total: allProducts.length,
     recommendedCount: enrichedRecommended.length,
+    relatedKnowledge,
   });
 });
 

@@ -129,7 +129,18 @@
     "noEstimates": "Расчёты ещё не создавались",
     "statusEnough": "Достаточно",
     "statusNotEnough": "Недостаточно",
-    "equipOnlyTag": "только оборудование"
+    "statusAll": "Все статусы",
+    "equipOnlyTag": "только оборудование",
+    "allEstimatesTitle": "Все расчёты залога по филиалам",
+    "colDate": "Дата",
+    "colClient": "Клиент",
+    "colBranch": "Филиал",
+    "colProduct": "Продукт",
+    "colRequested": "Запрос",
+    "colAccepted": "Залог",
+    "colCoverage": "Покрытие",
+    "colStatus": "Статус",
+    "colCreatedBy": "Создал"
   },
   "accesses": {
     "title": "Доступы",
