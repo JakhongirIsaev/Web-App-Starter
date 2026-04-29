@@ -55,7 +55,24 @@
     "sapCodes": "Шифры продуктов",
     "creditLines": "Кредитные линии",
     "collateral": "Залог",
-    "recommendations": "Рекомендации"
+    "recommendations": "Рекомендации",
+    "activityLog": "Журнал активности"
+  },
+  "activityLog": {
+    "title": "Журнал активности",
+    "subtitle": "Все действия пользователей и системы — фильтры и контекстные данные",
+    "filterType": "Тип события",
+    "filterFrom": "С",
+    "filterTo": "По",
+    "allTypes": "Все типы",
+    "clearFilters": "Очистить фильтры",
+    "colTime": "Время",
+    "colEvent": "Событие",
+    "colUser": "Пользователь",
+    "colBranch": "Филиал",
+    "colDescription": "Описание",
+    "empty": "Записи не найдены",
+    "showing": "Показано {{from}}-{{to}} из {{total}}"
   },
   "recommendations": {
     "title": "База рекомендаций",

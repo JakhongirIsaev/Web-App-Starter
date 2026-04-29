@@ -16,6 +16,7 @@ import {
   Hash,
   ShieldCheck,
   Coins,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ const navItems = [
   { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/recommendations", labelKey: "nav.recommendations", icon: BookOpen, roles: ["superadmin", "head_office_admin"], badge: false },
+  { href: "/activity", labelKey: "nav.activityLog", icon: Activity, roles: ["superadmin", "head_office_admin"], badge: false },
 ];
 
 export function getRoleColor(role: string) {

@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
 import { eq, and, sql, gte, lte, desc, inArray, count } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 
 const router: IRouter = Router();
@@ -98,6 +98,66 @@ router.get("/dashboard/activity", requireAuth, async (req, res) => {
 
   const activities = await query;
   res.json(activities);
+});
+
+// Paginated, filterable admin audit view of activity_log. Reads
+// metadata jsonb so payloads (before/after, counts, IDs) come through.
+router.get("/admin/activity-log", requireAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 25));
+
+  const conditions: any[] = [];
+
+  if (typeof req.query.type === "string" && req.query.type.length > 0) {
+    const types = req.query.type.split(",").map((s) => s.trim()).filter(Boolean);
+    if (types.length > 0) conditions.push(inArray(activityLogTable.type, types));
+  }
+  if (typeof req.query.userId === "string" && req.query.userId.length > 0) {
+    const userId = Number(req.query.userId);
+    if (Number.isInteger(userId) && userId > 0) {
+      conditions.push(eq(activityLogTable.userId, userId));
+    }
+  }
+  if (typeof req.query.branchName === "string" && req.query.branchName.length > 0) {
+    conditions.push(eq(activityLogTable.branchName, req.query.branchName));
+  }
+  if (typeof req.query.entityType === "string" && req.query.entityType.length > 0) {
+    conditions.push(eq(activityLogTable.entityType, req.query.entityType));
+  }
+  if (typeof req.query.from === "string" && req.query.from.length > 0) {
+    const fromDate = new Date(req.query.from);
+    if (!Number.isNaN(fromDate.getTime())) conditions.push(gte(activityLogTable.createdAt, fromDate));
+  }
+  if (typeof req.query.to === "string" && req.query.to.length > 0) {
+    const toDate = new Date(req.query.to);
+    if (!Number.isNaN(toDate.getTime())) conditions.push(lte(activityLogTable.createdAt, toDate));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(activityLogTable)
+    .where(where);
+
+  const data = await db
+    .select()
+    .from(activityLogTable)
+    .where(where)
+    .orderBy(desc(activityLogTable.createdAt))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  res.json({ data, total, page, pageSize });
+});
+
+// Distinct event types currently in the log — fuels the filter dropdown.
+router.get("/admin/activity-log/types", requireAuth, requireRole("superadmin", "head_office_admin"), async (_req, res) => {
+  const rows = await db
+    .selectDistinct({ type: activityLogTable.type })
+    .from(activityLogTable)
+    .orderBy(activityLogTable.type);
+  res.json(rows.map((r) => r.type));
 });
 
 router.get("/dashboard/branch-stats", requireAuth, async (req, res) => {

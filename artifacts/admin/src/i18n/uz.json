@@ -55,7 +55,24 @@
     "sapCodes": "Mahsulot shifrlari",
     "creditLines": "Kredit liniyalari",
     "collateral": "Garov",
-    "recommendations": "Tavsiyalar"
+    "recommendations": "Tavsiyalar",
+    "activityLog": "Faoliyat jurnali"
+  },
+  "activityLog": {
+    "title": "Faoliyat jurnali",
+    "subtitle": "Foydalanuvchilar va tizim harakatlari — filtrlar va kontekst ma'lumotlari",
+    "filterType": "Hodisa turi",
+    "filterFrom": "Dan",
+    "filterTo": "Gacha",
+    "allTypes": "Barcha turlar",
+    "clearFilters": "Filtrlarni tozalash",
+    "colTime": "Vaqt",
+    "colEvent": "Hodisa",
+    "colUser": "Foydalanuvchi",
+    "colBranch": "Filial",
+    "colDescription": "Tavsif",
+    "empty": "Yozuvlar topilmadi",
+    "showing": "{{from}}-{{to}} / {{total}}"
   },
   "recommendations": {
     "title": "Tavsiyalar bazasi",
