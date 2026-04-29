@@ -17,6 +17,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RowActions } from "@/components/row-actions";
+import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -127,25 +129,14 @@ export default function Articles({ user }: { user?: { role: string } }) {
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(buildApiUrl("/api/articles/import"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const result = await res.json();
-      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
-      invalidate();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
-    }
+    setImportFile(file);
+    setImportOpen(true);
     if (importRef.current) importRef.current.value = "";
   };
 
@@ -237,14 +228,12 @@ export default function Articles({ user }: { user?: { role: string } }) {
                   <div className="flex items-center gap-2">
                     <span>{formatAdminShortDate(article.updatedAt)}</span>
                     {canWrite && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(article)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(article)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
+                      <RowActions
+                        actions={[
+                          { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(article) },
+                          { label: t("common.delete"), icon: Trash2, danger: true, onClick: () => setDeleteTarget(article) },
+                        ]}
+                      />
                     )}
                   </div>
                 </CardFooter>
@@ -329,6 +318,19 @@ export default function Articles({ user }: { user?: { role: string } }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportPreviewDialog
+        endpoint="/articles/import"
+        open={importOpen}
+        onOpenChange={(open) => { setImportOpen(open); if (!open) setImportFile(null); }}
+        file={importFile}
+        columns={[
+          { key: "title", label: t("articles.title") },
+          { key: "contentPreview", label: t("articles.content") },
+          { key: "isPublished", label: t("articles.published"), render: (r) => (r.isPublished ? "✓" : "—") },
+        ]}
+        onCommitted={() => invalidate()}
+      />
     </div>
   );
 }

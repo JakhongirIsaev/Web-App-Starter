@@ -1,7 +1,9 @@
 import { useState, useRef } from "react";
 import { useListBranches, getListBranchesQueryKey, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@workspace/api-client-react";
 import type { Branch } from "@workspace/api-client-react";
-import { Plus, Building2, MapPin, Trash2, Download, Upload } from "lucide-react";
+import { Plus, Building2, MapPin, Pencil, Trash2, Download, Upload } from "lucide-react";
+import { RowActions } from "@/components/row-actions";
+import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,25 +80,14 @@ export default function Branches() {
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(buildApiUrl("/api/branches/import"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const result = await res.json();
-      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
-      invalidate();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
-    }
+    setImportFile(file);
+    setImportOpen(true);
     if (importRef.current) importRef.current.value = "";
   };
 
@@ -173,13 +164,13 @@ export default function Branches() {
                   <MapPin className="h-4 w-4" />
                   {branch.city}
                 </div>
-                <div className="pt-4 border-t border-border/50 flex justify-between items-center">
-                  <Button variant="ghost" size="sm" className="h-8 px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/10" onClick={() => openEdit(branch)}>
-                    {t("branches.editDetails")}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(branch)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="pt-4 border-t border-border/50 flex justify-end items-center">
+                  <RowActions
+                    actions={[
+                      { label: t("branches.editDetails"), icon: Pencil, onClick: () => openEdit(branch) },
+                      { label: t("common.delete"), icon: Trash2, danger: true, onClick: () => setDeleteTarget(branch) },
+                    ]}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -232,6 +223,19 @@ export default function Branches() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportPreviewDialog
+        endpoint="/branches/import"
+        open={importOpen}
+        onOpenChange={(open) => { setImportOpen(open); if (!open) setImportFile(null); }}
+        file={importFile}
+        columns={[
+          { key: "name", label: t("branches.branchName") },
+          { key: "city", label: t("branches.city") },
+          { key: "isActive", label: t("common.active"), render: (r) => (r.isActive ? "✓" : "—") },
+        ]}
+        onCommitted={() => invalidate()}
+      />
     </div>
   );
 }

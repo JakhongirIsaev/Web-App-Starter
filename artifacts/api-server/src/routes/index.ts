@@ -15,6 +15,7 @@ import storageRouter from "./storage";
 import aiRouter from "./ai";
 import telegramRouter from "./telegram";
 import collateralRouter from "./collateral";
+import recommendationDocumentsRouter from "./recommendation-documents";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(sapCodesRouter);
 router.use(creditLinesRouter);
 router.use(miniAppRouter);
 router.use(collateralRouter);
+router.use(recommendationDocumentsRouter);
 
 export default router;

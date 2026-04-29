@@ -380,118 +380,196 @@ function normalizeRow(raw: Record<string, string>): Record<string, string> {
   return result;
 }
 
-router.post("/users/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+// Resolves a branch name (free text from import) to a branchId, with a
+// case-insensitive exact match preferred and substring match as fallback.
+function resolveBranchInput(
+  raw: string | undefined,
+  branchMap: Map<string, number>,
+): number | null {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  const exact = branchMap.get(lower);
+  if (exact) return exact;
+  for (const [name, id] of branchMap.entries()) {
+    if (name.includes(lower) || lower.includes(name)) return id;
+  }
+  return null;
+}
 
-    const fileName = req.file.originalname || "";
-    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls") ||
-      req.file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      req.file.mimetype === "application/vnd.ms-excel";
+// Two-step import: ?dryRun=1 validates and previews without password
+// hashing or DB writes; the no-flag call runs the real insert. Both share
+// the parse + branch-resolve + telegramId-duplicate logic so the preview
+// matches what commit will actually do.
+router.post(
+  "/users/import",
+  guestAuth,
+  requireRole("superadmin", "head_office_admin"),
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        return;
+      }
+      const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
 
-    let rawRows: Record<string, string>[];
-    if (isExcel) {
-      rawRows = parseExcelBuffer(req.file.buffer);
-    } else {
-      rawRows = parseCsvBuffer(req.file.buffer);
-    }
+      const fileName = req.file.originalname || "";
+      const isExcel =
+        fileName.endsWith(".xlsx") ||
+        fileName.endsWith(".xls") ||
+        req.file.mimetype ===
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        req.file.mimetype === "application/vnd.ms-excel";
 
-    const rows = rawRows.map(normalizeRow);
+      const rawRows = isExcel ? parseExcelBuffer(req.file.buffer) : parseCsvBuffer(req.file.buffer);
+      const rows = rawRows.map(normalizeRow);
 
-    const allBranches = await db.select({ id: branchesTable.id, name: branchesTable.name }).from(branchesTable);
-    const branchMap = new Map<string, number>();
-    for (const b of allBranches) {
-      branchMap.set(b.name.toLowerCase().trim(), b.id);
-    }
+      const allBranches = await db
+        .select({ id: branchesTable.id, name: branchesTable.name })
+        .from(branchesTable);
+      const branchMap = new Map<string, number>();
+      for (const b of allBranches) branchMap.set(b.name.toLowerCase().trim(), b.id);
 
-    const existingUsers = await db.select({ telegramId: usersTable.telegramId }).from(usersTable);
-    const existingTelegramIds = new Set(existingUsers.map(u => u.telegramId));
+      const existingUsers = await db
+        .select({ telegramId: usersTable.telegramId })
+        .from(usersTable);
+      const existingTelegramIds = new Set(existingUsers.map((u) => u.telegramId));
 
-    const created: Array<{ row: number; name: string; telegramId: string; role: string; branch: string; password: string }> = [];
-    const skipped: Array<{ row: number; reason: string; name?: string; telegramId?: string }> = [];
+      type RowResult = {
+        rowNumber: number;
+        ok: boolean;
+        error?: string;
+        name?: string;
+        telegramId?: string;
+        role?: string;
+        branchId?: number | null;
+        branchName?: string;
+        // password is NEVER returned in dry-run; only populated by the commit path
+        password?: string;
+      };
 
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowNum = i + 2;
-
+      // Track in-file duplicates separately so two new rows with the same
+      // telegramId both get flagged, not just on the second insert attempt.
+      const seenInFile = new Set<string>();
+      const results: RowResult[] = rows.map((row, i) => {
+        const rowNumber = i + 2;
         if (!row.telegramId || !row.name) {
-          skipped.push({ row: rowNum, reason: "missing_required_fields", name: row.name, telegramId: row.telegramId });
-          continue;
+          return { rowNumber, ok: false, error: "missing_required_fields", name: row.name, telegramId: row.telegramId };
         }
-
         if (existingTelegramIds.has(row.telegramId)) {
-          skipped.push({ row: rowNum, reason: "duplicate_telegram_id", name: row.name, telegramId: row.telegramId });
-          continue;
+          return { rowNumber, ok: false, error: "duplicate_telegram_id", name: row.name, telegramId: row.telegramId };
         }
-
-        const password = row.password || generatePassword();
-        const passwordHash = await bcrypt.hash(password, 10);
+        if (seenInFile.has(row.telegramId)) {
+          return { rowNumber, ok: false, error: "duplicate_telegram_id_in_file", name: row.name, telegramId: row.telegramId };
+        }
+        seenInFile.add(row.telegramId);
         const role = resolveRole(row.role || "branch_head");
+        const branchId = resolveBranchInput(row.branch, branchMap);
+        const branchName = branchId
+          ? allBranches.find((b) => b.id === branchId)?.name || ""
+          : "";
+        return {
+          rowNumber,
+          ok: true,
+          name: row.name,
+          telegramId: row.telegramId,
+          role,
+          branchId,
+          branchName,
+        };
+      });
 
-        let branchId: number | null = null;
-        const branchInput = row.branch || "";
-        if (branchInput) {
-          const exactMatch = branchMap.get(branchInput.toLowerCase().trim());
-          if (exactMatch) {
-            branchId = exactMatch;
-          } else {
-            const searchTerm = branchInput.toLowerCase().trim();
-            for (const [name, id] of branchMap.entries()) {
-              if (name.includes(searchTerm) || searchTerm.includes(name)) {
-                branchId = id;
-                break;
-              }
+      const valid = results.filter((r) => r.ok);
+      const skipped = results.filter((r) => !r.ok);
+
+      if (dryRun) {
+        res.json({
+          dryRun: true,
+          total: results.length,
+          willImport: valid.length,
+          willSkip: skipped.length,
+          rows: results,
+        });
+        return;
+      }
+
+      const created: Array<{
+        row: number;
+        name: string;
+        telegramId: string;
+        role: string;
+        branch: string;
+        password: string;
+      }> = [];
+
+      await db.transaction(async (tx) => {
+        for (const result of valid) {
+          // Re-derive password / hash here so dry-run never costs bcrypt.
+          const originalRow = rows[result.rowNumber - 2];
+          const password = originalRow.password || generatePassword();
+          const passwordHash = await bcrypt.hash(password, 10);
+          try {
+            await tx.insert(usersTable).values({
+              telegramId: result.telegramId!,
+              name: result.name!,
+              role: result.role as UserRole,
+              branchId: result.branchId ?? null,
+              passwordHash,
+              isActive: true,
+            });
+            created.push({
+              row: result.rowNumber,
+              name: result.name!,
+              telegramId: result.telegramId!,
+              role: result.role!,
+              branch: result.branchName || "",
+              password,
+            });
+          } catch (insertErr: any) {
+            if (insertErr.message?.includes("duplicate") || insertErr.code === "23505") {
+              skipped.push({
+                rowNumber: result.rowNumber,
+                ok: false,
+                error: "duplicate_telegram_id",
+                name: result.name,
+                telegramId: result.telegramId,
+              });
+            } else {
+              throw insertErr;
             }
           }
         }
+      });
 
-        try {
-          await tx.insert(usersTable).values({
-            telegramId: row.telegramId,
-            name: row.name,
-            role,
-            branchId,
-            passwordHash,
-            isActive: true,
-          });
+      await logActivity({
+        type: "users_imported",
+        description: `Импортировано пользователей: ${created.length}; пропущено: ${skipped.length}`,
+        entityType: "user",
+        user: req.user,
+        metadata: {
+          imported: created.length,
+          skipped: skipped.length,
+          skippedRows: skipped.map((r) => ({ rowNumber: r.rowNumber, error: r.error })),
+        },
+      });
 
-          existingTelegramIds.add(row.telegramId);
-
-          const branchName = branchId
-            ? allBranches.find(b => b.id === branchId)?.name || ""
-            : "";
-
-          created.push({
-            row: rowNum,
-            name: row.name,
-            telegramId: row.telegramId,
-            role,
-            branch: branchName,
-            password,
-          });
-        } catch (insertErr: any) {
-          if (insertErr.message?.includes("duplicate") || insertErr.code === "23505") {
-            skipped.push({ row: rowNum, reason: "duplicate_telegram_id", name: row.name, telegramId: row.telegramId });
-            existingTelegramIds.add(row.telegramId);
-          } else {
-            throw insertErr;
-          }
-        }
-      }
-    });
-
-    await logActivity({
-      type: "users_imported",
-      description: `Импортировано пользователей: ${created.length}; пропущено: ${skipped.length}`,
-      entityType: "user",
-      user: req.user,
-    });
-
-    res.json({ imported: created.length, skipped, created });
-  } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
-  }
-});
+      // Existing UI consumers expect { imported, skipped, created } so keep
+      // that shape for the commit path. Dry-run callers get the rows shape.
+      res.json({
+        imported: created.length,
+        skipped: skipped.map((r) => ({
+          row: r.rowNumber,
+          reason: r.error ?? "unknown",
+          name: r.name,
+          telegramId: r.telegramId,
+        })),
+        created,
+      });
+    } catch {
+      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    }
+  },
+);
 
 export default router;

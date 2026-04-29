@@ -19,6 +19,8 @@ const Accesses = lazy(() => import("@/pages/accesses"));
 const CreditProducts = lazy(() => import("@/pages/credit-products"));
 const SapCodes = lazy(() => import("@/pages/sap-codes"));
 const CollateralAdmin = lazy(() => import("@/pages/collateral"));
+const RecommendationsAdmin = lazy(() => import("@/pages/recommendations"));
+const ActivityLog = lazy(() => import("@/pages/activity-log"));
 const CreditLines = lazy(() => import("@/pages/credit-lines"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -148,6 +150,12 @@ function Router() {
       </Route>
       <Route path="/collateral">
         {() => <ProtectedRoute component={CollateralAdmin} requiredRoles={adminRoles} />}
+      </Route>
+      <Route path="/recommendations">
+        {() => <ProtectedRoute component={RecommendationsAdmin} requiredRoles={adminRoles} />}
+      </Route>
+      <Route path="/activity">
+        {() => <ProtectedRoute component={ActivityLog} requiredRoles={adminRoles} />}
       </Route>
       <Route>
         {() => (

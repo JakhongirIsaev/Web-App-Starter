@@ -267,43 +267,116 @@ router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   res.json(updated);
 });
 
-router.post("/clients/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
-    const skipped: number[] = [];
-    let imported = 0;
-    const validStatuses = ["draft", "questionnaire", "recommendation", "basket", "pdf_generated", "under_review", "approved", "completed", "rejected"] as const;
-    type ClientStatus = typeof validStatuses[number];
-    const isClientStatus = (s: string): s is ClientStatus => (validStatuses as readonly string[]).includes(s);
+// Dry-run + commit. Pass ?dryRun=1 to validate + preview without writing.
+// Returns per-row validation results so the admin UI can show a confirm-or-fix
+// preview before the actual commit.
+router.post(
+  "/clients/import",
+  guestAuth,
+  requireRole("superadmin", "head_office_admin"),
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        return;
+      }
+      const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
 
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        // branchId is required in the schema; skip rows without a resolvable one.
+      const rows = parseCsvBuffer(req.file.buffer);
+      const validStatuses = [
+        "draft", "questionnaire", "recommendation", "basket", "pdf_generated",
+        "under_review", "approved", "completed", "rejected",
+      ] as const;
+      type ClientStatus = typeof validStatuses[number];
+      const isClientStatus = (s: string): s is ClientStatus =>
+        (validStatuses as readonly string[]).includes(s);
+
+      type RowResult = {
+        rowNumber: number;
+        ok: boolean;
+        error?: string;
+        fullName?: string | null;
+        phone?: string | null;
+        branchId?: number;
+        status?: ClientStatus;
+        assignedToId?: number | null;
+      };
+
+      const results: RowResult[] = rows.map((row, i) => {
+        const rowNumber = i + 2; // header is row 1
         const branchId = row.branchId ? Number(row.branchId) : NaN;
-        if (!row.fullName || !Number.isInteger(branchId) || branchId <= 0) {
-          skipped.push(i + 2);
-          continue;
+        if (!row.fullName) {
+          return { rowNumber, ok: false, error: "fullName missing" };
+        }
+        if (!Number.isInteger(branchId) || branchId <= 0) {
+          return { rowNumber, ok: false, error: "branchId missing or invalid" };
         }
         const status: ClientStatus =
           row.status && isClientStatus(row.status) ? row.status : "draft";
-        await tx.insert(clientsTable).values({
-          sessionId: row.sessionId || randomUUID(),
-          fullName: row.fullName || null,
+        return {
+          rowNumber,
+          ok: true,
+          fullName: row.fullName,
           phone: row.phone || null,
-          status,
           branchId,
+          status,
           assignedToId: row.assignedToId ? Number(row.assignedToId) : null,
+        };
+      });
+
+      const valid = results.filter((r) => r.ok);
+      const skipped = results.filter((r) => !r.ok);
+
+      if (dryRun) {
+        res.json({
+          dryRun: true,
+          total: results.length,
+          willImport: valid.length,
+          willSkip: skipped.length,
+          rows: results,
         });
-        imported++;
+        return;
       }
-    });
-    await logActivity({ type: "clients_imported", description: `Импортировано клиентов: ${imported} / Import qilingan mijozlar: ${imported}`, entityType: "client", user: req.user });
-    res.json({ imported, skipped });
-  } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
-  }
-});
+
+      let imported = 0;
+      await db.transaction(async (tx) => {
+        for (const row of valid) {
+          await tx.insert(clientsTable).values({
+            sessionId: randomUUID(),
+            fullName: row.fullName ?? null,
+            phone: row.phone ?? null,
+            status: row.status ?? "draft",
+            branchId: row.branchId!,
+            assignedToId: row.assignedToId ?? null,
+          });
+          imported++;
+        }
+      });
+
+      await logActivity({
+        type: "clients_imported",
+        description: `Импортировано клиентов: ${imported} / Import qilingan mijozlar: ${imported}`,
+        entityType: "client",
+        user: req.user,
+        metadata: {
+          imported,
+          skipped: skipped.length,
+          skippedRows: skipped.map((r) => ({ rowNumber: r.rowNumber, error: r.error })),
+        },
+      });
+
+      res.json({
+        dryRun: false,
+        total: results.length,
+        imported,
+        skipped: skipped.map((r) => r.rowNumber),
+        skippedDetail: skipped,
+      });
+    } catch (err) {
+      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    }
+  },
+);
 
 export default router;

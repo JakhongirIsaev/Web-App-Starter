@@ -1,6 +1,9 @@
 import { useState, useRef } from "react";
 import { useListClients, getListClientsQueryKey, useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { Search, Download, Upload, Plus } from "lucide-react";
+import { Search, Download, Upload, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -111,25 +114,65 @@ export default function Clients({ user }: { user?: { role: string } }) {
     toast({ title: t("common.exportSuccess") });
   };
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewResult, setPreviewResult] = useState<{
+    total: number;
+    willImport: number;
+    willSkip: number;
+    rows: Array<{ rowNumber: number; ok: boolean; error?: string; fullName?: string | null; phone?: string | null; branchId?: number; status?: string }>;
+  } | null>(null);
+  const [committing, setCommitting] = useState(false);
+
+  const importToken = () => localStorage.getItem("auth_token");
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPreviewFile(file);
+    setPreviewResult(null);
+    setPreviewOpen(true);
+
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const token = localStorage.getItem("auth_token");
+      const res = await fetch(buildApiUrl("/api/clients/import?dryRun=1"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${importToken()}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setPreviewResult(await res.json());
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
+      setPreviewOpen(false);
+    } finally {
+      if (importRef.current) importRef.current.value = "";
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!previewFile) return;
+    setCommitting(true);
+    const formData = new FormData();
+    formData.append("file", previewFile);
+    try {
       const res = await fetch(buildApiUrl("/api/clients/import"), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${importToken()}` },
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json();
       toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
+      setPreviewOpen(false);
+      setPreviewFile(null);
+      setPreviewResult(null);
     } catch (err: any) {
       toast({ variant: "destructive", title: t("common.importError"), description: err.message });
+    } finally {
+      setCommitting(false);
     }
-    if (importRef.current) importRef.current.value = "";
   };
 
   const tabLabels: Record<string, string> = {
@@ -339,6 +382,93 @@ export default function Clients({ user }: { user?: { role: string } }) {
           </div>
         </div>
       </div>
+
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) { setPreviewOpen(false); setPreviewFile(null); setPreviewResult(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{t("clientsImport.title")}</DialogTitle>
+            <DialogDescription>
+              {previewFile ? t("clientsImport.fileLabel", { name: previewFile.name }) : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!previewResult ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <div className="text-sm text-muted-foreground">{t("common.loading")}</div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-3 mb-3">
+                <div className="flex-1 rounded-lg border border-border/60 p-3">
+                  <div className="text-xs text-muted-foreground">{t("clientsImport.total")}</div>
+                  <div className="text-2xl font-bold">{previewResult.total}</div>
+                </div>
+                <div className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> {t("clientsImport.willImport")}
+                  </div>
+                  <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{previewResult.willImport}</div>
+                </div>
+                <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 p-3">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {t("clientsImport.willSkip")}
+                  </div>
+                  <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">{previewResult.willSkip}</div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto border border-border/60 rounded-lg">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-muted">
+                    <TableRow>
+                      <TableHead className="w-14">#</TableHead>
+                      <TableHead>{t("clients.fullName")}</TableHead>
+                      <TableHead>{t("clients.phone")}</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>{t("clientsImport.statusCol")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewResult.rows.map((row) => (
+                      <TableRow key={row.rowNumber} className={row.ok ? "" : "bg-amber-50/40 dark:bg-amber-950/10"}>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{row.rowNumber}</TableCell>
+                        <TableCell className="text-sm">{row.fullName ?? "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.phone ?? "—"}</TableCell>
+                        <TableCell className="text-sm">{row.branchId ?? "—"}</TableCell>
+                        <TableCell>
+                          {row.ok ? (
+                            <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
+                              <CheckCircle2 className="h-3 w-3 mr-1" /> {t("clientsImport.ok")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                              <AlertCircle className="h-3 w-3 mr-1" /> {row.error ?? t("clientsImport.invalid")}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+
+          <DialogFooter className="mt-3">
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleConfirmImport}
+              disabled={!previewResult || previewResult.willImport === 0 || committing}
+            >
+              {committing
+                ? t("common.saving")
+                : t("clientsImport.confirm", { count: previewResult?.willImport ?? 0 })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
