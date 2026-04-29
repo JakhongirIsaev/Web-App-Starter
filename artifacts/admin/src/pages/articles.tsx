@@ -18,6 +18,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RowActions } from "@/components/row-actions";
+import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -128,25 +129,14 @@ export default function Articles({ user }: { user?: { role: string } }) {
     toast({ title: t("common.exportSuccess") });
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(buildApiUrl("/api/articles/import"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const result = await res.json();
-      toast({ title: t("common.importSuccess"), description: `${result.imported} records` });
-      invalidate();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t("common.importError"), description: err.message });
-    }
+    setImportFile(file);
+    setImportOpen(true);
     if (importRef.current) importRef.current.value = "";
   };
 
@@ -328,6 +318,19 @@ export default function Articles({ user }: { user?: { role: string } }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportPreviewDialog
+        endpoint="/articles/import"
+        open={importOpen}
+        onOpenChange={(open) => { setImportOpen(open); if (!open) setImportFile(null); }}
+        file={importFile}
+        columns={[
+          { key: "title", label: t("articles.title") },
+          { key: "contentPreview", label: t("articles.content") },
+          { key: "isPublished", label: t("articles.published"), render: (r) => (r.isPublished ? "✓" : "—") },
+        ]}
+        onCommitted={() => invalidate()}
+      />
     </div>
   );
 }

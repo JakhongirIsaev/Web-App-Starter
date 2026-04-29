@@ -65,29 +65,92 @@ router.delete("/branches/:id", requireAuth, requireRole("superadmin", "head_offi
   res.status(204).send();
 });
 
-router.post("/branches/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
-    const skipped: number[] = [];
-    let imported = 0;
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.name || !row.city) { skipped.push(i + 2); continue; }
-        await tx.insert(branchesTable).values({
+// Dry-run + commit. ?dryRun=1 validates without writing; returns per-row
+// status so the admin UI can preview before committing.
+router.post(
+  "/branches/import",
+  requireAuth,
+  requireRole("superadmin", "head_office_admin"),
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        return;
+      }
+      const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
+      const rows = parseCsvBuffer(req.file.buffer);
+
+      type RowResult = {
+        rowNumber: number;
+        ok: boolean;
+        error?: string;
+        name?: string;
+        city?: string;
+        isActive?: boolean;
+      };
+
+      const results: RowResult[] = rows.map((row, i) => {
+        const rowNumber = i + 2;
+        if (!row.name) return { rowNumber, ok: false, error: "name missing" };
+        if (!row.city) return { rowNumber, ok: false, error: "city missing" };
+        return {
+          rowNumber,
+          ok: true,
           name: row.name,
           city: row.city,
           isActive: row.isActive !== "false",
+        };
+      });
+
+      const valid = results.filter((r) => r.ok);
+      const skipped = results.filter((r) => !r.ok);
+
+      if (dryRun) {
+        res.json({
+          dryRun: true,
+          total: results.length,
+          willImport: valid.length,
+          willSkip: skipped.length,
+          rows: results,
         });
-        imported++;
+        return;
       }
-    });
-    await logActivity({ type: "branches_imported", description: `Импортировано филиалов: ${imported} / Import qilingan filiallar: ${imported}`, entityType: "branch", user: req.user });
-    res.json({ imported, skipped });
-  } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
-  }
-});
+
+      let imported = 0;
+      await db.transaction(async (tx) => {
+        for (const row of valid) {
+          await tx.insert(branchesTable).values({
+            name: row.name!,
+            city: row.city!,
+            isActive: row.isActive ?? true,
+          });
+          imported++;
+        }
+      });
+
+      await logActivity({
+        type: "branches_imported",
+        description: `Импортировано филиалов: ${imported} / Import qilingan filiallar: ${imported}`,
+        entityType: "branch",
+        user: req.user,
+        metadata: {
+          imported,
+          skipped: skipped.length,
+          skippedRows: skipped.map((r) => ({ rowNumber: r.rowNumber, error: r.error })),
+        },
+      });
+
+      res.json({
+        dryRun: false,
+        total: results.length,
+        imported,
+        skipped: skipped.map((r) => r.rowNumber),
+      });
+    } catch {
+      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    }
+  },
+);
 
 export default router;

@@ -179,31 +179,96 @@ router.delete("/articles/:id", requireAuth, requireRole("superadmin", "head_offi
   res.status(204).send();
 });
 
-router.post("/articles/import", requireAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
-    const rows = parseCsvBuffer(req.file.buffer);
-    const skipped: number[] = [];
-    let imported = 0;
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.title || !row.content) { skipped.push(i + 2); continue; }
-        await tx.insert(articlesTable).values({
+router.post(
+  "/articles/import",
+  requireAuth,
+  requireRole("superadmin", "head_office_admin"),
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        return;
+      }
+      const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
+      const rows = parseCsvBuffer(req.file.buffer);
+
+      type RowResult = {
+        rowNumber: number;
+        ok: boolean;
+        error?: string;
+        title?: string;
+        contentPreview?: string;
+        isPublished?: boolean;
+        targetAllBranches?: boolean;
+      };
+
+      const results: RowResult[] = rows.map((row, i) => {
+        const rowNumber = i + 2;
+        if (!row.title) return { rowNumber, ok: false, error: "title missing" };
+        if (!row.content) return { rowNumber, ok: false, error: "content missing" };
+        return {
+          rowNumber,
+          ok: true,
           title: row.title,
-          content: row.content,
+          contentPreview: row.content.length > 80 ? row.content.slice(0, 80) + "…" : row.content,
           isPublished: row.isPublished === "true",
           targetAllBranches: row.targetAllBranches !== "false",
-          authorId: req.user?.id,
+        };
+      });
+
+      const valid = results.filter((r) => r.ok);
+      const skipped = results.filter((r) => !r.ok);
+
+      if (dryRun) {
+        res.json({
+          dryRun: true,
+          total: results.length,
+          willImport: valid.length,
+          willSkip: skipped.length,
+          rows: results,
         });
-        imported++;
+        return;
       }
-    });
-    await logActivity({ type: "articles_imported", description: `Импортировано статей: ${imported} / Import qilingan maqolalar: ${imported}`, entityType: "article", user: req.user });
-    res.json({ imported, skipped });
-  } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
-  }
-});
+
+      let imported = 0;
+      await db.transaction(async (tx) => {
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row.title || !row.content) continue;
+          await tx.insert(articlesTable).values({
+            title: row.title,
+            content: row.content,
+            isPublished: row.isPublished === "true",
+            targetAllBranches: row.targetAllBranches !== "false",
+            authorId: req.user?.id,
+          });
+          imported++;
+        }
+      });
+
+      await logActivity({
+        type: "articles_imported",
+        description: `Импортировано статей: ${imported} / Import qilingan maqolalar: ${imported}`,
+        entityType: "article",
+        user: req.user,
+        metadata: {
+          imported,
+          skipped: skipped.length,
+          skippedRows: skipped.map((r) => ({ rowNumber: r.rowNumber, error: r.error })),
+        },
+      });
+
+      res.json({
+        dryRun: false,
+        total: results.length,
+        imported,
+        skipped: skipped.map((r) => r.rowNumber),
+      });
+    } catch {
+      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    }
+  },
+);
 
 export default router;
