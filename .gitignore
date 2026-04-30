@@ -3,6 +3,7 @@
 # compiled output
 dist
 tmp
+scripts/tmp/
 out-tsc
 *.tsbuildinfo
 .expo

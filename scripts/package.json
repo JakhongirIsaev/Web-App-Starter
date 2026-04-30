@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed:collateral-reference": "tsx ./src/seed-collateral-reference.ts",
+    "cleanup:client-workflow-data": "tsx ./src/cleanup-client-workflow-data.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
