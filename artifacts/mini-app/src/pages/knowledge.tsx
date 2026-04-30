@@ -124,7 +124,7 @@ export default function KnowledgePage() {
                     {getCategoryLabel(cat)}
                   </p>
                   <p className="text-[12px] mt-0.5" style={{ color: "#64748B" }}>
-                    {categoryCounts[cat]} {categoryCounts[cat] === 1 ? "статья" : "статей"}
+                    {t("knowledge.articleCount", { count: categoryCounts[cat] })}
                   </p>
                 </div>
               </button>
@@ -136,7 +136,7 @@ export default function KnowledgePage() {
       {/* ── Section header ── */}
       <div className="flex items-center justify-between px-5 pt-5 pb-2">
         <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: "#0F172A" }}>
-          {search ? t("knowledge.title") : (t("knowledge.newArticles") || "Новые статьи")}
+          {search ? t("knowledge.title") : t("knowledge.newArticles")}
         </span>
         {activeCategory !== "all" && (
           <button
@@ -206,7 +206,7 @@ export default function KnowledgePage() {
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                             style={{ background: "#ECFDF3", color: "#16A34A" }}
                           >
-                            NEW
+                            {t("knowledge.newBadge")}
                           </span>
                         )}
                       </div>
@@ -239,7 +239,7 @@ export default function KnowledgePage() {
                       <div className="flex items-center gap-3 mt-2">
                         <span className="flex items-center gap-1 text-[11px]" style={{ color: "#94A3B8" }}>
                           <Clock className="w-3 h-3" />
-                          {readingTime(article.content)} мин
+                          {t("knowledge.readingMinutes", { count: readingTime(article.content) })}
                         </span>
                         <span className="text-[11px]" style={{ color: "#CBD5E1" }}>
                           {fmtDate(article.createdAt)}
