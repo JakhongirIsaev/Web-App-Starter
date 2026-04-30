@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
+import { api, buildApiUrl } from "@/lib/api";
+import { getTelegramInitData } from "@/lib/telegram";
 import {
   Monogram,
   getInitials,
@@ -17,6 +19,7 @@ import {
   FileText,
   User,
   Loader2,
+  Check,
 } from "lucide-react";
 
 export default function PdfSharePage() {
@@ -24,6 +27,10 @@ export default function PdfSharePage() {
   const params = useParams<{ clientId: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["mini-client", params.clientId],
@@ -55,39 +62,96 @@ export default function PdfSharePage() {
   const fileName = `${filePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}.pdf`;
   const fileSize = `${(0.8 + productsCount * 0.3).toFixed(1)} MB`;
 
+  const language = i18n.language === "ru" ? "ru" : "uz";
+
+  const handleSendTelegram = async () => {
+    setSending(true);
+    setSendResult(null);
+    try {
+      const initData = getTelegramInitData();
+      const body: Record<string, unknown> = {
+        sendViaTelegram: true,
+        language,
+      };
+      if (initData) body.telegramInitData = initData;
+      const result = await api.post(`/mini-app/clients/${params.clientId}/generate-pdf`, body) as any;
+      setSendResult(result?.telegramSent ? "sent" : "not_sent");
+    } catch {
+      setSendResult("error");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const blob = await api.getBlob(`/mini-app/clients/${params.clientId}/download-pdf?language=${language}`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const url = buildApiUrl(`/api/mini-app/clients/${params.clientId}/download-pdf?language=${language}`);
+    const fullUrl = url.startsWith("http") ? url : `${window.location.origin}${url}`;
+    await navigator.clipboard.writeText(fullUrl).catch(() => {});
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const handleForward = async () => {
+    const url = buildApiUrl(`/api/mini-app/clients/${params.clientId}/download-pdf?language=${language}`);
+    const fullUrl = url.startsWith("http") ? url : `${window.location.origin}${url}`;
+    const text = language === "ru"
+      ? `Коммерческое предложение: ${client.fullName}`
+      : `Tijorat taklifi: ${client.fullName}`;
+    if (navigator.share) {
+      await navigator.share({ title: text, url: fullUrl }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(`${text}\n${fullUrl}`).catch(() => {});
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
   /* ── Action grid items ── */
   const shareActions = [
     {
-      label: t("pdfShare.chat"),
-      Icon: MessageCircle,
+      label: sending ? t("common.loading") : sendResult === "sent" ? t("pdfShare.sent") : t("pdfShare.chat"),
+      Icon: sending ? Loader2 : sendResult === "sent" ? Check : MessageCircle,
       primary: true,
-      onClick: () => {
-        /* placeholder: send via Telegram */
-      },
+      disabled: sending,
+      onClick: handleSendTelegram,
     },
     {
       label: t("pdfShare.forward"),
       Icon: Forward,
       primary: false,
-      onClick: () => {
-        /* placeholder: forward */
-      },
+      disabled: false,
+      onClick: handleForward,
     },
     {
-      label: t("pdfShare.download"),
-      Icon: Download,
+      label: downloading ? t("common.loading") : t("pdfShare.download"),
+      Icon: downloading ? Loader2 : Download,
       primary: false,
-      onClick: () => {
-        /* placeholder: download PDF */
-      },
+      disabled: downloading,
+      onClick: handleDownload,
     },
     {
-      label: t("pdfShare.copyLink"),
-      Icon: Link2,
+      label: linkCopied ? t("pdfShare.copied") : t("pdfShare.copyLink"),
+      Icon: linkCopied ? Check : Link2,
       primary: false,
-      onClick: () => {
-        /* placeholder: copy link */
-      },
+      disabled: false,
+      onClick: handleCopyLink,
     },
   ];
 
@@ -225,19 +289,20 @@ export default function PdfSharePage() {
 
         {/* ── Share actions (2x2 grid) ── */}
         <div className="grid grid-cols-2 gap-3">
-          {shareActions.map((action) => {
+          {shareActions.map((action, idx) => {
             const Icon = action.Icon;
             return (
               <button
-                key={action.label}
+                key={idx}
                 onClick={action.onClick}
-                className={`flex flex-col items-center justify-center gap-2 py-5 rounded-[14px] text-[13px] font-semibold transition-all active:scale-[0.97] ${
+                disabled={action.disabled}
+                className={`flex flex-col items-center justify-center gap-2 py-5 rounded-[14px] text-[13px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60 ${
                   action.primary
                     ? "bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.3)]"
                     : "bg-white text-[#0F172A] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
                 }`}
               >
-                <Icon className="w-6 h-6" />
+                <Icon className={`w-6 h-6 ${action.disabled ? "animate-spin" : ""}`} />
                 {action.label}
               </button>
             );
@@ -247,7 +312,7 @@ export default function PdfSharePage() {
         {/* ── Metadata card ── */}
         <div className="mn-card p-4 space-y-3">
           <div className="text-[11px] text-[#64748B] uppercase tracking-wide font-semibold">
-            Информация
+            {t("pdfShare.info")}
           </div>
 
           <div className="flex items-center gap-3 py-2 border-b border-[#F1F5F9]">
@@ -255,7 +320,7 @@ export default function PdfSharePage() {
               <User className="w-4 h-4 text-[#64748B]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] text-[#64748B]">Клиент</div>
+              <div className="text-[11px] text-[#64748B]">{t("pdfShare.client")}</div>
               <div className="text-[14px] font-semibold text-[#0F172A] truncate">
                 {client.fullName || "---"}
               </div>
@@ -264,21 +329,21 @@ export default function PdfSharePage() {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-[11px] text-[#64748B]">Продуктов</div>
+              <div className="text-[11px] text-[#64748B]">{t("pdfShare.products")}</div>
               <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
                 {productsCount}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-[#64748B]">Страниц</div>
+              <div className="text-[11px] text-[#64748B]">{t("pdfShare.pages")}</div>
               <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
                 {pagesCount}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-[#64748B]">Автор</div>
+              <div className="text-[11px] text-[#64748B]">{t("pdfShare.author")}</div>
               <div className="text-[14px] font-bold text-[#0F172A] mt-0.5 truncate">
-                {user?.name?.split(" ")[0] || "---"}
+                {user?.name || "---"}
               </div>
             </div>
           </div>

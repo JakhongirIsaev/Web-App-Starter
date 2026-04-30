@@ -26,7 +26,6 @@ import {
   AlertTriangle,
   Check,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
 
 const STATUS_ORDER = [
@@ -140,7 +139,7 @@ export default function HomePage() {
     { label: t("home.thisMonth"), value: dashboard?.clientsThisMonth ?? 0, color: "#FFFFFF" },
   ];
 
-  const firstName = user?.name?.split(" ")[0] || "";
+  const displayName = user?.name || "";
   const branchName = user?.branch?.name || "";
 
   return (
@@ -174,7 +173,7 @@ export default function HomePage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-medium opacity-75">{getGreeting()},</div>
-              <div className="mt-0.5 truncate text-[17px] font-bold tracking-[-0.01em]">{firstName}</div>
+              <div className="mt-0.5 truncate text-[17px] font-bold tracking-[-0.01em]">{displayName}</div>
             </div>
             <div
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
@@ -373,29 +372,6 @@ export default function HomePage() {
             <p className="text-[14px] text-[#64748B]">{t("clients.noClients")}</p>
           </div>
         )}
-      </div>
-
-      <div className="px-4 pt-5">
-        <button
-          onClick={() => navigate("/knowledge")}
-          className="flex w-full items-center gap-3.5 rounded-[16px] px-[18px] py-4 text-left text-white transition-transform active:scale-[0.98]"
-          style={{
-            background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-            boxShadow: "0px 4px 12px rgba(217,119,6,0.22)",
-          }}
-        >
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-            style={{ background: "rgba(255,255,255,0.22)" }}
-          >
-            <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-bold tracking-[-0.01em]">{t("home.knowledgeTitle")}</div>
-            <div className="mt-1 text-[11px] leading-snug opacity-90">{t("home.knowledgeHint")}</div>
-          </div>
-          <ChevronRight className="h-[14px] w-[14px] shrink-0 opacity-70" />
-        </button>
       </div>
 
       {user?.role === "branch_head" && branchData && (

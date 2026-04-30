@@ -192,6 +192,7 @@
     "aiDescription": "Qo'shimcha savollar mahsulot, muddat va qulay oylik to'lovni aniqroq tanlashga yordam beradi.",
     "fallbackDescription": "Tashqi servisni kutmasdan ichki aniqlashtiruvchi savollar ishlatilmoqda.",
     "getFollowUpQuestions": "Aniqlashtiruvchi savollarni olish",
+    "aiGenerating": "AI savollarni tanlayapti...",
     "nonCreditServiceLabel": "Mijozga qanday nokredit xizmat birinchi navbatda kerak?",
     "nonCreditServiceOptions": {
       "rko": "Hisob-kesish va kassa xizmati",
@@ -300,10 +301,17 @@
     "generateFailed": "Faylni shakllantirib bo'lmadi"
   },
   "pdfShare": {
-    "chat": "Mijoz chatiga",
+    "chat": "Telegramga yuborish",
+    "sent": "Yuborildi",
     "forward": "Yuborish",
     "download": "Yuklab olish",
-    "copyLink": "Havolani nusxalash"
+    "copyLink": "Havolani nusxalash",
+    "copied": "Nusxalandi",
+    "info": "Ma'lumot",
+    "client": "Mijoz",
+    "products": "Mahsulotlar",
+    "pages": "Sahifalar",
+    "author": "Muallif"
   },
   "calculator": {
     "title": "Kredit kalkulyatori",

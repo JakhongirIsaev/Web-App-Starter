@@ -307,9 +307,29 @@ export default function QuestionnairePage() {
     },
   });
 
+  const [aiLoading, setAiLoading] = useState(false);
+
   const openFollowUps = async () => {
     const needType =
       answers.find((item) => item.questionKey === "need_type")?.answer ?? undefined;
+
+    setAiLoading(true);
+    try {
+      const result = await api.post("/ai/generate-questionnaire", {
+        language: currentLanguage,
+        existingAnswers: answers,
+        maxQuestions: 4,
+      }) as { questions: QuestionDefinition[]; model: string };
+
+      if (result.questions && result.questions.length >= 2 && result.model !== "fallback") {
+        setAiQuestions(result.questions);
+        setFollowUpSource("ai");
+        setStep(baseQuestions.length);
+        return;
+      }
+    } catch { /* fall through to fallback */ }
+    finally { setAiLoading(false); }
+
     const fallbackQuestions = getFallbackQuestions(t, needType);
     setAiQuestions(fallbackQuestions);
     setFollowUpSource("fallback");
@@ -463,14 +483,15 @@ export default function QuestionnairePage() {
         onClick={handleNext}
         disabled={
           !canProceed ||
-          submitMutation.isPending
+          submitMutation.isPending ||
+          aiLoading
         }
       >
-        {submitMutation.isPending && (
+        {(submitMutation.isPending || aiLoading) && (
           <Loader2 className="h-4 w-4 animate-spin" />
         )}
-        {getFollowUpButtonLabel()}
-        {!submitMutation.isPending && !isLastStep && <ChevronRight className="h-4 w-4" />}
+        {aiLoading ? t("questionnaire.aiGenerating") : getFollowUpButtonLabel()}
+        {!submitMutation.isPending && !aiLoading && !isLastStep && <ChevronRight className="h-4 w-4" />}
       </Button>
     </div>
   );

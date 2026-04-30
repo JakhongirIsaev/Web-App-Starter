@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Loader2,
   Package,
@@ -54,19 +55,18 @@ function formatSapCode(value: string | null | undefined): string {
   return parts.length > 1 ? parts.join("\n") : value;
 }
 
+const SEGMENT_CONFIG: Record<string, { bg: string; text: string; border: string; icon: string }> = {
+  "средний": { bg: "bg-blue-500/10", text: "text-blue-700", border: "border-blue-500/20", icon: "bg-blue-500" },
+  "малый":   { bg: "bg-orange-500/10", text: "text-orange-700", border: "border-orange-500/20", icon: "bg-orange-500" },
+  "микро":   { bg: "bg-purple-500/10", text: "text-purple-700", border: "border-purple-500/20", icon: "bg-purple-500" },
+};
+
 function SegmentBadge({ segment, t }: { segment: string | null; t: ReturnType<typeof useTranslation>["t"] }) {
-  switch (normalizeSegment(segment)) {
-    case "средний":
-      return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">{t("products.medium")}</Badge>;
-    case "малый":
-      return <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/20">{t("products.small")}</Badge>;
-    case "микро":
-      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20">{t("products.micro")}</Badge>;
-    case null:
-      return <Badge variant="secondary">-</Badge>;
-    default:
-      return <Badge variant="secondary">{segment}</Badge>;
-  }
+  const key = normalizeSegment(segment);
+  const config = key ? SEGMENT_CONFIG[key] : null;
+  if (!config) return <Badge variant="secondary">{segment || "-"}</Badge>;
+  const labelMap: Record<string, string> = { "средний": "products.medium", "малый": "products.small", "микро": "products.micro" };
+  return <Badge variant="outline" className={`${config.bg} ${config.text} ${config.border}`}>{t(labelMap[key!])}</Badge>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -78,6 +78,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const SEGMENT_ORDER = ["микро", "малый", "средний"] as const;
+
+function segmentLabelKey(segment: string): string {
+  const map: Record<string, string> = { "средний": "products.medium", "малый": "products.small", "микро": "products.micro" };
+  return map[segment] || segment;
+}
+
 export default function ProductsPage() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -85,6 +92,7 @@ export default function ProductsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [selectionHydrated, setSelectionHydrated] = useState(false);
+  const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
 
   const urlParams = new URLSearchParams(window.location.search);
   const clientId = urlParams.get("clientId");
@@ -136,6 +144,42 @@ export default function ProductsPage() {
         .includes(term);
     });
   }, [products, search]);
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, ProductItem[]>();
+    for (const item of filtered) {
+      const seg = normalizeSegment(item.segment) || "other";
+      if (!groups.has(seg)) groups.set(seg, []);
+      groups.get(seg)!.push(item);
+    }
+    const ordered: { segment: string; items: ProductItem[] }[] = [];
+    for (const seg of SEGMENT_ORDER) {
+      if (groups.has(seg)) {
+        ordered.push({ segment: seg, items: groups.get(seg)! });
+        groups.delete(seg);
+      }
+    }
+    for (const [seg, items] of groups) {
+      ordered.push({ segment: seg, items });
+    }
+    return ordered;
+  }, [filtered]);
+
+  // Auto-expand all segments when search is active
+  useEffect(() => {
+    if (search.trim()) {
+      setExpandedSegments(new Set(grouped.map(g => g.segment)));
+    }
+  }, [search, grouped]);
+
+  const toggleSegment = (seg: string) => {
+    setExpandedSegments(prev => {
+      const next = new Set(prev);
+      if (next.has(seg)) next.delete(seg);
+      else next.add(seg);
+      return next;
+    });
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -249,86 +293,125 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((item) => {
-            const expanded = expandedId === item.id;
-            const selected = selectedIds.has(item.id);
+        <div className="space-y-3">
+          {grouped.map((group) => {
+            const isSegmentOpen = expandedSegments.has(group.segment);
+            const config = SEGMENT_CONFIG[group.segment];
+            const selectedInGroup = group.items.filter(i => selectedIds.has(i.id)).length;
 
             return (
-              <Card key={item.id} className={`overflow-hidden ${selected ? "border-primary bg-primary/5" : ""}`}>
-                <CardContent className="p-0">
-                  <div className="p-3">
-                    <div className="flex items-start gap-2">
-                      <button
-                        type="button"
-                        className="flex-1 min-w-0 text-left"
-                        onClick={() => setExpandedId(expanded ? null : item.id)}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                #{item.number ?? "-"}
-                              </span>
-                              <p className="text-sm font-medium truncate">{item.name}</p>
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <SegmentBadge segment={item.segment} t={t} />
-                              {item.sapCode && (
-                                <span className="text-[10px] text-muted-foreground whitespace-pre-line">
-                                  SAP: {formatSapCode(item.sapCode)}
-                                </span>
-                              )}
+              <div key={group.segment} className="rounded-xl overflow-hidden border border-border/60">
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent/40 transition-colors"
+                  onClick={() => toggleSegment(group.segment)}
+                >
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-white text-[13px] font-bold ${config?.icon || "bg-gray-400"}`}
+                  >
+                    {group.items.length}
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-[14px] font-semibold text-foreground">
+                      {t(segmentLabelKey(group.segment))}
+                    </div>
+                    {selectedInGroup > 0 && (
+                      <div className="text-[11px] text-primary font-medium">
+                        {t("recommendation.selectedCount", { count: selectedInGroup })}
+                      </div>
+                    )}
+                  </div>
+                  {isSegmentOpen
+                    ? <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    : <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  }
+                </button>
+
+                {isSegmentOpen && (
+                  <div className="border-t border-border/40">
+                    {group.items.map((item) => {
+                      const expanded = expandedId === item.id;
+                      const selected = selectedIds.has(item.id);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`border-b border-border/30 last:border-b-0 ${selected ? "bg-primary/5" : ""}`}
+                        >
+                          <div className="p-3">
+                            <div className="flex items-start gap-2">
+                              <button
+                                type="button"
+                                className="flex-1 min-w-0 text-left"
+                                onClick={() => setExpandedId(expanded ? null : item.id)}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                        #{item.number ?? "-"}
+                                      </span>
+                                      <p className="text-sm font-medium truncate">{item.name}</p>
+                                    </div>
+                                    {item.sapCode && (
+                                      <div className="mt-1">
+                                        <span className="text-[10px] text-muted-foreground whitespace-pre-line">
+                                          SAP: {formatSapCode(item.sapCode)}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {expanded ? (
+                                    <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+                                  )}
+                                </div>
+                              </button>
+
+                              {canSaveToBasket ? (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  className={`h-10 w-10 rounded-xl ${selected ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}
+                                  variant={selected ? "default" : "secondary"}
+                                  onClick={() => toggleProductSelection(item.id)}
+                                >
+                                  {selected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
-                          {expanded ? (
-                            <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+
+                          {expanded && (
+                            <div className="border-t p-3 space-y-2 text-xs bg-muted/20">
+                              {item.loanAmount && <InfoRow label={t("products.loanAmount")} value={item.loanAmount} />}
+                              {item.rateUZS && <InfoRow label={t("products.rateUzs")} value={item.rateUZS} />}
+                              {item.rateUSD && <InfoRow label={t("products.rateUsd")} value={item.rateUSD} />}
+                              {item.rateEUR && <InfoRow label={t("products.rateEur")} value={item.rateEUR} />}
+                              {item.termWorkingCapital && <InfoRow label={t("products.termWC")} value={item.termWorkingCapital} />}
+                              {item.termFixedAssets && <InfoRow label={t("products.termFA")} value={item.termFixedAssets} />}
+                              {item.termUntargeted && <InfoRow label={t("questionnaire.loanPurposeOptions.untargeted")} value={item.termUntargeted} />}
+                              {item.gracePeriod && <InfoRow label={t("products.gracePeriod")} value={item.gracePeriod} />}
+                              {item.disbursementForm && <InfoRow label={t("products.disbursement")} value={item.disbursementForm} />}
+                              {item.purpose && (
+                                <div>
+                                  <p className="text-muted-foreground mb-0.5">{t("products.purpose")}</p>
+                                  <p className="text-foreground text-xs leading-relaxed whitespace-pre-wrap">{item.purpose}</p>
+                                </div>
+                              )}
+                              {item.highlight && (
+                                <div className="bg-primary/10 rounded-lg p-2">
+                                  <p className="text-primary font-medium text-xs whitespace-pre-wrap">{item.highlight}</p>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                      </button>
-
-                      {canSaveToBasket ? (
-                        <Button
-                          type="button"
-                          size="icon"
-                          className={`h-10 w-10 rounded-xl ${selected ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}
-                          variant={selected ? "default" : "secondary"}
-                          onClick={() => toggleProductSelection(item.id)}
-                        >
-                          {selected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                        </Button>
-                      ) : null}
-                    </div>
+                      );
+                    })}
                   </div>
-
-                  {expanded && (
-                    <div className="border-t p-3 space-y-2 text-xs">
-                      {item.loanAmount && <InfoRow label={t("products.loanAmount")} value={item.loanAmount} />}
-                      {item.rateUZS && <InfoRow label={t("products.rateUzs")} value={item.rateUZS} />}
-                      {item.rateUSD && <InfoRow label={t("products.rateUsd")} value={item.rateUSD} />}
-                      {item.rateEUR && <InfoRow label={t("products.rateEur")} value={item.rateEUR} />}
-                      {item.termWorkingCapital && <InfoRow label={t("products.termWC")} value={item.termWorkingCapital} />}
-                      {item.termFixedAssets && <InfoRow label={t("products.termFA")} value={item.termFixedAssets} />}
-                      {item.termUntargeted && <InfoRow label={t("questionnaire.loanPurposeOptions.untargeted")} value={item.termUntargeted} />}
-                      {item.gracePeriod && <InfoRow label={t("products.gracePeriod")} value={item.gracePeriod} />}
-                      {item.disbursementForm && <InfoRow label={t("products.disbursement")} value={item.disbursementForm} />}
-                      {item.purpose && (
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">{t("products.purpose")}</p>
-                          <p className="text-foreground text-xs leading-relaxed whitespace-pre-wrap">{item.purpose}</p>
-                        </div>
-                      )}
-                      {item.highlight && (
-                        <div className="bg-primary/10 rounded-lg p-2">
-                          <p className="text-primary font-medium text-xs whitespace-pre-wrap">{item.highlight}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </div>
             );
           })}
         </div>

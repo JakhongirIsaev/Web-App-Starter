@@ -1,6 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Download, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Download, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,6 +117,23 @@ function renderSegmentBadge(segment: string | null | undefined, t: ReturnType<ty
   }
 }
 
+const SEGMENT_ORDER = ["микро", "малый", "средний"] as const;
+
+const SEGMENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  "микро":   { bg: "bg-purple-50 dark:bg-purple-500/10", text: "text-purple-700 dark:text-purple-400", dot: "bg-purple-500" },
+  "малый":   { bg: "bg-orange-50 dark:bg-orange-500/10", text: "text-orange-700 dark:text-orange-400", dot: "bg-orange-500" },
+  "средний": { bg: "bg-blue-50 dark:bg-blue-500/10",     text: "text-blue-700 dark:text-blue-400",     dot: "bg-blue-500" },
+};
+
+function segmentLabel(segment: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  const map: Record<string, string> = {
+    "средний": "creditProducts.medium",
+    "малый": "creditProducts.small",
+    "микро": "creditProducts.micro",
+  };
+  return map[segment] ? t(map[segment]) : segment;
+}
+
 export default function CreditProducts({ user }: { user?: { role: string } }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -130,6 +147,7 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [form, setForm] = useState<CreditProductForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [collapsedSegments, setCollapsedSegments] = useState<Set<string>>(new Set());
   const canWrite = user && writeRoles.includes(user.role);
   const canAdmin = user && adminRoles.includes(user.role);
 
@@ -272,8 +290,37 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
     if (importRef.current) importRef.current.value = "";
   };
 
-  const items = data?.data || [];
+  const items: any[] = data?.data || [];
   const isPending = createMut.isPending || updateMut.isPending;
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const item of items) {
+      const seg = normalizeSegment(item.segment) || "other";
+      if (!groups.has(seg)) groups.set(seg, []);
+      groups.get(seg)!.push(item);
+    }
+    const ordered: { segment: string; items: any[] }[] = [];
+    for (const seg of SEGMENT_ORDER) {
+      if (groups.has(seg)) {
+        ordered.push({ segment: seg, items: groups.get(seg)! });
+        groups.delete(seg);
+      }
+    }
+    for (const [seg, groupItems] of groups) {
+      ordered.push({ segment: seg, items: groupItems });
+    }
+    return ordered;
+  }, [items]);
+
+  const toggleSegmentCollapse = (seg: string) => {
+    setCollapsedSegments(prev => {
+      const next = new Set(prev);
+      if (next.has(seg)) next.delete(seg);
+      else next.add(seg);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -318,93 +365,113 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
           </div>
         </div>
 
-        <div className="relative w-full overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-12">{t("creditProducts.number")}</TableHead>
-                <TableHead>{t("creditProducts.name")}</TableHead>
-                <TableHead>{t("creditProducts.sapCode")}</TableHead>
-                <TableHead>{t("creditProducts.segment")}</TableHead>
-                <TableHead>{t("creditProducts.loanAmount")}</TableHead>
-                <TableHead>{t("creditProducts.rateUZS")}</TableHead>
-                <TableHead className="text-right">{t("common.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={index}>
-                    <TableCell><Skeleton className="h-5 w-8" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">{t("creditProducts.noProducts")}</TableCell>
-                </TableRow>
-              ) : (
-                items.map((item: any) => {
-                  const isExpanded = expandedId === item.id;
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">{t("creditProducts.noProducts")}</div>
+        ) : (
+          <div>
+            {grouped.map((group) => {
+              const isCollapsed = collapsedSegments.has(group.segment);
+              const colors = SEGMENT_COLORS[group.segment] || { bg: "bg-gray-50 dark:bg-gray-500/10", text: "text-gray-700 dark:text-gray-400", dot: "bg-gray-500" };
 
-                  return (
-                    <React.Fragment key={item.id}>
-                      <TableRow className="cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
-                        <TableCell className="font-mono text-muted-foreground">{item.number ?? "-"}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium text-foreground">{item.name}</div>
-                            {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs whitespace-pre-line">{formatSapCode(item.sapCode)}</TableCell>
-                        <TableCell>{renderSegmentBadge(item.segment, t)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[260px] truncate">
-                          {localizeLoanAmount(item.loanAmount, lang) || "-"}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium text-primary">{item.rateUZS || "-"}</TableCell>
-                        {canWrite ? (
-                          <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                            <RowActions
-                              actions={[
-                                { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(item) },
-                                { label: t("common.delete"), icon: Trash2, danger: true, hidden: !canAdmin, onClick: () => setDeleteTarget(item) },
-                              ]}
-                            />
-                          </TableCell>
-                        ) : (
-                          <TableCell />
-                        )}
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="bg-muted/30 p-4">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.disbursementForm")}:</span> <span className="ml-1">{localizeDisbursement(item.disbursementForm, lang) || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.termWorkingCapital")}:</span> <span className="ml-1">{localizeMonthsField(item.termWorkingCapital, lang) || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.termFixedAssets")}:</span> <span className="ml-1">{localizeMonthsField(item.termFixedAssets, lang) || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.termUntargeted")}:</span> <span className="ml-1">{localizeMonthsField(item.termUntargeted, lang) || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateUSD")}:</span> <span className="ml-1">{item.rateUSD || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateEUR")}:</span> <span className="ml-1">{item.rateEUR || "-"}</span></div>
-                              <div><span className="font-medium text-muted-foreground">{t("creditProducts.gracePeriod")}:</span> <span className="ml-1">{localizeMonthsField(item.gracePeriod, lang) || "-"}</span></div>
-                              <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.purpose")}:</span> <span className="ml-1">{localizePurpose(item.purpose, lang) || "-"}</span></div>
-                              {item.highlight && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.highlight")}:</span> <span className="ml-1">{localizeHighlight(item.highlight, lang)}</span></div>}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              return (
+                <div key={group.segment}>
+                  <button
+                    className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/50 ${colors.bg} hover:opacity-90 transition-opacity`}
+                    onClick={() => toggleSegmentCollapse(group.segment)}
+                  >
+                    <div className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
+                    <span className={`text-sm font-semibold ${colors.text}`}>
+                      {segmentLabel(group.segment, t)}
+                    </span>
+                    <Badge variant="secondary" className="ml-1 text-xs">{group.items.length}</Badge>
+                    <div className="flex-1" />
+                    {isCollapsed
+                      ? <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    }
+                  </button>
+
+                  {!isCollapsed && (
+                    <div className="relative w-full overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="w-12">{t("creditProducts.number")}</TableHead>
+                            <TableHead>{t("creditProducts.name")}</TableHead>
+                            <TableHead>{t("creditProducts.sapCode")}</TableHead>
+                            <TableHead>{t("creditProducts.loanAmount")}</TableHead>
+                            <TableHead>{t("creditProducts.rateUZS")}</TableHead>
+                            <TableHead className="text-right">{t("common.actions")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.items.map((item: any) => {
+                            const isExpanded = expandedId === item.id;
+
+                            return (
+                              <React.Fragment key={item.id}>
+                                <TableRow className="cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
+                                  <TableCell className="font-mono text-muted-foreground">{item.number ?? "-"}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <div className="font-medium text-foreground">{item.name}</div>
+                                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground font-mono text-xs whitespace-pre-line">{formatSapCode(item.sapCode)}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground max-w-[260px] truncate">
+                                    {localizeLoanAmount(item.loanAmount, lang) || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm font-medium text-primary">{item.rateUZS || "-"}</TableCell>
+                                  {canWrite ? (
+                                    <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+                                      <RowActions
+                                        actions={[
+                                          { label: t("common.edit"), icon: Pencil, onClick: () => openEdit(item) },
+                                          { label: t("common.delete"), icon: Trash2, danger: true, hidden: !canAdmin, onClick: () => setDeleteTarget(item) },
+                                        ]}
+                                      />
+                                    </TableCell>
+                                  ) : (
+                                    <TableCell />
+                                  )}
+                                </TableRow>
+                                {isExpanded && (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="bg-muted/30 p-4">
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.segment")}:</span> <span className="ml-1">{renderSegmentBadge(item.segment, t)}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.disbursementForm")}:</span> <span className="ml-1">{localizeDisbursement(item.disbursementForm, lang) || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.termWorkingCapital")}:</span> <span className="ml-1">{localizeMonthsField(item.termWorkingCapital, lang) || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.termFixedAssets")}:</span> <span className="ml-1">{localizeMonthsField(item.termFixedAssets, lang) || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.termUntargeted")}:</span> <span className="ml-1">{localizeMonthsField(item.termUntargeted, lang) || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateUSD")}:</span> <span className="ml-1">{item.rateUSD || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.rateEUR")}:</span> <span className="ml-1">{item.rateEUR || "-"}</span></div>
+                                        <div><span className="font-medium text-muted-foreground">{t("creditProducts.gracePeriod")}:</span> <span className="ml-1">{localizeMonthsField(item.gracePeriod, lang) || "-"}</span></div>
+                                        <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.purpose")}:</span> <span className="ml-1">{localizePurpose(item.purpose, lang) || "-"}</span></div>
+                                        {item.highlight && <div className="col-span-2 md:col-span-3"><span className="font-medium text-muted-foreground">{t("creditProducts.highlight")}:</span> <span className="ml-1">{localizeHighlight(item.highlight, lang)}</span></div>}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {data?.total != null && (
           <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
