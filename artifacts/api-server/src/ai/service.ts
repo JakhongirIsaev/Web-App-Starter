@@ -613,8 +613,9 @@ export async function localizeProductPresentation(
   try {
     const { data } = await ollamaChatJson<unknown>({
       format: LOCALIZED_PRODUCTS_RESPONSE_SCHEMA,
-      timeoutMs: 30_000,
+      timeoutMs: 15_000,
       temperature: 0,
+      think: false,
       messages: [
         {
           role: "system",
@@ -661,7 +662,6 @@ export async function generateFollowUpQuestions(input: AiGenerateQuestionsBodyTy
   try {
     const { data, model } = await ollamaChatJson<unknown>({
       format: QUESTION_RESPONSE_SCHEMA,
-      timeoutMs: 40_000,
       messages: [
         {
           role: "system",
@@ -754,7 +754,6 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
   try {
     const { data, model } = await ollamaChatJson<unknown>({
       format: RECOMMEND_RESPONSE_SCHEMA,
-      timeoutMs: 45_000,
       messages: [
         {
           role: "system",
@@ -846,7 +845,6 @@ export async function recommendAllowedProducts(input: AiRecommendProductsBodyTyp
 export async function generateOfferSummary(input: AiGenerateOfferSummaryBodyType) {
   try {
     const { content, model } = await ollamaChatText({
-      timeoutMs: 35_000,
       messages: [
         {
           role: "system",
@@ -893,6 +891,7 @@ export async function translateText(input: AiTranslateBodyType) {
       format: TRANSLATE_RESPONSE_SCHEMA,
       timeoutMs: 30_000,
       temperature: 0,
+      think: false,
       messages: [
         {
           role: "system",
@@ -927,6 +926,7 @@ export async function translateText(input: AiTranslateBodyType) {
     const { content, model } = await ollamaChatText({
       timeoutMs: 30_000,
       temperature: 0,
+      think: false,
       messages: [
         {
           role: "system",
@@ -975,7 +975,6 @@ export async function extractAutoDetails(input: AiExtractAutoBodyType) {
   try {
     const { data, model } = await ollamaChatJson<unknown>({
       format: EXTRACT_AUTO_RESPONSE_SCHEMA,
-      timeoutMs: 60_000,
       messages: [
         {
           role: "system",

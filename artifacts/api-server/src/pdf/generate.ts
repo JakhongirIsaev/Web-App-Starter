@@ -79,6 +79,9 @@ interface PdfData {
     phone: string | null;
     sessionId: string;
     createdAt: Date | string;
+    gender?: string | null;
+    clientType?: string | null;
+    clientSegment?: string | null;
   };
   basketItems: PdfBasketItem[];
   calculations: PdfCalculation[];
@@ -225,7 +228,14 @@ function getPdfCopy(language: PdfLanguage) {
       clientSection: "Информация о клиенте",
       clientName: "Ф.И.О.",
       clientPhone: "Телефон",
+      clientGender: "Пол",
+      clientType: "Тип клиента",
+      clientSegment: "Сегмент",
       clientCreatedAt: "Дата регистрации",
+      genderMale: "Мужской",
+      genderFemale: "Женский",
+      typeIndividual: "Физическое лицо",
+      typeCorporate: "Юридическое лицо",
       preferencesSection: "Потребности и предпочтения клиента",
       productsSection: "Данные по выбранным продуктам",
       noProducts:
@@ -287,7 +297,14 @@ function getPdfCopy(language: PdfLanguage) {
     clientSection: "Mijoz ma'lumotlari",
     clientName: "F.I.Sh.",
     clientPhone: "Telefon",
+    clientGender: "Jinsi",
+    clientType: "Mijoz turi",
+    clientSegment: "Segment",
     clientCreatedAt: "Ro'yxatdan o'tgan sana",
+    genderMale: "Erkak",
+    genderFemale: "Ayol",
+    typeIndividual: "Jismoniy shaxs",
+    typeCorporate: "Yuridik shaxs",
     preferencesSection: "Mijoz ehtiyojlari va afzalliklari",
     productsSection: "Tanlangan mahsulot ma'lumotlari",
     noProducts:
@@ -514,6 +531,15 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     y = drawSectionTitle(copy.clientSection, y);
     y = drawRow(copy.clientName, data.client.fullName || "-", y);
     y = drawRow(copy.clientPhone, data.client.phone || "-", y);
+    if (data.client.gender) {
+      y = drawRow(copy.clientGender, data.client.gender === "male" ? copy.genderMale : copy.genderFemale, y);
+    }
+    if (data.client.clientType) {
+      y = drawRow(copy.clientType, data.client.clientType === "individual" ? copy.typeIndividual : copy.typeCorporate, y);
+    }
+    if (data.client.clientSegment) {
+      y = drawRow(copy.clientSegment, data.client.clientSegment, y);
+    }
     y = drawRow(copy.clientCreatedAt, fmtDate(data.client.createdAt, language), y);
 
     if (preferenceSummary.length > 0) {

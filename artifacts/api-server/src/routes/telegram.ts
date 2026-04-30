@@ -53,7 +53,7 @@ function sanitizeWebhookError(error: unknown) {
 router.post("/telegram/webhook", async (req, res) => {
   const bot = getBot();
   if (!bot) {
-    res.status(503).json({ error: "Telegram xizmati ishga tushmagan" });
+    res.status(503).json({ error: "Telegram xizmati ishga tushmagan / Сервис Telegram не запущен" });
     return;
   }
 
@@ -63,7 +63,7 @@ router.post("/telegram/webhook", async (req, res) => {
   );
 
   if (decision.action === "reject") {
-    res.status(403).json({ error: "Telegram ulanishi sozlanmagan" });
+    res.status(403).json({ error: "Telegram ulanishi sozlanmagan / Настройка Telegram не завершена" });
     return;
   }
 

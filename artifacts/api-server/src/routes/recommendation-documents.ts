@@ -57,7 +57,7 @@ router.post(
   async (req: Request, res: Response) => {
     const parsed = CreateDocumentBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
       return;
     }
 
@@ -89,12 +89,12 @@ router.patch(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: "Некорректный идентификатор" });
+      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
       return;
     }
     const parsed = UpdateDocumentBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
       return;
     }
 
@@ -104,7 +104,7 @@ router.patch(
       .where(eq(recommendationDocumentsTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: "Документ не найден" });
+      res.status(404).json({ error: "Документ не найден / Hujjat topilmadi" });
       return;
     }
 
@@ -134,7 +134,7 @@ router.delete(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: "Некорректный идентификатор" });
+      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
       return;
     }
     const [archived] = await db
@@ -143,7 +143,7 @@ router.delete(
       .where(eq(recommendationDocumentsTable.id, id))
       .returning();
     if (!archived) {
-      res.status(404).json({ error: "Документ не найден" });
+      res.status(404).json({ error: "Документ не найден / Hujjat topilmadi" });
       return;
     }
 

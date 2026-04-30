@@ -144,6 +144,32 @@ function getOcrTimeoutMs(): number {
     : 90_000;
 }
 
+function resolveOcrLanguage(req: Request): "ru" | "uz" {
+  const query = req.query as { language?: string };
+  if (query.language === "ru") return "ru";
+  const body = req.body as { language?: string } | undefined;
+  if (body?.language === "ru") return "ru";
+  const acceptLang = req.headers["accept-language"] || "";
+  if (/^ru\b/i.test(acceptLang)) return "ru";
+  return "uz";
+}
+
+const ocrErrorMessages = {
+  missingImage:     { ru: "Данные изображения не указаны",                uz: "Rasm ma'lumoti ko'rsatilmagan" },
+  uploadSaveFailed: { ru: "Не удалось сохранить загруженное изображение", uz: "Yuklangan rasmni saqlab bo'lmadi" },
+  healthTimeout:    { ru: "Сервис распознавания не отвечает",             uz: "Matnni tanish xizmati javob bermadi" },
+  healthFailed:     { ru: "Сервис распознавания не работает",             uz: "Matnni tanish xizmati ishlamadi" },
+  healthParse:      { ru: "Не удалось прочитать результат проверки",      uz: "Matnni tanish tekshiruvi natijasini o'qib bo'lmadi" },
+  ocrTimeout:       { ru: "Время распознавания истекло",                  uz: "Matnni tanish uchun vaqt tugadi" },
+  ocrProcess:       { ru: "Процесс распознавания завершился с ошибкой",   uz: "Matnni tanish jarayoni xato bilan tugadi" },
+  ocrParse:         { ru: "Не удалось прочитать результат распознавания",  uz: "Matnni tanish natijasini o'qib bo'lmadi" },
+  ocrGeneric:       { ru: "Не удалось распознать текст документа",        uz: "Hujjat matnini tanib bo'lmadi" },
+} as const;
+
+function getOcrErrorMessage(req: Request, key: keyof typeof ocrErrorMessages): string {
+  return ocrErrorMessages[key][resolveOcrLanguage(req)];
+}
+
 router.post("/storage/uploads/direct", guestAuth, async (req: Request, res: Response) => {
   try {
     const { buffer, contentType } = parseUploadImage(req.body);
@@ -169,11 +195,11 @@ router.post("/storage/uploads/direct", guestAuth, async (req: Request, res: Resp
     }
 
     logger.error({ err: error }, "Error saving direct upload");
-    res.status(500).json({ error: "Yuklangan rasmni saqlab bo'lmadi" });
+    res.status(500).json({ error: getOcrErrorMessage(req, "uploadSaveFailed") });
   }
 });
 
-router.get("/ocr/health", async (_req: Request, res: Response) => {
+router.get("/ocr/health", async (req: Request, res: Response) => {
   const scriptPath = getOcrScriptPath();
 
   try {
@@ -189,7 +215,7 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
       let stderr = "";
       const timeout = setTimeout(() => {
         proc.kill("SIGKILL");
-        reject(new Error("Matnni tanish xizmati javob bermadi"));
+        reject(new Error(getOcrErrorMessage(req, "healthTimeout")));
       }, 10_000);
 
       proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
@@ -198,14 +224,18 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
       proc.on("close", (code: number) => {
         clearTimeout(timeout);
         if (code !== 0) {
-          reject(new Error(`Matnni tanish xizmati ishlamadi: ${code}`));
+          reject(new Error(`${getOcrErrorMessage(req, "healthFailed")}: ${code}`));
           return;
+        }
+
+        if (stderr.trim()) {
+          logger.warn({ stderr }, "PaddleOCR health check stderr (exit 0)");
         }
 
         try {
           resolve(JSON.parse(stdout));
         } catch {
-          reject(new Error("Matnni tanish tekshiruvi natijasini o'qib bo'lmadi"));
+          reject(new Error(getOcrErrorMessage(req, "healthParse")));
         }
       });
 
@@ -218,7 +248,7 @@ router.get("/ocr/health", async (_req: Request, res: Response) => {
     res.json({ ...result, scriptPath });
   } catch (error: any) {
     logger.error({ err: error, scriptPath }, "OCR health check error");
-    res.status(500).json({ status: "error", error: "Matnni tanish xizmati ishlamadi" });
+    res.status(500).json({ status: "error", error: getOcrErrorMessage(req, "healthFailed") });
   }
 });
 
@@ -314,7 +344,7 @@ router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Re
 router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => {
   const { image } = req.body || {};
   if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "Rasm ma'lumoti ko'rsatilmagan" });
+    res.status(400).json({ error: getOcrErrorMessage(req, "missingImage") });
     return;
   }
 
@@ -360,7 +390,7 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
 
       const timeout = setTimeout(() => {
         proc.kill("SIGKILL");
-        finish(new Error(`Matnni tanish uchun vaqt tugadi: ${timeoutMs}ms`));
+        finish(new Error(`${getOcrErrorMessage(req, "ocrTimeout")}: ${timeoutMs}ms`));
       }, timeoutMs);
 
       proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
@@ -368,13 +398,16 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
 
       proc.on("close", (code: number) => {
         if (code !== 0) {
-          logger.error({ stderr }, "PaddleOCR stderr");
-          finish(new Error(`Matnni tanish jarayoni xato bilan tugadi: ${code}`));
+          logger.error({ stderr, exitCode: code }, "PaddleOCR stderr");
+          finish(new Error(`${getOcrErrorMessage(req, "ocrProcess")}: ${code}`));
         } else {
+          if (stderr.trim()) {
+            logger.warn({ stderr }, "PaddleOCR stderr (exit 0)");
+          }
           try {
             finish(undefined, JSON.parse(stdout));
           } catch {
-            finish(new Error("Matnni tanish natijasini o'qib bo'lmadi"));
+            finish(new Error(getOcrErrorMessage(req, "ocrParse")));
           }
         }
       });
@@ -388,11 +421,16 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
       res.json({ text: result.text, boxes: result.boxes, engine: result.engine });
     } else {
       logger.error({ error: result.error }, "OCR script returned failure");
-      res.status(500).json({ error: "Hujjat matnini tanib bo'lmadi" });
+      res.status(500).json({ error: getOcrErrorMessage(req, "ocrGeneric") });
     }
   } catch (error: any) {
     logger.error({ err: error }, "OCR error");
-    res.status(500).json({ error: "Hujjat matnini tanib bo'lmadi" });
+    const exitCodeMatch = error?.message?.match(/:\s*(\d+)$/);
+    const exitCode = exitCodeMatch ? Number(exitCodeMatch[1]) : undefined;
+    res.status(500).json({
+      error: getOcrErrorMessage(req, "ocrGeneric"),
+      ...(exitCode !== undefined && { exitCode }),
+    });
   }
 });
 

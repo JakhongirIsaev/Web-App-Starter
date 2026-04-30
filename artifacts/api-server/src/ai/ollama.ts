@@ -12,6 +12,7 @@ interface OllamaChatRequest {
   timeoutMs?: number;
   temperature?: number;
   keepAlive?: string;
+  think?: boolean;
 }
 
 interface OllamaChatResponse {
@@ -40,14 +41,63 @@ export class OllamaRequestError extends Error {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Circuit breaker – skip Ollama after consecutive failures           */
+/* ------------------------------------------------------------------ */
+
+let consecutiveFailures = 0;
+let circuitOpenUntil = 0;
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_COOLDOWN_MS = 60_000;
+
+function isCircuitOpen(): boolean {
+  if (consecutiveFailures < CIRCUIT_BREAKER_THRESHOLD) return false;
+  if (Date.now() >= circuitOpenUntil) {
+    // Half-open: allow one probe attempt
+    consecutiveFailures = CIRCUIT_BREAKER_THRESHOLD - 1;
+    return false;
+  }
+  return true;
+}
+
+function recordSuccess(): void {
+  consecutiveFailures = 0;
+  circuitOpenUntil = 0;
+}
+
+function recordFailure(): void {
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+  }
+}
+
+export function getCircuitBreakerState(): {
+  isOpen: boolean;
+  consecutiveFailures: number;
+  cooldownRemainingMs: number;
+} {
+  const open = isCircuitOpen();
+  return {
+    isOpen: open,
+    consecutiveFailures,
+    cooldownRemainingMs: open ? Math.max(0, circuitOpenUntil - Date.now()) : 0,
+  };
+}
+
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
 export function getOllamaConfig() {
+  const url =
+    process.env.OLLAMA_URL?.trim() ||
+    process.env.OLLAMA_BASE_URL?.trim() ||
+    "http://127.0.0.1:11434";
   return {
-    url: stripTrailingSlash(process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434"),
-    model: process.env.OLLAMA_MODEL?.trim() || "gemma3:4b",
+    url: stripTrailingSlash(url),
+    model: process.env.OLLAMA_MODEL?.trim() || "gemma4:e2b",
+    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 30_000,
   };
 }
 
@@ -66,9 +116,14 @@ function stripReasoningBlocks(content: string): string {
   return fencedMatch ? fencedMatch[1].trim() : withoutThinkBlocks;
 }
 
-async function fetchOllamaJson<T>(path: string, init: RequestInit = {}, timeoutMs = 30_000): Promise<T> {
+async function fetchOllamaJson<T>(path: string, init: RequestInit = {}, timeoutMs?: number): Promise<T> {
+  const effectiveTimeout = timeoutMs ?? getOllamaConfig().timeoutMs;
+  if (isCircuitOpen()) {
+    throw new OllamaRequestError("Ollama circuit breaker is open – skipping request", 503);
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 
   try {
     const response = await fetch(buildOllamaUrl(path), {
@@ -88,8 +143,11 @@ async function fetchOllamaJson<T>(path: string, init: RequestInit = {}, timeoutM
       );
     }
 
-    return (await response.json()) as T;
+    const result = (await response.json()) as T;
+    recordSuccess();
+    return result;
   } catch (error) {
+    recordFailure();
     if (error instanceof OllamaRequestError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
       throw new OllamaRequestError("Ollama request timed out", 504);
@@ -106,9 +164,10 @@ async function fetchOllamaJson<T>(path: string, init: RequestInit = {}, timeoutM
 export async function ollamaChatText({
   messages,
   format,
-  timeoutMs = 45_000,
+  timeoutMs,
   temperature = 0.2,
-  keepAlive = "10m",
+  keepAlive = "30m",
+  think = true,
 }: OllamaChatRequest): Promise<{ model: string; content: string }> {
   const { model } = getOllamaConfig();
 
@@ -119,6 +178,7 @@ export async function ollamaChatText({
       body: JSON.stringify({
         model,
         stream: false,
+        think,
         keep_alive: keepAlive,
         format,
         options: {
@@ -163,7 +223,7 @@ function modelMatches(requestedModel: string, candidate?: string | null): boolea
 }
 
 export async function getOllamaHealth() {
-  const { model } = getOllamaConfig();
+  const { model, url, timeoutMs } = getOllamaConfig();
 
   try {
     const tags = await fetchOllamaJson<OllamaTagsResponse>("/api/tags", {}, 10_000);
@@ -181,8 +241,11 @@ export async function getOllamaHealth() {
       backendHealthy: true,
       ollamaReachable: true,
       model,
+      url,
+      timeoutMs,
       modelAvailable: (tags.models ?? []).some((item) => modelMatches(model, item.name || item.model)),
       modelLoaded,
+      circuitBreaker: getCircuitBreakerState(),
     };
   } catch {
     return {
@@ -190,8 +253,11 @@ export async function getOllamaHealth() {
       backendHealthy: true,
       ollamaReachable: false,
       model,
+      url,
+      timeoutMs,
       modelAvailable: false,
       modelLoaded: null,
+      circuitBreaker: getCircuitBreakerState(),
     };
   }
 }

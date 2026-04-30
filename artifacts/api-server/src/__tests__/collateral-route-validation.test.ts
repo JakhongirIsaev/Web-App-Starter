@@ -22,21 +22,21 @@ describe("collateral route validation helpers", () => {
   });
 
   it("requires at least one collateral item id", () => {
-    expect(validateCollateralItemIds([])).toBe("Выберите хотя бы один предмет залога");
+    expect(validateCollateralItemIds([])).toBe("Выберите хотя бы один предмет залога / Kamida bitta garov predmetini tanlang");
   });
 
   it("rejects non-positive and non-integer collateral item ids", () => {
     expect(validateCollateralItemIds([1, 0])).toBe(
-      "Некорректный идентификатор предмета залога",
+      "Некорректный идентификатор предмета залога / Garov predmeti identifikatori noto'g'ri",
     );
     expect(validateCollateralItemIds([1, 1.5])).toBe(
-      "Некорректный идентификатор предмета залога",
+      "Некорректный идентификатор предмета залога / Garov predmeti identifikatori noto'g'ri",
     );
   });
 
   it("rejects duplicate collateral item ids", () => {
     expect(validateCollateralItemIds([10, 10])).toBe(
-      "Предметы залога не должны повторяться",
+      "Предметы залога не должны повторяться / Garov predmetlari takrorlanmasligi kerak",
     );
   });
 
@@ -46,11 +46,11 @@ describe("collateral route validation helpers", () => {
 
   it("requires positive finite money values", () => {
     expect(validatePositiveMoney(1, "Сумма")).toBeNull();
-    expect(validatePositiveMoney(0, "Сумма")).toBe("Сумма должно быть больше 0");
-    expect(validatePositiveMoney(-1, "Сумма")).toBe("Сумма должно быть больше 0");
-    expect(validatePositiveMoney(Number.NaN, "Сумма")).toBe("Сумма должно быть больше 0");
+    expect(validatePositiveMoney(0, "Сумма")).toBe("Сумма должно быть больше 0 / Сумма 0 dan katta bo'lishi kerak");
+    expect(validatePositiveMoney(-1, "Сумма")).toBe("Сумма должно быть больше 0 / Сумма 0 dan katta bo'lishi kerak");
+    expect(validatePositiveMoney(Number.NaN, "Сумма")).toBe("Сумма должно быть больше 0 / Сумма 0 dan katta bo'lishi kerak");
     expect(validatePositiveMoney(Number.POSITIVE_INFINITY, "Сумма")).toBe(
-      "Сумма должно быть больше 0",
+      "Сумма должно быть больше 0 / Сумма 0 dan katta bo'lishi kerak",
     );
   });
 });

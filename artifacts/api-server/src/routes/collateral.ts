@@ -36,8 +36,29 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const DISCLAIMER_RU =
-  "Расчёт предварительный и не является официальной оценкой залога или решением банка.";
+const DISCLAIMER = {
+  ru: "Расчёт предварительный и не является официальной оценкой залога или решением банка.",
+  uz: "Hisob-kitob dastlabki bo'lib, garov bahosi yoki bank qarori hisoblanmaydi.",
+};
+
+const ERR = {
+  invalidId: "Некорректный идентификатор / Noto'g'ri identifikator",
+  invalidData: "Некорректные данные / Noto'g'ri ma'lumot",
+  notFound: "Не найдено / Topilmadi",
+  typeNotFound: "Тип залога не найден / Garov turi topilmadi",
+  typeDisabled: "Тип залога не найден или отключён / Garov turi topilmadi yoki o'chirilgan",
+  nameRequired: "Название залога обязательно / Garov nomi majburiy",
+  uzsOnly: "Расчёт залога поддерживает только валюту UZS / Garov hisob-kitobi faqat UZS valyutasini qo'llab-quvvatlaydi",
+  thirdPartyOwner: "Для залога третьего лица укажите имя владельца / Uchinchi shaxs garovi uchun egasi ismini ko'rsating",
+  itemNotFound: "Предмет залога не найден / Garov predmeti topilmadi",
+  productNotFound: "Кредитный продукт не найден / Kredit mahsuloti topilmadi",
+  itemsMissing: "Не все выбранные предметы залога существуют / Tanlangan garov predmetlarining barchasi mavjud emas",
+  itemsWrongClient: "Предметы залога принадлежат другому клиенту / Garov predmetlari boshqa mijozga tegishli",
+  itemsArchived: "Среди выбранных есть архивные предметы залога / Tanlangan predmetlar orasida arxivlanganlari bor",
+  itemsNotUzs: "Все предметы залога должны быть в валюте UZS / Barcha garov predmetlari UZS valyutasida bo'lishi kerak",
+  estimateNotFound: "Расчёт залога не найден / Garov hisob-kitobi topilmadi",
+  internalError: "Внутренняя ошибка / Ichki xatolik",
+};
 
 const ADMIN_ROLES = ["superadmin", "head_office_admin"] as const;
 const SUPPORTED_COLLATERAL_CURRENCY = "UZS";
@@ -55,20 +76,20 @@ function parseCollateralCurrency(raw: string | null | undefined): string | null 
 
 function validatePositiveMoney(value: number, field: string): string | null {
   if (!Number.isFinite(value) || value <= 0) {
-    return `${field} должно быть больше 0`;
+    return `${field} должно быть больше 0 / ${field} 0 dan katta bo'lishi kerak`;
   }
   return null;
 }
 
 function validateCollateralItemIds(ids: number[]): string | null {
   if (ids.length === 0) {
-    return "Выберите хотя бы один предмет залога";
+    return "Выберите хотя бы один предмет залога / Kamida bitta garov predmetini tanlang";
   }
   if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
-    return "Некорректный идентификатор предмета залога";
+    return "Некорректный идентификатор предмета залога / Garov predmeti identifikatori noto'g'ri";
   }
   if (new Set(ids).size !== ids.length) {
-    return "Предметы залога не должны повторяться";
+    return "Предметы залога не должны повторяться / Garov predmetlari takrorlanmasligi kerak";
   }
   return null;
 }
@@ -91,12 +112,12 @@ router.patch(
   async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: "Некорректный идентификатор" });
+      res.status(400).json({ error: ERR.invalidId });
       return;
     }
     const parsed = UpdateCollateralTypeBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
       return;
     }
 
@@ -106,7 +127,7 @@ router.patch(
       .where(eq(collateralTypesTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: "Тип залога не найден" });
+      res.status(404).json({ error: ERR.typeNotFound });
       return;
     }
 
@@ -148,7 +169,7 @@ router.put(
   async (req, res) => {
     const parsed = UpdateCollateralSettingsBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
       return;
     }
     const before = await getCollateralSettings();
@@ -196,13 +217,13 @@ router.post(
     const clientId = Number(req.params.id);
     const parsed = CreateCollateralItemBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
       return;
     }
 
     const title = normalizeText(parsed.data.title);
     if (!title) {
-      res.status(400).json({ error: "Название залога обязательно" });
+      res.status(400).json({ error: ERR.nameRequired });
       return;
     }
     const moneyError = validatePositiveMoney(parsed.data.marketValue, "Рыночная стоимость");
@@ -212,13 +233,13 @@ router.post(
     }
     const currency = parseCollateralCurrency(parsed.data.currency);
     if (!currency) {
-      res.status(400).json({ error: "Расчёт залога поддерживает только валюту UZS" });
+      res.status(400).json({ error: ERR.uzsOnly });
       return;
     }
     const isThirdParty = parsed.data.isThirdParty ?? false;
     const thirdPartyOwnerName = normalizeText(parsed.data.thirdPartyOwnerName);
     if (isThirdParty && !thirdPartyOwnerName) {
-      res.status(400).json({ error: "Для залога третьего лица укажите имя владельца" });
+      res.status(400).json({ error: ERR.thirdPartyOwner });
       return;
     }
 
@@ -233,7 +254,7 @@ router.post(
       )
       .limit(1);
     if (!type) {
-      res.status(400).json({ error: "Тип залога не найден или отключён" });
+      res.status(400).json({ error: ERR.typeDisabled });
       return;
     }
 
@@ -292,7 +313,7 @@ router.patch(
     const id = Number(req.params.id);
     const parsed = UpdateCollateralItemBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
       return;
     }
 
@@ -302,7 +323,7 @@ router.patch(
       .where(eq(collateralItemsTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: "Предмет залога не найден" });
+      res.status(404).json({ error: ERR.itemNotFound });
       return;
     }
 
@@ -329,7 +350,7 @@ router.patch(
     const nextTitle =
       parsed.data.title === undefined ? existing.title : normalizeText(parsed.data.title);
     if (!nextTitle) {
-      res.status(400).json({ error: "Название залога обязательно" });
+      res.status(400).json({ error: ERR.nameRequired });
       return;
     }
     const nextIsThirdParty = parsed.data.isThirdParty ?? existing.isThirdParty;
@@ -338,7 +359,7 @@ router.patch(
         ? normalizeText(existing.thirdPartyOwnerName)
         : normalizeText(parsed.data.thirdPartyOwnerName);
     if (nextIsThirdParty && !nextThirdPartyOwnerName) {
-      res.status(400).json({ error: "Для залога третьего лица укажите имя владельца" });
+      res.status(400).json({ error: ERR.thirdPartyOwner });
       return;
     }
     const accepted = calculateAcceptedValue({
@@ -393,7 +414,7 @@ router.delete(
       .where(eq(collateralItemsTable.id, id))
       .returning();
     if (!archived) {
-      res.status(404).json({ error: "Предмет залога не найден" });
+      res.status(404).json({ error: ERR.itemNotFound });
       return;
     }
 
@@ -499,7 +520,7 @@ router.post(
     const clientId = Number(req.params.id);
     const parsed = CreateCollateralEstimateBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные", details: parsed.error.issues });
+      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
       return;
     }
     const moneyError = validatePositiveMoney(
@@ -517,7 +538,7 @@ router.post(
     }
     const currency = parseCollateralCurrency(parsed.data.currency);
     if (!currency) {
-      res.status(400).json({ error: "Расчёт залога поддерживает только валюту UZS" });
+      res.status(400).json({ error: ERR.uzsOnly });
       return;
     }
 
@@ -527,7 +548,7 @@ router.post(
       .where(eq(creditProductsTable.id, parsed.data.creditProductId))
       .limit(1);
     if (!product) {
-      res.status(400).json({ error: "Кредитный продукт не найден" });
+      res.status(400).json({ error: ERR.productNotFound });
       return;
     }
 
@@ -550,19 +571,19 @@ router.post(
       .where(inArray(collateralItemsTable.id, parsed.data.collateralItemIds));
 
     if (items.length !== parsed.data.collateralItemIds.length) {
-      res.status(400).json({ error: "Не все выбранные предметы залога существуют" });
+      res.status(400).json({ error: ERR.itemsMissing });
       return;
     }
     if (items.some((it) => it.clientId !== clientId)) {
-      res.status(400).json({ error: "Предметы залога принадлежат другому клиенту" });
+      res.status(400).json({ error: ERR.itemsWrongClient });
       return;
     }
     if (items.some((it) => !it.isActive)) {
-      res.status(400).json({ error: "Среди выбранных есть архивные предметы залога" });
+      res.status(400).json({ error: ERR.itemsArchived });
       return;
     }
     if (items.some((it) => it.currency !== currency)) {
-      res.status(400).json({ error: "Все предметы залога должны быть в валюте UZS" });
+      res.status(400).json({ error: ERR.itemsNotUzs });
       return;
     }
 
@@ -597,7 +618,7 @@ router.post(
           annualRateApplied: rate.numeric !== null ? String(rate.numeric) : null,
           annualRateAppliedRaw: rate.raw,
           resultStatus: totals.resultStatus,
-          disclaimer: DISCLAIMER_RU,
+          disclaimer: DISCLAIMER.ru,
           notes: parsed.data.notes ?? null,
           hasEquipmentOnly: isEquipmentOnly(calcItems),
           createdBy: req.user?.id ?? null,
@@ -666,7 +687,7 @@ router.get(
       .where(eq(collateralEstimatesTable.id, id))
       .limit(1);
     if (!estimate) {
-      res.status(404).json({ error: "Расчёт залога не найден" });
+      res.status(404).json({ error: ERR.estimateNotFound });
       return;
     }
 
@@ -694,7 +715,7 @@ router.get(
 
 router.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   logger.error({ err }, "Collateral route error");
-  res.status(500).json({ error: "Внутренняя ошибка" });
+  res.status(500).json({ error: ERR.internalError });
 });
 
 export const __testing = {

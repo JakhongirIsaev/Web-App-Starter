@@ -46,15 +46,13 @@ interface LayoutProps {
 const navItems = [
   { href: "/", labelKey: "nav.dashboard", icon: Home, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
   { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
-  // Excel catalogue tab order: Продуктовая линейка → Шифры продуктов → Остатки по линиям
   { href: "/credit-products", labelKey: "nav.creditProducts", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
-  { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/credit-lines", labelKey: "nav.creditLines", icon: Calculator, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
+  { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
+  { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
-  { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
-  { href: "/recommendations", labelKey: "nav.recommendations", icon: BookOpen, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/activity", labelKey: "nav.activityLog", icon: Activity, roles: ["superadmin", "head_office_admin"], badge: false },
 ];
 

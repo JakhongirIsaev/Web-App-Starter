@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
-import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -369,26 +369,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
               ) : (
                 <div className="space-y-3">
                   {documents.map((doc: any) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <FileImage className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{doc.fileName}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="outline" className="text-[10px]">{doc.docType}</Badge>
-                            <span className="text-xs text-muted-foreground">{formatAdminLongDate(doc.createdAt)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
-                        <Badge variant="secondary" className="gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          {t("clientDetail.aiExtracted")}
-                        </Badge>
-                      )}
-                    </div>
+                    <DocumentRow key={doc.id} doc={doc} t={t} />
                   ))}
                 </div>
               )}
@@ -644,6 +625,64 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function DocumentRow({ doc, t }: { doc: any; t: (key: string) => string }) {
+  const [loading, setLoading] = useState(false);
+
+  const openDocument = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch(buildApiUrl("/api/storage/signed-url"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ storagePath: doc.storagePath }),
+      });
+      if (!res.ok) throw new Error("Failed to get signed URL");
+      const { url } = await res.json();
+      window.open(buildApiUrl(url), "_blank");
+    } catch {
+      window.open(buildApiUrl(`/api/storage/file?path=${encodeURIComponent(doc.storagePath)}`), "_blank");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+      onClick={openDocument}
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <FileImage className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">{doc.fileName}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <Badge variant="outline" className="text-[10px]">{doc.docType}</Badge>
+            <span className="text-xs text-muted-foreground">{formatAdminLongDate(doc.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
+          <Badge variant="secondary" className="gap-1">
+            <Sparkles className="h-3 w-3" />
+            {t("clientDetail.aiExtracted")}
+          </Badge>
+        )}
+        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={loading}>
+          <Eye className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
