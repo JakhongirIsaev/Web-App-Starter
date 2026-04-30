@@ -166,7 +166,22 @@ const ocrErrorMessages = {
   ocrGeneric:       { ru: "Не удалось распознать текст документа",        uz: "Hujjat matnini tanib bo'lmadi" },
 } as const;
 
+const readableOcrRuMessages: Record<keyof typeof ocrErrorMessages, string> = {
+  missingImage: "Данные изображения не указаны",
+  uploadSaveFailed: "Не удалось сохранить загруженное изображение",
+  healthTimeout: "Сервис распознавания не отвечает",
+  healthFailed: "Сервис распознавания не работает",
+  healthParse: "Не удалось прочитать результат проверки",
+  ocrTimeout: "Время распознавания истекло",
+  ocrProcess: "Процесс распознавания завершился с ошибкой",
+  ocrParse: "Не удалось прочитать результат распознавания",
+  ocrGeneric: "Не удалось распознать текст документа",
+};
+
 function getOcrErrorMessage(req: Request, key: keyof typeof ocrErrorMessages): string {
+  if (resolveOcrLanguage(req) === "ru") {
+    return readableOcrRuMessages[key];
+  }
   return ocrErrorMessages[key][resolveOcrLanguage(req)];
 }
 

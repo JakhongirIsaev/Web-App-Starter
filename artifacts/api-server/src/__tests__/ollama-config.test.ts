@@ -42,9 +42,9 @@ describe("getOllamaConfig", () => {
     }
   });
 
-  it("returns default model gemma4:e2b when OLLAMA_MODEL is not set", () => {
+  it("returns default model gemma3:4b when OLLAMA_MODEL is not set", () => {
     const config = getOllamaConfig();
-    expect(config.model).toBe("gemma4:e2b");
+    expect(config.model).toBe("gemma3:4b");
   });
 
   it("reads OLLAMA_MODEL from env", () => {

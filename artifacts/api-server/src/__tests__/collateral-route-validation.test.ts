@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UpdateCollateralSettingsBody } from "@workspace/api-zod";
 import { __testing } from "../routes/collateral";
 
 const {
@@ -42,6 +43,11 @@ describe("collateral route validation helpers", () => {
 
   it("accepts unique positive collateral item ids", () => {
     expect(validateCollateralItemIds([10, 11])).toBeNull();
+  });
+
+  it("allows admin collateral settings updates with coverage ratio only", () => {
+    expect(UpdateCollateralSettingsBody.safeParse({ coverageRatio: 1.3 }).success).toBe(true);
+    expect(UpdateCollateralSettingsBody.safeParse({ transportAgeThreshold: 7 }).success).toBe(false);
   });
 
   it("requires positive finite money values", () => {

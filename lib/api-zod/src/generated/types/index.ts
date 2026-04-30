@@ -59,6 +59,7 @@ export * from "./updateClientBodyGender";
 export * from "./updateClientBodyStatus";
 export * from "./updateCollateralItemBody";
 export * from "./updateCollateralItemBodyMetadata";
+export * from "./updateCollateralSettingsBody";
 export * from "./updateCollateralTypeBody";
 export * from "./updateProductBody";
 export * from "./updateProductBodyType";

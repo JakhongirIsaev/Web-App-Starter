@@ -860,12 +860,25 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CollateralSettings"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateCollateralSettingsBody"
       responses:
         "200":
           description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollateralSettings"
+
+  /collateral-settings:
+    get:
+      operationId: getPublicCollateralSettings
+      tags: [collateral]
+      summary: Read collateral settings needed by the mini app
+      responses:
+        "200":
+          description: Settings
           content:
             application/json:
               schema:
@@ -1713,3 +1726,10 @@ components:
         transportAgeDiscount:
           type: number
       required: [coverageRatio, transportAgeThreshold, transportAgeDiscount]
+
+    UpdateCollateralSettingsBody:
+      type: object
+      properties:
+        coverageRatio:
+          type: number
+      required: [coverageRatio]

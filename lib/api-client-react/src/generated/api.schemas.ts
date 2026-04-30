@@ -446,6 +446,10 @@ export interface CollateralSettings {
   transportAgeDiscount: number;
 }
 
+export interface UpdateCollateralSettingsBody {
+  coverageRatio: number;
+}
+
 export type ListUsersParams = {
   branchId?: number;
   role?: string;

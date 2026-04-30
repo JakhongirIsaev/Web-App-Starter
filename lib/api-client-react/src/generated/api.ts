@@ -55,6 +55,7 @@ import type {
   UpdateBranchBody,
   UpdateClientBody,
   UpdateCollateralItemBody,
+  UpdateCollateralSettingsBody,
   UpdateCollateralTypeBody,
   UpdateProductBody,
   UpdateUserBody,
@@ -3475,14 +3476,14 @@ export const getUpdateCollateralSettingsUrl = () => {
 };
 
 export const updateCollateralSettings = async (
-  collateralSettings: CollateralSettings,
+  updateCollateralSettingsBody: UpdateCollateralSettingsBody,
   options?: RequestInit,
 ): Promise<CollateralSettings> => {
   return customFetch<CollateralSettings>(getUpdateCollateralSettingsUrl(), {
     ...options,
     method: "PUT",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(collateralSettings),
+    body: JSON.stringify(updateCollateralSettingsBody),
   });
 };
 
@@ -3493,14 +3494,14 @@ export const getUpdateCollateralSettingsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateCollateralSettings>>,
     TError,
-    { data: BodyType<CollateralSettings> },
+    { data: BodyType<UpdateCollateralSettingsBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateCollateralSettings>>,
   TError,
-  { data: BodyType<CollateralSettings> },
+  { data: BodyType<UpdateCollateralSettingsBody> },
   TContext
 > => {
   const mutationKey = ["updateCollateralSettings"];
@@ -3514,7 +3515,7 @@ export const getUpdateCollateralSettingsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateCollateralSettings>>,
-    { data: BodyType<CollateralSettings> }
+    { data: BodyType<UpdateCollateralSettingsBody> }
   > = (props) => {
     const { data } = props ?? {};
 
@@ -3527,7 +3528,8 @@ export const getUpdateCollateralSettingsMutationOptions = <
 export type UpdateCollateralSettingsMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateCollateralSettings>>
 >;
-export type UpdateCollateralSettingsMutationBody = BodyType<CollateralSettings>;
+export type UpdateCollateralSettingsMutationBody =
+  BodyType<UpdateCollateralSettingsBody>;
 export type UpdateCollateralSettingsMutationError = ErrorType<unknown>;
 
 /**
@@ -3540,18 +3542,95 @@ export const useUpdateCollateralSettings = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateCollateralSettings>>,
     TError,
-    { data: BodyType<CollateralSettings> },
+    { data: BodyType<UpdateCollateralSettingsBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateCollateralSettings>>,
   TError,
-  { data: BodyType<CollateralSettings> },
+  { data: BodyType<UpdateCollateralSettingsBody> },
   TContext
 > => {
   return useMutation(getUpdateCollateralSettingsMutationOptions(options));
 };
+
+/**
+ * @summary Read collateral settings needed by the mini app
+ */
+export const getGetPublicCollateralSettingsUrl = () => {
+  return `/api/collateral-settings`;
+};
+
+export const getPublicCollateralSettings = async (
+  options?: RequestInit,
+): Promise<CollateralSettings> => {
+  return customFetch<CollateralSettings>(getGetPublicCollateralSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPublicCollateralSettingsQueryKey = () => {
+  return [`/api/collateral-settings`] as const;
+};
+
+export const getGetPublicCollateralSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPublicCollateralSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicCollateralSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPublicCollateralSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPublicCollateralSettings>>
+  > = ({ signal }) =>
+    getPublicCollateralSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicCollateralSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPublicCollateralSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPublicCollateralSettings>>
+>;
+export type GetPublicCollateralSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Read collateral settings needed by the mini app
+ */
+
+export function useGetPublicCollateralSettings<
+  TData = Awaited<ReturnType<typeof getPublicCollateralSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicCollateralSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPublicCollateralSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List active collateral items for a client

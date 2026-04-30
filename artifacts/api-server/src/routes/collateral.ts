@@ -153,6 +153,15 @@ router.patch(
 // ─── System settings ────────────────────────────────────────────────────────
 
 router.get(
+  "/collateral-settings",
+  guestAuth,
+  async (_req, res) => {
+    const settings = await getCollateralSettings();
+    res.json(settings);
+  },
+);
+
+router.get(
   "/admin/collateral-settings",
   guestAuth,
   requireRole(...ADMIN_ROLES),
@@ -173,7 +182,10 @@ router.put(
       return;
     }
     const before = await getCollateralSettings();
-    await setCollateralSettings(parsed.data, req.user?.id ?? null);
+    await setCollateralSettings(
+      { ...before, coverageRatio: parsed.data.coverageRatio },
+      req.user?.id ?? null,
+    );
     const after = await getCollateralSettings();
 
     await logActivity({

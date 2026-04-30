@@ -1102,11 +1102,18 @@ export const GetCollateralSettingsResponse = zod.object({
  */
 export const UpdateCollateralSettingsBody = zod.object({
   coverageRatio: zod.number(),
+});
+
+export const UpdateCollateralSettingsResponse = zod.object({
+  coverageRatio: zod.number(),
   transportAgeThreshold: zod.number(),
   transportAgeDiscount: zod.number(),
 });
 
-export const UpdateCollateralSettingsResponse = zod.object({
+/**
+ * @summary Read collateral settings needed by the mini app
+ */
+export const GetPublicCollateralSettingsResponse = zod.object({
   coverageRatio: zod.number(),
   transportAgeThreshold: zod.number(),
   transportAgeDiscount: zod.number(),

@@ -13,7 +13,6 @@ import {
   Building2,
   Car,
   Gem,
-  MapPin,
   Wrench,
   ChevronDown,
   Info,
@@ -65,6 +64,23 @@ interface EstimateResult {
   disclaimer: string | null;
 }
 
+interface CollateralSettings {
+  coverageRatio: number;
+}
+
+interface CollateralPhotoDraft {
+  id: string;
+  dataUrl: string;
+  name: string;
+}
+
+interface UploadedCollateralPhoto {
+  storagePath: string;
+  name?: string;
+  size?: number;
+  contentType?: string;
+}
+
 const TG_BG = "var(--tg-bg, #F4F4F5)";
 
 function fmtMoney(value: string | number, currency = "UZS"): string {
@@ -98,6 +114,75 @@ function getTransportDiscount(age: number): number {
 
 const REAL_ESTATE_DISCOUNT = 0.60;
 
+function getMetadataPhotos(metadata: Record<string, unknown> | null | undefined): unknown[] {
+  const photos = metadata?.photos;
+  return Array.isArray(photos) ? photos : [];
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(String(event.target?.result || ""));
+    reader.onerror = () => reject(new Error("Rasmni o'qib bo'lmadi"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function optimizeDataUrl(dataUrl: string, maxWidth = 1280, quality = 0.78): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      if (!image.naturalWidth || image.naturalWidth <= maxWidth) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const scale = maxWidth / image.naturalWidth;
+      const canvas = document.createElement("canvas");
+      canvas.width = maxWidth;
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function fileToPhotoDraft(file: File, index: number): Promise<CollateralPhotoDraft> {
+  const dataUrl = await readFileAsDataUrl(file);
+  const optimizedDataUrl = await optimizeDataUrl(dataUrl);
+  return {
+    id: `${Date.now()}-${index}`,
+    dataUrl: optimizedDataUrl,
+    name: file.name || `photo-${index + 1}.jpg`,
+  };
+}
+
+async function uploadCollateralPhoto(
+  clientId: number,
+  photo: CollateralPhotoDraft,
+  index: number,
+): Promise<UploadedCollateralPhoto> {
+  const response = await api.post("/storage/uploads/direct", {
+    name: `collateral/${clientId}/${index + 1}-${photo.name}`,
+    dataUrl: photo.dataUrl,
+  }) as { objectPath: string; metadata?: { name?: string; size?: number; contentType?: string } };
+
+  return {
+    storagePath: response.objectPath,
+    name: response.metadata?.name,
+    size: response.metadata?.size,
+    contentType: response.metadata?.contentType,
+  };
+}
+
 export default function CollateralPage() {
   const { t } = useTranslation();
   const params = useParams<{ id: string }>();
@@ -121,6 +206,11 @@ export default function CollateralPage() {
     queryKey: ["credit-products-for-collateral"],
     queryFn: () => api.get("/mini-app/products"),
   });
+  const settingsQuery = useQuery<CollateralSettings>({
+    queryKey: ["collateral-settings"],
+    queryFn: () => api.get("/collateral-settings"),
+  });
+  const coverageRatio = settingsQuery.data?.coverageRatio ?? 1.25;
 
   const typeById = useMemo(
     () => new Map((typesQuery.data ?? []).map((tp) => [tp.id, tp])),
@@ -144,6 +234,7 @@ export default function CollateralPage() {
           clientId={clientId}
           items={itemsQuery.data ?? []}
           types={typeById}
+          coverageRatio={coverageRatio}
           loading={itemsQuery.isLoading}
           onAdd={() => setView("add")}
           onEstimate={() => setView("estimate")}
@@ -171,6 +262,7 @@ export default function CollateralPage() {
           items={itemsQuery.data ?? []}
           types={typeById}
           products={productsQuery.data ?? []}
+          coverageRatio={coverageRatio}
           clientId={clientId}
           onCancel={() => setView("list")}
           onCreated={(result) => {
@@ -198,6 +290,7 @@ function ListView({
   clientId,
   items,
   types,
+  coverageRatio,
   loading,
   onAdd,
   onEstimate,
@@ -206,6 +299,7 @@ function ListView({
   clientId: number;
   items: CollateralItem[];
   types: Map<number, CollateralType>;
+  coverageRatio: number;
   loading: boolean;
   onAdd: () => void;
   onEstimate: () => void;
@@ -219,8 +313,8 @@ function ListView({
       market += Number.parseFloat(it.marketValue) || 0;
       accepted += Number.parseFloat(it.acceptedValue) || 0;
     }
-    return { market, accepted, maxLoan125: accepted / 1.25 };
-  }, [items]);
+    return { market, accepted, maxLoan: accepted / coverageRatio };
+  }, [items, coverageRatio]);
 
   return (
     <div className="px-4 space-y-4">
@@ -243,7 +337,7 @@ function ListView({
           <div className="border-t border-[#E2E8F0] pt-2">
             <SummaryRow
               label={t("collateral.maxLoan")}
-              value={fmtMoney(totals.maxLoan125)}
+              value={fmtMoney(totals.maxLoan)}
               bold
             />
           </div>
@@ -270,7 +364,7 @@ function ListView({
           const typeCode = type?.code ?? "equipment";
           const Icon = TYPE_ICONS[typeCode] ?? Wrench;
           const colors = TYPE_COLORS[typeCode] ?? TYPE_COLORS.equipment;
-          const photos = (item.metadata?.photos as string[] | undefined) ?? [];
+          const photos = getMetadataPhotos(item.metadata);
 
           return (
             <div key={item.id} className="flex items-center gap-3 py-2.5 px-3 rounded-xl border border-[#E2E8F0]">
@@ -414,7 +508,7 @@ function AddItemView({
   const [year, setYear] = useState("");
   const [isThirdParty, setIsThirdParty] = useState(false);
   const [thirdPartyOwnerName, setThirdPartyOwnerName] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<CollateralPhotoDraft[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedType = types.find((tp) => tp.id === collateralTypeId);
@@ -423,7 +517,32 @@ function AddItemView({
   const isRealEstate = typeCode === "real_estate" || typeCode === "land_plot";
 
   const create = useMutation({
-    mutationFn: (body: unknown) => api.post(`/clients/${clientId}/collateral-items`, body),
+    mutationFn: async (body: {
+      collateralTypeId: number;
+      title: string;
+      marketValue: number;
+      isThirdParty: boolean;
+      thirdPartyOwnerName?: string;
+      metadata: Record<string, unknown>;
+      photos: CollateralPhotoDraft[];
+    }) => {
+      const uploadedPhotos = await Promise.all(
+        body.photos.map((photo, index) => uploadCollateralPhoto(clientId, photo, index)),
+      );
+      const metadata = { ...body.metadata };
+      if (uploadedPhotos.length > 0) {
+        metadata.photos = uploadedPhotos;
+      }
+
+      return api.post(`/clients/${clientId}/collateral-items`, {
+        collateralTypeId: body.collateralTypeId,
+        title: body.title,
+        marketValue: body.marketValue,
+        isThirdParty: body.isThirdParty,
+        thirdPartyOwnerName: body.thirdPartyOwnerName,
+        metadata,
+      });
+    },
     onSuccess: () => onSaved(),
   });
 
@@ -459,24 +578,20 @@ function AddItemView({
     return { accepted: mv, discount: null, tierLabel: null };
   }, [marketValue, isTransport, isRealEstate, year, t]);
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      if (photos.length >= 5) break;
+    const remainingSlots = Math.max(0, 5 - photos.length);
+    const selected = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, remainingSlots);
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        setPhotos((prev) => {
-          if (prev.length >= 5) return prev;
-          return [...prev, result];
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    const photoDrafts = await Promise.all(
+      selected.map((file, index) => fileToPhotoDraft(file, photos.length + index)),
+    );
+
+    setPhotos((prev) => [...prev, ...photoDrafts].slice(0, 5));
 
     e.target.value = "";
   };
@@ -491,7 +606,6 @@ function AddItemView({
 
     const metadata: Record<string, unknown> = {};
     if (isTransport && year) metadata.year = Number(year);
-    if (photos.length > 0) metadata.photos = photos;
 
     create.mutate({
       collateralTypeId,
@@ -500,6 +614,7 @@ function AddItemView({
       isThirdParty,
       thirdPartyOwnerName: isThirdParty ? thirdPartyOwnerName : undefined,
       metadata,
+      photos,
     });
   };
 
@@ -623,9 +738,9 @@ function AddItemView({
           {t("collateral.photos")} ({photos.length}/5)
         </div>
         <div className="flex gap-2 flex-wrap">
-          {photos.map((src, idx) => (
+          {photos.map((photo, idx) => (
             <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#E2E8F0]">
-              <img src={src} alt="" className="w-full h-full object-cover" />
+              <img src={photo.dataUrl} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => removePhoto(idx)}
@@ -651,6 +766,7 @@ function AddItemView({
           type="file"
           accept="image/*"
           capture="environment"
+          multiple
           onChange={handlePhotoCapture}
           className="hidden"
         />
@@ -715,6 +831,7 @@ function EstimateView({
   items,
   types,
   products,
+  coverageRatio,
   clientId,
   onCancel,
   onCreated,
@@ -722,6 +839,7 @@ function EstimateView({
   items: CollateralItem[];
   types: Map<number, CollateralType>;
   products: CreditProduct[];
+  coverageRatio: number;
   clientId: number;
   onCancel: () => void;
   onCreated: (estimate: EstimateResult) => void;
@@ -744,11 +862,11 @@ function EstimateView({
     const accepted = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.acceptedValue) || 0), 0);
     const market = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.marketValue) || 0), 0);
     const requested = Number.parseFloat(requestedLoanAmount) || 0;
-    const required = requested * 1.25;
+    const required = requested * coverageRatio;
     const coverage = requested > 0 ? (accepted / requested) * 100 : 0;
-    const maxLoan = accepted / 1.25;
+    const maxLoan = accepted / coverageRatio;
     return { accepted, market, requested, required, coverage, maxLoan };
-  }, [selectedItems, requestedLoanAmount]);
+  }, [selectedItems, requestedLoanAmount, coverageRatio]);
 
   const equipmentOnly =
     selectedItems.length > 0 &&
@@ -888,7 +1006,7 @@ function EstimateView({
             <SummaryRow
               label={t("collateral.coverage")}
               value={`${live.coverage.toFixed(0)}%`}
-              highlight={live.coverage < 125}
+              highlight={live.coverage < coverageRatio * 100}
             />
             <SummaryRow label={t("collateral.maxLoan")} value={fmtMoney(live.maxLoan)} bold />
           </div>

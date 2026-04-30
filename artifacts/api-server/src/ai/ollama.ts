@@ -96,7 +96,7 @@ export function getOllamaConfig() {
     "http://127.0.0.1:11434";
   return {
     url: stripTrailingSlash(url),
-    model: process.env.OLLAMA_MODEL?.trim() || "gemma4:e2b",
+    model: process.env.OLLAMA_MODEL?.trim() || "gemma3:4b",
     timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 30_000,
   };
 }
