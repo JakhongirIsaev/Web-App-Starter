@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
 import {
   Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff,
-  Phone, Calendar, FileText, Clock, AlertTriangle, ChevronRight, ChevronDown,
-  TrendingUp, Download,
+  ChevronDown, TrendingUp, Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,17 +13,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
-import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const ACTION_TYPE_ICONS: Record<string, any> = {
-  follow_up: Phone,
-  meeting: Calendar,
-  proposal: FileText,
-  documents: FileText,
-};
 
 /* ── Pipeline status palette ── */
 const STATUS_COLORS: Record<string, string> = {
@@ -190,7 +181,6 @@ function SparkBars({ data }: { data: number[] }) {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const [, navigate] = useLocation();
   const token = localStorage.getItem("auth_token");
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -258,19 +248,6 @@ export default function Dashboard() {
     },
     refetchInterval: 60000,
     retry: false,
-  });
-
-  const { data: tasks, isLoading: isLoadingTasks } = useQuery({
-    queryKey: ["dashboard-tasks"],
-    queryFn: async () => {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(buildApiUrl("/api/dashboard/tasks"), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    refetchInterval: 120000,
   });
 
   /* Spark bars fallback — zeros until the API provides a real daily series */
@@ -488,75 +465,6 @@ export default function Dashboard() {
               </>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* ── Today tasks ── */}
-      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 p-4 px-5 border-b border-border/50">
-          <Clock className="h-4 w-4 text-primary" />
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold">{t("dashboard.todayTasks")}</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.todayTasksDesc")}</p>
-          </div>
-        </div>
-        <div className="p-5">
-          {isLoadingTasks ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-3">
-                  <Skeleton className="h-9 w-9 rounded-lg" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/3" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : !tasks?.length ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <CheckCircle2 className="h-7 w-7 mx-auto mb-2 text-primary" />
-              <p className="text-sm">{t("dashboard.noTasks")}</p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {tasks.slice(0, 8).map((task: any) => {
-                const Icon = ACTION_TYPE_ICONS[task.actionType] || Clock;
-                const isOverdue = new Date(task.actionDate) < new Date();
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => task.clientId && navigate(`/clients/${task.clientId}`)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
-                      isOverdue ? "border-destructive/30 bg-destructive/5" : "border-border/50"
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      isOverdue ? "bg-destructive/10" : "bg-primary/10"
-                    }`}>
-                      <Icon className={`w-4 h-4 ${isOverdue ? "text-destructive" : "text-primary"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {t(`dashboard.${task.actionType}`, { defaultValue: task.actionType })}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">{task.clientName || "---"}</p>
-                    </div>
-                    {task.priority === "high" && (
-                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">!</Badge>
-                    )}
-                    {isOverdue && (
-                      <span className="text-[10px] text-destructive font-medium flex items-center gap-0.5">
-                        <AlertTriangle className="w-3 h-3" />
-                        {t("dashboard.overdue")}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
