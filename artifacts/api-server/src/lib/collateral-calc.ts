@@ -84,28 +84,40 @@ export function extractAnnualRate(raw: string | null | undefined): {
   return { numeric: roundRate(parsed), raw: trimmed };
 }
 
+export function getTransportDiscount(age: number): number {
+  if (age <= 3) return 0.70;
+  if (age <= 5) return 0.60;
+  if (age <= 7) return 0.50;
+  return 0.30;
+}
+
+export const REAL_ESTATE_DISCOUNT = 0.60;
+
 export function calculateAcceptedValue(input: AcceptedValueInput): AcceptedValueResult {
   const marketValue = toNumber(input.marketValue);
   if (marketValue <= 0) {
     throw new Error("marketValue must be > 0");
   }
 
-  // Only rule: transport older than the configured threshold gets the
-  // configured discount. Everything else (real estate, jewelry, land plot,
-  // equipment) is accepted at face value.
+  if (input.typeCode === "real_estate" || input.typeCode === "land_plot") {
+    return {
+      acceptedValue: roundMoney(marketValue * REAL_ESTATE_DISCOUNT),
+      discountApplied: roundDiscount(REAL_ESTATE_DISCOUNT),
+      discountReason: "real_estate_standard",
+    };
+  }
+
   if (input.typeCode === "transport") {
     const year = (input.metadata as { year?: number } | null | undefined)?.year;
     if (typeof year === "number" && Number.isFinite(year)) {
       const currentYear = input.currentYear ?? new Date().getFullYear();
       const age = currentYear - year;
-      if (age > input.settings.transportAgeThreshold) {
-        const discount = input.settings.transportAgeDiscount;
-        return {
-          acceptedValue: roundMoney(marketValue * discount),
-          discountApplied: roundDiscount(discount),
-          discountReason: "transport_age_over_threshold",
-        };
-      }
+      const discount = getTransportDiscount(age);
+      return {
+        acceptedValue: roundMoney(marketValue * discount),
+        discountApplied: roundDiscount(discount),
+        discountReason: `transport_age_${age <= 3 ? "0_3" : age <= 5 ? "3_5" : age <= 7 ? "5_7" : "7plus"}`,
+      };
     }
   }
 

@@ -219,140 +219,136 @@ function getDisplayValueForLanguage(
 function getPdfCopy(language: PdfLanguage) {
   if (language === "ru") {
     return {
-      title: "Коммерческое предложение для клиента",
-      subtitle: "MINERVA - помощник кредитного эксперта",
+      title: "Кредитное предложение",
+      subtitle: "MINERVA - помощник эксперта",
       metaDate: "Дата",
       metaExpert: "Эксперт",
       metaBranch: "Филиал",
       metaCase: "Номер кейса",
-      clientSection: "Информация о клиенте",
-      clientName: "Ф.И.О.",
+      clientSection: "Клиент",
+      clientName: "Имя",
       clientPhone: "Телефон",
       clientGender: "Пол",
-      clientType: "Тип клиента",
+      clientType: "Тип",
       clientSegment: "Сегмент",
       clientCreatedAt: "Дата регистрации",
       genderMale: "Мужской",
       genderFemale: "Женский",
-      typeIndividual: "Физическое лицо",
-      typeCorporate: "Юридическое лицо",
-      preferencesSection: "Потребности и предпочтения клиента",
-      productsSection: "Данные по выбранным продуктам",
-      noProducts:
-        "В корзине пока нет продуктов. Сначала подберите для клиента подходящие варианты.",
+      typeIndividual: "Физ. лицо",
+      typeCorporate: "Юр. лицо",
+      preferencesSection: "Что нужно клиенту",
+      productsSection: "Продукты",
+      noProducts: "Продукты ещё не выбраны.",
       productIndex: "Продукт",
       sapCode: "SAP код",
       segment: "Сегмент",
       loanAmount: "Сумма кредита",
-      availableTerms: "Доступные сроки",
+      availableTerms: "Срок",
       disbursementForm: "Форма выдачи",
       gracePeriod: "Льготный период",
-      rates: "Ставки",
-      purpose: "Назначение продукта",
-      highlight: "Ключевое преимущество",
-      calculationsSection: "Результаты расчета",
-      noCalculations:
-        "Для этого клиента пока нет сохраненного кредитного расчета.",
-      interestRate: "Процентная ставка",
+      rates: "Ставка",
+      purpose: "Цель",
+      highlight: "Преимущество",
+      calculationsSection: "Расчёт",
+      noCalculations: "Расчёт ещё не сделан.",
+      interestRate: "Ставка",
       term: "Срок",
       repaymentType: "Тип погашения",
-      initialPayment: "Первоначальный взнос",
-      monthlyPayment: "Ежемесячный платеж",
-      totalPayment: "Общая выплата",
-      totalInterest: "Общие проценты",
+      initialPayment: "Первый взнос",
+      monthlyPayment: "Платёж в месяц",
+      totalPayment: "Всего к выплате",
+      totalInterest: "Всего процентов",
       monthsSuffix: "мес.",
-      repaymentAnnuity: "Аннуитет",
-      repaymentDifferentiated: "Дифференцированный",
-      scheduleSection: "График ежемесячных платежей",
+      repaymentAnnuity: "Равными частями",
+      repaymentDifferentiated: "Убывающий",
+      scheduleSection: "График платежей",
       scheduleMonth: "Месяц",
-      schedulePayment: "Платеж",
-      schedulePrincipal: "Основной долг",
+      schedulePayment: "Платёж",
+      schedulePrincipal: "Долг",
       scheduleInterest: "Проценты",
       scheduleRemaining: "Остаток",
       footerNote:
-        "Документ подготовлен для предварительного обсуждения. Окончательные условия финансирования утверждаются банком после проверки документов и риск-анализа. *Информация актуальна на дату формирования документа.",
-      interestRatePlaceholder: "Процентная ставка определяется исходя из проекта заемщика",
+        "Предварительный расчёт. Итоговые условия утверждает банк.",
+      interestRatePlaceholder: "По проекту заёмщика",
       clientFallbackName: "Клиент",
-      collateralSection: "Предварительный расчёт залога",
-      collateralRequested: "Запрашиваемая сумма",
-      collateralAccepted: "Общая стоимость залога",
+      collateralSection: "Расчёт залога",
+      collateralRequested: "Сумма кредита",
+      collateralAccepted: "Стоимость залога",
       collateralCoverage: "Покрытие",
-      collateralMaxLoan: "Максимальный кредит",
-      collateralEnough: "✓ Залога предварительно достаточно",
-      collateralNotEnough: "⚠ Залога предварительно недостаточно",
-      collateralItemsTitle: "Предметы залога",
+      collateralMaxLoan: "Макс. кредит",
+      collateralEnough: "✓ Залога достаточно",
+      collateralNotEnough: "⚠ Залога недостаточно",
+      collateralItemsTitle: "Залог",
       collateralDisclaimer:
-        "Расчёт предварительный и не является официальной оценкой залога или решением банка.",
-      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Все права защищены.`,
+        "Предварительный расчёт. Официальную оценку даёт банк.",
+      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank`,
     } as const;
   }
 
   return {
-    title: "Mijoz uchun tijorat taklifi",
-    subtitle: "MINERVA - kredit eksperti yordamchisi",
+    title: "Kredit taklifi",
+    subtitle: "MINERVA - kredit yordamchisi",
     metaDate: "Sana",
     metaExpert: "Ekspert",
     metaBranch: "Filial",
     metaCase: "Ish raqami",
-    clientSection: "Mijoz ma'lumotlari",
-    clientName: "F.I.Sh.",
+    clientSection: "Mijoz",
+    clientName: "Ismi",
     clientPhone: "Telefon",
     clientGender: "Jinsi",
-    clientType: "Mijoz turi",
+    clientType: "Turi",
     clientSegment: "Segment",
-    clientCreatedAt: "Ro'yxatdan o'tgan sana",
+    clientCreatedAt: "Qachon qo'shilgan",
     genderMale: "Erkak",
     genderFemale: "Ayol",
     typeIndividual: "Jismoniy shaxs",
     typeCorporate: "Yuridik shaxs",
-    preferencesSection: "Mijoz ehtiyojlari va afzalliklari",
-    productsSection: "Tanlangan mahsulot ma'lumotlari",
-    noProducts:
-      "Savatda mahsulotlar yo'q. Avval mijoz uchun mos mahsulotlarni tanlang.",
+    preferencesSection: "Mijoz nimani xohlaydi",
+    productsSection: "Mahsulotlar",
+    noProducts: "Hali mahsulot tanlanmagan.",
     productIndex: "Mahsulot",
     sapCode: "SAP kodi",
     segment: "Segment",
     loanAmount: "Kredit summasi",
-    availableTerms: "Mavjud muddatlar",
+    availableTerms: "Muddat",
     disbursementForm: "Berish shakli",
     gracePeriod: "Imtiyozli davr",
-    rates: "Stavkalar",
-    purpose: "Mahsulot maqsadi",
-    highlight: "Asosiy afzalligi",
-    calculationsSection: "Hisob-kitob natijalari",
-    noCalculations:
-      "Ushbu mijoz uchun hali saqlangan kredit hisob-kitobi mavjud emas.",
+    rates: "Foiz stavkasi",
+    purpose: "Maqsad",
+    highlight: "Afzalligi",
+    calculationsSection: "Hisob-kitob",
+    noCalculations: "Hisob-kitob hali qilinmagan.",
     interestRate: "Foiz stavkasi",
     term: "Muddat",
-    repaymentType: "To'lov turi",
-    initialPayment: "Boshlang'ich to'lov",
+    repaymentType: "To'lov usuli",
+    initialPayment: "Oldindan to'lov",
     monthlyPayment: "Oylik to'lov",
     totalPayment: "Jami to'lov",
-    totalInterest: "Foizlar bo'yicha jami",
+    totalInterest: "Jami foiz",
     monthsSuffix: "oy",
-    repaymentAnnuity: "Annuitet",
-    repaymentDifferentiated: "Differensial",
-    scheduleSection: "Oylik to'lov jadvali",
+    repaymentAnnuity: "Teng to'lov",
+    repaymentDifferentiated: "Kamayib boruvchi",
+    scheduleSection: "To'lov jadvali",
     scheduleMonth: "Oy",
     schedulePayment: "To'lov",
     schedulePrincipal: "Asosiy qarz",
     scheduleInterest: "Foiz",
     scheduleRemaining: "Qoldiq",
     footerNote:
-      "Mazkur hujjat dastlabki muhokama uchun tayyorlangan. Yakuniy moliyalashtirish shartlari hujjatlar tekshiruvi va risk tahlilidan keyin bank tomonidan tasdiqlanadi. *Ma'lumotlar hujjat shakllantirilgan sana holatiga dolzarbdir.",
-    interestRatePlaceholder: "Foiz stavkasi qarz oluvchining loyihasidan kelib chiqqan holda belgilanadi",
+      "Bu dastlabki hisob. Yakuniy shartlarni bank tasdiqlaydi.",
+    interestRatePlaceholder: "Loyihaga qarab belgilanadi",
     clientFallbackName: "Mijoz",
-    collateralSection: "Garov bo'yicha dastlabki hisob",
-    collateralRequested: "So'ralgan summa",
-    collateralAccepted: "Garovning umumiy qiymati",
+    collateralSection: "Garov hisobi",
+    collateralRequested: "Kredit summasi",
+    collateralAccepted: "Garov qiymati",
     collateralCoverage: "Qoplama",
-    collateralMaxLoan: "Maksimal kredit",
-    collateralEnough: "✓ Garov dastlabki hisob bo'yicha yetarli",
-    collateralNotEnough: "⚠ Garov dastlabki hisob bo'yicha yetarli emas",
-    collateralItemsTitle: "Garov predmetlari",
+    collateralMaxLoan: "Max kredit",
+    collateralEnough: "✓ Garov yetarli",
+    collateralNotEnough: "⚠ Garov yetarli emas",
+    collateralItemsTitle: "Garov ro'yxati",
     collateralDisclaimer:
-      "Ushbu hisob dastlabki bo'lib, bankning rasmiy baholashi yoki qarori hisoblanmaydi.",
-    footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank. Barcha huquqlar himoyalangan.`,
+      "Dastlabki hisob. Bank rasmiy bahosini alohida beradi.",
+    footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank`,
   } as const;
 }
 
@@ -554,25 +550,14 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       y = drawParagraph(copy.noProducts, y, { color: muted });
     } else {
       data.basketItems.forEach((item, index) => {
-        y = ensureSpace(doc, y, 120);
+        y = ensureSpace(doc, y, 80);
         const productName = item.productName || item.name || `${copy.productIndex} ${index + 1}`;
         useFont("bold");
         doc
-          .fontSize(11)
+          .fontSize(13)
           .fillColor(green)
-          .text(`${index + 1}. ${productName}`, 50, y, { width: contentWidth });
-        y += 20;
-
-        const detailRows: PreferenceItem[] = [];
-
-        const segmentValue = getDisplayValueForLanguage(
-          language,
-          item.localizedSegment,
-          item.segment,
-        );
-        if (segmentValue !== "-") {
-          detailRows.push({ label: copy.segment, value: segmentValue });
-        }
+          .text(productName.toUpperCase(), 50, y, { width: contentWidth });
+        y += 22;
 
         const amountValue = getDisplayValueForLanguage(
           language,
@@ -580,37 +565,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
           item.loanAmount,
         );
         if (amountValue !== "-") {
-          detailRows.push({ label: copy.loanAmount, value: amountValue });
-        }
-
-        const termValue = getDisplayValueForLanguage(
-          language,
-          item.localizedRelevantTerm,
-          buildRelevantTerms(item),
-        );
-        if (termValue !== "-") {
-          detailRows.push({ label: copy.availableTerms, value: termValue });
-        }
-
-        const disbursementValue = getDisplayValueForLanguage(
-          language,
-          item.localizedDisbursementForm,
-          item.disbursementForm,
-        );
-        if (disbursementValue !== "-") {
-          detailRows.push({
-            label: copy.disbursementForm,
-            value: disbursementValue,
-          });
-        }
-
-        const graceValue = getDisplayValueForLanguage(
-          language,
-          item.localizedGracePeriod,
-          item.gracePeriod,
-        );
-        if (graceValue !== "-") {
-          detailRows.push({ label: copy.gracePeriod, value: graceValue });
+          y = drawRow(copy.loanAmount, amountValue, y);
         }
 
         const rateValue = getDisplayValueForLanguage(
@@ -619,29 +574,25 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
           buildRateSummary(item),
         );
         if (rateValue !== "-") {
-          detailRows.push({ label: copy.rates, value: rateValue });
+          y = drawRow(copy.rates, rateValue, y);
         }
 
-        const purposeValue = getDisplayValueForLanguage(
+        const termValue = getDisplayValueForLanguage(
           language,
-          item.localizedPurpose,
-          item.purpose,
+          item.localizedRelevantTerm,
+          buildRelevantTerms(item),
         );
-        if (purposeValue !== "-") {
-          detailRows.push({ label: copy.purpose, value: purposeValue });
+        if (termValue !== "-") {
+          y = drawRow(copy.availableTerms, termValue, y);
         }
 
-        const highlightValue = getDisplayValueForLanguage(
+        const graceValue = getDisplayValueForLanguage(
           language,
-          item.localizedHighlight,
-          item.highlight,
+          item.localizedGracePeriod,
+          item.gracePeriod,
         );
-        if (highlightValue !== "-") {
-          detailRows.push({ label: copy.highlight, value: highlightValue });
-        }
-
-        for (const row of detailRows) {
-          y = drawRow(row.label, row.value, y);
+        if (graceValue !== "-") {
+          y = drawRow(copy.gracePeriod, graceValue, y);
         }
 
         y += 6;
@@ -671,9 +622,13 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
             `${fmtNum(calculation.loanAmount, language)} ${calculation.currency}`,
             y,
           );
+          const rateNum = Number.parseFloat(calculation.interestRate);
+          const rateStr = Number.isFinite(rateNum) && rateNum > 0
+            ? `${rateNum % 1 === 0 ? rateNum.toFixed(0) : rateNum.toFixed(1)}%`
+            : copy.interestRatePlaceholder;
           y = drawRow(
             copy.interestRate,
-            copy.interestRatePlaceholder,
+            rateStr,
             y,
           );
           y = drawRow(

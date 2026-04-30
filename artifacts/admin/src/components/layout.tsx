@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   Home,
   Users,
+  UserPlus,
   Package,
   BookOpen,
   Building2,
@@ -51,6 +52,7 @@ const navItems = [
   { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
+  { href: "/users", labelKey: "nav.users", icon: UserPlus, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/activity", labelKey: "nav.activityLog", icon: Activity, roles: ["superadmin", "head_office_admin"], badge: false },

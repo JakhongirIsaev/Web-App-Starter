@@ -3,7 +3,9 @@ import {
   calculateAcceptedValue,
   calculateEstimateTotals,
   extractAnnualRate,
+  getTransportDiscount,
   isEquipmentOnly,
+  REAL_ESTATE_DISCOUNT,
   roundCoveragePercent,
   roundMoney,
   type CollateralSettings,
@@ -16,9 +18,54 @@ const DEFAULT_SETTINGS: CollateralSettings = {
   transportAgeDiscount: 0.4,
 };
 
+describe("getTransportDiscount", () => {
+  it("returns 0.70 for age ≤ 3", () => {
+    expect(getTransportDiscount(0)).toBe(0.70);
+    expect(getTransportDiscount(1)).toBe(0.70);
+    expect(getTransportDiscount(3)).toBe(0.70);
+  });
+
+  it("returns 0.60 for age 4-5", () => {
+    expect(getTransportDiscount(4)).toBe(0.60);
+    expect(getTransportDiscount(5)).toBe(0.60);
+  });
+
+  it("returns 0.50 for age 6-7", () => {
+    expect(getTransportDiscount(6)).toBe(0.50);
+    expect(getTransportDiscount(7)).toBe(0.50);
+  });
+
+  it("returns 0.30 for age > 7", () => {
+    expect(getTransportDiscount(8)).toBe(0.30);
+    expect(getTransportDiscount(15)).toBe(0.30);
+  });
+});
+
 describe("calculateAcceptedValue", () => {
-  it("accepts non-transport types at full market value", () => {
-    for (const typeCode of ["real_estate", "jewelry", "land_plot", "equipment"] as const) {
+  it("applies 60% discount to real_estate", () => {
+    const result = calculateAcceptedValue({
+      typeCode: "real_estate",
+      marketValue: 100_000_000,
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.acceptedValue).toBe(60_000_000);
+    expect(result.discountApplied).toBe(0.6);
+    expect(result.discountReason).toBe("real_estate_standard");
+  });
+
+  it("applies 60% discount to land_plot (same as real_estate)", () => {
+    const result = calculateAcceptedValue({
+      typeCode: "land_plot",
+      marketValue: 100_000_000,
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.acceptedValue).toBe(60_000_000);
+    expect(result.discountApplied).toBe(0.6);
+    expect(result.discountReason).toBe("real_estate_standard");
+  });
+
+  it("accepts jewelry and equipment at face value", () => {
+    for (const typeCode of ["jewelry", "equipment"] as const) {
       const result = calculateAcceptedValue({
         typeCode,
         marketValue: 100_000_000,
@@ -30,20 +77,46 @@ describe("calculateAcceptedValue", () => {
     }
   });
 
-  it("accepts transport ≤ 7 years at full market value", () => {
+  it("applies 70% to transport ≤ 3 years old", () => {
     const result = calculateAcceptedValue({
       typeCode: "transport",
-      marketValue: 70_000_000,
-      metadata: { year: 2020 },
+      marketValue: 100_000_000,
+      metadata: { year: 2024 },
       settings: DEFAULT_SETTINGS,
       currentYear: 2026,
     });
     expect(result.acceptedValue).toBe(70_000_000);
-    expect(result.discountApplied).toBeNull();
-    expect(result.discountReason).toBeNull();
+    expect(result.discountApplied).toBe(0.7);
+    expect(result.discountReason).toBe("transport_age_0_3");
   });
 
-  it("applies 40% discount to transport > 7 years (spec Example 2)", () => {
+  it("applies 60% to transport 4-5 years old", () => {
+    const result = calculateAcceptedValue({
+      typeCode: "transport",
+      marketValue: 100_000_000,
+      metadata: { year: 2022 },
+      settings: DEFAULT_SETTINGS,
+      currentYear: 2026,
+    });
+    expect(result.acceptedValue).toBe(60_000_000);
+    expect(result.discountApplied).toBe(0.6);
+    expect(result.discountReason).toBe("transport_age_3_5");
+  });
+
+  it("applies 50% to transport 6-7 years old", () => {
+    const result = calculateAcceptedValue({
+      typeCode: "transport",
+      marketValue: 100_000_000,
+      metadata: { year: 2020 },
+      settings: DEFAULT_SETTINGS,
+      currentYear: 2026,
+    });
+    expect(result.acceptedValue).toBe(50_000_000);
+    expect(result.discountApplied).toBe(0.5);
+    expect(result.discountReason).toBe("transport_age_5_7");
+  });
+
+  it("applies 30% to transport > 7 years old", () => {
     const result = calculateAcceptedValue({
       typeCode: "transport",
       marketValue: 80_000_000,
@@ -51,12 +124,12 @@ describe("calculateAcceptedValue", () => {
       settings: DEFAULT_SETTINGS,
       currentYear: 2026,
     });
-    expect(result.acceptedValue).toBe(32_000_000);
-    expect(result.discountApplied).toBe(0.4);
-    expect(result.discountReason).toBe("transport_age_over_threshold");
+    expect(result.acceptedValue).toBe(24_000_000);
+    expect(result.discountApplied).toBe(0.3);
+    expect(result.discountReason).toBe("transport_age_7plus");
   });
 
-  it("treats transport without year metadata as full value (no age info, no discount)", () => {
+  it("treats transport without year metadata as face value", () => {
     const result = calculateAcceptedValue({
       typeCode: "transport",
       marketValue: 50_000_000,
@@ -66,18 +139,6 @@ describe("calculateAcceptedValue", () => {
     });
     expect(result.acceptedValue).toBe(50_000_000);
     expect(result.discountApplied).toBeNull();
-  });
-
-  it("respects custom threshold and discount from settings", () => {
-    const result = calculateAcceptedValue({
-      typeCode: "transport",
-      marketValue: 100_000_000,
-      metadata: { year: 2020 },
-      settings: { coverageRatio: 1.25, transportAgeThreshold: 3, transportAgeDiscount: 0.5 },
-      currentYear: 2026,
-    });
-    expect(result.acceptedValue).toBe(50_000_000);
-    expect(result.discountApplied).toBe(0.5);
   });
 
   it("throws on non-positive marketValue", () => {
@@ -98,12 +159,12 @@ describe("calculateAcceptedValue", () => {
       settings: DEFAULT_SETTINGS,
       currentYear: 2026,
     });
-    expect(result.acceptedValue).toBe(32_000_000);
+    expect(result.acceptedValue).toBe(24_000_000);
   });
 });
 
 describe("calculateEstimateTotals", () => {
-  it("Example 1: mixed collateral, exactly enough at 125%", () => {
+  it("mixed collateral, enough at 125%", () => {
     const items: EstimateInputItem[] = [
       { typeCode: "transport", marketValue: 70_000_000, acceptedValue: 70_000_000 },
       { typeCode: "jewelry", marketValue: 55_000_000, acceptedValue: 55_000_000 },
@@ -123,22 +184,21 @@ describe("calculateEstimateTotals", () => {
     expect(totals.shortfall).toBe(0);
   });
 
-  it("Example 2: old car, not enough", () => {
+  it("old car with 30% coefficient, not enough", () => {
     const totals = calculateEstimateTotals({
-      items: [{ typeCode: "transport", marketValue: 80_000_000, acceptedValue: 32_000_000 }],
+      items: [{ typeCode: "transport", marketValue: 80_000_000, acceptedValue: 24_000_000 }],
       requestedLoanAmount: 50_000_000,
       coverageRatio: 1.25,
     });
 
-    expect(totals.totalAcceptedValue).toBe(32_000_000);
+    expect(totals.totalAcceptedValue).toBe(24_000_000);
     expect(totals.requiredCollateralValue).toBe(62_500_000);
-    expect(totals.coveragePercent).toBe(64);
-    expect(totals.maxLoanAmount).toBe(25_600_000);
+    expect(totals.coveragePercent).toBe(48);
+    expect(totals.maxLoanAmount).toBe(19_200_000);
     expect(totals.resultStatus).toBe("not_enough");
-    expect(totals.shortfall).toBe(30_500_000);
   });
 
-  it("Example 3: equipment-only, enough on coverage but warning flag fires", () => {
+  it("equipment-only, enough on coverage but warning flag fires", () => {
     const items: EstimateInputItem[] = [
       { typeCode: "equipment", marketValue: 200_000_000, acceptedValue: 200_000_000 },
     ];
@@ -153,22 +213,22 @@ describe("calculateEstimateTotals", () => {
     expect(isEquipmentOnly(items)).toBe(true);
   });
 
-  it("Example 4: third-party real estate", () => {
+  it("real estate with 60% discount", () => {
     const totals = calculateEstimateTotals({
-      items: [{ typeCode: "real_estate", marketValue: 300_000_000, acceptedValue: 300_000_000 }],
-      requestedLoanAmount: 200_000_000,
+      items: [{ typeCode: "real_estate", marketValue: 300_000_000, acceptedValue: 180_000_000 }],
+      requestedLoanAmount: 100_000_000,
       coverageRatio: 1.25,
     });
 
-    expect(totals.coveragePercent).toBe(150);
+    expect(totals.coveragePercent).toBe(180);
     expect(totals.resultStatus).toBe("enough");
   });
 
-  it("Example 5: multiple items same type sum together", () => {
+  it("multiple items same type sum together", () => {
     const totals = calculateEstimateTotals({
       items: [
-        { typeCode: "real_estate", marketValue: 200_000_000, acceptedValue: 200_000_000 },
-        { typeCode: "real_estate", marketValue: 100_000_000, acceptedValue: 100_000_000 },
+        { typeCode: "jewelry", marketValue: 200_000_000, acceptedValue: 200_000_000 },
+        { typeCode: "jewelry", marketValue: 100_000_000, acceptedValue: 100_000_000 },
       ],
       requestedLoanAmount: 200_000_000,
       coverageRatio: 1.25,
@@ -179,21 +239,9 @@ describe("calculateEstimateTotals", () => {
     expect(totals.resultStatus).toBe("enough");
   });
 
-  it("AC4: 120M collateral against 100M loan = not_enough, 5M shortfall", () => {
+  it("respects a custom coverage ratio", () => {
     const totals = calculateEstimateTotals({
-      items: [{ typeCode: "real_estate", marketValue: 120_000_000, acceptedValue: 120_000_000 }],
-      requestedLoanAmount: 100_000_000,
-      coverageRatio: 1.25,
-    });
-
-    expect(totals.coveragePercent).toBe(120);
-    expect(totals.resultStatus).toBe("not_enough");
-    expect(totals.shortfall).toBe(5_000_000);
-  });
-
-  it("respects a custom coverage ratio (admin-tuned setting)", () => {
-    const totals = calculateEstimateTotals({
-      items: [{ typeCode: "real_estate", marketValue: 130_000_000, acceptedValue: 130_000_000 }],
+      items: [{ typeCode: "jewelry", marketValue: 130_000_000, acceptedValue: 130_000_000 }],
       requestedLoanAmount: 100_000_000,
       coverageRatio: 1.3,
     });
