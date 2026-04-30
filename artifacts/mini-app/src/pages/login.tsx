@@ -114,7 +114,7 @@ export default function LoginPage() {
             className="text-[11px] font-semibold uppercase tracking-[0.2em]"
             style={{ color: "rgba(255,255,255,0.5)" }}
           >
-            Ipak Yo'li Bank
+            {t("login.bankName")}
           </p>
           <h1
             className="text-[34px] font-extrabold mt-1 leading-none"
@@ -126,7 +126,7 @@ export default function LoginPage() {
             className="text-[13px] font-medium mt-2"
             style={{ color: "rgba(255,255,255,0.55)" }}
           >
-            Credit Hunter &middot; {t("app.subtitle")}
+            {t("login.creditHunter")} &middot; {t("app.subtitle")}
           </p>
         </div>
       </div>
@@ -150,10 +150,10 @@ export default function LoginPage() {
               <Shield className="w-6 h-6" />
             </div>
             <h2 className="text-[17px] font-bold" style={{ color: "#0F172A" }}>
-              {t("login.signIn") || "Вход через Telegram"}
+              {t("login.signIn")}
             </h2>
             <p className="text-[13px] mt-1" style={{ color: "#94A3B8" }}>
-              {t("login.telegramAuthHint") || "Автоматически, без пароля"}
+              {t("login.subtitle")}
             </p>
           </div>
 
@@ -290,9 +290,9 @@ export default function LoginPage() {
           {/* Benefits list */}
           <div className="mt-8 space-y-3">
             {[
-              { icon: Zap, label: t("login.benefit1") || "Мгновенный доступ к CRM" },
-              { icon: BarChart3, label: t("login.benefit2") || "Аналитика и отчёты" },
-              { icon: Users, label: t("login.benefit3") || "Управление клиентами" },
+              { icon: Zap, label: t("login.benefit1") },
+              { icon: BarChart3, label: t("login.benefit2") },
+              { icon: Users, label: t("login.benefit3") },
             ].map((item, idx) => (
               <div key={idx} className="flex items-center gap-3">
                 <div
@@ -313,7 +313,7 @@ export default function LoginPage() {
             className="text-center text-[11px] leading-relaxed mt-6"
             style={{ color: "#94A3B8" }}
           >
-            {t("login.consent") || "Входя в систему, вы соглашаетесь с условиями использования и политикой конфиденциальности Ipak Yo'li Bank."}
+            {t("login.consent")}
           </p>
         </div>
       </div>

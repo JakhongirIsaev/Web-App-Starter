@@ -112,7 +112,7 @@ export default function CalculatorPage() {
       `${t("calculator.loanAmount")}: ${formatWithSpaces(loanAmount)} ${currency}`,
       `${t("calculator.interestRate")}: ${interestRate}%`,
       `${t("calculator.loanTerm")}: ${termMonths} ${t("calculator.months")}`,
-      `${t("calculator.monthlyPayment") || "Ежемесячный платёж"}: ${formatWithSpaces(monthlyPayment)} ${currency}`,
+      `${t("calculator.monthlyPayment")}: ${formatWithSpaces(monthlyPayment)} ${currency}`,
       `${t("calculator.totalPayment")}: ${formatWithSpaces(result.summary.totalPayment)} ${currency}`,
     ].join("\n");
 
@@ -339,7 +339,7 @@ export default function CalculatorPage() {
                 style={{ background: "#ECFDF5" }}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
-                  {t("calculator.monthlyPayment") || "Ежемесячный платёж"}
+                  {t("calculator.monthlyPayment")}
                 </p>
                 <p className="text-[20px] font-bold mt-1 leading-tight" style={{ color: "#16A34A" }}>
                   {formatWithSpaces(monthlyPayment)}
@@ -381,7 +381,7 @@ export default function CalculatorPage() {
                 style={{ background: "#F8FAFC" }}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
-                  {t("calculator.effectiveRate") || "Эффект. ставка"}
+                  {t("calculator.effectiveRate")}
                 </p>
                 <p className="text-[18px] font-bold mt-1 leading-tight" style={{ color: "#0F172A" }}>
                   {effectiveRateDisplay}%
@@ -467,7 +467,7 @@ export default function CalculatorPage() {
               style={{ color: "#0F172A" }}
             >
               <Share2 className="w-4 h-4" style={{ color: "#64748B" }} />
-              {t("common.share") || "Поделиться"}
+              {t("calculator.share")}
             </button>
           </div>
         </>

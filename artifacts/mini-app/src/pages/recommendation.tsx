@@ -331,6 +331,14 @@ export default function RecommendationPage() {
   const clientName = savedQuestionnaireQuery.data?.fullName || t("recommendation.title");
   const matchPercent = (confidence: number) => Math.round((confidence || 0) * 100);
 
+  const pluralize = (count: number, one: string, few: string, many: string) => {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+    return many;
+  };
+
   /* ═══════════════ LOADING STATE ═══════════════ */
   if (isLoading) {
     return (
@@ -416,12 +424,16 @@ export default function RecommendationPage() {
           className="text-[20px] font-bold tracking-tight leading-tight"
           style={{ color: "#0F172A" }}
         >
-          Для {clientName} — {visibleProducts.length}{" "}
-          {visibleProducts.length === 1
-            ? "вариант"
-            : visibleProducts.length < 5
-              ? "варианта"
-              : "вариантов"}
+          {t("recommendation.headerTitle", {
+            name: clientName,
+            count: visibleProducts.length,
+            form: pluralize(
+              visibleProducts.length,
+              t("recommendation.variantOne"),
+              t("recommendation.variantFew"),
+              t("recommendation.variantMany"),
+            ),
+          })}
         </h1>
         <p className="text-[13px] mt-1" style={{ color: "#64748B" }}>
           {t("recommendation.aiSortedDescription")}
@@ -482,11 +494,12 @@ export default function RecommendationPage() {
       <div className="flex items-center justify-between px-5 py-3">
         <span className="text-[13px] font-semibold" style={{ color: "#0F172A" }}>
           {visibleProducts.length}{" "}
-          {visibleProducts.length === 1
-            ? "предложение"
-            : visibleProducts.length < 5
-              ? "предложения"
-              : "предложений"}
+          {pluralize(
+            visibleProducts.length,
+            t("recommendation.offersOne"),
+            t("recommendation.offersFew"),
+            t("recommendation.offersMany"),
+          )}
         </span>
         <button
           onClick={() => setSortOpen(!sortOpen)}
@@ -494,7 +507,7 @@ export default function RecommendationPage() {
           style={{ color: "#64748B" }}
         >
           <ArrowUpDown className="w-3.5 h-3.5" />
-          По совпадению
+          {t("recommendation.sortByMatch")}
           <ChevronDown
             className="w-3.5 h-3.5 transition-transform"
             style={{ transform: sortOpen ? "rotate(180deg)" : "rotate(0)" }}
@@ -541,7 +554,7 @@ export default function RecommendationPage() {
                       borderRadius: "0 16px 0 12px",
                     }}
                   >
-                    Лучший вариант
+                    {t("recommendation.bestMatch")}
                   </div>
                 )}
 
@@ -560,7 +573,7 @@ export default function RecommendationPage() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                     {product.displayRate && (
                       <div className="text-[12px]" style={{ color: "#64748B" }}>
-                        Ставка:{" "}
+                        {t("recommendation.rateInline")}{" "}
                         <span className="font-semibold" style={{ color: "#0F172A" }}>
                           {product.displayRate}
                         </span>
@@ -568,7 +581,7 @@ export default function RecommendationPage() {
                     )}
                     {product.displayAmount && (
                       <div className="text-[12px]" style={{ color: "#64748B" }}>
-                        Сумма:{" "}
+                        {t("recommendation.amountInline")}{" "}
                         <span className="font-semibold" style={{ color: "#0F172A" }}>
                           {product.displayAmount}
                         </span>
@@ -584,7 +597,7 @@ export default function RecommendationPage() {
                           className="text-[12px] font-medium"
                           style={{ color: "#64748B" }}
                         >
-                          Совпадение
+                          {t("recommendation.matchLabel")}
                         </span>
                         <span
                           className="text-[13px] font-bold"
@@ -661,7 +674,7 @@ export default function RecommendationPage() {
                       }}
                     >
                       <Calculator className="w-4 h-4" />
-                      Калькулятор
+                      {t("recommendation.calculatorButton")}
                     </button>
                     <button
                       onClick={(e) => {
@@ -677,12 +690,12 @@ export default function RecommendationPage() {
                       {isSelected ? (
                         <>
                           <Check className="w-4 h-4" />
-                          Добавлено
+                          {t("recommendation.added")}
                         </>
                       ) : (
                         <>
                           <ShoppingCart className="w-4 h-4" />
-                          В корзину
+                          {t("recommendation.addToCart")}
                         </>
                       )}
                     </button>

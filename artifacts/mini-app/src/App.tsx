@@ -19,7 +19,6 @@ const QuestionnairePage = lazy(() => import("@/pages/questionnaire"));
 const RecommendationPage = lazy(() => import("@/pages/recommendation"));
 const CalculatorPage = lazy(() => import("@/pages/calculator"));
 const KnowledgePage = lazy(() => import("@/pages/knowledge"));
-const CatalogPage = lazy(() => import("@/pages/catalog"));
 const BasketPage = lazy(() => import("@/pages/basket"));
 const PdfSharePage = lazy(() => import("@/pages/pdf-share"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
@@ -137,13 +136,6 @@ function AuthGate() {
             {() => (
               <PageSuspense>
                 <KnowledgePage />
-              </PageSuspense>
-            )}
-          </Route>
-          <Route path="/catalog">
-            {() => (
-              <PageSuspense>
-                <CatalogPage />
               </PageSuspense>
             )}
           </Route>

@@ -44,8 +44,6 @@ async function apiFetch(url: string, options?: RequestInit) {
 
 interface CollateralSettings {
   coverageRatio: number;
-  transportAgeThreshold: number;
-  transportAgeDiscount: number;
 }
 
 interface CollateralType {
@@ -73,14 +71,10 @@ export default function CollateralAdmin() {
   });
 
   const [coverageRatio, setCoverageRatio] = useState("1.25");
-  const [transportAgeThreshold, setTransportAgeThreshold] = useState("7");
-  const [transportAgeDiscount, setTransportAgeDiscount] = useState("0.40");
 
   useEffect(() => {
     if (settingsQuery.data) {
       setCoverageRatio(String(settingsQuery.data.coverageRatio));
-      setTransportAgeThreshold(String(settingsQuery.data.transportAgeThreshold));
-      setTransportAgeDiscount(String(settingsQuery.data.transportAgeDiscount));
     }
   }, [settingsQuery.data]);
 
@@ -100,21 +94,11 @@ export default function CollateralAdmin() {
   const onSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const ratio = Number(coverageRatio);
-    const threshold = Number(transportAgeThreshold);
-    const discount = Number(transportAgeDiscount);
-    if (
-      !Number.isFinite(ratio) || ratio <= 1.0 || ratio > 3.0 ||
-      !Number.isFinite(threshold) || !Number.isInteger(threshold) || threshold < 1 || threshold > 30 ||
-      !Number.isFinite(discount) || discount <= 0 || discount >= 1.0
-    ) {
+    if (!Number.isFinite(ratio) || ratio <= 1.0 || ratio > 3.0) {
       toast({ title: t("collateralAdmin.invalidValues"), variant: "destructive" });
       return;
     }
-    saveSettings.mutate({
-      coverageRatio: ratio,
-      transportAgeThreshold: threshold,
-      transportAgeDiscount: discount,
-    });
+    saveSettings.mutate({ coverageRatio: ratio });
   };
 
   // ── Type editor ──
@@ -161,35 +145,49 @@ export default function CollateralAdmin() {
             />
             <p className="text-xs text-muted-foreground mt-1">{t("collateralAdmin.coverageRatioHint")}</p>
           </div>
-          <div>
-            <Label htmlFor="threshold">{t("collateralAdmin.transportAgeThreshold")}</Label>
-            <Input
-              id="threshold"
-              type="number"
-              step="1"
-              min="1"
-              max="30"
-              value={transportAgeThreshold}
-              onChange={(e) => setTransportAgeThreshold(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="discount">{t("collateralAdmin.transportAgeDiscount")}</Label>
-            <Input
-              id="discount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              max="0.99"
-              value={transportAgeDiscount}
-              onChange={(e) => setTransportAgeDiscount(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground mt-1">{t("collateralAdmin.transportAgeDiscountHint")}</p>
-          </div>
           <Button type="submit" disabled={saveSettings.isPending}>
             {saveSettings.isPending ? t("common.saving") : t("common.save")}
           </Button>
         </form>
+
+        <div className="mt-6 rounded-md border bg-muted/40 p-4 max-w-md">
+          <h3 className="text-sm font-medium mb-2">{t("collateralAdmin.discountScheduleTitle")}</h3>
+          <p className="text-xs text-muted-foreground mb-3">{t("collateralAdmin.discountScheduleHint")}</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-1.5 text-xs font-medium text-muted-foreground">{t("collateralAdmin.discountColType")}</th>
+                <th className="text-right py-1.5 text-xs font-medium text-muted-foreground">{t("collateralAdmin.discountColRate")}</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              <tr className="border-b border-border/50">
+                <td className="py-1.5">{t("collateralAdmin.discountRealEstate")}</td>
+                <td className="text-right tabular-nums py-1.5">60%</td>
+              </tr>
+              <tr className="border-b border-border/50">
+                <td className="py-1.5">{t("collateralAdmin.discountTransportUnder3")}</td>
+                <td className="text-right tabular-nums py-1.5">70%</td>
+              </tr>
+              <tr className="border-b border-border/50">
+                <td className="py-1.5">{t("collateralAdmin.discountTransport3to5")}</td>
+                <td className="text-right tabular-nums py-1.5">60%</td>
+              </tr>
+              <tr className="border-b border-border/50">
+                <td className="py-1.5">{t("collateralAdmin.discountTransport5to7")}</td>
+                <td className="text-right tabular-nums py-1.5">50%</td>
+              </tr>
+              <tr className="border-b border-border/50">
+                <td className="py-1.5">{t("collateralAdmin.discountTransport7plus")}</td>
+                <td className="text-right tabular-nums py-1.5">30%</td>
+              </tr>
+              <tr>
+                <td className="py-1.5">{t("collateralAdmin.discountJewelryEquipment")}</td>
+                <td className="text-right tabular-nums py-1.5">100%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* COLLATERAL TYPES */}

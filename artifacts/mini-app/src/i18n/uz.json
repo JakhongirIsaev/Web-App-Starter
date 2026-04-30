@@ -46,7 +46,13 @@
     "telegramAuthHint": "Sizning Telegram identifikatoringiz tizimda ro'yxatdan o'tmagan. Qo'lda kiring yoki administratorga murojaat qiling.",
     "backToTelegram": "Telegram akkauntiga qaytish",
     "status": "Holat",
-    "detected": "Aniqlandi"
+    "detected": "Aniqlandi",
+    "bankName": "Ipak Yo'li Bank",
+    "creditHunter": "Credit Hunter",
+    "benefit1": "CRM ga tezkor kirish",
+    "benefit2": "Tahlil va hisobotlar",
+    "benefit3": "Mijozlarni boshqarish",
+    "consent": "Tizimga kirib, siz Ipak Yo'li Bank foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz."
   },
   "home": {
     "greeting": "Assalomu alaykum, {{name}}!",
@@ -133,6 +139,8 @@
     "gender": "Jins",
     "genderMale": "Erkak",
     "genderFemale": "Ayol",
+    "address": "Manzil",
+    "createdAt": "Yaratilgan sana",
     "productTypes": {
       "credit": "Kredit mahsuloti",
       "nonCredit": "Nokredit mahsulot"
@@ -269,7 +277,22 @@
     "keyAdvantage": "Asosiy afzallik",
     "clientDescription": "Mijoz uchun qisqa tavsif",
     "amountLabel": "Summa: {{value}}.",
-    "rateLabel": "Stavka: {{value}}."
+    "rateLabel": "Stavka: {{value}}.",
+    "headerTitle": "{{name}} uchun — {{count}} {{form}}",
+    "variantOne": "variant",
+    "variantFew": "variant",
+    "variantMany": "variant",
+    "offersOne": "taklif",
+    "offersFew": "taklif",
+    "offersMany": "taklif",
+    "sortByMatch": "Moslik bo'yicha",
+    "bestMatch": "Eng yaxshi variant",
+    "rateInline": "Stavka:",
+    "amountInline": "Summa:",
+    "matchLabel": "Moslik",
+    "calculatorButton": "Kalkulyator",
+    "added": "Qo'shildi",
+    "addToCart": "Savatga"
   },
   "catalog": {
     "aiBannerTitle": "Nima taklif qilishni bilmayapsizmi?",
@@ -357,7 +380,9 @@
     "saveToBasket": "Savatga saqlash",
     "saved": "Hisob saqlandi",
     "download": "Natijalarni yuklash",
-    "downloadFormat": "Jadval"
+    "downloadFormat": "Jadval",
+    "effectiveRate": "Samarali stavka",
+    "share": "Ulashish"
   },
   "knowledge": {
     "title": "Bilimlar bazasi",
@@ -467,7 +492,12 @@
     "noResults": "Natijalar topilmadi",
     "close": "Yopish",
     "delete": "O'chirish",
-    "exportAll": "Barcha mijozlarni eksport qilish"
+    "exportAll": "Barcha mijozlarni eksport qilish",
+    "goHome": "Bosh sahifaga"
+  },
+  "notFound": {
+    "title": "404 — Sahifa topilmadi",
+    "description": "So'ralgan sahifa mavjud emas yoki ko'chirilgan."
   },
   "collateral": {
     "title": "Garov",

@@ -377,7 +377,7 @@ export default function ClientDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
-                    {t("calculator.loanAmount") || "\u0421\u0443\u043C\u043C\u0430"}
+                    {t("calculator.loanAmount")}
                   </div>
                   <div className="text-[20px] font-bold text-[#0F172A] mt-1">
                     {fmtNum(calculations[0].loanAmount)}{" "}
@@ -388,7 +388,7 @@ export default function ClientDetailPage() {
                 </div>
                 <div>
                   <div className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">
-                    {t("calculator.rate") || "\u0421\u0442\u0430\u0432\u043A\u0430"}
+                    {t("calculator.interestRate")}
                   </div>
                   <div className="text-[20px] font-bold text-[#0F172A] mt-1">
                     {calculations[0].interestRate}%
@@ -427,7 +427,7 @@ export default function ClientDetailPage() {
               <Phone className="w-4 h-4 text-[#64748B] shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] text-[#64748B]">
-                  {t("clientDetail.phone") || "\u0422\u0435\u043B\u0435\u0444\u043E\u043D"}
+                  {t("clientDetail.phone")}
                 </div>
                 <div className="text-[14px] font-semibold text-[#0F172A]">
                   {client.phone}
@@ -439,7 +439,7 @@ export default function ClientDetailPage() {
             <Calendar className="w-4 h-4 text-[#64748B] shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-[11px] text-[#64748B]">
-                {t("clientDetail.status") || "\u0414\u0430\u0442\u0430 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F"}
+                {t("clientDetail.createdAt")}
               </div>
               <div className="text-[14px] font-semibold text-[#0F172A]">
                 {fmtDate(client.createdAt)}
@@ -451,7 +451,7 @@ export default function ClientDetailPage() {
               <MapPin className="w-4 h-4 text-[#64748B] shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] text-[#64748B]">
-                  {t("clientDetail.address") || "\u0410\u0434\u0440\u0435\u0441"}
+                  {t("clientDetail.address")}
                 </div>
                 <div className="text-[14px] font-semibold text-[#0F172A]">
                   {client.address}

@@ -46,7 +46,13 @@
     "telegramAuthHint": "Ваш идентификатор Telegram не зарегистрирован в системе. Войдите вручную или обратитесь к администратору.",
     "backToTelegram": "Вернуться ко входу через Telegram",
     "status": "Статус",
-    "detected": "Обнаружен"
+    "detected": "Обнаружен",
+    "bankName": "Ipak Yo'li Bank",
+    "creditHunter": "Credit Hunter",
+    "benefit1": "Мгновенный доступ к CRM",
+    "benefit2": "Аналитика и отчёты",
+    "benefit3": "Управление клиентами",
+    "consent": "Входя в систему, вы соглашаетесь с условиями использования и политикой конфиденциальности Ipak Yo'li Bank."
   },
   "home": {
     "greeting": "Здравствуйте, {{name}}!",
@@ -133,6 +139,8 @@
     "gender": "Пол",
     "genderMale": "Мужской",
     "genderFemale": "Женский",
+    "address": "Адрес",
+    "createdAt": "Дата создания",
     "productTypes": {
       "credit": "Кредитный продукт",
       "nonCredit": "Некредитный продукт"
@@ -269,7 +277,22 @@
     "keyAdvantage": "Ключевое преимущество",
     "clientDescription": "Клиентское описание",
     "amountLabel": "Сумма: {{value}}.",
-    "rateLabel": "Ставка: {{value}}."
+    "rateLabel": "Ставка: {{value}}.",
+    "headerTitle": "Для {{name}} — {{count}} {{form}}",
+    "variantOne": "вариант",
+    "variantFew": "варианта",
+    "variantMany": "вариантов",
+    "offersOne": "предложение",
+    "offersFew": "предложения",
+    "offersMany": "предложений",
+    "sortByMatch": "По совпадению",
+    "bestMatch": "Лучший вариант",
+    "rateInline": "Ставка:",
+    "amountInline": "Сумма:",
+    "matchLabel": "Совпадение",
+    "calculatorButton": "Калькулятор",
+    "added": "Добавлено",
+    "addToCart": "В корзину"
   },
   "catalog": {
     "aiBannerTitle": "Не знаете, что предложить?",
@@ -357,7 +380,9 @@
     "saveToBasket": "Сохранить в корзину",
     "saved": "Расчёт сохранён",
     "download": "Скачать результаты",
-    "downloadFormat": "Таблица"
+    "downloadFormat": "Таблица",
+    "effectiveRate": "Эффект. ставка",
+    "share": "Поделиться"
   },
   "knowledge": {
     "title": "База знаний",
@@ -467,7 +492,12 @@
     "noResults": "Нет результатов",
     "close": "Закрыть",
     "delete": "Удалить",
-    "exportAll": "Экспорт всех клиентов"
+    "exportAll": "Экспорт всех клиентов",
+    "goHome": "На главную"
+  },
+  "notFound": {
+    "title": "404 — Страница не найдена",
+    "description": "Запрашиваемая страница не существует или была перемещена."
   },
   "collateral": {
     "title": "Залог",
