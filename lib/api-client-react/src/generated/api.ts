@@ -814,10 +814,11 @@ export const listUsers = async (
   params?: ListUsersParams,
   options?: RequestInit,
 ): Promise<User[]> => {
-  return customFetch<User[]>(getListUsersUrl(params), {
+  const result = await customFetch<User[] | { data: User[] }>(getListUsersUrl(params), {
     ...options,
     method: "GET",
   });
+  return Array.isArray(result) ? result : (result?.data ?? []);
 };
 
 export const getListUsersQueryKey = (params?: ListUsersParams) => {
@@ -2362,10 +2363,11 @@ export const listArticles = async (
   params?: ListArticlesParams,
   options?: RequestInit,
 ): Promise<Article[]> => {
-  return customFetch<Article[]>(getListArticlesUrl(params), {
+  const result = await customFetch<Article[] | { data: Article[] }>(getListArticlesUrl(params), {
     ...options,
     method: "GET",
   });
+  return Array.isArray(result) ? result : (result?.data ?? []);
 };
 
 export const getListArticlesQueryKey = (params?: ListArticlesParams) => {
