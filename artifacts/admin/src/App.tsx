@@ -73,7 +73,7 @@ const GUEST_USER = {
   id: 0,
   telegramId: "",
   name: "Guest",
-  role: "superadmin",
+  role: "branch_head",
   branchId: null,
   isActive: true,
   createdAt: new Date().toISOString(),

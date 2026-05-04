@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
 import { eq, and, sql, gte, lte, desc, inArray, count } from "drizzle-orm";
@@ -8,23 +9,34 @@ import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
 
 const router: IRouter = Router();
 
+const dashboardFilterSchema = z.object({
+  clientType: z.enum(["individual", "corporate"]).optional(),
+  clientSegment: z.string().optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  branchId: z.string().optional(),
+  status: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});
+
 function getClientFilters(req: any, user: any) {
   // Drizzle condition arrays are typed as SQL<unknown>[] — `any[]` is
   // intentional to allow heterogeneous filter conditions to accumulate
   // before being spread into `and()`.
   const conditions: any[] = [];
+  const parsed = dashboardFilterSchema.safeParse(req.query);
+  const q = parsed.success ? parsed.data : {};
+
   if (user.role === "branch_head" && user.branchId) {
     conditions.push(eq(clientsTable.branchId, user.branchId));
-  } else if (req.query.branchId) {
-    conditions.push(eq(clientsTable.branchId, Number(req.query.branchId)));
+  } else if (q.branchId) {
+    conditions.push(eq(clientsTable.branchId, Number(q.branchId)));
   }
 
-  // clientType & gender columns use pg enums; the query string is
-  // validated at the DB level, so the `as any` cast is safe here.
-  if (req.query.clientType) conditions.push(eq(clientsTable.clientType, req.query.clientType as any));
-  if (req.query.clientSegment) conditions.push(eq(clientsTable.clientSegment, req.query.clientSegment as string));
-  if (req.query.gender) conditions.push(eq(clientsTable.gender, req.query.gender as any));
-  
+  if (q.clientType) conditions.push(eq(clientsTable.clientType, q.clientType));
+  if (q.clientSegment) conditions.push(eq(clientsTable.clientSegment, q.clientSegment));
+  if (q.gender) conditions.push(eq(clientsTable.gender, q.gender));
+
   if (req.query.periodStart) conditions.push(gte(clientsTable.createdAt, new Date(req.query.periodStart as string)));
   if (req.query.periodEnd) conditions.push(lte(clientsTable.createdAt, new Date(req.query.periodEnd as string)));
 

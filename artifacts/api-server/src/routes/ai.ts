@@ -8,7 +8,7 @@ import {
   AiTranslateBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { guestAuth } from "../middleware/auth";
+import { guestAuth, requireAuth } from "../middleware/auth";
 import { getOllamaConfig, getOllamaHealth, OllamaRequestError } from "../ai/ollama";
 import {
   extractAutoDetails,
@@ -74,7 +74,7 @@ function logAiResult(req: Request, endpoint: string, success: boolean, startedAt
   logger.error({ ...payload, err }, "AI request failed");
 }
 
-router.get("/ai/health", async (req, res) => {
+router.get("/ai/health", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   try {
     const health = await getOllamaHealth();

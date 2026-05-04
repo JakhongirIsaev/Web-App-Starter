@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { usersTable, branchesTable, rolesEnum } from "@workspace/db";
 import type { UserRole } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import XLSX from "xlsx";
 import crypto from "crypto";
@@ -94,6 +94,15 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
     conditions.push(eq(usersTable.role, params.data.role as UserRole));
   }
 
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 20);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(usersTable)
+    .where(where);
+
   const rows = await db
     .select({
       id: usersTable.id,
@@ -112,8 +121,10 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
     })
     .from(usersTable)
     .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(usersTable.name);
+    .where(where)
+    .orderBy(usersTable.name)
+    .limit(limit)
+    .offset((page - 1) * limit);
 
   const users = rows.map(u => ({
     id: u.id,
@@ -134,7 +145,7 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
     updatedAt: u.updatedAt,
   }));
 
-  res.json(users);
+  res.json({ data: users, total, page, limit });
 });
 
 router.get("/users/import-template", guestAuth, requireRole("superadmin", "head_office_admin"), (req, res) => {

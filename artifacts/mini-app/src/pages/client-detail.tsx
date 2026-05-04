@@ -30,11 +30,60 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+interface ClientDocument {
+  id: number;
+  storagePath: string;
+  fileName?: string;
+  extractedData?: Record<string, unknown> | null;
+}
+
+interface NextActionItem {
+  id: number;
+  actionType: string;
+  actionDate: string;
+  priority: string;
+}
+
+interface BasketItem {
+  id: number;
+  productName: string;
+  productType: string;
+  notes?: string | null;
+}
+
+interface CalculationItem {
+  id: number;
+  productName: string;
+  loanAmount: number | string;
+  currency: string;
+  termMonths: number;
+  interestRate: number | string;
+  monthlyPayment: number | string;
+}
+
+interface NoteItem {
+  id: number;
+  content: string;
+  type: string;
+  userName: string;
+  createdAt: string;
+}
+
+interface ClientLocationUpdate {
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+}
+
+interface PdfGenerationResult {
+  success: boolean;
+  telegramSent: boolean;
+}
+
 function SignedDocImage({
   doc,
   onPreview,
 }: {
-  doc: any;
+  doc: ClientDocument;
   onPreview: (url: string) => void;
 }) {
   const isAbsolute = typeof doc.storagePath === "string" && doc.storagePath.startsWith("http");
@@ -151,7 +200,7 @@ export default function ClientDetailPage() {
   const saveLocationMutation = useMutation({
     mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
       api.put(`/mini-app/clients/${params.id}`, { latitude, longitude }),
-    onSuccess: (updated: any) => {
+    onSuccess: (updated: ClientLocationUpdate) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       alert(
         t("clientDetail.locationSaved", {
@@ -160,8 +209,9 @@ export default function ClientDetailPage() {
         }),
       );
     },
-    onError: (err: any) => {
-      alert(t("clientDetail.locationError") + (err?.message || String(err)));
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(t("clientDetail.locationError") + message);
     },
   });
 
@@ -182,12 +232,13 @@ export default function ClientDetailPage() {
       return api.post(`/mini-app/clients/${params.id}/generate-pdf`, body);
     },
     onMutate: () => setPdfError(null),
-    onSuccess: (result: any) => {
+    onSuccess: (result: PdfGenerationResult) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setPdfResult(result);
     },
-    onError: (err: any) => {
-      setPdfError(err?.message || String(err) || t("pdf.generateFailed"));
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      setPdfError(message || t("pdf.generateFailed"));
     },
   });
 
@@ -409,7 +460,7 @@ export default function ClientDetailPage() {
                     {t("clientDetail.basket")} ({basketItems.length})
                   </div>
                   <div className="text-[12px] text-[#7C3AED]/70 truncate">
-                    {basketItems.map((i: any) => i.productName).join(", ")}
+                    {basketItems.map((i: BasketItem) => i.productName).join(", ")}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#7C3AED]/50 shrink-0" />
@@ -618,7 +669,7 @@ export default function ClientDetailPage() {
         <div className="mx-4 mt-4">
           <SectionHeader title={t("clientDetail.nextAction")} />
           <div className="mn-card overflow-hidden">
-            {nextActions.map((a: any, i: number) => (
+            {nextActions.map((a: NextActionItem, i: number) => (
               <div
                 key={a.id}
                 className={`flex items-center gap-3 px-4 py-3.5 ${
@@ -653,14 +704,14 @@ export default function ClientDetailPage() {
       )}
 
       {/* ═══════════════ DOCUMENTS GALLERY ═══════════════ */}
-      {(documents as any[]).length > 0 && (
+      {(documents as ClientDocument[]).length > 0 && (
         <div className="mx-4 mt-4">
           <SectionHeader
-            title={`${t("scanDoc.documents")} (${(documents as any[]).length})`}
+            title={`${t("scanDoc.documents")} (${(documents as ClientDocument[]).length})`}
           />
 
           <div className="grid grid-cols-3 gap-2 mb-2">
-            {(documents as any[]).map((doc: any) => (
+            {(documents as ClientDocument[]).map((doc: ClientDocument) => (
               <div key={doc.id} className="relative group">
                 <SignedDocImage doc={doc} onPreview={setPreviewImage} />
                 <button
@@ -681,15 +732,15 @@ export default function ClientDetailPage() {
             ))}
           </div>
 
-          {(documents as any[]).some(
-            (d: any) =>
+          {(documents as ClientDocument[]).some(
+            (d: ClientDocument) =>
               d.extractedData && Object.keys(d.extractedData).length > 0,
           ) && (
             <div className="mn-card p-3 space-y-1 mb-2">
               <p className="text-[11px] font-semibold text-[#64748B] mb-1">
                 {t("scanDoc.extractedFields")}
               </p>
-              {(documents as any[]).map((doc: any) =>
+              {(documents as ClientDocument[]).map((doc: ClientDocument) =>
                 doc.extractedData &&
                 Object.entries(doc.extractedData).map(([k, v]) => (
                   <div
@@ -714,7 +765,7 @@ export default function ClientDetailPage() {
       {basketItems?.length > 0 && !calculations?.length && (
         <div className="mx-4 mt-4">
           <SectionHeader title={t("clientDetail.basket")} />
-          {basketItems.map((item: any) => (
+          {basketItems.map((item: BasketItem) => (
             <div key={item.id} className="mn-card p-4 mb-2">
               <div className="text-[14px] font-semibold text-[#0F172A]">
                 {item.productName}
@@ -792,7 +843,7 @@ export default function ClientDetailPage() {
       {calculations?.length > 0 && (
         <div className="mx-4 mt-4">
           <SectionHeader title={t("clientDetail.calculations")} />
-          {calculations.map((c: any) => (
+          {calculations.map((c: CalculationItem) => (
             <div key={c.id} className="mn-card p-4 mb-2">
               <div className="text-[14px] font-semibold text-[#0F172A]">
                 {c.productName}
@@ -820,7 +871,7 @@ export default function ClientDetailPage() {
         <div className="mx-4 mt-4">
           <SectionHeader title={t("clientDetail.history")} />
           <div className="mn-card p-4">
-            {notes.map((n: any, i: number) => {
+            {notes.map((n: NoteItem, i: number) => {
               const tc = timelineColors[n.type] || timelineColors.note;
               return (
                 <div key={n.id} className="flex gap-3">

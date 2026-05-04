@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
-import { guestAuth, requireAuthOrSignedUrl } from "../middleware/auth";
+import { guestAuth, requireAuth, requireAuthOrSignedUrl } from "../middleware/auth";
 import { createSignedObjectParams } from "../lib/signedUrl";
 import { db } from "@workspace/db";
 import { clientDocumentsTable } from "@workspace/db";
@@ -214,7 +214,7 @@ router.post("/storage/uploads/direct", guestAuth, async (req: Request, res: Resp
   }
 });
 
-router.get("/ocr/health", async (req: Request, res: Response) => {
+router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
   const scriptPath = getOcrScriptPath();
 
   try {

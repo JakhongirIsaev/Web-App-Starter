@@ -96,6 +96,7 @@ const productionFallbackOrigins = isProduction
 const allowedOrigins = Array.from(new Set([
   process.env.ADMIN_URL,
   process.env.MINI_APP_URL,
+  ...((process.env.CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)),
   ...((process.env.EXTRA_CORS_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean)),
   ...productionFallbackOrigins,
 ].filter((value): value is string => Boolean(value))));

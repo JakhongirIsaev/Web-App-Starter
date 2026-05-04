@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { articlesTable, articleVisibilityTable, usersTable } from "@workspace/db";
-import { eq, and, ilike, inArray } from "drizzle-orm";
+import { eq, and, ilike, inArray, count } from "drizzle-orm";
 import {
   CreateArticleBody, UpdateArticleBody, GetArticleParams,
   UpdateArticleParams, DeleteArticleParams, ListArticlesQueryParams
@@ -62,6 +62,15 @@ router.get("/articles", guestAuth, async (req, res) => {
     if (params.data.search) conditions.push(ilike(articlesTable.title, `%${escapeLike(params.data.search)}%`));
   }
 
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 20);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(articlesTable)
+    .where(where);
+
   const rows = await db
     .select({
       id: articlesTable.id,
@@ -75,8 +84,10 @@ router.get("/articles", guestAuth, async (req, res) => {
       updatedAt: articlesTable.updatedAt,
     })
     .from(articlesTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(articlesTable.createdAt);
+    .where(where)
+    .orderBy(articlesTable.createdAt)
+    .limit(limit)
+    .offset((page - 1) * limit);
 
   const allIds = rows.map(r => r.id);
   const visibilityMap: Map<number, number[]> = new Map();
@@ -102,7 +113,7 @@ router.get("/articles", guestAuth, async (req, res) => {
     updatedAt: a.updatedAt,
   }));
 
-  res.json(articles);
+  res.json({ data: articles, total, page, limit });
 });
 
 router.post("/articles", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {

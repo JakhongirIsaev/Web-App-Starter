@@ -45,8 +45,8 @@ async function request(path: string, options: RequestInit = {}) {
       throw new Error(err.error || i18n.t("common.requestFailed"));
     }
     return res.json();
-  } catch (e: any) {
-    if (e.name === "AbortError") {
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === "AbortError") {
       throw new Error(i18n.t("common.requestFailed"));
     }
     throw e;
@@ -78,8 +78,8 @@ async function requestBlob(path: string, options: RequestInit = {}) {
       throw new Error(i18n.t("common.requestFailed"));
     }
     return res.blob();
-  } catch (e: any) {
-    if (e.name === "AbortError") {
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === "AbortError") {
       throw new Error(i18n.t("common.requestFailed"));
     }
     throw e;
@@ -97,13 +97,13 @@ export async function getSignedImageUrl(objectPath: string): Promise<string> {
 
 export const api = {
   get: (path: string) => request(path),
-  post: (path: string, body?: any) =>
+  post: (path: string, body?: unknown) =>
     request(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
-  put: (path: string, body?: any) =>
+  put: (path: string, body?: unknown) =>
     request(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
   delete: (path: string) => request(path, { method: "DELETE" }),
   getBlob: (path: string) => requestBlob(path),
-  postBlob: (path: string, body?: any) =>
+  postBlob: (path: string, body?: unknown) =>
     requestBlob(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
 };
 
@@ -122,8 +122,8 @@ export async function login(telegramId: string, password: string) {
     const data = await res.json();
     setToken(data.token);
     return data;
-  } catch (e: any) {
-    if (e.name === "AbortError") {
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === "AbortError") {
       throw new Error(i18n.t("common.requestFailed"));
     }
     throw e;
@@ -150,8 +150,8 @@ export async function loginWithTelegram(initData: string) {
     const data = await res.json();
     setToken(data.token);
     return data;
-  } catch (e: any) {
-    if (e.name === "AbortError") {
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === "AbortError") {
       throw new Error(i18n.t("common.requestFailed"));
     }
     throw e;

@@ -289,6 +289,8 @@ router.post("/auth/change-password", changePasswordLimiter, async (req, res) => 
     .set({ passwordHash: newHash, updatedAt: new Date() })
     .where(eq(usersTable.id, userId));
 
+  await deleteSessionsForUser(userId);
+
   res.json({ success: true });
 });
 

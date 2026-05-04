@@ -242,7 +242,7 @@ export default function Dashboard() {
   const { data: aiHealth } = useQuery({
     queryKey: ["ai-health"],
     queryFn: async () => {
-      const res = await fetch(buildApiUrl("/api/ai/health"));
+      const res = await fetch(buildApiUrl("/api/ai/health"), { headers: authHeaders });
       if (!res.ok) return { status: "degraded", ollamaReachable: false, model: "noma'lum", modelAvailable: false };
       return res.json();
     },
