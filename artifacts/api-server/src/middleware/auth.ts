@@ -119,8 +119,11 @@ export async function guestAuth(req: Request, res: Response, next: NextFunction)
     return;
   }
 
-  // In demo mode, fall back to the first active user whose role is at most
-  // "branch_head" so callers never silently gain superadmin / admin access.
+  // In demo mode, pick the highest-privilege active user so admin-only
+  // routes (activity log, branches admin, imports, deletes) work without
+  // anyone signing in. This is the pre-security-audit behaviour and is
+  // intentional in DEMO_MODE; production deployments should leave
+  // DEMO_MODE unset and require real bearer tokens.
   const [guest] = await db
     .select({
       id: usersTable.id,
@@ -134,9 +137,12 @@ export async function guestAuth(req: Request, res: Response, next: NextFunction)
     .where(eq(usersTable.isActive, true))
     .orderBy(sql`
       CASE ${usersTable.role}
-        WHEN 'branch_head' THEN 0
-        WHEN 'hunter' THEN 1
-        ELSE 2
+        WHEN 'superadmin' THEN 0
+        WHEN 'head_office_admin' THEN 1
+        WHEN 'editor' THEN 2
+        WHEN 'branch_head' THEN 3
+        WHEN 'hunter' THEN 4
+        ELSE 5
       END
     `, usersTable.id)
     .limit(1);
