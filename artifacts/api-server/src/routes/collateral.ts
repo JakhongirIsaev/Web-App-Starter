@@ -730,6 +730,93 @@ router.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   res.status(500).json({ error: ERR.internalError });
 });
 
+// Stateless calculator preview: takes raw collateral inputs and a loan
+// amount, returns per-item accepted values plus totals/decision. Does NOT
+// touch the DB and is not tied to any client — the admin Zalog page uses
+// this for the live "what-if" calculator. The committing endpoint
+// (POST /clients/:id/collateral-estimates) still owns the persisted
+// estimates and stays unchanged.
+router.post("/collateral/preview", guestAuth, async (req, res) => {
+  const body = req.body as {
+    loanAmount?: number | string;
+    items?: Array<{ typeCode?: string; marketValue?: number | string; year?: number }>;
+  };
+
+  const loanAmount = Number(body?.loanAmount);
+  if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+    res.status(400).json({ error: "loanAmount must be > 0" });
+    return;
+  }
+  const rawItems = Array.isArray(body?.items) ? body.items : [];
+  if (rawItems.length === 0) {
+    res.status(400).json({ error: "at least one item required" });
+    return;
+  }
+
+  const types = await db.select().from(collateralTypesTable);
+  const validCodes = new Set(types.map((t) => t.code));
+
+  const settings = await getCollateralSettings();
+  const currentYear = new Date().getFullYear();
+
+  const breakdown: Array<{
+    typeCode: string;
+    marketValue: number;
+    acceptedValue: number;
+    discountApplied: number | null;
+    discountReason: string | null;
+    year: number | null;
+  }> = [];
+
+  for (let i = 0; i < rawItems.length; i++) {
+    const it = rawItems[i];
+    const typeCode = String(it?.typeCode ?? "");
+    const marketValue = Number(it?.marketValue);
+    if (!validCodes.has(typeCode)) {
+      res.status(400).json({ error: `item[${i}]: unknown typeCode '${typeCode}'` });
+      return;
+    }
+    if (!Number.isFinite(marketValue) || marketValue <= 0) {
+      res.status(400).json({ error: `item[${i}]: marketValue must be > 0` });
+      return;
+    }
+    const year = typeof it?.year === "number" && Number.isFinite(it.year) ? it.year : null;
+    const accepted = calculateAcceptedValue({
+      marketValue,
+      typeCode,
+      metadata: year !== null ? { year } : null,
+      settings,
+      currentYear,
+    });
+    breakdown.push({
+      typeCode,
+      marketValue,
+      acceptedValue: accepted.acceptedValue,
+      discountApplied: accepted.discountApplied,
+      discountReason: accepted.discountReason,
+      year,
+    });
+  }
+
+  const totals = calculateEstimateTotals({
+    items: breakdown.map((b) => ({
+      typeCode: b.typeCode,
+      marketValue: b.marketValue,
+      acceptedValue: b.acceptedValue,
+    })),
+    requestedLoanAmount: loanAmount,
+    coverageRatio: settings.coverageRatio,
+  });
+
+  res.json({
+    loanAmount,
+    coverageRatio: settings.coverageRatio,
+    items: breakdown,
+    totals,
+    disclaimer: DISCLAIMER.ru,
+  });
+});
+
 export const __testing = {
   normalizeText,
   parseCollateralCurrency,

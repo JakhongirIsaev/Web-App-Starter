@@ -74,7 +74,7 @@ function logAiResult(req: Request, endpoint: string, success: boolean, startedAt
   logger.error({ ...payload, err }, "AI request failed");
 }
 
-router.get("/ai/health", requireAuth, async (req, res) => {
+router.get("/ai/health", guestAuth, async (req, res) => {
   const startedAt = Date.now();
   try {
     const health = await getOllamaHealth();

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Settings, Tag, ListChecks } from "lucide-react";
+import { Calculator, CheckCircle2, ListChecks, Pencil, Plus, Settings, Tag, Trash2, XCircle } from "lucide-react";
 import { RowActions } from "@/components/row-actions";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,6 +122,9 @@ export default function CollateralAdmin() {
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">{t("collateralAdmin.title")}</h1>
       <p className="text-sm text-muted-foreground mb-6">{t("collateralAdmin.subtitle")}</p>
+
+      {/* CALCULATOR */}
+      <CalculatorSection types={typesQuery.data ?? []} />
 
       {/* SYSTEM SETTINGS */}
       <section className="mb-8 border rounded-lg p-5 bg-card">
@@ -424,6 +427,265 @@ function CrossBranchEstimatesSection() {
           </div>
         </>
       )}
+    </section>
+  );
+}
+
+interface CalcItem {
+  id: string;
+  typeCode: string;
+  marketValue: string;
+  year: string;
+}
+
+interface CalcPreviewResult {
+  loanAmount: number;
+  coverageRatio: number;
+  items: Array<{
+    typeCode: string;
+    marketValue: number;
+    acceptedValue: number;
+    discountApplied: number | null;
+    discountReason: string | null;
+    year: number | null;
+  }>;
+  totals: {
+    totalMarketValue: number;
+    totalAcceptedValue: number;
+    requiredCollateralValue: number;
+    coveragePercent: number;
+    maxLoanAmount: number;
+    resultStatus: "enough" | "not_enough";
+    shortfall: number;
+  };
+}
+
+const newCalcItem = (typeCode: string): CalcItem => ({
+  id: Math.random().toString(36).slice(2),
+  typeCode,
+  marketValue: "",
+  year: "",
+});
+
+function CalculatorSection({ types }: { types: CollateralType[] }) {
+  const activeTypes = types.filter((t) => t.isActive);
+  const defaultType = activeTypes[0]?.code ?? "real_estate";
+
+  const [loanAmount, setLoanAmount] = useState("");
+  const [items, setItems] = useState<CalcItem[]>([newCalcItem(defaultType)]);
+  const [result, setResult] = useState<CalcPreviewResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  // Recalculate whenever inputs change. Keep the last result visible while
+  // recomputing so the UI doesn't flicker on every keystroke.
+  useEffect(() => {
+    const loan = Number.parseFloat(loanAmount);
+    if (!Number.isFinite(loan) || loan <= 0) {
+      setResult(null);
+      setError(null);
+      return;
+    }
+    const cleanItems = items
+      .map((it) => ({
+        typeCode: it.typeCode,
+        marketValue: Number.parseFloat(it.marketValue),
+        year: it.year ? Number.parseInt(it.year, 10) : undefined,
+      }))
+      .filter((it) => Number.isFinite(it.marketValue) && it.marketValue > 0);
+    if (cleanItems.length === 0) {
+      setResult(null);
+      setError(null);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    setPending(true);
+    setError(null);
+    apiFetch("/collateral/preview", {
+      method: "POST",
+      body: JSON.stringify({ loanAmount: loan, items: cleanItems }),
+      signal: ctrl.signal,
+    })
+      .then((res: CalcPreviewResult) => setResult(res))
+      .catch((err: any) => {
+        if (err?.name === "AbortError") return;
+        setError(err?.message ?? "Ошибка расчёта");
+      })
+      .finally(() => setPending(false));
+    return () => ctrl.abort();
+  }, [loanAmount, items]);
+
+  const updateItem = (id: string, patch: Partial<CalcItem>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const removeItem = (id: string) =>
+    setItems((prev) => (prev.length > 1 ? prev.filter((it) => it.id !== id) : prev));
+  const addItem = () => setItems((prev) => [...prev, newCalcItem(defaultType)]);
+
+  return (
+    <section className="mb-8 border rounded-lg p-5 bg-card">
+      <header className="flex items-center gap-2 mb-1">
+        <Calculator className="w-4 h-4" />
+        <h2 className="font-semibold">Калькулятор залога</h2>
+      </header>
+      <p className="text-xs text-muted-foreground mb-4">
+        Введите запрашиваемую сумму и предметы залога — расчёт обновляется автоматически. Ничего не сохраняется.
+      </p>
+
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        <div>
+          <Label htmlFor="calc-loan">Сумма кредита, сум</Label>
+          <Input
+            id="calc-loan"
+            type="number"
+            min="0"
+            step="1000000"
+            placeholder="например, 100000000"
+            value={loanAmount}
+            onChange={(e) => setLoanAmount(e.target.value)}
+            className="font-mono tabular-nums"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Покрытие × {result?.coverageRatio ?? "—"} → требуется {result ? fmt(result.totals.requiredCollateralValue) : "—"}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Предметы залога</Label>
+          {items.map((it) => (
+            <div key={it.id} className="grid grid-cols-[180px_1fr_120px_36px] gap-2 items-start">
+              <Select value={it.typeCode} onValueChange={(v) => updateItem(it.id, { typeCode: v, year: v === "transport" ? it.year : "" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {activeTypes.map((t) => (
+                    <SelectItem key={t.code} value={t.code}>{t.nameRu}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="0"
+                step="1000000"
+                placeholder="рыночная стоимость"
+                value={it.marketValue}
+                onChange={(e) => updateItem(it.id, { marketValue: e.target.value })}
+                className="font-mono tabular-nums"
+              />
+              <Input
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                placeholder="год"
+                value={it.year}
+                onChange={(e) => updateItem(it.id, { year: e.target.value })}
+                disabled={it.typeCode !== "transport"}
+                title={it.typeCode === "transport" ? "Год выпуска (для расчёта дисконта)" : "Только для транспорта"}
+                className="tabular-nums"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeItem(it.id)}
+                disabled={items.length === 1}
+                title="Удалить"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={addItem} className="gap-2">
+            <Plus className="w-3.5 h-3.5" />
+            Добавить предмет
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-5 border-t pt-5">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {!result && !error && (
+          <p className="text-sm text-muted-foreground">Заполните сумму кредита и хотя бы один предмет залога.</p>
+        )}
+        {result && (
+          <div className="grid gap-4 md:grid-cols-[1fr_280px]">
+            <div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="text-left py-2">Тип</th>
+                    <th className="text-right py-2">Рыночная</th>
+                    <th className="text-right py-2">Дисконт</th>
+                    <th className="text-right py-2">Принимается</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.items.map((it, i) => {
+                    const typeName = activeTypes.find((t) => t.code === it.typeCode)?.nameRu ?? it.typeCode;
+                    return (
+                      <tr key={i} className="border-b border-border/40">
+                        <td className="py-2">
+                          {typeName}
+                          {it.year !== null && (
+                            <span className="text-xs text-muted-foreground ml-1">({it.year})</span>
+                          )}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{fmt(it.marketValue)}</td>
+                        <td className="py-2 text-right tabular-nums text-muted-foreground">
+                          {it.discountApplied !== null ? `${Math.round(it.discountApplied * 100)}%` : "100%"}
+                        </td>
+                        <td className="py-2 text-right tabular-nums font-medium">{fmt(it.acceptedValue)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="font-semibold">
+                    <td className="py-2">Итого</td>
+                    <td className="py-2 text-right tabular-nums">{fmt(result.totals.totalMarketValue)}</td>
+                    <td></td>
+                    <td className="py-2 text-right tabular-nums">{fmt(result.totals.totalAcceptedValue)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              className={`rounded-md p-4 border ${
+                result.totals.resultStatus === "enough"
+                  ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30"
+                  : "border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/30"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                {result.totals.resultStatus === "enough" ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-rose-600" />
+                )}
+                <span className="font-semibold">
+                  {result.totals.resultStatus === "enough" ? "Достаточно" : "Недостаточно"}
+                </span>
+                {pending && <span className="text-xs text-muted-foreground ml-auto">…</span>}
+              </div>
+              <dl className="text-sm space-y-1.5">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Покрытие</dt>
+                  <dd className="tabular-nums font-medium">{result.totals.coveragePercent.toFixed(0)}%</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Макс. кредит</dt>
+                  <dd className="tabular-nums">{fmt(result.totals.maxLoanAmount)}</dd>
+                </div>
+                {result.totals.resultStatus === "not_enough" && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Не хватает</dt>
+                    <dd className="tabular-nums font-medium text-rose-700 dark:text-rose-400">
+                      {fmt(result.totals.shortfall)}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
