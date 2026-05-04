@@ -3,6 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "artifacts/admin/Dockerfile"
 watchPatterns = [
   "artifacts/admin/**",
+  "lib/**",
   "scripts/serve-spa.mjs",
   "package.json",
   "pnpm-lock.yaml",
