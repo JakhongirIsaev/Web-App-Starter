@@ -112,6 +112,15 @@ export async function guestAuth(req: Request, res: Response, next: NextFunction)
     }
   }
 
+  // When DEMO_MODE is not enabled, guest fallback is disabled entirely.
+  const demoMode = process.env.DEMO_MODE === "true";
+  if (!demoMode) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  // In demo mode, fall back to the first active user whose role is at most
+  // "branch_head" so callers never silently gain superadmin / admin access.
   const [guest] = await db
     .select({
       id: usersTable.id,
@@ -125,12 +134,9 @@ export async function guestAuth(req: Request, res: Response, next: NextFunction)
     .where(eq(usersTable.isActive, true))
     .orderBy(sql`
       CASE ${usersTable.role}
-        WHEN 'superadmin' THEN 0
-        WHEN 'head_office_admin' THEN 1
-        WHEN 'editor' THEN 2
-        WHEN 'branch_head' THEN 3
-        WHEN 'hunter' THEN 4
-        ELSE 5
+        WHEN 'branch_head' THEN 0
+        WHEN 'hunter' THEN 1
+        ELSE 2
       END
     `, usersTable.id)
     .limit(1);

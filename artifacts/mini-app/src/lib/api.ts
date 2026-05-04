@@ -1,5 +1,8 @@
+import i18n from "@/i18n";
+
 const API_BASE = "/api";
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN ?? "").trim().replace(/\/+$/, "");
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export function buildApiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -28,12 +31,28 @@ async function request(path: string, options: RequestInit = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "So'rov bajarilmadi" }));
-    throw new Error(err.error || "So'rov bajarilmadi");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(buildApiUrl(`${API_BASE}${path}`), {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "" }));
+      throw new Error(err.error || i18n.t("common.requestFailed"));
+    }
+    return res.json();
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error(i18n.t("common.requestFailed"));
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
 }
 
 async function requestBlob(path: string, options: RequestInit = {}) {
@@ -46,11 +65,27 @@ async function requestBlob(path: string, options: RequestInit = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(buildApiUrl(`${API_BASE}${path}`), { ...options, headers });
-  if (!res.ok) {
-    throw new Error("So'rov bajarilmadi");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(buildApiUrl(`${API_BASE}${path}`), {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(i18n.t("common.requestFailed"));
+    }
+    return res.blob();
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error(i18n.t("common.requestFailed"));
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.blob();
 }
 
 export async function getSignedImageUrl(objectPath: string): Promise<string> {
@@ -73,30 +108,56 @@ export const api = {
 };
 
 export async function login(telegramId: string, password: string) {
-  const res = await fetch(buildApiUrl(`${API_BASE}/auth/login`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ telegramId, password }),
-  });
-  if (!res.ok) throw new Error("Kirish ma'lumotlari noto'g'ri");
-  const data = await res.json();
-  setToken(data.token);
-  return data;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(buildApiUrl(`${API_BASE}/auth/login`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId, password }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(i18n.t("login.invalidCredentials"));
+    const data = await res.json();
+    setToken(data.token);
+    return data;
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error(i18n.t("common.requestFailed"));
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function loginWithTelegram(initData: string) {
-  const res = await fetch(buildApiUrl(`${API_BASE}/auth/telegram`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ initData }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Telegram orqali kirib bo'lmadi" }));
-    throw new Error(err.error || "Telegram orqali kirib bo'lmadi");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(buildApiUrl(`${API_BASE}/auth/telegram`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "" }));
+      throw new Error(err.error || i18n.t("login.telegramLoginFailed"));
+    }
+    const data = await res.json();
+    setToken(data.token);
+    return data;
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error(i18n.t("common.requestFailed"));
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  const data = await res.json();
-  setToken(data.token);
-  return data;
 }
 
 export async function getMe() {

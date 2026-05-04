@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedDatabase, seedCollateralReferenceData } from "./seed";
 import { seedExcelData } from "./seed-excel";
 import { startBot, stopBot } from "./bot";
+import { deleteExpiredSessions } from "./lib/session-store";
 
 const rawPort = process.env["PORT"];
 
@@ -71,6 +72,16 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Periodically purge expired sessions (every 1 hour).
+  const sessionCleanup = setInterval(async () => {
+    try {
+      await deleteExpiredSessions();
+    } catch (err) {
+      logger.error({ err }, "Failed to delete expired sessions");
+    }
+  }, 60 * 60 * 1000);
+  sessionCleanup.unref();
 
   startBot(miniAppUrl).catch((err) => {
     logger.error({ err }, "Failed to start Telegram bot");

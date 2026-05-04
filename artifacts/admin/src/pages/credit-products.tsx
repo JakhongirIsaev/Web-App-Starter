@@ -25,21 +25,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RowActions } from "@/components/row-actions";
-
-const getToken = () => localStorage.getItem("auth_token");
-
-function buildJsonHeaders(options?: RequestInit): HeadersInit {
-  const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  if (options?.body) headers["Content-Type"] = "application/json";
-  return { ...headers, ...options?.headers };
-}
+import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
 
 async function apiFetch(url: string, options?: RequestInit) {
   const res = await fetch(buildApiUrl(`/api${url}`), {
     ...options,
-    headers: buildJsonHeaders(options),
+    headers: buildJsonHeaders(options?.headers),
   });
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
@@ -272,10 +263,9 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
     formData.append("file", file);
 
     try {
-      const token = getToken();
       const res = await fetch(buildApiUrl("/api/credit-products/import"), {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: buildAuthHeaders(),
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());

@@ -10,13 +10,14 @@ import {
   mapSapCodeCsvRow,
   parseSapCodesWorkbook,
 } from "../lib/spreadsheet-import";
+import { escapeLike } from "../lib/db-helpers";
 
 const router: IRouter = Router();
 
 router.get("/sap-codes", guestAuth, async (req, res) => {
   const { search, status, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
-  if (search) conditions.push(ilike(sapCodesTable.name, `%${search}%`));
+  if (search) conditions.push(ilike(sapCodesTable.name, `%${escapeLike(String(search))}%`));
   if (status) conditions.push(eq(sapCodesTable.status, status));
 
   const pageNum = Math.max(1, Number(page));

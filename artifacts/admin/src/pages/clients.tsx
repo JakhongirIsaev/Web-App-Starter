@@ -423,7 +423,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
                       <TableHead className="w-14">#</TableHead>
                       <TableHead>{t("clients.fullName")}</TableHead>
                       <TableHead>{t("clients.phone")}</TableHead>
-                      <TableHead>Branch</TableHead>
+                      <TableHead>{t("clientsImport.branchCol")}</TableHead>
                       <TableHead>{t("clientsImport.statusCol")}</TableHead>
                     </TableRow>
                   </TableHeader>

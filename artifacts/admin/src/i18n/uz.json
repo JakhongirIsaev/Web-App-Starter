@@ -34,6 +34,7 @@
     "importSuccess": "Import muvaffaqiyatli bajarildi",
     "importError": "Import xatosi",
     "exportSuccess": "Eksport bajarildi",
+    "requestFailed": "So'rov bajarilmadi",
     "selectFile": "Jadval faylini tanlang",
     "uploadFile": "Faylni yuklash",
     "total": "Jami",
@@ -261,6 +262,7 @@
     "willImport": "Import qilinadi",
     "willSkip": "O'tkazib yuboriladi",
     "statusCol": "Qator holati",
+    "branchCol": "Filial",
     "ok": "OK",
     "invalid": "Noto'g'ri",
     "confirm": "Import qilish ({{count}})"

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { basketItemsTable, creditProductsTable } from "@workspace/db";
 import { eq, ilike, and, isNotNull, sql } from "drizzle-orm";
+import { z } from "zod";
 import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -10,13 +11,56 @@ import {
   mapCreditProductCsvRow,
   parseCreditProductsWorkbook,
 } from "../lib/spreadsheet-import";
+import { escapeLike } from "../lib/db-helpers";
 
 const router: IRouter = Router();
+
+// --- Zod schemas ---
+
+const optionalString = z.union([z.string(), z.undefined()]).optional();
+const optionalNumber = z.union([z.number(), z.string(), z.undefined()]).optional();
+
+const createCreditProductSchema = z.object({
+  name: z.string().min(1, "Название обязательно / Nomi majburiy"),
+  number: optionalNumber,
+  sapCode: optionalString,
+  segment: optionalString,
+  disbursementForm: optionalString,
+  loanAmount: optionalString,
+  termWorkingCapital: optionalString,
+  termFixedAssets: optionalString,
+  termUntargeted: optionalString,
+  rateUZS: optionalString,
+  rateUSD: optionalString,
+  rateEUR: optionalString,
+  gracePeriod: optionalString,
+  purpose: optionalString,
+  highlight: optionalString,
+});
+
+const updateCreditProductSchema = z.object({
+  name: optionalString,
+  number: optionalNumber,
+  sapCode: optionalString,
+  segment: optionalString,
+  disbursementForm: optionalString,
+  loanAmount: optionalString,
+  termWorkingCapital: optionalString,
+  termFixedAssets: optionalString,
+  termUntargeted: optionalString,
+  rateUZS: optionalString,
+  rateUSD: optionalString,
+  rateEUR: optionalString,
+  gracePeriod: optionalString,
+  purpose: optionalString,
+  highlight: optionalString,
+  isActive: z.union([z.boolean(), z.undefined()]).optional(),
+});
 
 router.get("/credit-products", guestAuth, async (req, res) => {
   const { search, segment, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
-  if (search) conditions.push(ilike(creditProductsTable.name, `%${search}%`));
+  if (search) conditions.push(ilike(creditProductsTable.name, `%${escapeLike(String(search))}%`));
   if (segment) conditions.push(eq(creditProductsTable.segment, segment));
 
   const pageNum = Math.max(1, Number(page));
@@ -35,11 +79,15 @@ router.get("/credit-products", guestAuth, async (req, res) => {
 });
 
 router.post("/credit-products", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
-  const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = req.body;
-  if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
+  const parsed = createCreditProductSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
+    return;
+  }
+  const { name, number: num, sapCode, segment, disbursementForm, loanAmount, termWorkingCapital, termFixedAssets, termUntargeted, rateUZS, rateUSD, rateEUR, gracePeriod, purpose, highlight } = parsed.data;
 
   const [created] = await db.insert(creditProductsTable).values({
-    number: num || null, name, sapCode: sapCode || null, segment: segment || null,
+    number: num != null ? Number(num) : null, name, sapCode: sapCode || null, segment: segment || null,
     disbursementForm: disbursementForm || null, loanAmount: loanAmount || null,
     termWorkingCapital: termWorkingCapital || null, termFixedAssets: termFixedAssets || null,
     termUntargeted: termUntargeted || null, rateUZS: rateUZS || null,
@@ -55,10 +103,18 @@ router.put("/credit-products/:id", guestAuth, requireRole("superadmin", "head_of
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
-  const updateData: any = { updatedAt: new Date() };
-  const fields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"];
+  const parsed = updateCreditProductSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  const data = parsed.data;
+  const fields = ["name", "number", "sapCode", "segment", "disbursementForm", "loanAmount", "termWorkingCapital", "termFixedAssets", "termUntargeted", "rateUZS", "rateUSD", "rateEUR", "gracePeriod", "purpose", "highlight", "isActive"] as const;
   for (const f of fields) {
-    if (req.body[f] !== undefined) updateData[f] = req.body[f];
+    const val = data[f];
+    if (val !== undefined) updateData[f] = val;
   }
 
   const [updated] = await db.update(creditProductsTable).set(updateData).where(eq(creditProductsTable.id, id)).returning();

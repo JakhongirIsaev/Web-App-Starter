@@ -9,6 +9,7 @@ import {
 import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import { escapeLike } from "../lib/db-helpers";
 
 const router: IRouter = Router();
 
@@ -58,7 +59,7 @@ router.get("/articles", guestAuth, async (req, res) => {
   const conditions: any[] = [];
   if (params.success) {
     if (params.data.isPublished !== undefined) conditions.push(eq(articlesTable.isPublished, params.data.isPublished));
-    if (params.data.search) conditions.push(ilike(articlesTable.title, `%${params.data.search}%`));
+    if (params.data.search) conditions.push(ilike(articlesTable.title, `%${escapeLike(params.data.search)}%`));
   }
 
   const rows = await db

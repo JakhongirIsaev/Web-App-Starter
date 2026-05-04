@@ -1,6 +1,7 @@
 import { type ActivityItem } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 import {
   Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff,
   ChevronDown, TrendingUp, Download,
@@ -181,8 +182,7 @@ function SparkBars({ data }: { data: number[] }) {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const token = localStorage.getItem("auth_token");
-  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeaders = buildAuthHeaders();
 
   const [filters, setFilters] = useState({
     branchId: "",
@@ -207,7 +207,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-summary", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/summary${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("So'rov bajarilmadi");
+      if (!res.ok) throw new Error(t("common.requestFailed"));
       return res.json();
     },
   });
@@ -216,7 +216,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-branch-stats", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/branch-stats${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("So'rov bajarilmadi");
+      if (!res.ok) throw new Error(t("common.requestFailed"));
       return res.json();
     },
   });
@@ -225,7 +225,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-client-status", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/client-status${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("So'rov bajarilmadi");
+      if (!res.ok) throw new Error(t("common.requestFailed"));
       return res.json();
     },
   });
@@ -234,7 +234,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-activity", filterKey],
     queryFn: async () => {
       const res = await fetch(buildApiUrl(`/api/dashboard/activity${filterQs ? `?${filterQs}` : ""}`), { headers: authHeaders });
-      if (!res.ok) throw new Error("So'rov bajarilmadi");
+      if (!res.ok) throw new Error(t("common.requestFailed"));
       return res.json();
     },
   });

@@ -1659,7 +1659,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
       pdfSize: pdfBuffer.length,
     });
   } catch (err: any) {
-    console.error("PDF generation error:", err);
+    logger.error({ err }, "PDF generation error");
     res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
   }
 });
@@ -1869,7 +1869,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);
   } catch (err: any) {
-    console.error("PDF download error:", err);
+    logger.error({ err }, "PDF download error");
     res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
   }
 });

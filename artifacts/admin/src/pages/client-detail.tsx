@@ -21,6 +21,7 @@ import { formatAdminLongDate } from "@/lib/time";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
 
 const adminRoles = ["superadmin", "head_office_admin", "editor"];
 
@@ -636,13 +637,9 @@ function DocumentRow({ doc, t }: { doc: any; t: (key: string) => string }) {
     if (loading) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const res = await fetch(buildApiUrl("/api/storage/signed-url"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: buildJsonHeaders(),
         body: JSON.stringify({ storagePath: doc.storagePath }),
       });
       if (!res.ok) throw new Error("Failed to get signed URL");
@@ -711,9 +708,8 @@ function CollateralEstimatesCard({ clientId }: { clientId: number }) {
   const { data, isLoading } = useQuery<CollateralEstimateRow[]>({
     queryKey: ["admin/collateral-estimates", clientId],
     queryFn: async () => {
-      const token = localStorage.getItem("auth_token");
       const res = await fetch(buildApiUrl(`/api/clients/${clientId}/collateral-estimates`), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: buildAuthHeaders(),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

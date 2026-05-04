@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import rateLimit from "express-rate-limit";
 import {
   AiExtractAutoBody,
   AiGenerateOfferSummaryBody,
@@ -18,6 +19,14 @@ import {
 } from "../ai/service";
 
 const router: IRouter = Router();
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many AI requests, please try again later" },
+});
 
 function getRequestId(req: Request): string {
   const candidate = (req as Request & { id?: string }).id;
@@ -84,7 +93,7 @@ router.get("/ai/health", async (req, res) => {
   }
 });
 
-router.post("/ai/generate-questionnaire", guestAuth, async (req, res) => {
+router.post("/ai/generate-questionnaire", aiLimiter, guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateQuestionsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -103,7 +112,7 @@ router.post("/ai/generate-questionnaire", guestAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/recommend-products", guestAuth, async (req, res) => {
+router.post("/ai/recommend-products", aiLimiter, guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiRecommendProductsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -122,7 +131,7 @@ router.post("/ai/recommend-products", guestAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/generate-offer-summary", guestAuth, async (req, res) => {
+router.post("/ai/generate-offer-summary", aiLimiter, guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiGenerateOfferSummaryBody.safeParse(req.body);
   if (!parsed.success) {
@@ -141,7 +150,7 @@ router.post("/ai/generate-offer-summary", guestAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/translate", guestAuth, async (req, res) => {
+router.post("/ai/translate", aiLimiter, guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiTranslateBody.safeParse(req.body);
   if (!parsed.success) {
@@ -160,7 +169,7 @@ router.post("/ai/translate", guestAuth, async (req, res) => {
   }
 });
 
-router.post("/ai/extract-auto", guestAuth, async (req, res) => {
+router.post("/ai/extract-auto", aiLimiter, guestAuth, async (req, res) => {
   const startedAt = Date.now();
   const parsed = AiExtractAutoBody.safeParse(req.body);
   if (!parsed.success) {

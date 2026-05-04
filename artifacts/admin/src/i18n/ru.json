@@ -34,6 +34,7 @@
     "importSuccess": "Импорт выполнен успешно",
     "importError": "Ошибка импорта",
     "exportSuccess": "Экспорт выполнен",
+    "requestFailed": "Запрос не выполнен",
     "selectFile": "Выберите файл таблицы",
     "uploadFile": "Загрузить файл",
     "total": "Итого",
@@ -261,6 +262,7 @@
     "willImport": "Будут импортированы",
     "willSkip": "Будут пропущены",
     "statusCol": "Статус строки",
+    "branchCol": "Филиал",
     "ok": "ОК",
     "invalid": "Не валидно",
     "confirm": "Импортировать ({{count}})"

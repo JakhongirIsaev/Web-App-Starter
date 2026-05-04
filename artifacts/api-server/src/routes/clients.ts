@@ -11,6 +11,7 @@ import { guestAuth, requireRole } from "../middleware/auth";
 import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
+import { escapeLike } from "../lib/db-helpers";
 
 const router: IRouter = Router();
 
@@ -84,7 +85,7 @@ router.get("/clients", guestAuth, async (req, res) => {
     if (params.data.assignedTo) conditions.push(eq(clientsTable.assignedToId, params.data.assignedTo));
     if (params.data.status) conditions.push(eq(clientsTable.status, params.data.status as any));
     if (params.data.search) {
-      conditions.push(ilike(clientsTable.fullName, `%${params.data.search}%`));
+      conditions.push(ilike(clientsTable.fullName, `%${escapeLike(params.data.search)}%`));
     }
   }
 

@@ -52,7 +52,9 @@
     "benefit1": "CRM ga tezkor kirish",
     "benefit2": "Tahlil va hisobotlar",
     "benefit3": "Mijozlarni boshqarish",
-    "consent": "Tizimga kirib, siz Ipak Yo'li Bank foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz."
+    "consent": "Tizimga kirib, siz Ipak Yo'li Bank foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.",
+    "invalidCredentials": "Kirish ma'lumotlari noto'g'ri",
+    "telegramLoginFailed": "Telegram orqali kirib bo'lmadi"
   },
   "home": {
     "greeting": "Assalomu alaykum, {{name}}!",
@@ -499,7 +501,8 @@
     "close": "Yopish",
     "delete": "O'chirish",
     "exportAll": "Barcha mijozlarni eksport qilish",
-    "goHome": "Bosh sahifaga"
+    "goHome": "Bosh sahifaga",
+    "requestFailed": "So'rov bajarilmadi"
   },
   "notFound": {
     "title": "404 — Sahifa topilmadi",

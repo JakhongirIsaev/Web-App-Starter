@@ -152,7 +152,7 @@ app.use("/api", router);
 
 app.use("/api", (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err }, "Unhandled route error");
-  res.status(500).json({ error: err?.message || "Internal server error" });
+  res.status(500).json({ error: "Internal server error" });
 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

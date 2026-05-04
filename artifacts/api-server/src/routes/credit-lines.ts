@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { creditLinesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
+import { z } from "zod";
 import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -10,13 +11,53 @@ import {
   mapCreditLineCsvRow,
   parseCreditLinesWorkbook,
 } from "../lib/spreadsheet-import";
+import { escapeLike } from "../lib/db-helpers";
 
 const router: IRouter = Router();
+
+// --- Zod schemas ---
+
+const optionalString = z.union([z.string(), z.undefined()]).optional();
+const optionalNumber = z.union([z.number(), z.string(), z.undefined()]).optional();
+
+const createCreditLineSchema = z.object({
+  name: z.string().min(1, "Название обязательно / Nomi majburiy"),
+  number: optionalNumber,
+  department: optionalString,
+  agreementDate: optionalString,
+  agreementAmount: optionalNumber,
+  receivedAmount: optionalNumber,
+  currency: optionalString,
+  interestRate: optionalString,
+  disbursedAmount: optionalNumber,
+  remainingBalance: optionalNumber,
+  projectCount: optionalNumber,
+  specialConditions: optionalString,
+  notes: optionalString,
+  section: optionalString,
+});
+
+const updateCreditLineSchema = z.object({
+  name: optionalString,
+  number: optionalNumber,
+  department: optionalString,
+  agreementDate: optionalString,
+  agreementAmount: optionalNumber,
+  receivedAmount: optionalNumber,
+  currency: optionalString,
+  interestRate: optionalString,
+  disbursedAmount: optionalNumber,
+  remainingBalance: optionalNumber,
+  projectCount: optionalNumber,
+  specialConditions: optionalString,
+  notes: optionalString,
+  section: optionalString,
+});
 
 router.get("/credit-lines", guestAuth, async (req, res) => {
   const { search, section, currency, page = "1", pageSize = "50" } = req.query as any;
   const conditions: any[] = [];
-  if (search) conditions.push(ilike(creditLinesTable.name, `%${search}%`));
+  if (search) conditions.push(ilike(creditLinesTable.name, `%${escapeLike(String(search))}%`));
   if (section) conditions.push(eq(creditLinesTable.section, section));
   if (currency) conditions.push(eq(creditLinesTable.currency, currency));
 
@@ -44,16 +85,20 @@ router.get("/credit-lines", guestAuth, async (req, res) => {
 });
 
 router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
-  const { name, number: num, department, agreementDate, agreementAmount, receivedAmount, currency, interestRate, disbursedAmount, remainingBalance, projectCount, specialConditions, notes, section } = req.body;
-  if (!name) { res.status(400).json({ error: "Название обязательно / Nomi majburiy" }); return; }
+  const parsed = createCreditLineSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
+    return;
+  }
+  const { name, number: num, department, agreementDate, agreementAmount, receivedAmount, currency, interestRate, disbursedAmount, remainingBalance, projectCount, specialConditions, notes, section } = parsed.data;
 
   const [created] = await db.insert(creditLinesTable).values({
-    number: num || null, name, department: department || null,
+    number: num != null ? Number(num) : null, name, department: department || null,
     agreementDate: agreementDate || null,
-    agreementAmount: agreementAmount?.toString() || null, receivedAmount: receivedAmount?.toString() || null,
+    agreementAmount: agreementAmount != null ? String(agreementAmount) : null, receivedAmount: receivedAmount != null ? String(receivedAmount) : null,
     currency: currency || null, interestRate: interestRate || null,
-    disbursedAmount: disbursedAmount?.toString() || null, remainingBalance: remainingBalance?.toString() || null,
-    projectCount: projectCount ? Number(projectCount) : null,
+    disbursedAmount: disbursedAmount != null ? String(disbursedAmount) : null, remainingBalance: remainingBalance != null ? String(remainingBalance) : null,
+    projectCount: projectCount != null ? Number(projectCount) : null,
     specialConditions: specialConditions || null, notes: notes || null, section: section || null,
   }).returning();
 
@@ -63,18 +108,26 @@ router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_a
 
 router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikатор" }); return; }
 
-  const updateData: any = { updatedAt: new Date() };
-  const fields = ["name", "number", "department", "agreementDate", "agreementAmount", "receivedAmount", "currency", "interestRate", "disbursedAmount", "remainingBalance", "projectCount", "specialConditions", "notes", "section"];
+  const parsed = updateCreditLineSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  const data = parsed.data;
+  const fields = ["name", "number", "department", "agreementDate", "agreementAmount", "receivedAmount", "currency", "interestRate", "disbursedAmount", "remainingBalance", "projectCount", "specialConditions", "notes", "section"] as const;
   for (const f of fields) {
-    if (req.body[f] !== undefined) {
+    const val = data[f];
+    if (val !== undefined) {
       if (["agreementAmount", "receivedAmount", "disbursedAmount", "remainingBalance"].includes(f)) {
-        updateData[f] = req.body[f]?.toString() || null;
+        updateData[f] = val != null ? String(val) : null;
       } else if (f === "projectCount") {
-        updateData[f] = req.body[f] ? Number(req.body[f]) : null;
+        updateData[f] = val != null ? Number(val) : null;
       } else {
-        updateData[f] = req.body[f];
+        updateData[f] = val;
       }
     }
   }
