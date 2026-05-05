@@ -61,7 +61,8 @@
     "recommendations": "Tavsiyalar",
     "activityLog": "Faoliyat jurnali",
     "espoSync": "Espo sinxronlash",
-    "creditPolicy": "Kredit siyosati"
+    "creditPolicy": "Kredit siyosati",
+    "funnel": "Voronka"
   },
   "espoSync": {
     "title": "Espo bilan sinxronlash",
@@ -672,5 +673,31 @@
     "loan3Max": "Kredit №3 max.",
     "singleBorrower": "Bitta qarz oluvchi",
     "relatedGroup": "Bog'liq guruh"
+  },
+  "funnel": {
+    "title": "Voronka",
+    "subtitle": "Lid bosqichlari konversiyasi",
+    "from": "Dan",
+    "to": "Gacha",
+    "branch": "Filial",
+    "source": "Manba",
+    "total": "Jami",
+    "stage": {
+      "lead": "Lidlar",
+      "recommendation": "Tanlash",
+      "basket": "Savat",
+      "pdfGenerated": "KP tayyor",
+      "completed": "Yakunlangan"
+    },
+    "sourceLabel": {
+      "direct_visit": "To'g'ridan-to'g'ri tashrif",
+      "referral_existing_client": "Mijoz tavsiyasi",
+      "mass_media_tv": "TV",
+      "mass_media_radio": "Radio",
+      "mass_media_print": "Bosma",
+      "mahalla_booklet": "Mahalla",
+      "walk_in": "O'zi keldi",
+      "other": "Boshqa"
+    }
   }
 }

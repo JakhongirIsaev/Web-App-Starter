@@ -61,7 +61,8 @@
     "recommendations": "Рекомендации",
     "activityLog": "Журнал активности",
     "espoSync": "Синхронизация Espo",
-    "creditPolicy": "Кред. политика"
+    "creditPolicy": "Кред. политика",
+    "funnel": "Воронка"
   },
   "espoSync": {
     "title": "Синхронизация с Espo",
@@ -672,5 +673,31 @@
     "loan3Max": "Кредит №3 макс.",
     "singleBorrower": "Один заёмщик",
     "relatedGroup": "Связанная группа"
+  },
+  "funnel": {
+    "title": "Воронка",
+    "subtitle": "Конверсия лидов по этапам",
+    "from": "С",
+    "to": "По",
+    "branch": "Филиал",
+    "source": "Источник",
+    "total": "Всего",
+    "stage": {
+      "lead": "Лиды",
+      "recommendation": "Подбор",
+      "basket": "Корзина",
+      "pdfGenerated": "КП готово",
+      "completed": "Завершено"
+    },
+    "sourceLabel": {
+      "direct_visit": "Прямой визит",
+      "referral_existing_client": "Реком. клиента",
+      "mass_media_tv": "ТВ",
+      "mass_media_radio": "Радио",
+      "mass_media_print": "Печать",
+      "mahalla_booklet": "Махалля",
+      "walk_in": "Сам пришёл",
+      "other": "Другое"
+    }
   }
 }
