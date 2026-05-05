@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Check,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 
 interface MyDayData {
@@ -449,6 +450,19 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigate("/quick-lead")}
+        className="fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+        style={{
+          background: "#16A34A",
+          boxShadow: "0 6px 18px rgba(22,163,74,0.4)",
+        }}
+        aria-label={t("quickLead.title", { defaultValue: "Быстрый лид" })}
+      >
+        <Zap className="w-6 h-6 text-white" />
+      </button>
 
       {user?.role === "branch_head" && branchData && (
         <div className="px-4 pt-5">
