@@ -216,7 +216,7 @@ export default function Layout({ children, user }: LayoutProps) {
 
             <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
               <img
-                src="/ipak-yuli-header.png"
+                src={`${import.meta.env.BASE_URL}ipak-yuli-header.png`}
                 alt="Ipak Yo'li Bank"
                 className="hidden sm:block h-7 w-auto"
               />
