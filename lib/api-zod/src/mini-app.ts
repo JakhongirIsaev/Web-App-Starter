@@ -114,6 +114,13 @@ export const MiniAppCreateClientBody = z.object({
   preferredCurrency: preferredCurrencySchema,
   preferredLanguage: preferredLanguageSchema,
   telegramInitData: z.string().optional(),
+  // Phase D1 followup — offline-queue idempotency. The mini-app generates a
+  // UUID at first send-attempt time and includes it on every replay. The
+  // server uses ON CONFLICT (external_uuid) DO NOTHING + RETURNING to detect
+  // a replayed insert and respond with the existing row instead of creating a
+  // duplicate. Optional for backward compatibility — when absent, the
+  // database default (gen_random_uuid()) supplies a fresh value.
+  externalUuid: z.string().uuid().optional(),
 });
 
 export const MiniAppUpdateClientBody = z.object({

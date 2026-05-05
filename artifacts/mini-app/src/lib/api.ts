@@ -190,12 +190,25 @@ export async function postOrQueue<T>(
   endpoint: string,
   body: unknown,
 ): Promise<T | { _queued: true; uuid: string }> {
+  // Phase D1 followup — server-side idempotency. For create-client endpoints
+  // we inject an `externalUuid` into the body BEFORE the first attempt. If
+  // the request is later replayed from the offline queue (because the
+  // original POST committed on the server but the response was lost in
+  // transit), the SAME externalUuid travels with it. The server's
+  // ON CONFLICT (external_uuid) DO NOTHING + RETURNING then detects the
+  // replay and returns the existing row instead of creating a duplicate.
+  //
+  // We only inject for endpoints we know the server treats idempotently —
+  // adding the field to a body the server rejects as "unknown key" would
+  // break unrelated endpoints.
+  const bodyToSend = injectExternalUuidIfNeeded(endpoint, body);
+
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    const uuid = await enqueue({ endpoint, body });
+    const uuid = await enqueue({ endpoint, body: bodyToSend });
     return { _queued: true, uuid };
   }
   try {
-    return (await api.post(endpoint, body)) as T;
+    return (await api.post(endpoint, bodyToSend)) as T;
   } catch (err: unknown) {
     // Network failure even though we thought we were online — queue it.
     // fetch() throws TypeError on network failure; our request() helper
@@ -204,11 +217,32 @@ export async function postOrQueue<T>(
       err instanceof TypeError ||
       (err instanceof Error && err.message === i18n.t("common.requestFailed"));
     if (isNetworkError) {
-      const uuid = await enqueue({ endpoint, body });
+      const uuid = await enqueue({ endpoint, body: bodyToSend });
       return { _queued: true, uuid };
     }
     throw err;
   }
+}
+
+// Endpoints whose POST handler accepts (and dedupes on) `externalUuid`.
+const IDEMPOTENT_POST_ENDPOINTS = new Set<string>(["/mini-app/clients"]);
+
+function injectExternalUuidIfNeeded(endpoint: string, body: unknown): unknown {
+  if (!IDEMPOTENT_POST_ENDPOINTS.has(endpoint)) return body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  // Caller already supplied one — respect it (keeps replay semantics intact
+  // if a higher-level caller manages its own retry cycle).
+  if ("externalUuid" in body && (body as Record<string, unknown>).externalUuid) {
+    return body;
+  }
+  // crypto.randomUUID() is available in all evergreen browsers and in the
+  // Telegram WebApp WebView. If for some reason it isn't, fall through with
+  // the original body — the server will fall back to its DB default (a
+  // freshly-generated UUID) and we lose only the replay-dedup property.
+  if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+    return body;
+  }
+  return { ...(body as Record<string, unknown>), externalUuid: crypto.randomUUID() };
 }
 
 export async function getMe() {
