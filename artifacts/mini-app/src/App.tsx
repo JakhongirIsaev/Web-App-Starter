@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 const HomePage = lazy(() => import("@/pages/home"));
 const ClientsPage = lazy(() => import("@/pages/clients"));
 const NewClientPage = lazy(() => import("@/pages/new-client"));
+const QuickLeadPage = lazy(() => import("@/pages/quick-lead"));
 const ClientDetailPage = lazy(() => import("@/pages/client-detail"));
 // QuestionnairePage was removed in B3.3 — the /questionnaire/:clientId route
 // now redirects to the client detail page (the new fixed form lives at the
@@ -96,6 +97,13 @@ function AuthGate() {
             {() => (
               <PageSuspense>
                 <NewClientPage />
+              </PageSuspense>
+            )}
+          </Route>
+          <Route path="/quick-lead">
+            {() => (
+              <PageSuspense>
+                <QuickLeadPage />
               </PageSuspense>
             )}
           </Route>

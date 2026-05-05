@@ -695,5 +695,25 @@
       "hunter": "Менеджер",
       "manager": "Менеджер"
     }
+  },
+  "quickLead": {
+    "title": "Быстрый лид",
+    "subtitle": "Минимум для записи. Остальное — потом.",
+    "takePhoto": "Сделать фото",
+    "name": "Имя",
+    "namePlaceholder": "Aziz Karimov",
+    "phone": "Телефон",
+    "businessType": "Тип бизнеса",
+    "business": {
+      "shop": "Магазин",
+      "services": "Услуги",
+      "manufacturing": "Производство",
+      "other": "Другое"
+    },
+    "grabLocation": "Захватить локацию",
+    "gpsUnsupported": "GPS не поддерживается",
+    "gpsFailed": "GPS не получен",
+    "save": "Сохранить",
+    "saveFailed": "Не удалось сохранить"
   }
 }

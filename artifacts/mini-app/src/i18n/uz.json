@@ -691,5 +691,25 @@
       "hunter": "Menejer",
       "manager": "Menejer"
     }
+  },
+  "quickLead": {
+    "title": "Tezkor lid",
+    "subtitle": "Yozish uchun minimal. Qolgani — keyin.",
+    "takePhoto": "Suratga olish",
+    "name": "Ism",
+    "namePlaceholder": "Aziz Karimov",
+    "phone": "Telefon",
+    "businessType": "Biznes turi",
+    "business": {
+      "shop": "Do'kon",
+      "services": "Xizmatlar",
+      "manufacturing": "Ishlab chiqarish",
+      "other": "Boshqa"
+    },
+    "grabLocation": "Joylashuvni olish",
+    "gpsUnsupported": "GPS qo'llab-quvvatlanmaydi",
+    "gpsFailed": "GPS olinmadi",
+    "save": "Saqlash",
+    "saveFailed": "Saqlab bo'lmadi"
   }
 }
