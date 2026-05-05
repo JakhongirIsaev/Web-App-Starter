@@ -80,6 +80,7 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
   const params = ListUsersQueryParams.safeParse(req.query);
   const conditions: any[] = [];
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head" && user.branchId) {
     conditions.push(eq(usersTable.branchId, user.branchId));
   } else if (params.success && params.data.branchId !== undefined) {

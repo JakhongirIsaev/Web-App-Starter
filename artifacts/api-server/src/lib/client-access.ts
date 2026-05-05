@@ -14,6 +14,7 @@ export function hasClientRoleAccess(
   client: { assignedToId: number | null; branchId: number | null },
   user: { id: number; role: string; branchId: number | null },
 ): boolean {
+  // data-scope filter — not authorization (per-row visibility predicate)
   if (user.role === "superadmin" || user.role === "head_office_admin") return true;
   if (user.role === "branch_head" && user.branchId && client.branchId === user.branchId) return true;
   return client.assignedToId === user.id;

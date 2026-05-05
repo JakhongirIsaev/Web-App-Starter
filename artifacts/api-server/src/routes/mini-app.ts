@@ -881,6 +881,7 @@ router.get("/mini-app/clients", guestAuth, async (req, res) => {
   const conditions: any[] = [];
   if (status) conditions.push(eq(clientsTable.status, status));
   if (gender) conditions.push(eq(clientsTable.gender, gender));
+  // data-scope filter — not authorization
   if (role === "branch_head" && branchId) {
     conditions.push(eq(clientsTable.branchId, branchId));
   } else if (!isAdmin) {
@@ -951,6 +952,7 @@ router.get("/mini-app/clients/export-all", guestAuth, async (req, res) => {
   const role = req.user!.role;
   const branchId = req.user!.branchId;
 
+  // data-scope filter — not authorization
   let whereClause;
   if (role === "superadmin" || role === "head_office_admin") {
     whereClause = undefined;

@@ -27,6 +27,7 @@ function getClientFilters(req: any, user: any) {
   const parsed = dashboardFilterSchema.safeParse(req.query);
   const q = parsed.success ? parsed.data : {};
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head" && user.branchId) {
     conditions.push(eq(clientsTable.branchId, user.branchId));
   } else if (q.branchId) {
@@ -45,6 +46,7 @@ function getClientFilters(req: any, user: any) {
 
 router.get("/dashboard/summary", guestAuth, async (req, res) => {
   const user = req.user!;
+  // data-scope filter — not authorization
   const branchScoped = user.role === "branch_head" && user.branchId;
   const clientFilters = getClientFilters(req, user);
 
@@ -96,6 +98,7 @@ router.get("/dashboard/activity", guestAuth, async (req, res) => {
     .orderBy(sql`${activityLogTable.createdAt} desc`)
     .limit(limit);
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head" && user.branchId) {
     const branches = await db.select({ name: branchesTable.name }).from(branchesTable).where(eq(branchesTable.id, user.branchId)).limit(1);
     if (branches.length) {
@@ -174,6 +177,7 @@ router.get("/admin/activity-log/types", guestAuth, requireRole("superadmin", "he
 
 router.get("/dashboard/branch-stats", guestAuth, async (req, res) => {
   const user = req.user!;
+  // data-scope filter — not authorization
   const branchFilter = user.role === "branch_head" && user.branchId
     ? and(eq(branchesTable.isActive, true), eq(branchesTable.id, user.branchId))
     : eq(branchesTable.isActive, true);
@@ -265,6 +269,7 @@ router.get("/dashboard/tasks", guestAuth, async (req, res) => {
     lte(clientNextActionsTable.actionDate, next24h),
   ];
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head" && user.branchId) {
     conditions.push(eq(clientsTable.branchId, user.branchId));
   }

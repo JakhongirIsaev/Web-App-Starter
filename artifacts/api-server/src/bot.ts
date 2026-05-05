@@ -136,6 +136,7 @@ export async function startBot(miniAppUrl: string) {
 
     const today = startOfAppDay();
 
+    // data-scope filter — not authorization
     const clientBaseFilter =
       isAdminRole(user.role)
         ? undefined
@@ -197,6 +198,7 @@ export async function startBot(miniAppUrl: string) {
       return;
     }
 
+    // data-scope filter — not authorization
     const filter =
       isAdminRole(user.role)
         ? undefined

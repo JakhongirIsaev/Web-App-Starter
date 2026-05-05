@@ -71,6 +71,7 @@ router.get("/clients", guestAuth, async (req, res) => {
 
   const conditions: any[] = [];
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head") {
     if (!user.branchId) {
       res.json({ data: [], total: 0, page, pageSize });
@@ -169,6 +170,7 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const conditions: any[] = [eq(clientsTable.id, params.data.id)];
+  // data-scope filter — not authorization
   if (user.role === "branch_head") {
     if (!user.branchId) {
       res.status(404).json({ error: NOT_FOUND_MESSAGE });
@@ -260,6 +262,12 @@ router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
   const parsed = UpdateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
 
+  // AUTH_GATE — flagged for design review.
+  // The permission matrix (rbac/role-permissions.ts) grants `client.update` to
+  // `branch_head`, but this inline check forbids it, contradicting the matrix.
+  // Resolving requires a deliberate decision: either drop `client.update` from
+  // branch_head and replace this with `requirePermission("client.update")`
+  // middleware, OR delete this check. Left in place pending controller review.
   if (user.role === "branch_head") {
     res.status(403).json({ error: "Rahbarlar mijozlarni faqat ko'rishi mumkin" });
     return;
