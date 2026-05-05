@@ -9,6 +9,7 @@ import type { UpdateUserBodyRole } from "./updateUserBodyRole";
 
 export interface UpdateUserBody {
   name?: string;
+  phone?: string | null;
   role?: UpdateUserBodyRole;
   branchId?: number | null;
   isActive?: boolean;

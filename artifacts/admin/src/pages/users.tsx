@@ -31,12 +31,13 @@ import {
 interface UserForm {
   telegramId: string;
   name: string;
+  phone: string;
   role: string;
   branchId: string;
   password: string;
 }
 
-const emptyForm: UserForm = { telegramId: "", name: "", role: "branch_head", branchId: "", password: "" };
+const emptyForm: UserForm = { telegramId: "", name: "", phone: "", role: "branch_head", branchId: "", password: "" };
 
 interface ImportCreated {
   row: number;
@@ -178,14 +179,14 @@ export default function Users() {
 
   const openEdit = (u: User) => {
     setEditUser(u);
-    setForm({ telegramId: u.telegramId, name: u.name, role: u.role, branchId: u.branchId?.toString() || "", password: "" });
+    setForm({ telegramId: u.telegramId, name: u.name, phone: u.phone ?? "", role: u.role, branchId: u.branchId?.toString() || "", password: "" });
     setDialogOpen(true);
   };
 
   const handleSubmit = () => {
     if (!form.name.trim() || !form.telegramId.trim()) return;
     if (editUser) {
-      const data: any = { name: form.name, role: form.role };
+      const data: any = { name: form.name, phone: form.phone.trim() ? form.phone.trim() : null, role: form.role };
       if (form.branchId) data.branchId = Number(form.branchId);
       else data.branchId = null;
       if (form.password) data.password = form.password;
@@ -195,7 +196,7 @@ export default function Users() {
       });
     } else {
       if (!form.password) { toast({ variant: "destructive", title: t("users.passwordRequired") }); return; }
-      const data: any = { telegramId: form.telegramId, name: form.name, role: form.role, password: form.password };
+      const data: any = { telegramId: form.telegramId, name: form.name, phone: form.phone.trim() ? form.phone.trim() : null, role: form.role, password: form.password };
       if (form.branchId) data.branchId = Number(form.branchId);
       createUser.mutate({ data }, {
         onSuccess: () => { toast({ title: t("users.userCreated") }); setDialogOpen(false); invalidate(); },
@@ -573,6 +574,16 @@ export default function Users() {
                 <Label>{t("users.telegramId")}</Label>
                 <Input value={form.telegramId} onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))} placeholder={t("users.telegramIdPlaceholder")} disabled={!!editUser} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">{t("users.phone")}</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={form.phone}
+                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+998 ..."
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

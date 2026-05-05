@@ -82,6 +82,7 @@ export const CreateUserBodyRole = {
 export interface CreateUserBody {
   telegramId: string;
   name: string;
+  phone?: string | null;
   role: CreateUserBodyRole;
   branchId?: number | null;
   password: string;
@@ -100,6 +101,7 @@ export const UpdateUserBodyRole = {
 
 export interface UpdateUserBody {
   name?: string;
+  phone?: string | null;
   role?: UpdateUserBodyRole;
   branchId?: number | null;
   isActive?: boolean;

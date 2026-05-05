@@ -192,6 +192,7 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem);
 export const CreateUserBody = zod.object({
   telegramId: zod.string(),
   name: zod.string(),
+  phone: zod.string().nullish(),
   role: zod.enum([
     "superadmin",
     "head_office_admin",
@@ -246,6 +247,7 @@ export const UpdateUserParams = zod.object({
 
 export const UpdateUserBody = zod.object({
   name: zod.string().optional(),
+  phone: zod.string().nullish(),
   role: zod
     .enum([
       "superadmin",
