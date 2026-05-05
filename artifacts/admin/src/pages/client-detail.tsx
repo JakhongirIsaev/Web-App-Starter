@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
-import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask, Eye } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask, Mars, Venus, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getStatusBadge } from "./clients";
+import { getStatusBadge, GenderBadge } from "./clients";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -207,11 +207,12 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
             <Link href="/clients"><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-3xl font-bold tracking-tight text-foreground">
                 {client.fullName || t("clients.anonymous")}
               </h2>
               {getStatusBadge(client.status, t)}
+              <GenderBadge gender={client.gender} t={t} />
             </div>
             <p className="text-muted-foreground mt-1 font-mono text-sm">ID: {client.sessionId}</p>
           </div>
@@ -270,7 +271,13 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <VenetianMask className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  {client.gender === "male" ? (
+                    <Mars className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  ) : client.gender === "female" ? (
+                    <Venus className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "#EC4899" }} />
+                  ) : (
+                    <VenetianMask className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.gender")}</dt>
                     <dd className="text-base text-foreground mt-1">

@@ -199,6 +199,7 @@ export default function ClientsPage() {
                 amount: client.amount,
                 product: client.product,
                 updatedAt: timeAgo(client.updatedAt),
+                gender: client.gender ?? null,
               }}
               onClick={() => navigate(`/clients/${client.id}`)}
             />

@@ -10,6 +10,8 @@ import {
   StatusChip,
   SectionHeader,
   getInitials,
+  GenderIcon,
+  GenderBadge,
 } from "@/components/ui-primitives";
 import {
   ArrowLeft,
@@ -359,14 +361,18 @@ export default function ClientDetailPage() {
         <div className="flex items-center gap-4">
           <Monogram text={getInitials(client.fullName)} size={56} />
           <div className="flex-1 min-w-0">
-            <div className="text-[18px] font-bold text-[#0F172A] truncate">
-              {client.fullName || t("clients.anonymous")}
+            <div className="flex items-center gap-2">
+              <span className="text-[18px] font-bold text-[#0F172A] truncate">
+                {client.fullName || t("clients.anonymous")}
+              </span>
+              <GenderIcon gender={client.gender} size={18} />
             </div>
             <div className="text-[13px] text-[#64748B] mt-0.5">
               {client.phone || t("clients.noPhone")}
             </div>
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
               <StatusChip status={client.status} />
+              <GenderBadge gender={client.gender} />
             </div>
           </div>
         </div>
@@ -512,7 +518,7 @@ export default function ClientDetailPage() {
           )}
           {client.gender && (
             <div className="flex items-center gap-3 px-4 py-3.5 border-t border-[#F1F5F9]">
-              <div className="w-4 h-4 rounded-full bg-[#E2E8F0] shrink-0" />
+              <GenderIcon gender={client.gender} size={16} />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] text-[#64748B]">
                   {t("clientDetail.gender")}
