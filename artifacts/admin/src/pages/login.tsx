@@ -145,7 +145,7 @@ export default function Login() {
 
           <div className="space-y-5">
             <img
-              src="/ipak-yuli-transparent.png"
+              src={`${import.meta.env.BASE_URL}ipak-yuli-transparent.png`}
               alt="Ipak Yo'li Bank"
               className="h-10 w-auto"
             />
