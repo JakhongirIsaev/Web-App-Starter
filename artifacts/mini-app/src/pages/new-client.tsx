@@ -152,7 +152,7 @@ function CheckboxRow({
 }
 
 export default function NewClientPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
@@ -164,6 +164,12 @@ export default function NewClientPage() {
   // accepts either form for convenience.
   const [telegramUsername, setTelegramUsername] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
+  // Phase D2: per-client language preference. Default to the hunter's current
+  // mini-app UI language, so the leave-behind PDF defaults to whatever the
+  // hunter is already reading in front of the lead.
+  const [preferredLanguage, setPreferredLanguage] = useState<"ru" | "uz">(
+    i18n.language === "uz" ? "uz" : "ru",
+  );
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number] | "">("");
 
@@ -249,6 +255,7 @@ export default function NewClientPage() {
             ? desiredTermNum
             : undefined,
         preferredCurrency,
+        preferredLanguage,
       }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
@@ -359,6 +366,33 @@ export default function NewClientPage() {
                   : t("clientDetail.genderFemale")
               }
             />
+          </div>
+
+          {/* Phase D2: per-client preferred language for the leave-behind PDF. */}
+          <div>
+            <FieldLabel>
+              {t("newClient.preferredLanguage", { defaultValue: "Язык клиента" })}
+            </FieldLabel>
+            <div className="flex gap-2 mt-1">
+              {(["ru", "uz"] as const).map((l) => {
+                const active = preferredLanguage === l;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setPreferredLanguage(l)}
+                    className="px-4 py-2 rounded-full text-[13px] font-semibold"
+                    style={{
+                      background: active ? "#0F172A" : "#FFFFFF",
+                      color: active ? "#FFFFFF" : "#0F172A",
+                      border: active ? "none" : "1px solid #E2E8F0",
+                    }}
+                  >
+                    {l.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

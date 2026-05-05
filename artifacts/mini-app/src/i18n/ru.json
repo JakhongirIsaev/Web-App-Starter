@@ -172,6 +172,7 @@
     "phonePlaceholder": "+998 ...",
     "telegramUsername": "Telegram (необязательно)",
     "telegramUsernamePlaceholder": "@username",
+    "preferredLanguage": "Язык клиента",
     "create": "Сохранить клиента",
     "creating": "Сохранение...",
     "created": "Клиент создан",

@@ -83,6 +83,10 @@ export const leadSourceSchema = z
 
 export const preferredCurrencySchema = z.enum(["UZS", "USD", "EUR", "RUB"]).optional();
 
+// Phase D2: per-client PDF language preference. Captured during lead creation
+// so the leave-behind PDF defaults to the language the client actually reads.
+export const preferredLanguageSchema = z.enum(["ru", "uz"]).optional();
+
 export const MiniAppCreateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
@@ -108,6 +112,7 @@ export const MiniAppCreateClientBody = z.object({
   desiredAmountUzs: z.coerce.number().nonnegative().optional(),
   desiredTermMonths: z.coerce.number().int().positive().optional(),
   preferredCurrency: preferredCurrencySchema,
+  preferredLanguage: preferredLanguageSchema,
   telegramInitData: z.string().optional(),
 });
 

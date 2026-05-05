@@ -1293,6 +1293,9 @@ components:
         preferredCurrency:
           type: string
           nullable: true
+        preferredLanguage:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1374,6 +1377,9 @@ components:
         preferredCurrency:
           type: string
           nullable: true
+        preferredLanguage:
+          type: string
+          nullable: true
       required: [branchId]
 
     UpdateClientBody:
@@ -1433,6 +1439,9 @@ components:
           type: integer
           nullable: true
         preferredCurrency:
+          type: string
+          nullable: true
+        preferredLanguage:
           type: string
           nullable: true
 

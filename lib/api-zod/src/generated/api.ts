@@ -451,6 +451,7 @@ export const ListClientsResponse = zod.object({
       desiredAmountUzs: zod.number().nullable().optional(),
       desiredTermMonths: zod.number().nullable().optional(),
       preferredCurrency: zod.string().nullable().optional(),
+      preferredLanguage: zod.string().nullable().optional(),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     }),
@@ -484,6 +485,7 @@ export const CreateClientBody = zod.object({
   desiredAmountUzs: zod.number().nullable().optional(),
   desiredTermMonths: zod.number().nullable().optional(),
   preferredCurrency: zod.string().nullable().optional(),
+  preferredLanguage: zod.string().nullable().optional(),
 });
 
 /**
@@ -566,6 +568,7 @@ export const GetClientResponse = zod.object({
   desiredAmountUzs: zod.number().nullable().optional(),
   desiredTermMonths: zod.number().nullable().optional(),
   preferredCurrency: zod.string().nullable().optional(),
+  preferredLanguage: zod.string().nullable().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -611,6 +614,7 @@ export const UpdateClientBody = zod.object({
   desiredAmountUzs: zod.number().nullable().optional(),
   desiredTermMonths: zod.number().nullable().optional(),
   preferredCurrency: zod.string().nullable().optional(),
+  preferredLanguage: zod.string().nullable().optional(),
 });
 
 export const UpdateClientResponse = zod.object({
@@ -686,6 +690,7 @@ export const UpdateClientResponse = zod.object({
   desiredAmountUzs: zod.number().nullable().optional(),
   desiredTermMonths: zod.number().nullable().optional(),
   preferredCurrency: zod.string().nullable().optional(),
+  preferredLanguage: zod.string().nullable().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

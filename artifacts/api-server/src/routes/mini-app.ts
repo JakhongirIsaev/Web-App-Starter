@@ -485,6 +485,20 @@ function resolvePdfLanguage(value: unknown): PdfLanguage {
   return value === "ru" ? "ru" : "uz";
 }
 
+// Phase D2: PDF endpoints prefer the client's saved preferredLanguage when no
+// explicit language is in the request. Defaults to "ru" when neither side has
+// expressed a preference (matches the leave-behind PDF generator default).
+function resolvePdfLanguageForClient(
+  requestValue: unknown,
+  clientPreferred: string | null | undefined,
+): PdfLanguage {
+  const candidate =
+    requestValue === "ru" || requestValue === "uz"
+      ? requestValue
+      : clientPreferred ?? "ru";
+  return candidate === "uz" ? "uz" : "ru";
+}
+
 function getAutoExcelCopy(language: PdfLanguage) {
   if (language === "ru") {
     return {
@@ -995,6 +1009,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     desiredAmountUzs,
     desiredTermMonths,
     preferredCurrency,
+    preferredLanguage,
   } = parsed.data;
   // Normalize the optional Telegram username: strip leading "@" and treat
   // empty / whitespace as null so we don't store junk values.
@@ -1055,6 +1070,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
         : null,
       desiredTermMonths: desiredTermMonths ?? null,
       preferredCurrency: preferredCurrency ?? null,
+      preferredLanguage: preferredLanguage ?? null,
     })
     .returning();
 
@@ -1728,7 +1744,6 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
-  const language = resolvePdfLanguage(parsed.data.language);
   const sendViaTelegram = parsed.data.sendViaTelegram !== false;
   const telegramInitData =
     typeof parsed.data.telegramInitData === "string"
@@ -1742,9 +1757,14 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     .where(eq(clientsTable.id, clientId))
     .limit(1);
   if (!client) {
-    res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+    // Use a request-only language hint for the 404 since we have no client row.
+    const fallbackLang = resolvePdfLanguage(parsed.data.language);
+    res.status(404).json({ error: fallbackLang === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
+  // Phase D2: prefer the client's saved preferredLanguage when no explicit
+  // language is in the request body.
+  const language = resolvePdfLanguageForClient(parsed.data.language, client.preferredLanguage);
 
   // Resolve credit expert: prefer the assigned user; fall back to the
   // authenticated caller (mini-app users typically ARE the assigned expert).
@@ -1886,15 +1906,18 @@ router.post(
   guestAuth,
   async (req, res) => {
     const clientId = Number(req.params.id);
-    const language = resolvePdfLanguage(req.body?.language);
+    // Resolve a request-only language for early errors that fire before we
+    // have the client row in hand. Once the client loads we re-resolve with
+    // the client's saved preferredLanguage taking effect (Phase D2).
+    const requestLanguage = resolvePdfLanguage(req.body?.language);
 
     if (!Number.isFinite(clientId) || clientId <= 0) {
-      res.status(400).json({ error: language === "ru" ? "Неверный ID клиента" : "Noto'g'ri mijoz ID" });
+      res.status(400).json({ error: requestLanguage === "ru" ? "Неверный ID клиента" : "Noto'g'ri mijoz ID" });
       return;
     }
 
     if (!(await verifyClientAccess(clientId, req.user!))) {
-      res.status(403).json({ error: language === "ru" ? "Доступ запрещён" : "Ruxsat yo'q" });
+      res.status(403).json({ error: requestLanguage === "ru" ? "Доступ запрещён" : "Ruxsat yo'q" });
       return;
     }
 
@@ -1904,9 +1927,10 @@ router.post(
       .where(eq(clientsTable.id, clientId))
       .limit(1);
     if (!client) {
-      res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+      res.status(404).json({ error: requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
       return;
     }
+    const language = resolvePdfLanguageForClient(req.body?.language, client.preferredLanguage);
 
     // Resolve expert (assigned user); fall back to the caller. Phone is
     // required for the leave-behind PDF body.
@@ -2214,10 +2238,13 @@ router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
 
 router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
-  const language = resolvePdfLanguage(req.query.language);
+  // Pre-client request-language hint for the access/404 error paths. Once
+  // the client loads we re-resolve, allowing client.preferredLanguage to win
+  // when the request didn't pin a language explicitly (Phase D2).
+  const requestLanguage = resolvePdfLanguage(req.query.language);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
+    res.status(403).json({ error: requestLanguage === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
     return;
   }
 
@@ -2227,9 +2254,10 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     .where(eq(clientsTable.id, clientId))
     .limit(1);
   if (!client) {
-    res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+    res.status(404).json({ error: requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
+  const language = resolvePdfLanguageForClient(req.query.language, client.preferredLanguage);
 
   const expertUserId = client.assignedToId ?? req.user!.id;
   const [expertRow] = await db

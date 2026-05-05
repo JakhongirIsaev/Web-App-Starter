@@ -167,6 +167,7 @@ export interface Client {
   desiredAmountUzs?: number | null;
   desiredTermMonths?: number | null;
   preferredCurrency?: string | null;
+  preferredLanguage?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -215,6 +216,7 @@ export interface CreateClientBody {
   desiredAmountUzs?: number | null;
   desiredTermMonths?: number | null;
   preferredCurrency?: string | null;
+  preferredLanguage?: string | null;
 }
 
 export type UpdateClientBodyStatus =
@@ -270,6 +272,7 @@ export interface UpdateClientBody {
   desiredAmountUzs?: number | null;
   desiredTermMonths?: number | null;
   preferredCurrency?: string | null;
+  preferredLanguage?: string | null;
 }
 
 export interface ProductCategory {

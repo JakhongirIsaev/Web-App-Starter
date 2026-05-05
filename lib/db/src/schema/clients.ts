@@ -52,6 +52,7 @@ export const clientsTable = pgTable("clients", {
   desiredAmountUzs: numeric("desired_amount_uzs", { precision: 18, scale: 2 }),
   desiredTermMonths: integer("desired_term_months"),
   preferredCurrency: text("preferred_currency"),
+  preferredLanguage: text("preferred_language"),  // "ru" | "uz"; defaults to "ru" at render time
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

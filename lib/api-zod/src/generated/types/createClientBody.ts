@@ -30,4 +30,5 @@ export interface CreateClientBody {
   desiredAmountUzs?: number | null;
   desiredTermMonths?: number | null;
   preferredCurrency?: string | null;
+  preferredLanguage?: string | null;
 }
