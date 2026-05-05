@@ -851,6 +851,10 @@ router.get("/mini-app/todo", guestAuth, async (req, res) => {
       isAdmin
         ? or(
             eq(clientsTable.status, "draft"),
+            // "lead" replaces the legacy "questionnaire" mid-funnel marker
+            // post-B3. Both are kept for backwards compatibility with rows
+            // that haven't been migrated yet.
+            eq(clientsTable.status, "lead"),
             eq(clientsTable.status, "questionnaire"),
             eq(clientsTable.status, "recommendation")
           )
@@ -858,6 +862,7 @@ router.get("/mini-app/todo", guestAuth, async (req, res) => {
             eq(clientsTable.assignedToId, userId),
             or(
               eq(clientsTable.status, "draft"),
+              eq(clientsTable.status, "lead"),
               eq(clientsTable.status, "questionnaire"),
               eq(clientsTable.status, "recommendation")
             )
@@ -921,7 +926,21 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
-  const { fullName, phone } = parsed.data;
+  const {
+    fullName,
+    phone,
+    gender,
+    leadSource,
+    referrerClientId,
+    selfCheckCitizenshipUz,
+    selfCheckSixMonthsOperation,
+    selfCheckPredominantlyPrivate,
+    selfCheckBranchServiceArea,
+    purpose,
+    desiredAmountUzs,
+    desiredTermMonths,
+    preferredCurrency,
+  } = parsed.data;
   const sessionId = `S-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
   let assignedBranchId = branchId;
@@ -934,15 +953,45 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     assignedBranchId = firstBranch.id;
   }
 
+  // B3.4: auto-promote to "lead" status when the fixed form is fully
+  // populated (all four self-check booleans true plus loan-intent triple).
+  // Otherwise stay in "draft" so the form can be completed later.
+  const isFullLead =
+    selfCheckCitizenshipUz === true &&
+    selfCheckSixMonthsOperation === true &&
+    selfCheckPredominantlyPrivate === true &&
+    selfCheckBranchServiceArea === true &&
+    !!purpose &&
+    desiredAmountUzs !== undefined && desiredAmountUzs !== null &&
+    desiredTermMonths !== undefined && desiredTermMonths !== null;
+
   const [client] = await db
     .insert(clientsTable)
     .values({
       sessionId,
       fullName: fullName || null,
       phone: phone || null,
-      status: "draft",
+      status: isFullLead ? "lead" : "draft",
       branchId: assignedBranchId,
       assignedToId: userId,
+      gender: gender ?? null,
+      leadSource: leadSource ?? null,
+      // Only persist the referrer when the lead source actually warrants it.
+      // This prevents stray IDs from hanging off non-referral leads.
+      referrerClientId:
+        leadSource === "referral_existing_client" && referrerClientId
+          ? referrerClientId
+          : null,
+      selfCheckCitizenshipUz: selfCheckCitizenshipUz ?? null,
+      selfCheckSixMonthsOperation: selfCheckSixMonthsOperation ?? null,
+      selfCheckPredominantlyPrivate: selfCheckPredominantlyPrivate ?? null,
+      selfCheckBranchServiceArea: selfCheckBranchServiceArea ?? null,
+      purpose: purpose ?? null,
+      desiredAmountUzs: desiredAmountUzs !== undefined && desiredAmountUzs !== null
+        ? String(desiredAmountUzs)
+        : null,
+      desiredTermMonths: desiredTermMonths ?? null,
+      preferredCurrency: preferredCurrency ?? null,
     })
     .returning();
 

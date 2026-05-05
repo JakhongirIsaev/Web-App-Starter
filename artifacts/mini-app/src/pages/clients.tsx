@@ -15,9 +15,12 @@ import {
 import { ClientRow, getInitials, timeAgo } from "@/components/ui-primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+// "lead" replaces "questionnaire" mid-funnel after B3. Both remain so legacy
+// rows can still be filtered while the migration to "lead" rolls out.
 const STATUS_KEYS = [
   "",
   "draft",
+  "lead",
   "questionnaire",
   "recommendation",
   "basket",

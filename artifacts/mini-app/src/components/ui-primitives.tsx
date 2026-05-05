@@ -48,6 +48,9 @@ export function GenderBadge({ gender }: { gender?: "male" | "female" | null }) {
 /* ── Status chip ── */
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft:          { label: "Черновик",  cls: "mn-chip-draft" },
+  // "lead" replaces "questionnaire" mid-funnel after B3. Both kept so legacy
+  // rows still render with a sensible label/colour.
+  lead:           { label: "Лид",      cls: "mn-chip-questionnaire" },
   questionnaire:  { label: "Анкета",   cls: "mn-chip-questionnaire" },
   recommendation: { label: "Подбор",   cls: "mn-chip-recommendation" },
   basket:         { label: "Корзина",  cls: "mn-chip-basket" },

@@ -324,7 +324,7 @@ router.post(
 
       const rows = parseCsvBuffer(req.file.buffer);
       const validStatuses = [
-        "draft", "questionnaire", "recommendation", "basket", "pdf_generated",
+        "draft", "lead", "questionnaire", "recommendation", "basket", "pdf_generated",
         "under_review", "approved", "completed", "rejected",
       ] as const;
       type ClientStatus = typeof validStatuses[number];

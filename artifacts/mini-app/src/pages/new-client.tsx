@@ -1,32 +1,261 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useLocation } from "wouter";
-import { ArrowLeft, UserPlus, Save } from "lucide-react";
+import { ArrowLeft, UserPlus, Save, Check } from "lucide-react";
+
+/* ─────────────────────────────────────────────────────────────
+ * Fixed new-client form (Phase B3.2).
+ * Captures everything the rule-engine needs in one screen:
+ *   1. Identity (name, gender, phone, business name, business type)
+ *   2. Lead source (radio chips)
+ *   3. Referrer (conditional on lead_source === referral_existing_client)
+ *   4. Loan intent (purpose, amount UZS, term months, currency)
+ *   5. Self-check (4 yes/no checkboxes)
+ * Branch comes from the authed user; GPS is Phase C.
+ * ──────────────────────────────────────────────────────────── */
+
+const LEAD_SOURCES = [
+  "direct_visit",
+  "referral_existing_client",
+  "mass_media_tv",
+  "mass_media_radio",
+  "mass_media_print",
+  "mahalla_booklet",
+  "walk_in",
+  "other",
+] as const;
+type LeadSource = (typeof LEAD_SOURCES)[number];
+
+const CURRENCIES = ["UZS", "USD", "EUR", "RUB"] as const;
+type Currency = (typeof CURRENCIES)[number];
+
+const PURPOSES = ["working_capital", "fixed_assets", "untargeted", "not_sure"] as const;
+
+const BUSINESS_TYPES = ["trade", "services", "production", "agriculture", "other"] as const;
+
+interface ReferrerCandidate {
+  id: number;
+  fullName: string | null;
+  phone: string | null;
+}
+
+const inputBaseStyle: React.CSSProperties = {
+  borderRadius: 10,
+  border: "1.5px solid #E2E8F0",
+  fontSize: 16,
+  padding: 14,
+  color: "#0F172A",
+  background: "#fff",
+};
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mn-card p-4">
+      <div className="text-[14px] font-bold text-[#0F172A] tracking-tight">{title}</div>
+      {subtitle && (
+        <div className="text-[12px] text-[#64748B] mt-0.5">{subtitle}</div>
+      )}
+      <div className="mt-3 space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label
+      className="block mb-[6px]"
+      style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}
+    >
+      {children}
+    </label>
+  );
+}
+
+function ChipGroup<T extends string>({
+  options,
+  value,
+  onChange,
+  getLabel,
+}: {
+  options: readonly T[];
+  value: T | "";
+  onChange: (next: T) => void;
+  getLabel: (option: T) => string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const active = option === value;
+        return (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onChange(option)}
+            className="rounded-full text-[13px] font-semibold transition-colors active:scale-[0.97]"
+            style={{
+              padding: "8px 14px",
+              border: active ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
+              background: active ? "#ECFDF3" : "#FFFFFF",
+              color: active ? "#15803D" : "#334155",
+            }}
+          >
+            {getLabel(option)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CheckboxRow({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center gap-3 rounded-xl text-left transition-colors active:scale-[0.99]"
+      style={{
+        padding: "12px",
+        border: checked ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
+        background: checked ? "#ECFDF3" : "#FFFFFF",
+      }}
+    >
+      <span
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+        style={{
+          background: checked ? "#16A34A" : "#FFFFFF",
+          border: checked ? "1.5px solid #16A34A" : "1.5px solid #CBD5E1",
+        }}
+      >
+        {checked && <Check className="h-3.5 w-3.5 text-white" />}
+      </span>
+      <span className="text-[14px] font-medium text-[#0F172A]">{label}</span>
+    </button>
+  );
+}
 
 export default function NewClientPage() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+
+  /* Identity */
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [businessName, setBusinessName] = useState("");
+  const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number] | "">("");
+
+  /* Lead source */
+  const [leadSource, setLeadSource] = useState<LeadSource | "">("");
+
+  /* Referrer */
+  const [referrerSearch, setReferrerSearch] = useState("");
+  const [referrerClientId, setReferrerClientId] = useState<number | null>(null);
+  const [referrerLabel, setReferrerLabel] = useState<string>("");
+
+  /* Loan intent */
+  const [purpose, setPurpose] = useState<(typeof PURPOSES)[number] | "">("");
+  const [desiredAmountUzs, setDesiredAmountUzs] = useState<string>(""); // formatted with spaces
+  const [desiredTermMonths, setDesiredTermMonths] = useState<string>("");
+  const [preferredCurrency, setPreferredCurrency] = useState<Currency>("UZS");
+
+  /* Self-check */
+  const [scCitizenship, setScCitizenship] = useState(false);
+  const [scSixMonths, setScSixMonths] = useState(false);
+  const [scPrivate, setScPrivate] = useState(false);
+  const [scBranch, setScBranch] = useState(false);
+
+  /* Referrer search — only fired when the lead source needs it. We rely on
+     the existing GET /mini-app/clients endpoint and filter client-side; the
+     candidate list is already scoped by branch/role on the server. */
+  const { data: referrerCandidates = [] } = useQuery<ReferrerCandidate[]>({
+    queryKey: ["referrer-candidates"],
+    queryFn: () => api.get("/mini-app/clients"),
+    enabled: leadSource === "referral_existing_client",
+    staleTime: 60_000,
+  });
+
+  const filteredReferrers = useMemo(() => {
+    const q = referrerSearch.trim().toLowerCase();
+    if (!q) return referrerCandidates.slice(0, 6);
+    return referrerCandidates
+      .filter((candidate) => {
+        const name = (candidate.fullName ?? "").toLowerCase();
+        const phoneStr = (candidate.phone ?? "").toLowerCase();
+        return name.includes(q) || phoneStr.includes(q);
+      })
+      .slice(0, 6);
+  }, [referrerCandidates, referrerSearch]);
+
+  const desiredAmountDigits = desiredAmountUzs.replace(/\D/g, "");
+  const desiredAmountNum = desiredAmountDigits ? Number(desiredAmountDigits) : null;
+  const desiredTermNum = desiredTermMonths.trim() ? Number(desiredTermMonths.trim()) : null;
+
+  /* The form is "save-able" with anything filled in — only fully-populated
+     leads get auto-promoted to status="lead" by the server. This keeps the
+     hunter from being blocked when they want to capture a draft. */
+  const canSubmit =
+    fullName.trim().length > 0 ||
+    phone.trim().length > 0 ||
+    !!leadSource;
 
   const createMutation = useMutation({
-    mutationFn: () => api.post("/mini-app/clients", { fullName: fullName || null, phone: phone || null }),
+    mutationFn: () =>
+      api.post("/mini-app/clients", {
+        fullName: fullName.trim() || null,
+        phone: phone.trim() || null,
+        gender: gender || undefined,
+        businessName: businessName.trim() || undefined,
+        businessType: businessType || undefined,
+        leadSource: leadSource || undefined,
+        referrerClientId:
+          leadSource === "referral_existing_client" && referrerClientId
+            ? referrerClientId
+            : undefined,
+        selfCheckCitizenshipUz: scCitizenship,
+        selfCheckSixMonthsOperation: scSixMonths,
+        selfCheckPredominantlyPrivate: scPrivate,
+        selfCheckBranchServiceArea: scBranch,
+        purpose: purpose || undefined,
+        desiredAmountUzs:
+          desiredAmountNum !== null && Number.isFinite(desiredAmountNum)
+            ? desiredAmountNum
+            : undefined,
+        desiredTermMonths:
+          desiredTermNum !== null && Number.isFinite(desiredTermNum) && desiredTermNum > 0
+            ? desiredTermNum
+            : undefined,
+        preferredCurrency,
+      }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
+      queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
       navigate(`/clients/${data.id}`);
     },
   });
 
-  const canSubmit = fullName.trim().length > 0 || phone.trim().length > 0;
-
   return (
-    <div style={{ background: "#fff" }} className="min-h-screen flex flex-col">
+    <div style={{ background: "#F4F4F5" }} className="min-h-screen flex flex-col">
       {/* ═══════════════ TOP BAR ═══════════════ */}
-      <div className="px-5 pt-4 pb-3">
-        {/* Step indicator */}
+      <div className="px-5 pt-4 pb-3" style={{ background: "#fff" }}>
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => navigate("/clients")}
@@ -44,18 +273,8 @@ export default function NewClientPage() {
           <div className="w-9" />
         </div>
 
-        {/* Progress bar — 4 segments, first filled */}
-        <div className="flex gap-1.5">
-          <div className="h-[3px] flex-1 rounded-full" style={{ background: "#16A34A" }} />
-          <div className="h-[3px] flex-1 rounded-full" style={{ background: "#E2E8F0" }} />
-          <div className="h-[3px] flex-1 rounded-full" style={{ background: "#E2E8F0" }} />
-          <div className="h-[3px] flex-1 rounded-full" style={{ background: "#E2E8F0" }} />
-        </div>
-      </div>
-
-      {/* ═══════════════ HEADER ═══════════════ */}
-      <div className="px-5 pt-4 pb-2">
-        <div className="flex items-center gap-3 mb-3">
+        {/* ═══════════════ HEADER ═══════════════ */}
+        <div className="flex items-center gap-3 mt-1">
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
             style={{ background: "#ECFDF3", color: "#16A34A" }}
@@ -76,67 +295,256 @@ export default function NewClientPage() {
         </div>
       </div>
 
-      {/* ═══════════════ FORM ═══════════════ */}
-      <div className="flex-1 px-5 pt-2">
-        <div className="space-y-5">
-          {/* Full name field */}
+      {/* ═══════════════ FORM SECTIONS ═══════════════ */}
+      <div className="flex-1 px-4 pt-4 pb-32 space-y-3">
+        {/* ── 1. IDENTITY ── */}
+        <SectionCard title={t("newClient.fullName")}>
           <div>
-            <label
-              className="block mb-[6px]"
-              style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}
-            >
-              {t("newClient.fullName")}
-            </label>
+            <FieldLabel>{t("newClient.fullName")}</FieldLabel>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder={t("newClient.fullNamePlaceholder")}
               className="w-full outline-none transition-colors"
-              style={{
-                borderRadius: 10,
-                border: "1.5px solid #E2E8F0",
-                fontSize: 16,
-                padding: 14,
-                color: "#0F172A",
-                background: "#fff",
-              }}
+              style={inputBaseStyle}
               onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
 
-          {/* Phone field */}
           <div>
-            <label
-              className="block mb-[6px]"
-              style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}
-            >
-              {t("newClient.phone")}
-            </label>
+            <FieldLabel>{t("newClient.phone")}</FieldLabel>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder={t("newClient.phonePlaceholder")}
               inputMode="tel"
               className="w-full outline-none transition-colors"
-              style={{
-                borderRadius: 10,
-                border: "1.5px solid #E2E8F0",
-                fontSize: 16,
-                padding: 14,
-                color: "#0F172A",
-                background: "#fff",
-              }}
+              style={inputBaseStyle}
               onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
-        </div>
+
+          <div>
+            <FieldLabel>{t("clientDetail.gender")}</FieldLabel>
+            <ChipGroup
+              options={["male", "female"] as const}
+              value={gender}
+              onChange={(v) => setGender(v)}
+              getLabel={(v) =>
+                v === "male"
+                  ? t("clientDetail.genderMale")
+                  : t("clientDetail.genderFemale")
+              }
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.identity.businessName")}</FieldLabel>
+            <input
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder={t("newClient.identity.businessNamePlaceholder")}
+              className="w-full outline-none transition-colors"
+              style={inputBaseStyle}
+              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.identity.businessType")}</FieldLabel>
+            <ChipGroup
+              options={BUSINESS_TYPES}
+              value={businessType}
+              onChange={(v) => setBusinessType(v)}
+              getLabel={(v) => t(`questionnaire.businessTypeOptions.${v}`)}
+            />
+          </div>
+        </SectionCard>
+
+        {/* ── 2. LEAD SOURCE ── */}
+        <SectionCard title={t("newClient.section.leadSource")}>
+          <ChipGroup
+            options={LEAD_SOURCES}
+            value={leadSource}
+            onChange={(v) => {
+              setLeadSource(v);
+              if (v !== "referral_existing_client") {
+                setReferrerClientId(null);
+                setReferrerLabel("");
+                setReferrerSearch("");
+              }
+            }}
+            getLabel={(v) => t(`newClient.leadSource.${v}`)}
+          />
+        </SectionCard>
+
+        {/* ── 3. REFERRER (conditional) ── */}
+        {leadSource === "referral_existing_client" && (
+          <SectionCard title={t("newClient.section.referrer")}>
+            {referrerClientId ? (
+              <div
+                className="flex items-center justify-between rounded-xl p-3"
+                style={{ background: "#ECFDF3", border: "1.5px solid #16A34A" }}
+              >
+                <span className="text-[14px] font-semibold text-[#15803D]">
+                  {referrerLabel || `#${referrerClientId}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReferrerClientId(null);
+                    setReferrerLabel("");
+                  }}
+                  className="text-[12px] font-semibold text-[#15803D] underline"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  value={referrerSearch}
+                  onChange={(e) => setReferrerSearch(e.target.value)}
+                  placeholder={t("newClient.referrer.searchPlaceholder")}
+                  className="w-full outline-none transition-colors"
+                  style={inputBaseStyle}
+                  onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                />
+                <div className="space-y-1.5 mt-2">
+                  {filteredReferrers.length === 0 ? (
+                    <div className="text-[13px] text-[#94A3B8] py-2">
+                      {t("newClient.referrer.empty")}
+                    </div>
+                  ) : (
+                    filteredReferrers.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        onClick={() => {
+                          setReferrerClientId(candidate.id);
+                          setReferrerLabel(
+                            candidate.fullName ||
+                              candidate.phone ||
+                              `#${candidate.id}`,
+                          );
+                        }}
+                        className="flex w-full items-center justify-between rounded-xl border border-[#E2E8F0] p-3 text-left active:scale-[0.99]"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-[14px] font-semibold text-[#0F172A] truncate">
+                            {candidate.fullName || t("clients.anonymous")}
+                          </div>
+                          {candidate.phone && (
+                            <div className="text-[12px] text-[#64748B] truncate">
+                              {candidate.phone}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </SectionCard>
+        )}
+
+        {/* ── 4. LOAN INTENT ── */}
+        <SectionCard title={t("newClient.section.loanIntent")}>
+          <div>
+            <FieldLabel>{t("newClient.intent.purposeLabel")}</FieldLabel>
+            <ChipGroup
+              options={PURPOSES}
+              value={purpose}
+              onChange={(v) => setPurpose(v)}
+              getLabel={(v) => t(`questionnaire.loanPurposeOptions.${v}`)}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.intent.amountLabel")}</FieldLabel>
+            <input
+              value={desiredAmountUzs}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, "");
+                setDesiredAmountUzs(
+                  raw ? Number(raw).toLocaleString().replace(/,/g, " ") : "",
+                );
+              }}
+              placeholder={t("questionnaire.desiredAmountPlaceholder")}
+              inputMode="numeric"
+              className="w-full outline-none transition-colors"
+              style={inputBaseStyle}
+              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.intent.termLabel")}</FieldLabel>
+            <input
+              value={desiredTermMonths}
+              onChange={(e) =>
+                setDesiredTermMonths(e.target.value.replace(/\D/g, ""))
+              }
+              placeholder={t("questionnaire.desiredTermPlaceholder")}
+              inputMode="numeric"
+              className="w-full outline-none transition-colors"
+              style={inputBaseStyle}
+              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.intent.currencyLabel")}</FieldLabel>
+            <ChipGroup
+              options={CURRENCIES}
+              value={preferredCurrency}
+              onChange={(v) => setPreferredCurrency(v)}
+              getLabel={(v) => t(`newClient.currency.${v}`)}
+            />
+          </div>
+        </SectionCard>
+
+        {/* ── 5. SELF-CHECK ── */}
+        <SectionCard title={t("newClient.section.selfCheck")}>
+          <CheckboxRow
+            checked={scCitizenship}
+            onChange={setScCitizenship}
+            label={t("newClient.selfCheck.citizenshipUz")}
+          />
+          <CheckboxRow
+            checked={scSixMonths}
+            onChange={setScSixMonths}
+            label={t("newClient.selfCheck.sixMonths")}
+          />
+          <CheckboxRow
+            checked={scPrivate}
+            onChange={setScPrivate}
+            label={t("newClient.selfCheck.private")}
+          />
+          <CheckboxRow
+            checked={scBranch}
+            onChange={setScBranch}
+            label={t("newClient.selfCheck.branchService")}
+          />
+        </SectionCard>
       </div>
 
-      {/* ═══════════════ FOOTER BUTTONS ═══════════════ */}
-      <div className="px-5 pb-6 pt-4 space-y-3" style={{ marginTop: "auto" }}>
-        {/* Primary create button */}
+      {/* ═══════════════ FOOTER (sticky) ═══════════════ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-5 border-t"
+        style={{
+          background: "rgba(255,255,255,0.96)",
+          backdropFilter: "blur(8px)",
+          borderColor: "#E2E8F0",
+        }}
+      >
         <button
           onClick={() => createMutation.mutate()}
           disabled={!canSubmit || createMutation.isPending}
@@ -154,48 +562,11 @@ export default function NewClientPage() {
             <div
               className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
             />
-          ) : null}
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
           {createMutation.isPending ? t("newClient.creating") : t("newClient.create")}
         </button>
-
-        {/* Secondary row: back + save draft */}
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate("/clients")}
-            className="flex-1 flex items-center justify-center gap-1.5"
-            style={{
-              height: 44,
-              borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#fff",
-              color: "#64748B",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {t("common.back")}
-          </button>
-          <button
-            onClick={() => {
-              if (canSubmit) createMutation.mutate();
-            }}
-            disabled={!canSubmit}
-            className="flex-1 flex items-center justify-center gap-1.5 transition-opacity"
-            style={{
-              height: 44,
-              borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#fff",
-              color: canSubmit ? "#0F172A" : "#CBD5E1",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            <Save className="w-4 h-4" />
-            {t("newClient.saveDraft")}
-          </button>
-        </div>
       </div>
     </div>
   );

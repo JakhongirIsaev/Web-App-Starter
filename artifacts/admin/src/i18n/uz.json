@@ -349,6 +349,7 @@
   },
   "statuses": {
     "draft": "Yangi ariza",
+    "lead": "Lid",
     "questionnaire": "So'rovnoma",
     "recommendation": "Mahsulot tanlash",
     "basket": "Savat",

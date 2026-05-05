@@ -224,6 +224,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
               <SelectTrigger className="w-[180px] bg-card"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
+                <SelectItem value="lead">{t("statuses.lead")}</SelectItem>
                 <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
                 <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
                 <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
