@@ -38,6 +38,7 @@ export interface Client {
   desiredAmountUzs?: number | null;
   desiredTermMonths?: number | null;
   preferredCurrency?: string | null;
+  preferredLanguage?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

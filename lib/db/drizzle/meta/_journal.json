@@ -71,6 +71,13 @@
       "when": 1779120000000,
       "tag": "0009_clients_telegram",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779206400000,
+      "tag": "0010_clients_preferred_language",
+      "breakpoints": true
     }
   ]
 }
