@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToolbarOverflow, type ToolbarOverflowAction } from "@/components/toolbar-overflow";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -213,20 +214,32 @@ export default function Clients({ user }: { user?: { role: string } }) {
           <h2 className="text-[30px] font-bold tracking-tight">{t("clients.title")}</h2>
           <p className="text-[13px] text-muted-foreground mt-0.5">{t("clients.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {!isBranchHead && (
-            <>
-              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
-              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => importRef.current?.click()}>
-                <Upload className="h-3.5 w-3.5" />
-                {t("common.import")}
-              </Button>
-            </>
+            <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
           )}
-          <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5" />
-            {t("common.export")}
+          <Button size="sm" className="gap-1.5 h-9 text-xs" asChild>
+            <Link href="/clients/new">
+              <Plus className="h-3.5 w-3.5" />
+              {t("clients.newClient", { defaultValue: "+ Новый клиент" })}
+            </Link>
           </Button>
+          <ToolbarOverflow
+            triggerLabel={t("common.moreActions")}
+            actions={[
+              {
+                label: t("common.import"),
+                icon: Upload,
+                hidden: isBranchHead,
+                onClick: () => importRef.current?.click(),
+              },
+              {
+                label: t("common.export"),
+                icon: Download,
+                onClick: handleExport,
+              },
+            ] as ToolbarOverflowAction[]}
+          />
         </div>
       </div>
 
@@ -292,13 +305,6 @@ export default function Clients({ user }: { user?: { role: string } }) {
               ))}
             </SelectContent>
           </Select>
-
-          <Button size="sm" className="gap-1.5 h-9 text-xs" asChild>
-            <Link href="/clients/new">
-              <Plus className="h-3.5 w-3.5" />
-              {t("clients.newClient", { defaultValue: "+ Новый клиент" })}
-            </Link>
-          </Button>
         </div>
       </div>
 

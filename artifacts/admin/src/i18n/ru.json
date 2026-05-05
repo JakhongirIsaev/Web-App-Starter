@@ -40,7 +40,8 @@
     "total": "Итого",
     "prev": "Назад",
     "nextPage": "Далее",
-    "openNavigation": "Открыть меню навигации"
+    "openNavigation": "Открыть меню навигации",
+    "moreActions": "Ещё действия"
   },
   "nav": {
     "overview": "Обзор",
