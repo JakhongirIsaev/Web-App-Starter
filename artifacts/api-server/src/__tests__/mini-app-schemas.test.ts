@@ -11,7 +11,6 @@ import {
   MiniAppNextActionBody,
   MiniAppDocumentBody,
   MiniAppCalculateBody,
-  MiniAppQuestionnaireBody,
   MiniAppRecommendBody,
   MiniAppBasketBody,
   MiniAppGeneratePdfBody,
@@ -131,16 +130,6 @@ describe("MiniAppCalculateBody", () => {
       repaymentType: "annuity",
     });
     expect(r.success).toBe(false);
-  });
-});
-
-describe("MiniAppQuestionnaireBody", () => {
-  it("accepts an answer array", () => {
-    const r = MiniAppQuestionnaireBody.safeParse({
-      clientId: 1,
-      answers: [{ questionKey: "business_type", answer: "trade" }],
-    });
-    expect(r.success).toBe(true);
   });
 });
 

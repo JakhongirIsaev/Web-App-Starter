@@ -386,7 +386,6 @@ export const ListClientsResponse = zod.object({
       status: zod.enum([
         "draft",
         "lead",
-        "questionnaire",
         "recommendation",
         "basket",
         "pdf_generated",
@@ -503,7 +502,6 @@ export const GetClientResponse = zod.object({
   status: zod.enum([
     "draft",
     "lead",
-    "questionnaire",
     "recommendation",
     "basket",
     "pdf_generated",
@@ -587,7 +585,6 @@ export const UpdateClientBody = zod.object({
     .enum([
       "draft",
       "lead",
-      "questionnaire",
       "recommendation",
       "basket",
       "pdf_generated",
@@ -625,7 +622,6 @@ export const UpdateClientResponse = zod.object({
   status: zod.enum([
     "draft",
     "lead",
-    "questionnaire",
     "recommendation",
     "basket",
     "pdf_generated",

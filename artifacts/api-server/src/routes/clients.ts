@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { clientsTable, branchesTable, usersTable, questionnaireSessionsTable, questionnaireAnswersTable, clientDocumentsTable, calculationsTable } from "@workspace/db";
+import { clientsTable, branchesTable, usersTable, clientDocumentsTable, calculationsTable } from "@workspace/db";
 import { eq, and, ilike, sql, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { enqueueEspoSync } from "../lib/espo-enqueue";
@@ -21,7 +21,7 @@ const NOT_FOUND_MESSAGE = "Не найдено / Topilmadi";
 const CLIENT_FALLBACK_NAME = "Ismsiz mijoz";
 const STATUS_LABELS: Record<string, string> = {
   draft: "qoralama",
-  questionnaire: "so'rovnoma",
+  lead: "lid",
   recommendation: "tavsiya",
   basket: "tanlangan mahsulotlar",
   pdf_generated: "taklif tayyor",
@@ -221,23 +221,6 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
     c.assignedName ? { id: c.assignedToId, name: c.assignedName, role: c.assignedRole } : null,
   );
 
-  // Fetch questionnaire answers
-  let questionnaireAnswers: Array<{ questionKey: string; answer: string }> = [];
-  const [latestSession] = await db
-    .select()
-    .from(questionnaireSessionsTable)
-    .where(eq(questionnaireSessionsTable.clientId, params.data.id))
-    .orderBy(desc(questionnaireSessionsTable.id))
-    .limit(1);
-
-  if (latestSession) {
-    questionnaireAnswers = await db
-      .select({ questionKey: questionnaireAnswersTable.questionKey, answer: questionnaireAnswersTable.answer })
-      .from(questionnaireAnswersTable)
-      .where(eq(questionnaireAnswersTable.sessionId, latestSession.id))
-      .orderBy(questionnaireAnswersTable.id);
-  }
-
   // Fetch documents
   const documents = await db
     .select()
@@ -254,7 +237,6 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
 
   res.json({
     ...base,
-    questionnaireAnswers,
     documents,
     calculations,
   });
@@ -324,7 +306,7 @@ router.post(
 
       const rows = parseCsvBuffer(req.file.buffer);
       const validStatuses = [
-        "draft", "lead", "questionnaire", "recommendation", "basket", "pdf_generated",
+        "draft", "lead", "recommendation", "basket", "pdf_generated",
         "under_review", "approved", "completed", "rejected",
       ] as const;
       type ClientStatus = typeof validStatuses[number];

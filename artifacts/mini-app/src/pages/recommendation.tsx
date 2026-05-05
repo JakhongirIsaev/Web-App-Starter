@@ -103,6 +103,11 @@ export default function RecommendationPage() {
     }
   })();
 
+  // Phase B3a: the legacy questionnaire endpoint is gone. The fixed lead-form
+  // persists preference fields (clientSegment, purpose, desiredAmountUzs,
+  // desiredTermMonths, preferredCurrency) directly onto clientsTable, so we
+  // synthesize the answer array from the client row when no URL-supplied
+  // answers are present.
   const savedQuestionnaireQuery = useQuery({
     queryKey: ["mini-client-questionnaire", params.clientId],
     queryFn: () => api.get(`/mini-app/clients/${params.clientId}`),
@@ -110,11 +115,21 @@ export default function RecommendationPage() {
     retry: false,
   });
 
-  const savedAnswers: RecommendationAnswer[] = Array.isArray(
-    savedQuestionnaireQuery.data?.questionnaireAnswers,
-  )
-    ? savedQuestionnaireQuery.data.questionnaireAnswers
-    : [];
+  const savedAnswers: RecommendationAnswer[] = (() => {
+    const data: any = savedQuestionnaireQuery.data;
+    const client = data?.client ?? data;
+    if (!client) return [];
+    const out: RecommendationAnswer[] = [];
+    if (client.clientSegment) out.push({ questionKey: "business_size", answer: client.clientSegment });
+    if (client.purpose) out.push({ questionKey: "loan_purpose", answer: client.purpose });
+    if (client.desiredAmountUzs !== null && client.desiredAmountUzs !== undefined)
+      out.push({ questionKey: "desired_amount", answer: String(client.desiredAmountUzs) });
+    if (client.desiredTermMonths !== null && client.desiredTermMonths !== undefined)
+      out.push({ questionKey: "desired_term", answer: String(client.desiredTermMonths) });
+    if (client.preferredCurrency)
+      out.push({ questionKey: "preferred_currency", answer: String(client.preferredCurrency).toLowerCase() });
+    return out;
+  })();
 
   const answers = queryAnswers.length > 0 ? queryAnswers : savedAnswers;
   const serializedAnswers = JSON.stringify(answers);

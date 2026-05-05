@@ -39,8 +39,8 @@ async function truncateDemoTables() {
       calculations,
       basket_items,
       baskets,
-      questionnaire_answers,
-      questionnaire_sessions,
+      archived_questionnaire_answers,
+      archived_questionnaire_sessions,
       client_next_actions,
       client_notes,
       clients,
@@ -191,7 +191,7 @@ export async function seedDatabase(options: SeedOptions = {}) {
 
   const clients = await db.insert(clientsTable).values([
     { sessionId: randomUUID(), fullName: "Azizbek Raximov", phone: "+998901112233", status: "completed", branchId: branches[1].id, assignedToId: users[4].id },
-    { sessionId: randomUUID(), fullName: "Gulnoza Sobirova", phone: "+998933334455", status: "questionnaire", branchId: branches[1].id, assignedToId: users[4].id },
+    { sessionId: randomUUID(), fullName: "Gulnoza Sobirova", phone: "+998933334455", status: "lead", branchId: branches[1].id, assignedToId: users[4].id },
     { sessionId: randomUUID(), fullName: "Jasur Xolmatov", phone: "+998998887766", status: "basket", branchId: branches[2].id, assignedToId: users[7].id },
     { sessionId: randomUUID(), fullName: "Dildora Erkinova", phone: "+998971234567", status: "recommendation", branchId: branches[1].id, assignedToId: users[5].id },
     { sessionId: randomUUID(), fullName: "Rustam Jo'rayev", phone: "+998909876543", status: "completed", branchId: branches[2].id, assignedToId: users[7].id },
