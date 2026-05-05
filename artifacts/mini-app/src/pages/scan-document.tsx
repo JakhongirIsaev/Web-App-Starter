@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -39,12 +39,6 @@ interface PhotoItem {
   dataUrl: string;
   ocrText?: string;
   extractedFields?: Record<string, string>;
-}
-
-function detectRuOrUzText(text: string): "ru" | "uz" {
-  const cyrillicCount = text.match(/[\u0400-\u04FF]/g)?.length ?? 0;
-  const latinCount = text.match(/[A-Za-z]/g)?.length ?? 0;
-  return cyrillicCount > latinCount ? "ru" : "uz";
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -106,48 +100,13 @@ export default function ScanDocumentPage() {
   const [processingIndex, setProcessingIndex] = useState(0);
   const [ocrText, setOcrText] = useState("");
   const [extractedFields, setExtractedFields] = useState<Record<string, string>>({});
-  const [translatedText, setTranslatedText] = useState("");
-  const [translatedLanguage, setTranslatedLanguage] = useState<"ru" | "uz" | null>(null);
   const [error, setError] = useState("");
 
   const scanMessages = {
     tooManyPhotos: t("scanDoc.tooManyPhotos", { max: MAX_PHOTOS }),
     invalidImage: t("scanDoc.invalidImage"),
-    translateFailed: t("scanDoc.translateFailed"),
-    extractFailed: t("scanDoc.extractFailed"),
     exportFailed: t("scanDoc.exportFailed"),
   };
-
-  const toFieldMap = useCallback((values: Record<string, unknown>) => {
-    return Object.fromEntries(
-      Object.entries(values)
-        .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")
-        .map(([key, value]) => [key, String(value)]),
-    ) as Record<string, string>;
-  }, []);
-
-  const translateMutation = useMutation({
-    mutationFn: async (targetLanguage: "ru" | "uz") => {
-      const sourceLanguage = detectRuOrUzText(ocrText);
-      return api.post("/ai/translate", {
-        text: ocrText,
-        sourceLanguage,
-        targetLanguage,
-      });
-    },
-    onMutate: () => {
-      setError("");
-    },
-    onSuccess: (result: any, targetLanguage) => {
-      setTranslatedText(result.text || "");
-      setTranslatedLanguage(targetLanguage);
-    },
-    onError: () => {
-      setTranslatedText("");
-      setTranslatedLanguage(null);
-      setError(scanMessages.translateFailed);
-    },
-  });
 
   const exportAutoMutation = useMutation({
     mutationFn: async () => {
@@ -297,13 +256,10 @@ export default function ScanDocumentPage() {
 
     setState("processing");
     setError("");
-    setTranslatedText("");
-    setTranslatedLanguage(null);
 
     const updatedPhotos = [...photos];
     let combinedText = "";
     const allFields: Record<string, string> = {};
-    let autoExtractionFailed = false;
 
     for (let index = 0; index < updatedPhotos.length; index += 1) {
       setProcessingIndex(index);
@@ -325,47 +281,9 @@ export default function ScanDocumentPage() {
       }
     }
 
-    if (docType === "vehicle_doc") {
-      try {
-        const autoResult = await api.post("/ai/extract-auto", {
-          images: updatedPhotos.map((photo) => photo.dataUrl),
-          language: i18n.language === "ru" ? "ru" : "uz",
-          extraFields: { docType, imageCount: updatedPhotos.length },
-          ocrText: combinedText || undefined,
-        });
-
-        const autoFields = toFieldMap({
-          make: autoResult.make,
-          model: autoResult.model,
-          vehicleType: autoResult.vehicleType,
-          color: autoResult.color,
-          plateText: autoResult.plateText,
-          approximateYear: autoResult.approximateYear,
-          visibleConditionNotes: autoResult.visibleConditionNotes,
-          confidence:
-            typeof autoResult.confidence === "number"
-              ? `${Math.round(autoResult.confidence * 100)}%`
-              : null,
-          rawNotes: autoResult.rawNotes,
-        });
-
-        Object.assign(allFields, autoFields);
-        if (updatedPhotos[0]) {
-          updatedPhotos[0].extractedFields = {
-            ...(updatedPhotos[0].extractedFields || {}),
-            ...autoFields,
-          };
-        }
-      } catch (err) {
-        autoExtractionFailed = true;
-        console.warn("AI vehicle extraction failed, OCR results will still be used", err);
-      }
-    }
-
     setPhotos(updatedPhotos);
     setOcrText(combinedText);
     setExtractedFields(allFields);
-    setError(autoExtractionFailed ? scanMessages.extractFailed : "");
     setState("review");
   };
 
@@ -415,8 +333,6 @@ export default function ScanDocumentPage() {
     setPhotos([]);
     setOcrText("");
     setExtractedFields({});
-    setTranslatedText("");
-    setTranslatedLanguage(null);
     setProcessingIndex(0);
     setError("");
   };
@@ -644,40 +560,6 @@ export default function ScanDocumentPage() {
                 rows={6}
                 className="w-full text-xs font-mono bg-muted/50 rounded-lg p-2 border resize-none"
               />
-              <div className="flex gap-2 mt-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => translateMutation.mutate("uz")}
-                  disabled={!ocrText || translateMutation.isPending}
-                >
-                  {t("scanDoc.translateToUz")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => translateMutation.mutate("ru")}
-                  disabled={!ocrText || translateMutation.isPending}
-                >
-                  {t("scanDoc.translateToRu")}
-                </Button>
-              </div>
-              {translateMutation.isPending && (
-                <p className="mt-2 text-xs text-muted-foreground">{t("scanDoc.translating")}</p>
-              )}
-              {translatedText && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {translatedLanguage === "ru" ? t("scanDoc.translatedRu") : t("scanDoc.translatedUz")}
-                  </p>
-                  <textarea
-                    value={translatedText}
-                    readOnly
-                    rows={5}
-                    className="w-full text-xs font-mono bg-muted/50 rounded-lg p-2 border resize-none"
-                  />
-                </div>
-              )}
             </CardContent>
           </Card>
 
