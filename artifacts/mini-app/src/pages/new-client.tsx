@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useLocation } from "wouter";
 import { ArrowLeft, UserPlus, Save, Check } from "lucide-react";
+import { SignaturePad } from "@/components/signature-pad";
 
 /* ─────────────────────────────────────────────────────────────
  * Fixed new-client form (Phase B3.2).
@@ -193,6 +194,11 @@ export default function NewClientPage() {
   const [scPrivate, setScPrivate] = useState(false);
   const [scBranch, setScBranch] = useState(false);
 
+  /* Phase D3: personal-data consent signature. Bank-required before
+     launch with real users. We capture as PNG data URL and persist
+     after the client row is created (best-effort upload). */
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+
   /* Referrer search — only fired when the lead source needs it. We rely on
      the existing GET /mini-app/clients endpoint and filter client-side; the
      candidate list is already scoped by branch/role on the server. */
@@ -221,15 +227,18 @@ export default function NewClientPage() {
 
   /* The form is "save-able" with anything filled in — only fully-populated
      leads get auto-promoted to status="lead" by the server. This keeps the
-     hunter from being blocked when they want to capture a draft. */
-  const canSubmit =
+     hunter from being blocked when they want to capture a draft.
+     Phase D3: a personal-data consent signature is required before save —
+     bank policy. Without it the green button stays disabled. */
+  const hasAnyField =
     fullName.trim().length > 0 ||
     phone.trim().length > 0 ||
     !!leadSource;
+  const canSubmit = hasAnyField && signatureDataUrl != null;
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      api.post("/mini-app/clients", {
+    mutationFn: async () => {
+      const client = (await api.post("/mini-app/clients", {
         fullName: fullName.trim() || null,
         phone: phone.trim() || null,
         telegramUsername: telegramUsername.trim().replace(/^@+/, "") || undefined,
@@ -256,7 +265,33 @@ export default function NewClientPage() {
             : undefined,
         preferredCurrency,
         preferredLanguage,
-      }),
+      })) as { id: number };
+
+      // Phase D3: persist the consent signature as a client_documents row.
+      // Pattern mirrors quick-lead.tsx photo upload (commit 6b3dc04):
+      // best-effort — the client row is already saved, so a failed
+      // upload should not roll back the lead. Hunter can re-capture the
+      // signature from client-detail later if this fails.
+      if (signatureDataUrl) {
+        try {
+          const upload = (await api.post("/storage/uploads/direct", {
+            name: `clients/${client.id}/consent-signature.png`,
+            dataUrl: signatureDataUrl,
+          })) as { objectPath: string; metadata?: { name?: string } };
+          await api.post(`/mini-app/clients/${client.id}/documents`, {
+            docType: "consent_signature",
+            fileName: upload.metadata?.name ?? `consent-${client.id}.png`,
+            storagePath: upload.objectPath,
+          });
+        } catch (err) {
+          // Non-fatal; client was saved.
+          // eslint-disable-next-line no-console
+          console.warn("signature upload failed:", err);
+        }
+      }
+
+      return client;
+    },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
@@ -588,6 +623,19 @@ export default function NewClientPage() {
             onChange={setScBranch}
             label={t("newClient.selfCheck.branchService")}
           />
+        </SectionCard>
+
+        {/* ── 6. CONSENT (Phase D3) ── */}
+        <SectionCard title={t("newClient.section.consent")}>
+          <p className="text-[12px] text-[#64748B] leading-relaxed">
+            {t("newClient.consentText")}
+          </p>
+          <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
+          {hasAnyField && !signatureDataUrl && (
+            <p className="text-[12px] text-[#DC2626] font-medium">
+              {t("newClient.signatureRequired")}
+            </p>
+          )}
         </SectionCard>
       </div>
 
