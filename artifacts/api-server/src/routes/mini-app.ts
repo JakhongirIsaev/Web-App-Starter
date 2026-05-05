@@ -929,6 +929,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
   const {
     fullName,
     phone,
+    telegramUsername,
     gender,
     leadSource,
     referrerClientId,
@@ -941,6 +942,13 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     desiredTermMonths,
     preferredCurrency,
   } = parsed.data;
+  // Normalize the optional Telegram username: strip leading "@" and treat
+  // empty / whitespace as null so we don't store junk values.
+  const normalizedTelegramUsername = (() => {
+    if (telegramUsername === undefined || telegramUsername === null) return null;
+    const trimmed = telegramUsername.trim().replace(/^@+/, "");
+    return trimmed === "" ? null : trimmed;
+  })();
   const sessionId = `S-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
   let assignedBranchId = branchId;
@@ -971,6 +979,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       sessionId,
       fullName: fullName || null,
       phone: phone || null,
+      telegramUsername: normalizedTelegramUsername,
       status: isFullLead ? "lead" : "draft",
       branchId: assignedBranchId,
       assignedToId: userId,
@@ -1152,11 +1161,15 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
-  const { fullName, phone, status, latitude, longitude, gender, clientType, clientSegment } = parsed.data;
+  const { fullName, phone, telegramUsername, status, latitude, longitude, gender, clientType, clientSegment } = parsed.data;
 
   const updates: any = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone;
+  if (telegramUsername !== undefined) {
+    const trimmed = telegramUsername.trim().replace(/^@+/, "");
+    updates.telegramUsername = trimmed === "" ? null : trimmed;
+  }
   if (status !== undefined) updates.status = status;
   if (latitude !== undefined) updates.latitude = latitude.toString();
   if (longitude !== undefined) updates.longitude = longitude.toString();
@@ -1808,6 +1821,167 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
   }
 });
+
+// Phase C4: one-tap "send leave-behind PDF directly to the lead". Tries
+// Telegram delivery if the client has a telegramUsername on file, otherwise
+// returns a wa.me URL the expert can hand off to WhatsApp. Success cases:
+//   { delivered: "telegram", target: "@username" }
+//   { delivered: "whatsapp_url", url: "https://wa.me/..." }
+router.post(
+  "/mini-app/clients/:id/send-pdf-to-lead",
+  guestAuth,
+  async (req, res) => {
+    const clientId = Number(req.params.id);
+    const language = resolvePdfLanguage(req.body?.language);
+
+    if (!Number.isFinite(clientId) || clientId <= 0) {
+      res.status(400).json({ error: language === "ru" ? "Неверный ID клиента" : "Noto'g'ri mijoz ID" });
+      return;
+    }
+
+    if (!(await verifyClientAccess(clientId, req.user!))) {
+      res.status(403).json({ error: language === "ru" ? "Доступ запрещён" : "Ruxsat yo'q" });
+      return;
+    }
+
+    const [client] = await db
+      .select()
+      .from(clientsTable)
+      .where(eq(clientsTable.id, clientId))
+      .limit(1);
+    if (!client) {
+      res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+      return;
+    }
+
+    // Resolve expert (assigned user); fall back to the caller. Phone is
+    // required for the leave-behind PDF body.
+    const expertUserId = client.assignedToId ?? req.user!.id;
+    const [expertRow] = await db
+      .select({ name: usersTable.name, phone: usersTable.phone })
+      .from(usersTable)
+      .where(eq(usersTable.id, expertUserId))
+      .limit(1);
+    if (!expertRow?.name || !expertRow?.phone) {
+      res.status(400).json({
+        error: "expert_missing_contact",
+        message:
+          language === "ru"
+            ? "У назначенного эксперта не указан телефон. Заполните телефон в профиле."
+            : "Tayinlangan ekspertning telefoni ko'rsatilmagan. Profilda telefonni to'ldiring.",
+      });
+      return;
+    }
+
+    let branchName = "IPAK YO'LI";
+    if (client.branchId) {
+      const [b] = await db
+        .select({ name: branchesTable.name })
+        .from(branchesTable)
+        .where(eq(branchesTable.id, client.branchId))
+        .limit(1);
+      if (b?.name) branchName = b.name;
+    }
+
+    const calcs = await db
+      .select({
+        loanAmount: calculationsTable.loanAmount,
+        monthlyPayment: calculationsTable.monthlyPayment,
+      })
+      .from(calculationsTable)
+      .where(eq(calculationsTable.clientId, clientId))
+      .orderBy(desc(calculationsTable.createdAt))
+      .limit(20);
+    let indicative: LeaveBehindInput["indicative"] = null;
+    if (calcs.length > 0) {
+      const amounts = calcs
+        .map((c) => Number(c.loanAmount))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      const monthly = calcs
+        .map((c) => Number(c.monthlyPayment ?? 0))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      if (amounts.length > 0 && monthly.length > 0) {
+        indicative = {
+          amountMinUzs: Math.min(...amounts),
+          amountMaxUzs: Math.max(...amounts),
+          monthlyMinUzs: Math.min(...monthly),
+          monthlyMaxUzs: Math.max(...monthly),
+          currency: "UZS",
+        };
+      }
+    }
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await generateLeaveBehindPdf({
+        client: { fullName: client.fullName, businessName: null },
+        expert: { name: expertRow.name, phone: expertRow.phone },
+        indicative,
+        branchName,
+        language,
+      });
+    } catch (err: any) {
+      logger.error({ err, clientId }, "send-pdf-to-lead: PDF generation failed");
+      res.status(500).json({
+        error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi",
+      });
+      return;
+    }
+
+    const fallbackName = language === "ru" ? "klient" : "mijoz";
+    const filenamePrefix = language === "ru" ? "predlozhenie" : "taklif";
+    const filename = `${filenamePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
+    const caption =
+      language === "ru"
+        ? "Ваше индикативное предложение"
+        : "Indikativ taklifingiz";
+
+    // Try Telegram delivery first when we have a username on file. grammy's
+    // bot.api.sendDocument accepts either a numeric chat_id or a "@username"
+    // string, so we forward the username as-is. If delivery fails (most
+    // commonly because the user has never started a conversation with the
+    // bot) we fall through to the WhatsApp URL.
+    if (client.telegramUsername) {
+      const username = client.telegramUsername.trim().replace(/^@+/, "");
+      if (username) {
+        const target = `@${username}`;
+        const sent = await sendDocument(target, pdfBuffer, filename, caption);
+        if (sent) {
+          // Promote status so the funnel reflects that the client received the PDF.
+          await db
+            .update(clientsTable)
+            .set({ status: "pdf_generated", updatedAt: new Date() })
+            .where(eq(clientsTable.id, clientId));
+          res.json({ delivered: "telegram", target });
+          return;
+        }
+        logger.warn({ target, clientId }, "telegram delivery failed, falling back to WhatsApp URL");
+      }
+    }
+
+    // Fallback: WhatsApp URL the expert opens themselves and forwards.
+    if (client.phone) {
+      const phoneClean = client.phone.replace(/[^0-9]/g, "");
+      if (phoneClean) {
+        const message =
+          language === "ru"
+            ? "Здравствуйте! Я отправляю Вам наше индикативное предложение."
+            : "Salom! Sizga indikativ taklifimizni yuboraman.";
+        const url = `https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`;
+        res.json({ delivered: "whatsapp_url", url });
+        return;
+      }
+    }
+
+    res.status(400).json({
+      error: "no_delivery_channel",
+      message:
+        language === "ru"
+          ? "Нет ни Telegram, ни телефона у клиента"
+          : "Mijozda Telegram va telefon yo'q",
+    });
+  },
+);
 
 router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
   const parsed = MiniAppAutoExcelBody.safeParse(req.body);

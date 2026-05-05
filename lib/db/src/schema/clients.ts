@@ -25,6 +25,10 @@ export const clientsTable = pgTable("clients", {
   sessionId: text("session_id").notNull().unique(),
   fullName: text("full_name"),
   phone: text("phone"),
+  // Lead's Telegram @username (optional). Captured during the visit so the
+  // hunter can ship the leave-behind PDF directly to the client's Telegram
+  // (Phase C4). Stored without the leading "@".
+  telegramUsername: text("telegram_username"),
   status: text("status").notNull().$type<ClientStatus>().default("draft"),
   branchId: integer("branch_id").notNull().references(() => branchesTable.id),
   assignedToId: integer("assigned_to_id").references(() => usersTable.id),

@@ -1226,6 +1226,9 @@ components:
         phone:
           type: string
           nullable: true
+        telegramUsername:
+          type: string
+          nullable: true
         status:
           type: string
           enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
@@ -1320,6 +1323,9 @@ components:
           type: string
         phone:
           type: string
+        telegramUsername:
+          type: string
+          nullable: true
         branchId:
           type: integer
         assignedToId:
@@ -1377,6 +1383,9 @@ components:
           type: string
         phone:
           type: string
+        telegramUsername:
+          type: string
+          nullable: true
         status:
           type: string
           enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]

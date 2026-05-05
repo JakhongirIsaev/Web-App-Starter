@@ -11,6 +11,7 @@ import type { CreateClientBodyGender } from "./createClientBodyGender";
 export interface CreateClientBody {
   fullName?: string;
   phone?: string;
+  telegramUsername?: string | null;
   branchId: number;
   assignedToId?: number;
   clientType?: CreateClientBodyClientType;

@@ -16,6 +16,7 @@ export interface Client {
   sessionId: string;
   fullName?: string | null;
   phone?: string | null;
+  telegramUsername?: string | null;
   status: ClientStatus;
   branchId: number;
   branch?: Branch | null;

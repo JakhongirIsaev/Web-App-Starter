@@ -159,6 +159,10 @@ export default function NewClientPage() {
   /* Identity */
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  // Phase C4: optional Telegram username so the leave-behind PDF can ship
+  // directly to the client. Stored without the leading "@" — the input
+  // accepts either form for convenience.
+  const [telegramUsername, setTelegramUsername] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number] | "">("");
@@ -222,6 +226,7 @@ export default function NewClientPage() {
       api.post("/mini-app/clients", {
         fullName: fullName.trim() || null,
         phone: phone.trim() || null,
+        telegramUsername: telegramUsername.trim().replace(/^@+/, "") || undefined,
         gender: gender || undefined,
         businessName: businessName.trim() || undefined,
         businessType: businessType || undefined,
@@ -319,6 +324,22 @@ export default function NewClientPage() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder={t("newClient.phonePlaceholder")}
               inputMode="tel"
+              className="w-full outline-none transition-colors"
+              style={inputBaseStyle}
+              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+            />
+          </div>
+
+          <div>
+            <FieldLabel>{t("newClient.telegramUsername")}</FieldLabel>
+            <input
+              value={telegramUsername}
+              onChange={(e) => setTelegramUsername(e.target.value)}
+              placeholder={t("newClient.telegramUsernamePlaceholder")}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
               onFocus={(e) => (e.target.style.borderColor = "#16A34A")}

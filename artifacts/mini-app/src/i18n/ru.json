@@ -144,6 +144,9 @@
     "genderFemale": "Женский",
     "address": "Адрес",
     "createdAt": "Дата создания",
+    "sendPdfToLead": "Отправить КП клиенту",
+    "pdfSentTelegram": "КП отправлено клиенту в Telegram",
+    "pdfSendFailed": "Не удалось отправить",
     "productTypes": {
       "credit": "Кредитный продукт",
       "nonCredit": "Некредитный продукт"
@@ -156,6 +159,8 @@
     "fullNamePlaceholder": "Введите ФИО клиента",
     "phone": "Телефон (можно позже)",
     "phonePlaceholder": "+998 ...",
+    "telegramUsername": "Telegram (необязательно)",
+    "telegramUsernamePlaceholder": "@username",
     "create": "Сохранить клиента",
     "creating": "Сохранение...",
     "created": "Клиент создан",
