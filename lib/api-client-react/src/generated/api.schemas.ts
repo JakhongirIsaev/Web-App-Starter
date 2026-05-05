@@ -112,6 +112,7 @@ export type ClientStatus = (typeof ClientStatus)[keyof typeof ClientStatus];
 
 export const ClientStatus = {
   draft: "draft",
+  lead: "lead",
   questionnaire: "questionnaire",
   recommendation: "recommendation",
   basket: "basket",
@@ -156,6 +157,16 @@ export interface Client {
   latitude?: number | null;
   longitude?: number | null;
   rejectionReason?: string | null;
+  leadSource?: string | null;
+  referrerClientId?: number | null;
+  selfCheckCitizenshipUz?: boolean | null;
+  selfCheckSixMonthsOperation?: boolean | null;
+  selfCheckPredominantlyPrivate?: boolean | null;
+  selfCheckBranchServiceArea?: boolean | null;
+  purpose?: string | null;
+  desiredAmountUzs?: number | null;
+  desiredTermMonths?: number | null;
+  preferredCurrency?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,6 +205,16 @@ export interface CreateClientBody {
   latitude?: number;
   longitude?: number;
   rejectionReason?: string;
+  leadSource?: string | null;
+  referrerClientId?: number | null;
+  selfCheckCitizenshipUz?: boolean | null;
+  selfCheckSixMonthsOperation?: boolean | null;
+  selfCheckPredominantlyPrivate?: boolean | null;
+  selfCheckBranchServiceArea?: boolean | null;
+  purpose?: string | null;
+  desiredAmountUzs?: number | null;
+  desiredTermMonths?: number | null;
+  preferredCurrency?: string | null;
 }
 
 export type UpdateClientBodyStatus =
@@ -201,6 +222,7 @@ export type UpdateClientBodyStatus =
 
 export const UpdateClientBodyStatus = {
   draft: "draft",
+  lead: "lead",
   questionnaire: "questionnaire",
   recommendation: "recommendation",
   basket: "basket",
@@ -238,6 +260,16 @@ export interface UpdateClientBody {
   latitude?: number;
   longitude?: number;
   rejectionReason?: string;
+  leadSource?: string | null;
+  referrerClientId?: number | null;
+  selfCheckCitizenshipUz?: boolean | null;
+  selfCheckSixMonthsOperation?: boolean | null;
+  selfCheckPredominantlyPrivate?: boolean | null;
+  selfCheckBranchServiceArea?: boolean | null;
+  purpose?: string | null;
+  desiredAmountUzs?: number | null;
+  desiredTermMonths?: number | null;
+  preferredCurrency?: string | null;
 }
 
 export interface ProductCategory {

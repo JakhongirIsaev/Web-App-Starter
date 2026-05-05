@@ -27,6 +27,16 @@ export interface Client {
   latitude?: number | null;
   longitude?: number | null;
   rejectionReason?: string | null;
+  leadSource?: string | null;
+  referrerClientId?: number | null;
+  selfCheckCitizenshipUz?: boolean | null;
+  selfCheckSixMonthsOperation?: boolean | null;
+  selfCheckPredominantlyPrivate?: boolean | null;
+  selfCheckBranchServiceArea?: boolean | null;
+  purpose?: string | null;
+  desiredAmountUzs?: number | null;
+  desiredTermMonths?: number | null;
+  preferredCurrency?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

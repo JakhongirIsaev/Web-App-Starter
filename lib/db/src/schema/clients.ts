@@ -1,11 +1,12 @@
-import { pgTable, serial, text, timestamp, integer, numeric, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, uuid, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
 import { usersTable } from "./users";
 
 export const clientStatusEnum = [
-  "draft", "questionnaire", "recommendation", "basket", "pdf_generated",
+  "draft", "lead", "questionnaire",
+  "recommendation", "basket", "pdf_generated",
   "under_review", "approved", "completed", "rejected",
 ] as const;
 export type ClientStatus = typeof clientStatusEnum[number];
@@ -16,6 +17,9 @@ export type ClientType = typeof clientTypeEnum[number];
 export const genderEnum = ["male", "female"] as const;
 export type Gender = typeof genderEnum[number];
 
+// Canonical lead_source values:
+//   direct_visit, referral_existing_client, mass_media_tv, mass_media_radio,
+//   mass_media_print, mahalla_booklet, walk_in, other
 export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   sessionId: text("session_id").notNull().unique(),
@@ -34,6 +38,16 @@ export const clientsTable = pgTable("clients", {
   espoLeadId: text("espo_lead_id"),
   espoSyncedAt: timestamp("espo_synced_at"),
   espoLastError: text("espo_last_error"),
+  leadSource: text("lead_source"),
+  referrerClientId: integer("referrer_client_id"),  // self-FK; do NOT add .references() here to avoid circular reference issues
+  selfCheckCitizenshipUz: boolean("self_check_citizenship_uz"),
+  selfCheckSixMonthsOperation: boolean("self_check_six_months_operation"),
+  selfCheckPredominantlyPrivate: boolean("self_check_predominantly_private"),
+  selfCheckBranchServiceArea: boolean("self_check_branch_service_area"),
+  purpose: text("purpose"),
+  desiredAmountUzs: numeric("desired_amount_uzs", { precision: 18, scale: 2 }),
+  desiredTermMonths: integer("desired_term_months"),
+  preferredCurrency: text("preferred_currency"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [

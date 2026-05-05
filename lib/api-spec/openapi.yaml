@@ -1228,7 +1228,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
+          enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         branchId:
           type: integer
         branch:
@@ -1258,6 +1258,36 @@ components:
           type: number
           nullable: true
         rejectionReason:
+          type: string
+          nullable: true
+        leadSource:
+          type: string
+          nullable: true
+        referrerClientId:
+          type: integer
+          nullable: true
+        selfCheckCitizenshipUz:
+          type: boolean
+          nullable: true
+        selfCheckSixMonthsOperation:
+          type: boolean
+          nullable: true
+        selfCheckPredominantlyPrivate:
+          type: boolean
+          nullable: true
+        selfCheckBranchServiceArea:
+          type: boolean
+          nullable: true
+        purpose:
+          type: string
+          nullable: true
+        desiredAmountUzs:
+          type: number
+          nullable: true
+        desiredTermMonths:
+          type: integer
+          nullable: true
+        preferredCurrency:
           type: string
           nullable: true
         createdAt:
@@ -1308,6 +1338,36 @@ components:
           type: number
         rejectionReason:
           type: string
+        leadSource:
+          type: string
+          nullable: true
+        referrerClientId:
+          type: integer
+          nullable: true
+        selfCheckCitizenshipUz:
+          type: boolean
+          nullable: true
+        selfCheckSixMonthsOperation:
+          type: boolean
+          nullable: true
+        selfCheckPredominantlyPrivate:
+          type: boolean
+          nullable: true
+        selfCheckBranchServiceArea:
+          type: boolean
+          nullable: true
+        purpose:
+          type: string
+          nullable: true
+        desiredAmountUzs:
+          type: number
+          nullable: true
+        desiredTermMonths:
+          type: integer
+          nullable: true
+        preferredCurrency:
+          type: string
+          nullable: true
       required: [branchId]
 
     UpdateClientBody:
@@ -1319,7 +1379,7 @@ components:
           type: string
         status:
           type: string
-          enum: [draft, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
+          enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         assignedToId:
           type: integer
         clientType:
@@ -1336,6 +1396,36 @@ components:
           type: number
         rejectionReason:
           type: string
+        leadSource:
+          type: string
+          nullable: true
+        referrerClientId:
+          type: integer
+          nullable: true
+        selfCheckCitizenshipUz:
+          type: boolean
+          nullable: true
+        selfCheckSixMonthsOperation:
+          type: boolean
+          nullable: true
+        selfCheckPredominantlyPrivate:
+          type: boolean
+          nullable: true
+        selfCheckBranchServiceArea:
+          type: boolean
+          nullable: true
+        purpose:
+          type: string
+          nullable: true
+        desiredAmountUzs:
+          type: number
+          nullable: true
+        desiredTermMonths:
+          type: integer
+          nullable: true
+        preferredCurrency:
+          type: string
+          nullable: true
 
     ProductCategory:
       type: object
