@@ -25,7 +25,7 @@ COPY lib/api-zod/package.json lib/api-zod/package.json
 COPY lib/api-spec/package.json lib/api-spec/package.json
 COPY lib/api-client-react/package.json lib/api-client-react/package.json
 COPY scripts/ scripts/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 
