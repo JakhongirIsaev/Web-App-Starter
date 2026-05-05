@@ -192,7 +192,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
 
   const pipelineSteps = [
     { id: 'draft', label: t("statuses.draft") },
-    { id: 'questionnaire', label: t("statuses.questionnaire") },
+    { id: 'lead', label: t("statuses.lead") },
     { id: 'recommendation', label: t("statuses.recommendation") },
     { id: 'basket', label: t("statuses.basket") },
     { id: 'pdf_generated', label: t("statuses.pdf_generated") },
@@ -225,7 +225,6 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
               <SelectContent>
                 <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
                 <SelectItem value="lead">{t("statuses.lead")}</SelectItem>
-                <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
                 <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
                 <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
                 <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>
@@ -470,7 +469,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
             <CardContent>
               <div className="space-y-3">
                 {pipelineSteps.map((step) => {
-                  const statuses = ['draft', 'questionnaire', 'recommendation', 'basket', 'pdf_generated', 'completed', 'rejected'];
+                  const statuses = ['draft', 'lead', 'recommendation', 'basket', 'pdf_generated', 'completed', 'rejected'];
                   const currentIndex = statuses.indexOf(client.status);
                   const stepIndex = statuses.indexOf(step.id);
                   const isCompleted = stepIndex <= currentIndex && client.status !== 'rejected';

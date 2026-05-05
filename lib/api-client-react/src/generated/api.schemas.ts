@@ -113,7 +113,6 @@ export type ClientStatus = (typeof ClientStatus)[keyof typeof ClientStatus];
 export const ClientStatus = {
   draft: "draft",
   lead: "lead",
-  questionnaire: "questionnaire",
   recommendation: "recommendation",
   basket: "basket",
   pdf_generated: "pdf_generated",
@@ -225,7 +224,6 @@ export type UpdateClientBodyStatus =
 export const UpdateClientBodyStatus = {
   draft: "draft",
   lead: "lead",
-  questionnaire: "questionnaire",
   recommendation: "recommendation",
   basket: "basket",
   pdf_generated: "pdf_generated",

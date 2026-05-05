@@ -5,7 +5,7 @@ import { branchesTable } from "./branches";
 import { usersTable } from "./users";
 
 export const clientStatusEnum = [
-  "draft", "lead", "questionnaire",
+  "draft", "lead",
   "recommendation", "basket", "pdf_generated",
   "under_review", "approved", "completed", "rejected",
 ] as const;

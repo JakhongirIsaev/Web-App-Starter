@@ -33,26 +33,12 @@ export const clientNextActionsTable = pgTable("client_next_actions", {
   index("client_actions_action_date_idx").on(table.actionDate),
 ]);
 
-export const questionnaireSessionsTable = pgTable("questionnaire_sessions", {
-  id: serial("id").primaryKey(),
-  clientId: integer("client_id").notNull().references(() => clientsTable.id),
-  userId: integer("user_id").notNull().references(() => usersTable.id),
-  status: text("status").notNull().default("in_progress"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => [
-  index("questionnaire_sessions_client_id_idx").on(table.clientId),
-]);
-
-export const questionnaireAnswersTable = pgTable("questionnaire_answers", {
-  id: serial("id").primaryKey(),
-  sessionId: integer("session_id").notNull().references(() => questionnaireSessionsTable.id),
-  questionKey: text("question_key").notNull(),
-  answer: text("answer").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => [
-  index("questionnaire_answers_session_id_idx").on(table.sessionId),
-]);
+// Phase B3a: questionnaire tables archived in DB (renamed to
+// archived_questionnaire_sessions / archived_questionnaire_answers via
+// migration 0012). The fixed lead-form on /new-client now writes its
+// answers directly onto clientsTable (preferredCurrency, purpose,
+// desiredAmountUzs, desiredTermMonths, etc.), so no active code path
+// references the legacy tables. The data is preserved for audit.
 
 export const basketsTable = pgTable("baskets", {
   id: serial("id").primaryKey(),

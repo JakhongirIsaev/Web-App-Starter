@@ -15,13 +15,12 @@ import {
 import { ClientRow, getInitials, timeAgo } from "@/components/ui-primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-// "lead" replaces "questionnaire" mid-funnel after B3. Both remain so legacy
-// rows can still be filtered while the migration to "lead" rolls out.
+// Phase B3a: "questionnaire" was dropped from clientStatusEnum; legacy rows
+// were backfilled to "lead" by migration 0008.
 const STATUS_KEYS = [
   "",
   "draft",
   "lead",
-  "questionnaire",
   "recommendation",
   "basket",
   "pdf_generated",

@@ -12,8 +12,6 @@ import {
   articleVisibilityTable,
   clientNotesTable,
   clientNextActionsTable,
-  questionnaireSessionsTable,
-  questionnaireAnswersTable,
   basketsTable,
   basketItemsTable,
   calculationsTable,
@@ -69,7 +67,6 @@ import {
   MiniAppNoteBody,
   MiniAppOcrUpdateBody,
   MiniAppAutoExcelBody,
-  MiniAppQuestionnaireBody,
   MiniAppRecommendBody,
   MiniAppUpdateClientBody,
 } from "@workspace/api-zod";
@@ -305,24 +302,45 @@ async function getRecommendationCatalog(language: PdfLanguage, needType?: string
   ];
 }
 
-async function getLatestQuestionnaireAnswers(clientId: number): Promise<QuestionnaireAnswer[]> {
-  const [session] = await db
-    .select({ id: questionnaireSessionsTable.id })
-    .from(questionnaireSessionsTable)
-    .where(eq(questionnaireSessionsTable.clientId, clientId))
-    .orderBy(desc(questionnaireSessionsTable.createdAt))
+// Phase B3a: the legacy questionnaire_* tables were renamed to archived_* and
+// no longer participate in the live funnel. The fixed lead-form on /new-client
+// writes its answers directly onto clientsTable, so we synthesize the
+// preference-answer array from the client row to keep buildClientPreferenceProfile
+// (and the downstream PDF / recommendation pipeline) working unchanged.
+async function getClientPreferenceAnswers(clientId: number): Promise<QuestionnaireAnswer[]> {
+  const [client] = await db
+    .select({
+      clientSegment: clientsTable.clientSegment,
+      purpose: clientsTable.purpose,
+      desiredAmountUzs: clientsTable.desiredAmountUzs,
+      desiredTermMonths: clientsTable.desiredTermMonths,
+      preferredCurrency: clientsTable.preferredCurrency,
+    })
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
     .limit(1);
 
-  if (!session) return [];
+  if (!client) return [];
 
-  return db
-    .select({
-      questionKey: questionnaireAnswersTable.questionKey,
-      answer: questionnaireAnswersTable.answer,
-    })
-    .from(questionnaireAnswersTable)
-    .where(eq(questionnaireAnswersTable.sessionId, session.id))
-    .orderBy(questionnaireAnswersTable.id);
+  const answers: QuestionnaireAnswer[] = [];
+  if (client.clientSegment) {
+    answers.push({ questionKey: "business_size", answer: client.clientSegment });
+  }
+  if (client.purpose) {
+    answers.push({ questionKey: "loan_purpose", answer: client.purpose });
+  }
+  if (client.desiredAmountUzs !== null && client.desiredAmountUzs !== undefined) {
+    answers.push({ questionKey: "desired_amount", answer: String(client.desiredAmountUzs) });
+  }
+  if (client.desiredTermMonths !== null && client.desiredTermMonths !== undefined) {
+    answers.push({ questionKey: "desired_term", answer: String(client.desiredTermMonths) });
+  }
+  if (client.preferredCurrency) {
+    // Profile labels keep currency codes lowercase (uzs/usd/eur); the column
+    // stores them uppercase per preferredCurrencySchema.
+    answers.push({ questionKey: "preferred_currency", answer: client.preferredCurrency.toLowerCase() });
+  }
+  return answers;
 }
 
 async function getDetailedBasketItems(clientId: number): Promise<DetailedBasketItem[]> {
@@ -642,7 +660,7 @@ async function buildPdfPayload(
     .where(eq(calculationsTable.clientId, clientId))
     .orderBy(desc(calculationsTable.createdAt));
 
-  const answers = await getLatestQuestionnaireAnswers(clientId);
+  const answers = await getClientPreferenceAnswers(clientId);
   const profile = buildClientPreferenceProfile(answers, language);
   const preferenceSummary = summarizeClientPreferences(profile, language);
 
@@ -919,11 +937,10 @@ router.get("/mini-app/todo", guestAuth, async (req, res) => {
       isAdmin
         ? or(
             eq(clientsTable.status, "draft"),
-            // "lead" replaces the legacy "questionnaire" mid-funnel marker
-            // post-B3. Both are kept for backwards compatibility with rows
-            // that haven't been migrated yet.
+            // Phase B3a: "lead" is the sole mid-funnel marker; the legacy
+            // "questionnaire" status was backfilled to "lead" by migration
+            // 0008 and dropped from clientStatusEnum in 0012.
             eq(clientsTable.status, "lead"),
-            eq(clientsTable.status, "questionnaire"),
             eq(clientsTable.status, "recommendation")
           )
         : and(
@@ -931,7 +948,6 @@ router.get("/mini-app/todo", guestAuth, async (req, res) => {
             or(
               eq(clientsTable.status, "draft"),
               eq(clientsTable.status, "lead"),
-              eq(clientsTable.status, "questionnaire"),
               eq(clientsTable.status, "recommendation")
             )
           )
@@ -1254,8 +1270,6 @@ router.get("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     .where(eq(calculationsTable.clientId, clientId))
     .orderBy(desc(calculationsTable.createdAt));
 
-  const questionnaireAnswers = await getLatestQuestionnaireAnswers(clientId);
-
   res.json({
     client,
     notes,
@@ -1263,7 +1277,6 @@ router.get("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     basket: basket[0] || null,
     basketItems,
     calculations,
-    questionnaireAnswers,
   });
 });
 
@@ -1355,58 +1368,11 @@ router.put("/mini-app/next-actions/:id/complete", guestAuth, requireNextActionAc
   res.json(action);
 });
 
-router.post("/mini-app/questionnaire", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
-  const parsed = MiniAppQuestionnaireBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
-    return;
-  }
-  const { clientId, answers, clearBasket } = parsed.data;
-
-  const session = await db.transaction(async (tx) => {
-    const [createdSession] = await tx
-      .insert(questionnaireSessionsTable)
-      .values({
-        clientId,
-        userId: req.user!.id,
-        status: "completed",
-        completedAt: new Date(),
-      })
-      .returning();
-
-    for (const a of answers) {
-      await tx.insert(questionnaireAnswersTable).values({
-        sessionId: createdSession.id,
-        questionKey: a.questionKey,
-        answer: a.answer,
-      });
-    }
-
-    if (clearBasket) {
-      const activeBaskets = await tx
-        .select({ id: basketsTable.id })
-        .from(basketsTable)
-        .where(and(eq(basketsTable.clientId, clientId), eq(basketsTable.status, "active")));
-
-      if (activeBaskets.length > 0) {
-        const basketIds = activeBaskets.map((item) => item.id);
-        await tx.delete(basketItemsTable).where(inArray(basketItemsTable.basketId, basketIds));
-        await tx.delete(basketsTable).where(inArray(basketsTable.id, basketIds));
-      }
-
-      await tx.delete(calculationsTable).where(eq(calculationsTable.clientId, clientId));
-    }
-
-    await tx
-      .update(clientsTable)
-      .set({ status: "questionnaire", updatedAt: new Date() })
-      .where(eq(clientsTable.id, clientId));
-
-    return createdSession;
-  });
-
-  res.json(session);
-});
+// Phase B3a: POST /mini-app/questionnaire was removed alongside the legacy
+// questionnaire UI. The fixed lead-form on /new-client persists answers
+// directly via POST /mini-app/clients (and PUT /mini-app/clients/:id), and
+// the recommendation flow reads them from clientsTable through
+// getClientPreferenceAnswers().
 
 router.post("/mini-app/recommend", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppRecommendBody.safeParse(req.body);

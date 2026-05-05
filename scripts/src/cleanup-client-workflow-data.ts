@@ -69,15 +69,15 @@ async function main() {
     clientNextActions: await count(pool, "select count(*) from client_next_actions where client_id = any($1::int[])", [
       clientIds,
     ]),
-    questionnaireSessions: await count(pool, "select count(*) from questionnaire_sessions where client_id = any($1::int[])", [
+    questionnaireSessions: await count(pool, "select count(*) from archived_questionnaire_sessions where client_id = any($1::int[])", [
       clientIds,
     ]),
     questionnaireAnswers: await count(
       pool,
       `
         select count(*)
-        from questionnaire_answers
-        where session_id in (select id from questionnaire_sessions where client_id = any($1::int[]))
+        from archived_questionnaire_answers
+        where session_id in (select id from archived_questionnaire_sessions where client_id = any($1::int[]))
       `,
       [clientIds],
     ),
@@ -143,15 +143,15 @@ async function main() {
     clientNextActions: await queryRows(pool, "select * from client_next_actions where client_id = any($1::int[])", [
       clientIds,
     ]),
-    questionnaireSessions: await queryRows(pool, "select * from questionnaire_sessions where client_id = any($1::int[])", [
+    questionnaireSessions: await queryRows(pool, "select * from archived_questionnaire_sessions where client_id = any($1::int[])", [
       clientIds,
     ]),
     questionnaireAnswers: await queryRows(
       pool,
       `
         select *
-        from questionnaire_answers
-        where session_id in (select id from questionnaire_sessions where client_id = any($1::int[]))
+        from archived_questionnaire_answers
+        where session_id in (select id from archived_questionnaire_sessions where client_id = any($1::int[]))
       `,
       [clientIds],
     ),
@@ -222,12 +222,12 @@ async function main() {
     await client.query("delete from baskets where client_id = any($1::int[])", [clientIds]);
     await client.query(
       `
-        delete from questionnaire_answers
-        where session_id in (select id from questionnaire_sessions where client_id = any($1::int[]))
+        delete from archived_questionnaire_answers
+        where session_id in (select id from archived_questionnaire_sessions where client_id = any($1::int[]))
       `,
       [clientIds],
     );
-    await client.query("delete from questionnaire_sessions where client_id = any($1::int[])", [clientIds]);
+    await client.query("delete from archived_questionnaire_sessions where client_id = any($1::int[])", [clientIds]);
     await client.query("delete from client_next_actions where client_id = any($1::int[])", [clientIds]);
     await client.query("delete from client_notes where client_id = any($1::int[])", [clientIds]);
     await client.query("delete from clients where id = any($1::int[])", [clientIds]);

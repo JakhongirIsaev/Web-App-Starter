@@ -41,13 +41,9 @@ export const MiniAppCalculateBody = z.object({
   downPaymentPct: z.coerce.number().min(0).max(100).optional(),
 });
 
-export const MiniAppQuestionnaireBody = z.object({
-  clientId: z.number().positive(),
-  answers: z.array(z.object({ questionKey: z.string().min(1), answer: z.string() })).min(1),
-  // When true, archive the client's active baskets before recording new answers.
-  // Default false preserves prior baskets/calculations so historical recommendations remain auditable.
-  clearBasket: z.boolean().optional().default(false),
-});
+// Phase B3a: MiniAppQuestionnaireBody removed alongside the legacy
+// /mini-app/questionnaire route. The fixed lead-form persists answers via
+// MiniAppCreateClientBody / MiniAppUpdateClientBody directly.
 
 export const MiniAppRecommendBody = z.object({
   clientId: z.number().positive(),
@@ -129,7 +125,7 @@ export const MiniAppUpdateClientBody = z.object({
   telegramUsername: z.string().optional(),
   status: z.enum([
     "draft",
-    "questionnaire",
+    "lead",
     "recommendation",
     "basket",
     "pdf_generated",

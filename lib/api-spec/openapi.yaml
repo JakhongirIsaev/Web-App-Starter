@@ -1231,7 +1231,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
+          enum: [draft, lead, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         branchId:
           type: integer
         branch:
@@ -1394,7 +1394,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, lead, questionnaire, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
+          enum: [draft, lead, recommendation, basket, pdf_generated, under_review, approved, completed, rejected]
         assignedToId:
           type: integer
         clientType:

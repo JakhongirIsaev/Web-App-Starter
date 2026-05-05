@@ -285,7 +285,6 @@ export default function Clients({ user }: { user?: { role: string } }) {
               <SelectItem value="all">{t("clients.allStatuses")}</SelectItem>
               <SelectItem value="draft">{t("statuses.draft")}</SelectItem>
               <SelectItem value="lead">{t("statuses.lead")}</SelectItem>
-              <SelectItem value="questionnaire">{t("statuses.questionnaire")}</SelectItem>
               <SelectItem value="recommendation">{t("statuses.recommendation")}</SelectItem>
               <SelectItem value="basket">{t("statuses.basket")}</SelectItem>
               <SelectItem value="pdf_generated">{t("statuses.pdf_generated")}</SelectItem>

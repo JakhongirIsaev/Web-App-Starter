@@ -48,10 +48,9 @@ export function GenderBadge({ gender }: { gender?: "male" | "female" | null }) {
 /* ── Status chip ── */
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft:          { label: "Черновик",  cls: "mn-chip-draft" },
-  // "lead" replaces "questionnaire" mid-funnel after B3. Both kept so legacy
-  // rows still render with a sensible label/colour.
+  // Phase B3a: "lead" is the sole mid-funnel marker; the legacy
+  // "questionnaire" status was dropped from clientStatusEnum.
   lead:           { label: "Лид",      cls: "mn-chip-questionnaire" },
-  questionnaire:  { label: "Анкета",   cls: "mn-chip-questionnaire" },
   recommendation: { label: "Подбор",   cls: "mn-chip-recommendation" },
   basket:         { label: "Корзина",  cls: "mn-chip-basket" },
   pdf_generated:  { label: "КП готово",cls: "mn-chip-pdf_generated" },
