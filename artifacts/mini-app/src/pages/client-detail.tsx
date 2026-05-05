@@ -154,6 +154,7 @@ export default function ClientDetailPage() {
   const [actionType, setActionType] = useState("follow_up");
   const [actionDate, setActionDate] = useState("");
   const [actionPriority, setActionPriority] = useState("medium");
+  const [actionDescription, setActionDescription] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   /* ── queries ── */
@@ -194,12 +195,14 @@ export default function ClientDetailPage() {
         actionType,
         actionDate,
         priority: actionPriority,
+        description: actionDescription || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
       setShowActionForm(false);
       setActionDate("");
+      setActionDescription("");
     },
   });
 
@@ -682,6 +685,13 @@ export default function ClientDetailPage() {
             <option value="medium">{t("clientDetail.medium")}</option>
             <option value="low">{t("clientDetail.low")}</option>
           </select>
+          <textarea
+            value={actionDescription}
+            onChange={(e) => setActionDescription(e.target.value)}
+            placeholder={t("clientDetail.actionDescriptionPlaceholder")}
+            rows={2}
+            className="w-full px-3 py-2 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#16A34A]/30 resize-none"
+          />
           <div className="flex gap-2">
             <button
               onClick={() => addActionMutation.mutate()}

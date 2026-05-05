@@ -125,6 +125,7 @@
     "high": "Высокий",
     "medium": "Средний",
     "low": "Низкий",
+    "actionDescriptionPlaceholder": "Заметка о напоминании (необязательно)",
     "basket": "Корзина продуктов",
     "noBasket": "Корзина пуста",
     "calculations": "Расчёты",
