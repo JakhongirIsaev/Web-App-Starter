@@ -13,3 +13,4 @@ export * from "./password-reset-tokens";
 export * from "./collateral";
 export * from "./system-settings";
 export * from "./recommendation-documents";
+export * from "./espo-sync-jobs";

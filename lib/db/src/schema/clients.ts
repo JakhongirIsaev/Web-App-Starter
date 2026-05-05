@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, uuid, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
@@ -30,6 +30,10 @@ export const clientsTable = pgTable("clients", {
   rejectionReason: text("rejection_reason"),
   latitude: numeric("latitude", { precision: 10, scale: 7 }),
   longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  externalUuid: uuid("external_uuid").notNull().defaultRandom().unique(),
+  espoLeadId: text("espo_lead_id"),
+  espoSyncedAt: timestamp("espo_synced_at"),
+  espoLastError: text("espo_last_error"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
