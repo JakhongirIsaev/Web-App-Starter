@@ -18,6 +18,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RowActions } from "@/components/row-actions";
+import { ToolbarOverflow, type ToolbarOverflowAction } from "@/components/toolbar-overflow";
 import { ImportPreviewDialog } from "@/components/import-preview-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -149,26 +150,32 @@ export default function Articles({ user }: { user?: { role: string } }) {
           <h2 className="text-3xl font-bold tracking-tight">{t("articles.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("articles.subtitle")}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           {canWrite && (
-            <>
-              <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
-              <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-                <Upload className="h-4 w-4" />
-                {t("common.import")}
-              </Button>
-            </>
+            <input type="file" ref={importRef} accept=".csv" onChange={handleImport} className="hidden" />
           )}
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />
-            {t("common.export")}
-          </Button>
           {canWrite && (
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="h-4 w-4" />
               {t("articles.createArticle")}
             </Button>
           )}
+          <ToolbarOverflow
+            triggerLabel={t("common.moreActions")}
+            actions={[
+              {
+                label: t("common.import"),
+                icon: Upload,
+                hidden: !canWrite,
+                onClick: () => importRef.current?.click(),
+              },
+              {
+                label: t("common.export"),
+                icon: Download,
+                onClick: handleExport,
+              },
+            ] as ToolbarOverflowAction[]}
+          />
         </div>
       </div>
 

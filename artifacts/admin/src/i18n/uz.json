@@ -40,7 +40,8 @@
     "total": "Jami",
     "prev": "Oldingi",
     "nextPage": "Keyingi",
-    "openNavigation": "Navigatsiya menyusini ochish"
+    "openNavigation": "Navigatsiya menyusini ochish",
+    "moreActions": "Boshqa amallar"
   },
   "nav": {
     "overview": "Umumiy ko'rinish",

@@ -25,6 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RowActions } from "@/components/row-actions";
+import { ToolbarOverflow, type ToolbarOverflowAction } from "@/components/toolbar-overflow";
 import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
 
 async function apiFetch(url: string, options?: RequestInit) {
@@ -319,23 +320,31 @@ export default function CreditProducts({ user }: { user?: { role: string } }) {
           <h2 className="text-3xl font-bold tracking-tight">{t("creditProducts.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("creditProducts.subtitle")}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           {canAdmin && (
-            <>
-              <input type="file" ref={importRef} accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
-              <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()}>
-                <Upload className="h-4 w-4" />{t("common.import")}
-              </Button>
-            </>
+            <input type="file" ref={importRef} accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
           )}
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />{t("common.export")}
-          </Button>
           {canWrite && (
             <Button className="gap-2" onClick={openCreate}>
               <Plus className="h-4 w-4" />{t("creditProducts.addProduct")}
             </Button>
           )}
+          <ToolbarOverflow
+            triggerLabel={t("common.moreActions")}
+            actions={[
+              {
+                label: t("common.import"),
+                icon: Upload,
+                hidden: !canAdmin,
+                onClick: () => importRef.current?.click(),
+              },
+              {
+                label: t("common.export"),
+                icon: Download,
+                onClick: handleExport,
+              },
+            ] as ToolbarOverflowAction[]}
+          />
         </div>
       </div>
 

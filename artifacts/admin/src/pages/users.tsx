@@ -6,6 +6,7 @@ import {
 import type { User } from "@workspace/api-client-react";
 import { Plus, Search, UserCheck, UserX, Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Eye, Building2, ChevronRight, ChevronDown, List, LayoutGrid, Users2, Pencil, Power } from "lucide-react";
 import { RowActions } from "@/components/row-actions";
+import { ToolbarOverflow, type ToolbarOverflowAction } from "@/components/toolbar-overflow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -347,7 +348,7 @@ export default function Users() {
           <h2 className="text-3xl font-bold tracking-tight">{t("users.title")}</h2>
           <p className="text-muted-foreground mt-1">{t("users.subtitle")}</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <input type="file" ref={importRef} accept=".xlsx,.xls,.csv" onChange={handleFileSelect} className="hidden" />
           <div className="flex border rounded-lg overflow-hidden">
             <Button variant={viewMode === "branch" ? "default" : "ghost"} size="sm" className="rounded-none gap-1.5" onClick={() => setViewMode("branch")}>
@@ -357,22 +358,31 @@ export default function Users() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadTemplate}>
-            <FileSpreadsheet className="h-4 w-4" />
-            {t("users.downloadTemplate")}
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => importRef.current?.click()} disabled={importing}>
-            <Upload className="h-4 w-4" />
-            {importing ? t("common.loading") : t("users.importExcel")}
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="h-4 w-4" />
-            {t("common.export")}
-          </Button>
           <Button className="gap-2" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             {t("users.addUser")}
           </Button>
+          <ToolbarOverflow
+            triggerLabel={t("common.moreActions")}
+            actions={[
+              {
+                label: importing ? t("common.loading") : t("users.importExcel"),
+                icon: Upload,
+                disabled: importing,
+                onClick: () => importRef.current?.click(),
+              },
+              {
+                label: t("users.downloadTemplate"),
+                icon: FileSpreadsheet,
+                onClick: handleDownloadTemplate,
+              },
+              {
+                label: t("common.export"),
+                icon: Download,
+                onClick: handleExport,
+              },
+            ] as ToolbarOverflowAction[]}
+          />
         </div>
       </div>
 
