@@ -89,7 +89,17 @@ async function requestBlob(path: string, options: RequestInit = {}) {
 }
 
 export async function getSignedImageUrl(objectPath: string): Promise<string> {
-  const data = await api.post("/storage/signed-url", { path: objectPath }) as { exp: number; sig: string };
+  const data = (await api.post("/storage/signed-url", { path: objectPath })) as
+    | { exp: number; sig: string }            // legacy local-FS shape
+    | { url: string; expiresIn: number };     // new R2 shape
+
+  // R2 backend returns a fully-qualified presigned URL the browser can hit
+  // directly, so just hand it back. The local-FS shape needs the legacy
+  // /storage/file?path=...&exp=...&sig=... query-signed URL build.
+  if ("url" in data) {
+    return data.url;
+  }
+
   return buildApiUrl(
     `${API_BASE}/storage/file?path=${encodeURIComponent(objectPath)}&exp=${data.exp}&sig=${data.sig}`,
   );

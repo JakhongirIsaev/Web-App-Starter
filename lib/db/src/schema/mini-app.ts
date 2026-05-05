@@ -99,6 +99,11 @@ export const calculationsTable = pgTable("calculations", {
   index("calculations_client_id_idx").on(table.clientId),
 ]);
 
+// `doc_type` is a free-form text column (no DB enum) so legacy data flows through.
+// Canonical values used by app code:
+//   photo_storefront, photo_owner,
+//   cadastre, vehicle_passport, business_license, financial_statement,
+//   voice_note, consent_signature, other
 export const clientDocumentsTable = pgTable("client_documents", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").notNull().references(() => clientsTable.id),
@@ -108,6 +113,9 @@ export const clientDocumentsTable = pgTable("client_documents", {
   storagePath: text("storage_path").notNull(),
   ocrText: text("ocr_text"),
   extractedData: jsonb("extracted_data"),
+  mimeType: text("mime_type"),
+  sizeBytes: integer("size_bytes"),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
   index("client_documents_client_id_idx").on(table.clientId),

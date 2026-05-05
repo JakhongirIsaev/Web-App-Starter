@@ -14,14 +14,14 @@ import { getStatusBadge, GenderBadge } from "./clients";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl } from "@/lib/api";
+import { buildApiUrl, getSignedImageUrl } from "@/lib/api";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatAdminLongDate } from "@/lib/time";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
+import { buildAuthHeaders } from "@/lib/auth-headers";
 
 const adminRoles = ["superadmin", "head_office_admin", "editor"];
 
@@ -375,11 +375,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   <p className="text-sm mt-1">{t("clientDetail.noDocumentsHint")}</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {documents.map((doc: any) => (
-                    <DocumentRow key={doc.id} doc={doc} t={t} />
-                  ))}
-                </div>
+                <DocumentsList documents={documents} t={t} />
               )}
             </CardContent>
           </Card>
@@ -637,23 +633,126 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
   );
 }
 
+// A document is a "photo" we want to render as a thumbnail when its mime
+// type starts with "image/" -- or, for legacy rows that pre-date the
+// `mime_type` column, when the canonical photo `doc_type` values are set
+// (see lib/db/src/schema/mini-app.ts comment).
+const PHOTO_DOC_TYPES = new Set(["photo_storefront", "photo_owner"]);
+function isPhotoDoc(doc: { mimeType?: string | null; docType?: string | null }): boolean {
+  if (typeof doc.mimeType === "string" && doc.mimeType.startsWith("image/")) return true;
+  if (typeof doc.docType === "string" && PHOTO_DOC_TYPES.has(doc.docType)) return true;
+  return false;
+}
+
+function DocumentsList({
+  documents,
+  t,
+}: {
+  documents: Array<any>;
+  t: (key: string) => string;
+}) {
+  const photos = documents.filter(isPhotoDoc);
+  const otherDocs = documents.filter((d) => !isPhotoDoc(d));
+
+  return (
+    <div className="space-y-4">
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {photos.map((doc: any) => (
+            <AdminPhotoTile key={doc.id} doc={doc} t={t} />
+          ))}
+        </div>
+      )}
+      {otherDocs.length > 0 && (
+        <div className="space-y-3">
+          {otherDocs.map((doc: any) => (
+            <DocumentRow key={doc.id} doc={doc} t={t} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminPhotoTile({ doc, t }: { doc: any; t: (key: string) => string }) {
+  const isAbsolute =
+    typeof doc.storagePath === "string" && doc.storagePath.startsWith("http");
+
+  const { data: signedUrl } = useQuery({
+    queryKey: ["admin/signed-image", doc.storagePath],
+    queryFn: () => getSignedImageUrl(doc.storagePath),
+    enabled: !!doc.storagePath && !isAbsolute,
+    // R2 URLs default to a 15-minute TTL on the server; refresh just before
+    // they expire so an open card doesn't break.
+    staleTime: 13 * 60 * 1000,
+    retry: 1,
+  });
+
+  const src = isAbsolute ? doc.storagePath : signedUrl;
+
+  return (
+    <div
+      className="relative group aspect-square rounded-lg border border-border/50 bg-muted overflow-hidden cursor-pointer"
+      onClick={() => {
+        if (src) window.open(src, "_blank", "noopener,noreferrer");
+      }}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={doc.fileName ?? doc.docType ?? "photo"}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      <div
+        className={`${src ? "hidden" : ""} absolute inset-0 flex items-center justify-center text-muted-foreground`}
+      >
+        <FileImage className="h-6 w-6" />
+      </div>
+      {doc.docType && (
+        <div className="absolute bottom-1 left-1 right-1">
+          <Badge variant="secondary" className="text-[10px] truncate w-full justify-center">
+            {doc.docType}
+          </Badge>
+        </div>
+      )}
+      {doc.extractedData && Object.keys(doc.extractedData).length > 0 && (
+        <div className="absolute top-1 right-1">
+          <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0.5">
+            <Sparkles className="h-3 w-3" />
+            {t("clientDetail.aiExtracted")}
+          </Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DocumentRow({ doc, t }: { doc: any; t: (key: string) => string }) {
   const [loading, setLoading] = useState(false);
 
+  // Use the shared `getSignedImageUrl` helper so that legacy local-FS docs
+  // (return `{exp, sig}`) and new R2 docs (return `{url}`) both work, and
+  // the absolute presigned URL is never accidentally re-wrapped with the
+  // API origin (which used to break the row click before this fix).
   const openDocument = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/storage/signed-url"), {
-        method: "POST",
-        headers: buildJsonHeaders(),
-        body: JSON.stringify({ storagePath: doc.storagePath }),
-      });
-      if (!res.ok) throw new Error("Failed to get signed URL");
-      const { url } = await res.json();
-      window.open(buildApiUrl(url), "_blank");
+      const url = await getSignedImageUrl(doc.storagePath);
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      window.open(buildApiUrl(`/api/storage/file?path=${encodeURIComponent(doc.storagePath)}`), "_blank");
+      // Last-resort fallback: hit the unsigned endpoint with a bearer token.
+      // Will only succeed on the legacy local-FS backend.
+      window.open(
+        buildApiUrl(`/api/storage/file?path=${encodeURIComponent(doc.storagePath)}`),
+        "_blank",
+      );
     } finally {
       setLoading(false);
     }
