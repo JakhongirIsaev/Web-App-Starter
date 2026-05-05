@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useListClients, getListClientsQueryKey, useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { Search, Download, Upload, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search, Download, Upload, Plus, AlertCircle, CheckCircle2, Mars, Venus } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -31,6 +31,30 @@ const STATUS_CHIP_STYLES: Record<string, { bg: string; color: string }> = {
   completed:      { bg: "hsl(142 65% 42% / .14)",  color: "hsl(142 65% 30%)" },
   rejected:       { bg: "hsl(0 80% 58% / .12)",    color: "hsl(0 80% 48%)" },
 };
+
+export function GenderIcon({ gender }: { gender?: string | null }) {
+  if (gender === "male") return <Mars className="w-3.5 h-3.5 shrink-0" style={{ color: "#3B82F6" }} aria-label="male" />;
+  if (gender === "female") return <Venus className="w-3.5 h-3.5 shrink-0" style={{ color: "#EC4899" }} aria-label="female" />;
+  return null;
+}
+
+export function GenderBadge({ gender, t }: { gender?: string | null; t: (key: string) => string }) {
+  if (gender !== "male" && gender !== "female") return null;
+  const isFemale = gender === "female";
+  const Icon = isFemale ? Venus : Mars;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={{
+        background: isFemale ? "#FCE7F3" : "#DBEAFE",
+        color: isFemale ? "#BE185D" : "#1D4ED8",
+      }}
+    >
+      <Icon className="w-3 h-3" />
+      {isFemale ? t("clientDetail.genderFemale") : t("clientDetail.genderMale")}
+    </span>
+  );
+}
 
 export function getStatusBadge(status: string, t: (key: string) => string) {
   const label = t(`statuses.${status}`);
@@ -329,8 +353,11 @@ export default function Clients({ user }: { user?: { role: string } }) {
                     onClick={() => navigate(`/clients/${client.id}`)}
                   >
                     <TableCell className="py-[11px]">
-                      <div className="text-sm font-medium text-foreground">
-                        {client.fullName || t("clients.anonymous")}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-foreground">
+                          {client.fullName || t("clients.anonymous")}
+                        </span>
+                        <GenderIcon gender={client.gender} />
                       </div>
                       <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                         ID: {client.sessionId.substring(0,8)}

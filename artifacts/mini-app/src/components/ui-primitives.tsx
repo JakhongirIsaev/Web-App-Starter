@@ -3,8 +3,47 @@
  * Mirrors the design system's primitives.jsx but as typed React components.
  */
 import { type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Mars, Venus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+/* ── Gender icon (Mars/Venus, color-coded) ── */
+export function GenderIcon({
+  gender,
+  size = 14,
+}: {
+  gender?: "male" | "female" | null;
+  size?: number;
+}) {
+  if (gender !== "male" && gender !== "female") return null;
+  const color = gender === "female" ? "#EC4899" : "#3B82F6";
+  const Icon = gender === "female" ? Venus : Mars;
+  return (
+    <Icon
+      className="shrink-0"
+      style={{ color, width: size, height: size }}
+      aria-label={gender}
+    />
+  );
+}
+
+export function GenderBadge({ gender }: { gender?: "male" | "female" | null }) {
+  const { t } = useTranslation();
+  if (gender !== "male" && gender !== "female") return null;
+  const isFemale = gender === "female";
+  const Icon = isFemale ? Venus : Mars;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      style={{
+        background: isFemale ? "#FCE7F3" : "#DBEAFE",
+        color: isFemale ? "#BE185D" : "#1D4ED8",
+      }}
+    >
+      <Icon className="w-3 h-3" />
+      {isFemale ? t("clientDetail.genderFemale") : t("clientDetail.genderMale")}
+    </span>
+  );
+}
 
 /* ── Status chip ── */
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -107,6 +146,7 @@ export function ClientRow({
     amount?: number;
     product?: string;
     updatedAt?: string;
+    gender?: "male" | "female" | null;
   };
   onClick?: () => void;
 }) {
@@ -118,8 +158,11 @@ export function ClientRow({
     >
       <Monogram text={initials} size={44} />
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-semibold text-[#0F172A] truncate">
-          {client.fullName || "—"}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[15px] font-semibold text-[#0F172A] truncate">
+            {client.fullName || "—"}
+          </span>
+          <GenderIcon gender={client.gender} size={14} />
         </div>
         <div className="flex items-center gap-2 text-[12px] text-[#64748B] mt-0.5 overflow-hidden">
           {client.product && (
