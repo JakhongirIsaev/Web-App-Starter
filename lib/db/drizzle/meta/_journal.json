@@ -29,6 +29,13 @@
       "when": 1777443551973,
       "tag": "0003_recommendation_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778688000000,
+      "tag": "0004_users_phone",
+      "breakpoints": true
     }
   ]
 }

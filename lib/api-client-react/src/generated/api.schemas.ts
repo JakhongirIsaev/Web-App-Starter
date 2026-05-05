@@ -42,6 +42,7 @@ export interface User {
   id: number;
   telegramId: string;
   name: string;
+  phone?: string | null;
   role: UserRole;
   branchId?: number | null;
   branch?: Branch | null;

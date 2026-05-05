@@ -1152,6 +1152,9 @@ components:
           type: string
         name:
           type: string
+        phone:
+          type: string
+          nullable: true
         role:
           type: string
           enum: [superadmin, head_office_admin, editor, branch_head, hunter]
