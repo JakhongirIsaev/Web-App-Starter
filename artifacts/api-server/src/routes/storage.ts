@@ -3,13 +3,31 @@ import { spawn } from "child_process";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
-import { guestAuth, requireAuth, requireAuthOrSignedUrl } from "../middleware/auth";
+import multer from "multer";
+import { guestAuth, requireAuth, requireAuthOrSignedUrl, requirePermission } from "../middleware/auth";
 import { createSignedObjectParams } from "../lib/signedUrl";
+import { getR2 } from "../storage/r2-client";
 import { db } from "@workspace/db";
 import { clientDocumentsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyClientAccess } from "../lib/client-access";
 import { logger } from "../lib/logger";
+
+// Storage backend selector. Default = local-fs (current safe behaviour).
+// Flip to "r2" once Cloudflare R2 credentials are provisioned in the deploy
+// environment. Exported for tests.
+export function getStorageBackend(): "r2" | "local-fs" {
+  return process.env.STORAGE_BACKEND === "r2" ? "r2" : "local-fs";
+}
+
+// Multer instance for the new multipart /storage/upload-document endpoint.
+// Files held in memory so we can stream the buffer straight into R2 without
+// touching disk. 25MB ceiling matches the R2 path size budget; the smaller
+// 5MB CSV uploader in lib/csv.ts is intentionally separate.
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+});
 
 class ObjectNotFoundError extends Error {
   constructor() {
@@ -185,34 +203,64 @@ function getOcrErrorMessage(req: Request, key: keyof typeof ocrErrorMessages): s
   return ocrErrorMessages[key][resolveOcrLanguage(req)];
 }
 
-router.post("/storage/uploads/direct", guestAuth, async (req: Request, res: Response) => {
-  try {
-    const { buffer, contentType } = parseUploadImage(req.body);
-    const relativePath = buildLocalObjectPath(req.body?.name, contentType);
-    const objectPath = `${LOCAL_OBJECT_PREFIX}${relativePath.replace(/\\/g, "/")}`;
-    const fullPath = resolveLocalObjectPath(objectPath);
+router.post(
+  "/storage/uploads/direct",
+  guestAuth,
+  requirePermission("storage.upload"),
+  async (req: Request, res: Response) => {
+    try {
+      const { buffer, contentType } = parseUploadImage(req.body);
+      const requestedName = typeof req.body?.name === "string" ? req.body.name : undefined;
 
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, buffer, { flag: "wx" });
+      let objectPath: string;
+      let displayName: string;
 
-    res.status(201).json({
-      objectPath,
-      metadata: {
-        name: req.body?.name || path.basename(relativePath),
-        size: buffer.length,
-        contentType,
-      },
-    });
-  } catch (error) {
-    if (error instanceof UploadValidationError) {
-      res.status(400).json({ error: error.message });
-      return;
+      if (getStorageBackend() === "r2") {
+        // R2 path layout: client photos go under clients/{id}/... when the
+        // caller supplied a name like "collateral/{clientId}/...". Otherwise
+        // we fall back to a flat documents/ prefix. Either way the response
+        // shape is preserved so existing mini-app callers don't change.
+        const ext = imageExtensionsByType[contentType]?.replace(/^\./, "") ?? "bin";
+        const uuid = randomUUID();
+        const sanitizedName = requestedName
+          ? requestedName.replace(/\\/g, "/").split("/").map(sanitizePathSegment).filter(Boolean).join("/")
+          : "";
+        // Pull a clientId hint out of "collateral/{id}/..." or "clients/{id}/..." prefixes.
+        const clientIdMatch = sanitizedName.match(/^(?:collateral|clients|client)\/(\d+)\b/);
+        const keyPrefix = clientIdMatch ? `clients/${clientIdMatch[1]}` : "documents";
+        objectPath = `${keyPrefix}/${uuid}.${ext}`;
+        displayName = requestedName || `${uuid}.${ext}`;
+
+        await getR2().upload({ key: objectPath, body: buffer, contentType });
+      } else {
+        const relativePath = buildLocalObjectPath(requestedName, contentType);
+        objectPath = `${LOCAL_OBJECT_PREFIX}${relativePath.replace(/\\/g, "/")}`;
+        displayName = requestedName || path.basename(relativePath);
+
+        const fullPath = resolveLocalObjectPath(objectPath);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, buffer, { flag: "wx" });
+      }
+
+      res.status(201).json({
+        objectPath,
+        metadata: {
+          name: displayName,
+          size: buffer.length,
+          contentType,
+        },
+      });
+    } catch (error) {
+      if (error instanceof UploadValidationError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+
+      logger.error({ err: error }, "Error saving direct upload");
+      res.status(500).json({ error: getOcrErrorMessage(req, "uploadSaveFailed") });
     }
-
-    logger.error({ err: error }, "Error saving direct upload");
-    res.status(500).json({ error: getOcrErrorMessage(req, "uploadSaveFailed") });
-  }
-});
+  },
+);
 
 router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
   const scriptPath = getOcrScriptPath();
@@ -267,32 +315,64 @@ router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/storage/signed-url", guestAuth, async (req: Request, res: Response) => {
-  const { path: objectPath } = req.body || {};
-  if (typeof objectPath !== "string" || !objectPath) {
-    res.status(400).json({ error: "path majburiy" });
-    return;
-  }
+router.post(
+  "/storage/signed-url",
+  guestAuth,
+  requirePermission("storage.signed_url"),
+  async (req: Request, res: Response) => {
+    const { path: objectPath } = req.body || {};
+    if (typeof objectPath !== "string" || !objectPath) {
+      res.status(400).json({ error: "path majburiy" });
+      return;
+    }
 
-  // Confirm the requester has access to the document at this path before
-  // signing. Without this check any logged-in user could mint a signed URL
-  // for any other user's documents (IDOR).
-  const [doc] = await db
-    .select({ clientId: clientDocumentsTable.clientId })
-    .from(clientDocumentsTable)
-    .where(eq(clientDocumentsTable.storagePath, objectPath))
-    .limit(1);
+    // Confirm the requester has access to the document at this path before
+    // signing. Without this check any logged-in user could mint a signed URL
+    // for any other user's documents (IDOR).
+    const [doc] = await db
+      .select({ clientId: clientDocumentsTable.clientId })
+      .from(clientDocumentsTable)
+      .where(eq(clientDocumentsTable.storagePath, objectPath))
+      .limit(1);
 
-  // Same opaque "not found" for missing docs and access-denied to avoid
-  // leaking which paths exist for clients the requester can't see.
-  if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
-    res.status(404).json({ error: "Hujjat topilmadi" });
-    return;
-  }
+    // Same opaque "not found" for missing docs and access-denied to avoid
+    // leaking which paths exist for clients the requester can't see.
+    if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
+      res.status(404).json({ error: "Hujjat topilmadi" });
+      return;
+    }
 
-  const { exp, sig, expiresAt } = createSignedObjectParams(objectPath);
-  res.json({ exp, sig, expiresAt });
-});
+    // Legacy local-FS path: keep returning the {exp, sig} HMAC params so old
+    // documents written before R2 still load.
+    if (objectPath.startsWith(LOCAL_OBJECT_PREFIX)) {
+      const { exp, sig, expiresAt } = createSignedObjectParams(objectPath);
+      res.json({ exp, sig, expiresAt });
+      return;
+    }
+
+    // R2 path (new uploads land at "clients/{id}/{uuid}.{ext}" or
+    // "documents/{uuid}.{ext}"). Mint a presigned URL the client can hit
+    // directly. R2 backend must be configured.
+    if (getStorageBackend() === "r2") {
+      try {
+        const url = await getR2().signedUrl(objectPath, 900);
+        res.json({ url, expiresIn: 900 });
+      } catch (error) {
+        logger.error({ err: error, objectPath }, "Failed to mint R2 signed URL");
+        res.status(500).json({ error: "Signed URL yaratilmadi" });
+      }
+      return;
+    }
+
+    // Path looks R2-shaped (no local-objects prefix) but the backend isn't
+    // configured. Likely a misconfigured deploy — surface a hint.
+    logger.warn({ objectPath }, "R2-shaped path requested but STORAGE_BACKEND != r2");
+    res.status(500).json({
+      error: "storage_backend_not_configured",
+      message: "STORAGE_BACKEND=r2 is required to serve this object.",
+    });
+  },
+);
 
 router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Response) => {
   const objectPath = req.query.path;
@@ -448,5 +528,87 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
     });
   }
 });
+
+// New endpoint for non-image documents (PDF, scans, voice notes). Multipart
+// upload, R2-only — local-FS fallback is intentionally a 503 so deploys
+// without R2 get a clear error rather than silently filling the disk with
+// arbitrary file types. Inserts a client_documents row inline so the gallery
+// queries in A2.6/A2.7 can render straight after upload.
+router.post(
+  "/storage/upload-document",
+  guestAuth,
+  requirePermission("storage.upload"),
+  documentUpload.single("file"),
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      res.status(400).json({ error: "no_file" });
+      return;
+    }
+
+    const file = req.file;
+    const clientId = Number(req.body?.clientId);
+    const docType = typeof req.body?.docType === "string" && req.body.docType.trim()
+      ? String(req.body.docType)
+      : "other";
+
+    if (!clientId || !Number.isFinite(clientId)) {
+      res.status(400).json({ error: "missing_clientId" });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ error: "unauthenticated" });
+      return;
+    }
+
+    if (!(await verifyClientAccess(clientId, req.user))) {
+      res.status(403).json({ error: "Ruxsat yo'q" });
+      return;
+    }
+
+    if (getStorageBackend() !== "r2") {
+      res.status(503).json({
+        error: "storage_backend_not_configured",
+        message: "Set STORAGE_BACKEND=r2 to upload documents.",
+      });
+      return;
+    }
+
+    const ext = (file.originalname.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+    const uuid = randomUUID();
+    const storagePath = `clients/${clientId}/docs/${uuid}.${ext}`;
+
+    try {
+      await getR2().upload({
+        key: storagePath,
+        body: file.buffer,
+        contentType: file.mimetype || "application/octet-stream",
+      });
+
+      const [doc] = await db
+        .insert(clientDocumentsTable)
+        .values({
+          clientId,
+          userId: req.user.id,
+          docType,
+          fileName: file.originalname,
+          storagePath,
+          mimeType: file.mimetype || null,
+          sizeBytes: file.size,
+        })
+        .returning();
+
+      res.status(201).json({
+        id: doc.id,
+        storagePath,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+      });
+    } catch (error) {
+      logger.error({ err: error, clientId, storagePath }, "Failed to upload document to R2");
+      res.status(500).json({ error: "Yuklashda xato" });
+    }
+  },
+);
 
 export default router;
