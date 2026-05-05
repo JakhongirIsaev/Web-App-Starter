@@ -4,6 +4,5 @@
 // Consumers should use `z.infer<typeof Schema>` or `z.input<typeof Schema>`
 // on the Zod schemas when a TS type is needed.
 export * from "./generated/api";
-export * from "./ai";
 export * from "./mini-app";
 export * from "./credit-products";

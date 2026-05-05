@@ -5,23 +5,21 @@ This repository contains the Railway-deployed SME banking workflow app:
 - `artifacts/api-server` is the backend API and Telegram bot process
 - `artifacts/mini-app` is the Telegram Mini App frontend
 - `artifacts/admin` is the admin web frontend
-- `artifacts/ollama-ai` is the new private Ollama service for background AI
 
-## AI architecture
+## Recommendation engine
 
-The Mini App does not expose a chatbot. Background AI is triggered only from workflow screens:
+The Mini App does not expose a chatbot. Product recommendations are produced
+by a deterministic rule engine in the backend:
 
-- questionnaire -> `/api/ai/recommend-products`
-- vehicle document review -> `/api/ai/extract-auto`
-- OCR translation buttons -> `/api/ai/translate`
-- PDF generation workflow -> `/api/ai/generate-offer-summary`
+- questionnaire answers -> `/api/mini-app/recommend` filters and ranks the
+  allowed catalog
+- offer summary text comes from a static template
+  (`artifacts/api-server/src/lib/offer-summary.ts`)
+- OCR review uses the local OCR pipeline only — translation/auto-extract via
+  LLM is removed
 
-The backend remains the single integration point for AI. It calls Ollama over Railway private networking using:
-
-- `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-- `OLLAMA_MODEL=gemma3:4b`
-
-Allowed bank products are still determined by backend-controlled catalog data. AI only ranks/explains within the allowed list and never replaces business rules.
+Allowed bank products are determined entirely by backend-controlled catalog
+data. The previous Ollama AI service was decommissioned in Phase B4.
 
 ## Railway services
 
@@ -30,9 +28,6 @@ Recommended Railway service mapping:
 - `backend-api` -> `artifacts/api-server`
 - `miniapp-web` -> `artifacts/mini-app`
 - `admin` -> `artifacts/admin`
-- `ollama-ai` -> `artifacts/ollama-ai`
-
-The `ollama-ai` service must stay private and must have a persistent Railway volume mounted at `/root/.ollama`.
 
 ## Deployment and rollback
 
@@ -47,5 +42,5 @@ Git workflow remains:
 Rollback options:
 
 - keep Railway `production` on `main`
-- test AI/Ollama changes in the preview/staging environment first
+- test changes in the preview/staging environment first
 - if a preview deploy fails, redeploy the last healthy backend and frontends without touching `main`

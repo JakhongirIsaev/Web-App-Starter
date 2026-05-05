@@ -1,4 +1,4 @@
-// Deterministic offer-summary template (replaces /ai/generate-offer-summary AI call).
+// Deterministic offer-summary template (replaces the legacy AI offer-summary call).
 // Phase B1.3: see docs/PHASE_B_PLAN.md.
 
 export interface OfferSummaryVars {

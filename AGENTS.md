@@ -3,12 +3,12 @@
 ## Project intent
 
 This repository powers a Telegram Mini App for SME banking workflow.
-AI is a background capability, not a chatbot.
+Recommendations and offer summaries are produced by deterministic backend
+logic, not by an LLM.
 
 ## Non-negotiable rules
 
 - Do not add a free-form chat UI.
-- Do not expose chain-of-thought or thinking text.
 - Do not invent bank products, rates, policies, or eligibility rules.
 - Recommendations must use backend-provided product catalog/context only.
 - OCR / image extraction is mandatory.
@@ -18,21 +18,16 @@ AI is a background capability, not a chatbot.
 ## Deployment target
 
 - Railway project with separate services.
-- Private Ollama service only.
-- Persistent volume for Ollama models at `/root/.ollama`.
-- Backend talks to Ollama over private Railway networking.
+- Backend (`backend-api`), Mini App (`miniapp-web`), Admin (`admin`),
+  PostgreSQL.
+- The previous `ollama-ai` service was decommissioned in Phase B4 — do not
+  re-introduce it without an architecture change.
 
 ## Preferred endpoints
 
-- `/api/ai/recommend-products`
-- `/api/ai/generate-offer-summary`
-- `/api/ai/translate`
-- `/api/ai/extract-auto`
-- `/api/ai/health`
-
-## Model
-
-- `gemma3:4b`
+- `/api/mini-app/recommend` — deterministic ranking of allowed products from
+  questionnaire answers.
+- Static templates render the offer summary (no AI endpoint).
 
 ## Languages
 
@@ -42,11 +37,10 @@ AI is a background capability, not a chatbot.
 
 ## UX
 
-- AI should be triggered by forms/workflow steps/buttons.
-- No generic "Ask AI" field unless explicitly requested later.
+- Recommendations are triggered by the questionnaire flow.
+- No generic "Ask AI" field.
 
 ## Output discipline
 
 - Prefer structured JSON for machine-consumed outputs.
 - Return concise final text for user-facing summaries.
-- Never expose reasoning fields even if provider returns them.

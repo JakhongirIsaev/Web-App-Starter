@@ -1,6 +1,6 @@
 # Secret Rotation & Incident Response
 
-Scope: api-server (`artifacts/api-server`), admin SPA (`artifacts/admin`), mini-app SPA (`artifacts/mini-app`), ollama-ai service (`artifacts/ollama-ai`), Postgres (Railway).
+Scope: api-server (`artifacts/api-server`), admin SPA (`artifacts/admin`), mini-app SPA (`artifacts/mini-app`), Postgres (Railway).
 
 ## Secret inventory
 
