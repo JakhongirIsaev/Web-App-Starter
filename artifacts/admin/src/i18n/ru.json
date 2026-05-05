@@ -59,7 +59,8 @@
     "users": "Пользователи",
     "recommendations": "Рекомендации",
     "activityLog": "Журнал активности",
-    "espoSync": "Синхронизация Espo"
+    "espoSync": "Синхронизация Espo",
+    "creditPolicy": "Кред. политика"
   },
   "espoSync": {
     "title": "Синхронизация с Espo",
@@ -627,5 +628,47 @@
   "header": {
     "logOut": "Выйти",
     "branchInfo": "Филиал: {{name}}"
+  },
+  "policy": {
+    "title": "Параметры кредитной политики",
+    "subtitle": "Редактируемые ставки, коэффициенты и сроки, применяемые к новым кредитным расчётам.",
+    "versionLabel": "Новая версия",
+    "effectiveFromLabel": "Действует с",
+    "saveAsNewVersion": "Сохранить как новую версию",
+    "discardChanges": "Отменить изменения",
+    "savedTitle": "Сохранено",
+    "saveFailed": "Не удалось сохранить",
+    "section": {
+      "coverage": "Покрытие и дисконты",
+      "ratios": "Коэффициенты",
+      "ratesUzs": "Минимальные ставки — UZS",
+      "ratesFx": "Минимальные ставки — валюта",
+      "terms": "Сроки",
+      "industries": "Запрещённые отрасли",
+      "graduatedLending": "Лимиты для серии кредитов (мес.)",
+      "committee": "Лимиты кредитного комитета (USD)"
+    },
+    "minCoverageRatio": "Мин. коэф. покрытия",
+    "realEstate": "Недвижимость %",
+    "vehicles": "Транспорт %",
+    "equipment": "Оборудование %",
+    "govSecurities": "Гос. ценные бумаги %",
+    "corpSecurities": "Корп. ценные бумаги %",
+    "inventory": "Товары в обороте %",
+    "transportAge": "Порог возраста транспорта (лет)",
+    "transportAgeDisc": "Дисконт за возраст транспорта %",
+    "dscrMax": "Макс. DSCR",
+    "dscrMaxFx": "Макс. DSCR (валюта)",
+    "debtToEquity": "Макс. долг/капитал",
+    "loanToWc": "Макс. кредит/оборотный капитал",
+    "maxTermWc": "Макс. срок (оборотный капитал, мес.)",
+    "maxTermFa": "Макс. срок (основные средства, мес.)",
+    "negKeywordsLabel": "Через запятую",
+    "loan1Max": "Кредит №1 макс.",
+    "loan1MaxTrade": "Кредит №1 макс. (торговля)",
+    "loan2Max": "Кредит №2 макс.",
+    "loan3Max": "Кредит №3 макс.",
+    "singleBorrower": "Один заёмщик",
+    "relatedGroup": "Связанная группа"
   }
 }
