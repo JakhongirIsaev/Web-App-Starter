@@ -78,6 +78,13 @@
       "when": 1779206400000,
       "tag": "0010_clients_preferred_language",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779292800000,
+      "tag": "0011_espo_reconciliation_runs",
+      "breakpoints": true
     }
   ]
 }

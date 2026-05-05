@@ -72,7 +72,12 @@
     "retry": "Qayta urinish",
     "empty": "Bu holatda vazifalar yo'q",
     "retrySuccess": "Vazifa navbatga qo'yildi",
-    "retryFailed": "Bajarilmadi"
+    "retryFailed": "Bajarilmadi",
+    "reconciliation": {
+      "title": "So'nggi solishtirish",
+      "missingInEspo": "lokal lidlar Espo'da YO'Q",
+      "missingInLocal": "Espo lidlar lokal bazada YO'Q"
+    }
   },
   "activityLog": {
     "title": "Faoliyat jurnali",

@@ -22,4 +22,5 @@ export interface EspoLeadResponse {
 export interface EspoClient {
   createLead(p: EspoLeadPayload, idempotencyKey: string): Promise<EspoLeadResponse>;
   findLeadByLocalUuid(localUuid: string): Promise<EspoLeadResponse | null>;
+  listRecentLeads(since: Date): Promise<EspoLeadResponse[]>;
 }

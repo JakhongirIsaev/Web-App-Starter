@@ -18,6 +18,18 @@ interface SyncJob {
   updatedAt: string;
 }
 
+interface ReconciliationRun {
+  id: number;
+  ranAt: string;
+  windowFrom: string;
+  windowTo: string;
+  espoLeadCount: number;
+  localLeadCount: number;
+  missingInEspo: Array<{ clientId: number; externalUuid: string; espoLeadId: string | null }>;
+  missingInLocal: Array<{ espoLeadId: string; cLocalLeadUuid: string | null }>;
+  notes: string | null;
+}
+
 const STATUSES = ["pending", "failed", "succeeded"] as const;
 
 export default function EspoSyncPage() {
@@ -31,6 +43,18 @@ export default function EspoSyncPage() {
     queryFn: async () => {
       const res = await fetch(
         buildApiUrl(`/api/admin/espo-sync/jobs?status=${status}`),
+        { headers: buildAuthHeaders() },
+      );
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+  });
+
+  const { data: lastRun } = useQuery<ReconciliationRun | null>({
+    queryKey: ["espo-reconciliation", "latest"],
+    queryFn: async () => {
+      const res = await fetch(
+        buildApiUrl("/api/admin/espo-sync/reconciliation"),
         { headers: buildAuthHeaders() },
       );
       if (!res.ok) throw new Error(`${res.status}`);
@@ -70,6 +94,32 @@ export default function EspoSyncPage() {
           {t("espoSync.subtitle", { defaultValue: "Outbound lead sync to EspoCRM" })}
         </p>
       </div>
+
+      {lastRun && (
+        <div className="bg-card border rounded-xl p-4 space-y-2">
+          <h3 className="font-semibold">
+            {t("espoSync.reconciliation.title", { defaultValue: "Last reconciliation" })}
+          </h3>
+          <div className="text-sm text-muted-foreground">
+            {new Date(lastRun.ranAt).toLocaleString()} — espo: {lastRun.espoLeadCount}, local: {lastRun.localLeadCount}
+          </div>
+          {lastRun.missingInEspo.length > 0 && (
+            <div className="text-red-600 text-sm">
+              {lastRun.missingInEspo.length}{" "}
+              {t("espoSync.reconciliation.missingInEspo", { defaultValue: "local leads NOT in Espo" })}
+            </div>
+          )}
+          {lastRun.missingInLocal.length > 0 && (
+            <div className="text-amber-600 text-sm">
+              {lastRun.missingInLocal.length}{" "}
+              {t("espoSync.reconciliation.missingInLocal", { defaultValue: "Espo leads NOT in local DB" })}
+            </div>
+          )}
+          {lastRun.notes && (
+            <div className="text-xs text-muted-foreground italic">{lastRun.notes}</div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         {STATUSES.map((s) => (

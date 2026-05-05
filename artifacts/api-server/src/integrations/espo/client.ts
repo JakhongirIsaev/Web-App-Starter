@@ -12,6 +12,9 @@ class StubEspoClient implements EspoClient {
   async findLeadByLocalUuid(): Promise<EspoLeadResponse | null> {
     return null;
   }
+  async listRecentLeads(): Promise<EspoLeadResponse[]> {
+    return [];
+  }
 }
 
 class LiveEspoClient implements EspoClient {
@@ -50,6 +53,15 @@ class LiveEspoClient implements EspoClient {
       `&where[0][value]=${encodeURIComponent(localUuid)}`;
     const r = await this.req<{ list: EspoLeadResponse[] }>(url, { method: "GET" });
     return r.list[0] ?? null;
+  }
+
+  async listRecentLeads(since: Date): Promise<EspoLeadResponse[]> {
+    const sinceIso = since.toISOString();
+    const url =
+      `/api/v1/Lead?where[0][type]=greaterThanOrEquals&where[0][attribute]=createdAt` +
+      `&where[0][value]=${encodeURIComponent(sinceIso)}&select=id,name,status,cLocalLeadUuid&maxSize=200`;
+    const r = await this.req<{ list: EspoLeadResponse[] }>(url, { method: "GET" });
+    return r.list;
   }
 }
 
