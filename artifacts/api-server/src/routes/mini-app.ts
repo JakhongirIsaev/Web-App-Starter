@@ -1010,6 +1010,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     desiredTermMonths,
     preferredCurrency,
     preferredLanguage,
+    externalUuid,
   } = parsed.data;
   // Normalize the optional Telegram username: strip leading "@" and treat
   // empty / whitespace as null so we don't store junk values.
@@ -1042,7 +1043,14 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     desiredAmountUzs !== undefined && desiredAmountUzs !== null &&
     desiredTermMonths !== undefined && desiredTermMonths !== null;
 
-  const [client] = await db
+  // Phase D1 followup — offline-queue idempotency. The mini-app passes an
+  // externalUuid generated at first-send-attempt time. If the request is a
+  // replay (server committed but the response was lost in transit), the
+  // ON CONFLICT path triggers and we return the previously-inserted row
+  // instead of creating a duplicate client. When externalUuid is absent
+  // (legacy callers, server-side flows), defaultRandom() in the schema
+  // supplies a fresh value and no conflict is possible.
+  const inserted = await db
     .insert(clientsTable)
     .values({
       sessionId,
@@ -1071,12 +1079,47 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       desiredTermMonths: desiredTermMonths ?? null,
       preferredCurrency: preferredCurrency ?? null,
       preferredLanguage: preferredLanguage ?? null,
+      ...(externalUuid ? { externalUuid } : {}),
     })
+    .onConflictDoNothing({ target: clientsTable.externalUuid })
     .returning();
 
+  let client;
+  let isReplay = false;
+  if (inserted.length > 0) {
+    client = inserted[0];
+  } else {
+    // Conflict path: a row with this externalUuid already exists, which only
+    // happens when the client supplied an externalUuid we've already seen
+    // (i.e. an offline-queue replay of a previously-committed save).
+    if (!externalUuid) {
+      // Without an explicit externalUuid the DB default would have produced a
+      // fresh UUID and no conflict was possible — reaching here would be a
+      // genuine bug, not a replay.
+      res.status(500).json({ error: "insert_failed_unexpectedly" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(clientsTable)
+      .where(eq(clientsTable.externalUuid, externalUuid))
+      .limit(1);
+    if (!existing) {
+      res.status(500).json({ error: "insert_returned_no_rows_no_existing" });
+      return;
+    }
+    client = existing;
+    isReplay = true;
+  }
+
   // Fire-and-forget Espo sync. Helper swallows errors so a queue hiccup
-  // can't fail the user-facing client save.
-  await enqueueEspoSync({ clientId: client.id, externalUuid: client.externalUuid });
+  // can't fail the user-facing client save. On replay we skip the enqueue:
+  // the original insert already enqueued an espo job for this externalUuid,
+  // and the espo_sync_jobs unique idempotency_key + graphile-worker jobKey
+  // would also dedupe — but skipping avoids a noisy "insert failed" log.
+  if (!isReplay) {
+    await enqueueEspoSync({ clientId: client.id, externalUuid: client.externalUuid });
+  }
 
   res.json(client);
 });
