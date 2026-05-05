@@ -24,6 +24,7 @@ const ActivityLog = lazy(() => import("@/pages/activity-log"));
 const CreditLines = lazy(() => import("@/pages/credit-lines"));
 const EspoSync = lazy(() => import("@/pages/espo-sync"));
 const CreditPolicy = lazy(() => import("@/pages/credit-policy"));
+const FunnelReport = lazy(() => import("@/pages/funnel"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -164,6 +165,9 @@ function Router() {
       </Route>
       <Route path="/credit-policy">
         {() => <ProtectedRoute component={CreditPolicy} requiredRoles={["superadmin", "head_office_admin", "editor", "branch_head", "hunter"]} />}
+      </Route>
+      <Route path="/funnel">
+        {() => <ProtectedRoute component={FunnelReport} requiredRoles={["superadmin", "head_office_admin", "editor", "branch_head"]} />}
       </Route>
       <Route>
         {() => (
