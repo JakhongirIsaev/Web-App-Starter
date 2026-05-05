@@ -20,4 +20,14 @@ export interface UpdateClientBody {
   latitude?: number;
   longitude?: number;
   rejectionReason?: string;
+  leadSource?: string | null;
+  referrerClientId?: number | null;
+  selfCheckCitizenshipUz?: boolean | null;
+  selfCheckSixMonthsOperation?: boolean | null;
+  selfCheckPredominantlyPrivate?: boolean | null;
+  selfCheckBranchServiceArea?: boolean | null;
+  purpose?: string | null;
+  desiredAmountUzs?: number | null;
+  desiredTermMonths?: number | null;
+  preferredCurrency?: string | null;
 }

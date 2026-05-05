@@ -364,11 +364,13 @@ export default function RecommendationPage() {
 
   /* ═══════════════ NO ANSWERS STATE ═══════════════ */
   if (!isLoading && answers.length === 0) {
+    // Post-B3 the questionnaire page is gone; send the user back to the
+    // client detail page where the fixed-form CTA lives.
     return (
       <div style={{ background: "#F4F4F5" }} className="min-h-screen">
         <div className="bg-white px-5 pt-4 pb-5">
           <button
-            onClick={() => navigate(`/questionnaire/${params.clientId}`)}
+            onClick={() => navigate(`/clients/${params.clientId}`)}
             className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
             style={{ background: "#F1F5F9" }}
           >
@@ -378,7 +380,7 @@ export default function RecommendationPage() {
             {t("recommendation.fillQuestionnaireFirst")}
           </p>
           <button
-            onClick={() => navigate(`/questionnaire/${params.clientId}`)}
+            onClick={() => navigate(`/clients/${params.clientId}`)}
             className="mt-4 px-5 py-3 rounded-xl text-[14px] font-semibold text-white"
             style={{ background: "#16A34A" }}
           >

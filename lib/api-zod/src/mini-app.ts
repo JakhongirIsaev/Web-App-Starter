@@ -65,15 +65,46 @@ export const MiniAppBasketBody = z.object({
   })).min(1),
 });
 
+// Canonical lead_source values match the clients schema. Keep this list in
+// sync with the comment block above clientsTable in lib/db/src/schema/clients.ts
+// and with the radio chips on the new-client page.
+export const leadSourceSchema = z
+  .enum([
+    "direct_visit",
+    "referral_existing_client",
+    "mass_media_tv",
+    "mass_media_radio",
+    "mass_media_print",
+    "mahalla_booklet",
+    "walk_in",
+    "other",
+  ])
+  .optional();
+
+export const preferredCurrencySchema = z.enum(["UZS", "USD", "EUR", "RUB"]).optional();
+
 export const MiniAppCreateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
+  gender: z.enum(["male", "female"]).optional(),
   businessType: z.string().optional(),
   businessSize: z.string().optional(),
   needType: z.string().optional(),
   loanPurpose: z.string().optional(),
   desiredAmount: desiredAmountSchema,
   desiredTerm: z.string().optional(),
+  // B3.2 fixed-form fields. The lead_source / self-check / loan-intent block
+  // collects everything the recommendation rule engine needs in one shot.
+  leadSource: leadSourceSchema,
+  referrerClientId: z.coerce.number().int().positive().optional(),
+  selfCheckCitizenshipUz: z.boolean().optional(),
+  selfCheckSixMonthsOperation: z.boolean().optional(),
+  selfCheckPredominantlyPrivate: z.boolean().optional(),
+  selfCheckBranchServiceArea: z.boolean().optional(),
+  purpose: z.string().optional(),
+  desiredAmountUzs: z.coerce.number().nonnegative().optional(),
+  desiredTermMonths: z.coerce.number().int().positive().optional(),
+  preferredCurrency: preferredCurrencySchema,
   telegramInitData: z.string().optional(),
 });
 

@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -15,7 +15,9 @@ const HomePage = lazy(() => import("@/pages/home"));
 const ClientsPage = lazy(() => import("@/pages/clients"));
 const NewClientPage = lazy(() => import("@/pages/new-client"));
 const ClientDetailPage = lazy(() => import("@/pages/client-detail"));
-const QuestionnairePage = lazy(() => import("@/pages/questionnaire"));
+// QuestionnairePage was removed in B3.3 — the /questionnaire/:clientId route
+// now redirects to the client detail page (the new fixed form lives at the
+// new-client URL).
 const RecommendationPage = lazy(() => import("@/pages/recommendation"));
 const CalculatorPage = lazy(() => import("@/pages/calculator"));
 const KnowledgePage = lazy(() => import("@/pages/knowledge"));
@@ -112,10 +114,8 @@ function AuthGate() {
             )}
           </Route>
           <Route path="/questionnaire/:clientId">
-            {() => (
-              <PageSuspense>
-                <QuestionnairePage />
-              </PageSuspense>
+            {(params: { clientId: string }) => (
+              <Redirect to={`/clients/${params.clientId}`} />
             )}
           </Route>
           <Route path="/recommendation/:clientId">

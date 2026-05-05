@@ -122,9 +122,12 @@ function SignedDocImage({
   );
 }
 
+// Status state machine after Phase B3. "lead" replaces the legacy
+// "questionnaire" mid-funnel marker — the questionnaire page was removed,
+// and the new fixed client form auto-promotes to "lead" once fully populated.
 const statusFlow = [
   "draft",
-  "questionnaire",
+  "lead",
   "recommendation",
   "basket",
   "pdf_generated",
@@ -294,17 +297,15 @@ export default function ClientDetailPage() {
   };
 
   const getNextAction = () => {
-    if (client.status === "draft")
+    // After B3, the funnel is: draft → lead → recommendation → ...
+    // The fixed form lives at /new-client; once a client has been seeded
+    // we let the hunter jump straight to the recommendation page.
+    if (client.status === "draft" || client.status === "questionnaire")
       return {
-        label: t("clientDetail.startQuestionnaire"),
-        path: `/questionnaire/${client.id}`,
+        label: t("clientDetail.completeForm"),
+        path: `/new-client`,
       };
-    if (client.status === "questionnaire")
-      return {
-        label: t("clientDetail.startQuestionnaire"),
-        path: `/questionnaire/${client.id}`,
-      };
-    if (client.status === "recommendation")
+    if (client.status === "lead" || client.status === "recommendation")
       return {
         label: t("basket.title"),
         path: `/recommendation/${client.id}`,

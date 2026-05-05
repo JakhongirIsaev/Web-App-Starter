@@ -349,6 +349,7 @@
   },
   "statuses": {
     "draft": "Новая заявка",
+    "lead": "Лид",
     "questionnaire": "Анкетирование",
     "recommendation": "Подбор продукта",
     "basket": "Корзина",

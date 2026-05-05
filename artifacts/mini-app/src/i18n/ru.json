@@ -129,6 +129,7 @@
     "noBasket": "Корзина пуста",
     "calculations": "Расчёты",
     "startQuestionnaire": "Начать анкету",
+    "completeForm": "Заполнить анкету",
     "continueFlow": "Продолжить",
     "history": "История",
     "markComplete": "Завершить",
@@ -150,16 +151,59 @@
   },
   "newClient": {
     "title": "Новый клиент",
-    "subtitle": "Создайте черновик клиента для начала работы",
+    "subtitle": "Заполните анкету клиента — рекомендации сразу учтут самопроверку и цели",
     "fullName": "ФИО (можно позже)",
     "fullNamePlaceholder": "Введите ФИО клиента",
     "phone": "Телефон (можно позже)",
     "phonePlaceholder": "+998 ...",
-    "create": "Создать клиента",
-    "creating": "Создание...",
+    "create": "Сохранить клиента",
+    "creating": "Сохранение...",
     "created": "Клиент создан",
-    "step": "Шаг 1 из 1",
-    "saveDraft": "Сохранить черновик"
+    "step": "Анкета клиента",
+    "saveDraft": "Сохранить черновик",
+    "section": {
+      "leadSource": "Источник лида",
+      "referrer": "Кто рекомендовал",
+      "loanIntent": "Желаемые условия",
+      "selfCheck": "Самопроверка"
+    },
+    "identity": {
+      "businessName": "Название бизнеса",
+      "businessNamePlaceholder": "Например: ИП «Шарк-Дон»",
+      "businessType": "Тип бизнеса"
+    },
+    "leadSource": {
+      "direct_visit": "Прямой визит",
+      "referral_existing_client": "Рекомендация клиента",
+      "mass_media_tv": "ТВ",
+      "mass_media_radio": "Радио",
+      "mass_media_print": "Печать",
+      "mahalla_booklet": "Брошюра в махалле",
+      "walk_in": "Самостоятельно пришёл",
+      "other": "Другое"
+    },
+    "referrer": {
+      "searchPlaceholder": "Поиск по имени или телефону",
+      "empty": "Клиенты не найдены"
+    },
+    "currency": {
+      "UZS": "UZS",
+      "USD": "USD",
+      "EUR": "EUR",
+      "RUB": "RUB"
+    },
+    "selfCheck": {
+      "citizenshipUz": "Гражданин РУз?",
+      "sixMonths": "Бизнес работает 6+ месяцев?",
+      "private": "Преимущественно частная собственность?",
+      "branchService": "В зоне обслуживания филиала?"
+    },
+    "intent": {
+      "purposeLabel": "Цель кредита",
+      "amountLabel": "Желаемая сумма (UZS)",
+      "termLabel": "Срок (месяцев)",
+      "currencyLabel": "Валюта"
+    }
   },
   "questionnaire": {
     "title": "Анкета клиента",
@@ -415,6 +459,7 @@
   },
   "statuses": {
     "draft": "Новая заявка",
+    "lead": "Лид",
     "questionnaire": "Анкетирование",
     "recommendation": "Подбор продукта",
     "basket": "Корзина",

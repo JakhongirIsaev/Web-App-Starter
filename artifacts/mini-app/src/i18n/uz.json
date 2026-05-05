@@ -129,6 +129,7 @@
     "noBasket": "Savat bo'sh",
     "calculations": "Hisob-kitoblar",
     "startQuestionnaire": "So'rovnomani boshlash",
+    "completeForm": "Anketani to'ldirish",
     "continueFlow": "Davom etish",
     "history": "Tarix",
     "markComplete": "Yakunlash",
@@ -150,16 +151,59 @@
   },
   "newClient": {
     "title": "Yangi mijoz",
-    "subtitle": "Ish boshlash uchun mijoz qoralamasi yarating",
+    "subtitle": "Mijoz anketasini to'ldiring — tavsiyalar darhol o'z-o'zini tekshirish va maqsadlarni hisobga oladi",
     "fullName": "F.I.Sh. (keyinroq ham bo'ladi)",
     "fullNamePlaceholder": "Mijoz F.I.Sh. ni kiriting",
     "phone": "Telefon (keyinroq ham bo'ladi)",
     "phonePlaceholder": "+998 ...",
-    "create": "Mijoz yaratish",
-    "creating": "Yaratilmoqda...",
+    "create": "Mijozni saqlash",
+    "creating": "Saqlanmoqda...",
     "created": "Mijoz yaratildi",
-    "step": "1-qadam / 1",
-    "saveDraft": "Qoralama saqlash"
+    "step": "Mijoz anketasi",
+    "saveDraft": "Qoralama saqlash",
+    "section": {
+      "leadSource": "Lid manbasi",
+      "referrer": "Kim tavsiya qildi",
+      "loanIntent": "Mo'ljallangan shartlar",
+      "selfCheck": "O'z-o'zini tekshirish"
+    },
+    "identity": {
+      "businessName": "Biznes nomi",
+      "businessNamePlaceholder": "Masalan: \"Sharq-Don\" YaTT",
+      "businessType": "Biznes turi"
+    },
+    "leadSource": {
+      "direct_visit": "To'g'ridan-to'g'ri tashrif",
+      "referral_existing_client": "Mijoz tavsiyasi",
+      "mass_media_tv": "TV",
+      "mass_media_radio": "Radio",
+      "mass_media_print": "Bosma ommaviy axborot",
+      "mahalla_booklet": "Mahalla broshurasi",
+      "walk_in": "O'zi keldi",
+      "other": "Boshqa"
+    },
+    "referrer": {
+      "searchPlaceholder": "Ism yoki telefon bo'yicha qidirish",
+      "empty": "Mijozlar topilmadi"
+    },
+    "currency": {
+      "UZS": "UZS",
+      "USD": "USD",
+      "EUR": "EUR",
+      "RUB": "RUB"
+    },
+    "selfCheck": {
+      "citizenshipUz": "O'zbekiston Respublikasi fuqarosimi?",
+      "sixMonths": "Biznes 6+ oy ishlaydi?",
+      "private": "Asosan xususiy mulk?",
+      "branchService": "Filial xizmat ko'rsatish hududida?"
+    },
+    "intent": {
+      "purposeLabel": "Kredit maqsadi",
+      "amountLabel": "Mo'ljallangan summa (UZS)",
+      "termLabel": "Muddat (oy)",
+      "currencyLabel": "Valyuta"
+    }
   },
   "questionnaire": {
     "title": "Mijoz so'rovnomasi",
@@ -411,6 +455,7 @@
   },
   "statuses": {
     "draft": "Yangi ariza",
+    "lead": "Lid",
     "questionnaire": "So'rovnoma",
     "recommendation": "Mahsulot tanlash",
     "basket": "Savat",

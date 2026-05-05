@@ -28,8 +28,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+// Status state machine after Phase B3. "lead" replaces "questionnaire" as
+// the mid-funnel marker; both are kept here so legacy rows (and the surface
+// colour palette) still resolve cleanly during the rollout.
 const STATUS_ORDER = [
   "draft",
+  "lead",
   "questionnaire",
   "recommendation",
   "basket",
@@ -39,6 +43,7 @@ const STATUS_ORDER = [
 
 const STATUS_SURFACES: Record<string, string> = {
   draft: "#F8FAFC",
+  lead: "#EFF6FF",
   questionnaire: "#EFF6FF",
   recommendation: "#FFFBEB",
   basket: "#FAF5FF",
@@ -48,14 +53,15 @@ const STATUS_SURFACES: Record<string, string> = {
 
 /**
  * Routes a client to the next actionable screen in the workflow based on status.
- * For open statuses (draft/questionnaire/recommendation/basket/pdf_generated) we jump
- * directly to the step the user needs to continue; for closed statuses we fall back
- * to the detail page.
+ * For open statuses (draft/lead/recommendation/basket/pdf_generated) we jump
+ * directly to the step the user needs to continue; for closed statuses we fall
+ * back to the detail page. Legacy "questionnaire" rows fall through to the
+ * detail page since the questionnaire URL now redirects there anyway.
  */
 function nextStepPath(clientId: number, status?: string): string {
   switch (status) {
-    case "questionnaire":
-      return `/questionnaire/${clientId}`;
+    case "lead":
+      return `/recommendation/${clientId}`;
     case "recommendation":
       return `/recommendation/${clientId}`;
     case "basket":
@@ -63,6 +69,7 @@ function nextStepPath(clientId: number, status?: string): string {
     case "pdf_generated":
       return `/pdf-share/${clientId}`;
     case "draft":
+    case "questionnaire":
     default:
       return `/clients/${clientId}`;
   }
