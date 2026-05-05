@@ -122,6 +122,58 @@ Recommended env vars:
 
 - `VITE_API_ORIGIN=https://<api-server-public-domain>`
 
+### `worker` (Espo sync background process)
+
+A separate Railway service that runs the graphile-worker process for Espo lead syncing. Reuses the api-server image (same repo + Dockerfile) but runs a different start command.
+
+- Source folder: same as api-server (`artifacts/api-server`)
+- Builder: same Dockerfile as api-server
+- Public: `false` (no inbound HTTP)
+- Healthcheck: none (long-running daemon)
+- Port: none
+
+Start command override (set in Railway service Settings → Custom Start Command):
+
+```
+node --enable-source-maps ./dist/jobs/index.mjs
+```
+
+Or use the npm script:
+
+```
+pnpm --filter @workspace/api-server run worker
+```
+
+Required env vars (mirror api-server):
+
+- `DATABASE_URL` — same Postgres as api-server. graphile-worker creates its own schema (`graphile_worker`) on first run.
+- `TZ=Asia/Tashkent`
+
+Required when integrating with live Espo (otherwise stays in stub mode):
+
+- `ESPO_INTEGRATION=live`
+- `ESPO_BASE_URL=https://<your-espo-host>`
+- `ESPO_API_KEY=<api-token-with-Lead-permissions>`
+
+When `ESPO_INTEGRATION` is unset or `stub`, the worker writes mock IDs (`stub-<uuid>`) without calling Espo — useful for staging.
+
+Provisioning steps:
+
+1. Create a new Railway service in the same project, source the same repo + branch as api-server.
+2. Settings → Config-as-Code Path: same `artifacts/api-server/railway.toml` (or override the start command).
+3. Settings → Custom Start Command: `pnpm --filter @workspace/api-server run worker`
+4. Settings → Disable healthcheck (or set a path that always returns 200 — the worker has no HTTP server).
+5. Set env vars per the lists above.
+6. Deploy. Watch logs for `info: jobs ready` from graphile-worker.
+
+To verify end-to-end:
+
+- Save a new client via the mini-app.
+- Open admin → Espo Sync. Within ~30s, the new job moves from `pending` → `succeeded`.
+- In stub mode, `espo_lead_id` starts with `stub-`. In live mode, it's the real Espo Lead ID.
+
+If a deploy is mid-flight when a job fires, the row stays `pending` until the worker boots and polls — graphile-worker re-reads pending rows on startup.
+
 ### `ollama-ai`
 
 - Source folder: `artifacts/ollama-ai`
