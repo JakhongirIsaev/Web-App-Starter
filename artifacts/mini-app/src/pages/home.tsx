@@ -28,6 +28,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+interface MyDayData {
+  today: number;
+  week: number;
+  byStatus: Record<string, number>;
+}
+
 // Status state machine after Phase B3. "lead" replaces "questionnaire" as
 // the mid-funnel marker; both are kept here so legacy rows (and the surface
 // colour palette) still resolve cleanly during the rollout.
@@ -83,6 +89,11 @@ export default function HomePage() {
   const { data: dashboard } = useQuery({
     queryKey: ["mini-dashboard"],
     queryFn: () => api.get("/mini-app/dashboard"),
+  });
+
+  const { data: myDay } = useQuery<MyDayData>({
+    queryKey: ["my-day"],
+    queryFn: () => api.get("/mini-app/dashboard/me"),
   });
 
   const { data: todo } = useQuery({
@@ -215,6 +226,64 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {myDay && (
+        <div className="mx-4 mt-4 mn-card overflow-hidden">
+          <div className="grid grid-cols-2 gap-3 p-4 border-b border-[#F1F5F9]">
+            <button
+              type="button"
+              onClick={() => navigate("/clients")}
+              className="text-left active:opacity-70"
+            >
+              <div className="text-[11px] text-[#64748B] uppercase tracking-wide">
+                {t("myDay.today")}
+              </div>
+              <div className="text-[28px] font-bold text-[#0F172A] leading-none mt-1">
+                {myDay.today}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/clients")}
+              className="text-left active:opacity-70"
+            >
+              <div className="text-[11px] text-[#64748B] uppercase tracking-wide">
+                {t("myDay.week")}
+              </div>
+              <div className="text-[28px] font-bold text-[#0F172A] leading-none mt-1">
+                {myDay.week}
+              </div>
+            </button>
+          </div>
+          <div className="p-4">
+            <div className="text-[11px] text-[#64748B] uppercase tracking-wide mb-2">
+              {t("myDay.funnel")}
+            </div>
+            <div className="space-y-2">
+              {[
+                { key: "lead", label: t("myDay.lead") },
+                { key: "recommendation", label: t("myDay.recommendation") },
+                { key: "basket", label: t("myDay.basket") },
+                { key: "pdf_generated", label: t("myDay.pdfGenerated") },
+                { key: "completed", label: t("myDay.approved") },
+              ].map((s) => {
+                const n = myDay.byStatus[s.key] ?? 0;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => navigate(`/clients?status=${s.key}`)}
+                    className="flex w-full items-center justify-between text-sm py-1 active:opacity-70"
+                  >
+                    <span className="text-[#0F172A]">{s.label}</span>
+                    <span className="text-[#64748B] font-mono">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 pt-[18px]">
         <div

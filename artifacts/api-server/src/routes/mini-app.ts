@@ -811,6 +811,60 @@ router.get("/mini-app/dashboard", guestAuth, async (req, res) => {
   });
 });
 
+// "My Day" widget — today/week counts and 7-day funnel breakdown for the
+// current credit expert. Always scoped to assignedToId === user.id (admins
+// see only their own assigned clients here; the global view lives on
+// /mini-app/dashboard).
+router.get("/mini-app/dashboard/me", guestAuth, async (req, res) => {
+  const userId = req.user!.id;
+  const todayStart = startOfAppDay();
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 7);
+
+  const [todayCount] = await db
+    .select({ count: count() })
+    .from(clientsTable)
+    .where(
+      and(
+        eq(clientsTable.assignedToId, userId),
+        gte(clientsTable.createdAt, todayStart),
+      ),
+    );
+
+  const [weekCount] = await db
+    .select({ count: count() })
+    .from(clientsTable)
+    .where(
+      and(
+        eq(clientsTable.assignedToId, userId),
+        gte(clientsTable.createdAt, weekStart),
+      ),
+    );
+
+  const breakdown = await db
+    .select({
+      status: clientsTable.status,
+      count: count(),
+    })
+    .from(clientsTable)
+    .where(
+      and(
+        eq(clientsTable.assignedToId, userId),
+        gte(clientsTable.createdAt, weekStart),
+      ),
+    )
+    .groupBy(clientsTable.status);
+
+  const byStatus: Record<string, number> = {};
+  for (const row of breakdown) byStatus[row.status] = row.count;
+
+  res.json({
+    today: todayCount?.count ?? 0,
+    week: weekCount?.count ?? 0,
+    byStatus,
+  });
+});
+
 router.get("/mini-app/todo", guestAuth, async (req, res) => {
   const userId = req.user!.id;
   const role = req.user!.role;
