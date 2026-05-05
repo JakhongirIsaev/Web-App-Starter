@@ -4,6 +4,8 @@ import { usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { findSessionUserId } from "../lib/session-store";
 import { verifySignedObjectParams } from "../lib/signedUrl";
+import { hasPermission, type Role } from "../rbac/role-permissions";
+import type { Permission } from "../rbac/permissions";
 
 export interface AuthUser {
   id: number;
@@ -161,6 +163,19 @@ export function requireRole(...roles: string[]) {
     if (!req.user || !roles.includes(req.user.role)) {
       res.status(403).json({ error: "Forbidden" });
       return;
+    }
+    next();
+  };
+}
+
+export function requirePermission(permission: Permission) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as { user?: { role?: string } }).user;
+    if (!user || !user.role) {
+      return res.status(401).json({ error: "unauthenticated" });
+    }
+    if (!hasPermission(user.role as Role, permission)) {
+      return res.status(403).json({ error: "forbidden", required: permission });
     }
     next();
   };
