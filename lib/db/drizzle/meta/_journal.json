@@ -43,6 +43,13 @@
       "when": 1778774400000,
       "tag": "0005_client_documents_extras",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778860800000,
+      "tag": "0006_espo_sync",
+      "breakpoints": true
     }
   ]
 }
