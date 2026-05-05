@@ -19,4 +19,11 @@ describe("ROLE_PERMISSIONS", () => {
   it("editor cannot edit policy params", () => {
     expect(hasPermission("editor", "policy_params.update")).toBe(false);
   });
+
+  it("head_office_admin has everything except client.delete", () => {
+    expect(hasPermission("head_office_admin", "client.delete")).toBe(false);
+    expect(hasPermission("head_office_admin", "policy_params.update")).toBe(true);
+    expect(hasPermission("head_office_admin", "user.delete")).toBe(true);
+    expect(hasPermission("head_office_admin", "espo.retry_sync")).toBe(true);
+  });
 });
