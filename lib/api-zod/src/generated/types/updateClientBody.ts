@@ -12,6 +12,7 @@ import type { UpdateClientBodyStatus } from "./updateClientBodyStatus";
 export interface UpdateClientBody {
   fullName?: string;
   phone?: string;
+  telegramUsername?: string | null;
   status?: UpdateClientBodyStatus;
   assignedToId?: number;
   clientType?: UpdateClientBodyClientType;

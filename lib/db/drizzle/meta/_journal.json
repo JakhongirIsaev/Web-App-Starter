@@ -64,6 +64,13 @@
       "when": 1779033600000,
       "tag": "0008_clients_lead_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779120000000,
+      "tag": "0009_clients_telegram",
+      "breakpoints": true
     }
   ]
 }

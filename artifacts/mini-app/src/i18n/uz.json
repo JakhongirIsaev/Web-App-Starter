@@ -144,6 +144,9 @@
     "genderFemale": "Ayol",
     "address": "Manzil",
     "createdAt": "Yaratilgan sana",
+    "sendPdfToLead": "Mijozga KP yuborish",
+    "pdfSentTelegram": "KP mijozning Telegramiga yuborildi",
+    "pdfSendFailed": "Yuborib bo'lmadi",
     "productTypes": {
       "credit": "Kredit mahsuloti",
       "nonCredit": "Nokredit mahsulot"
@@ -156,6 +159,8 @@
     "fullNamePlaceholder": "Mijoz F.I.Sh. ni kiriting",
     "phone": "Telefon (keyinroq ham bo'ladi)",
     "phonePlaceholder": "+998 ...",
+    "telegramUsername": "Telegram (ixtiyoriy)",
+    "telegramUsernamePlaceholder": "@username",
     "create": "Mijozni saqlash",
     "creating": "Saqlanmoqda...",
     "created": "Mijoz yaratildi",

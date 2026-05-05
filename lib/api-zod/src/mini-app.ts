@@ -86,6 +86,9 @@ export const preferredCurrencySchema = z.enum(["UZS", "USD", "EUR", "RUB"]).opti
 export const MiniAppCreateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
+  // Optional Telegram @username for the lead. Captured during the visit so
+  // the leave-behind PDF can ship to the client's Telegram in Phase C4.
+  telegramUsername: z.string().optional(),
   gender: z.enum(["male", "female"]).optional(),
   businessType: z.string().optional(),
   businessSize: z.string().optional(),
@@ -111,6 +114,7 @@ export const MiniAppCreateClientBody = z.object({
 export const MiniAppUpdateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
+  telegramUsername: z.string().optional(),
   status: z.enum([
     "draft",
     "questionnaire",

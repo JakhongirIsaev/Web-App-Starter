@@ -81,6 +81,15 @@ interface PdfGenerationResult {
   telegramSent: boolean;
 }
 
+// Phase C4: response shape from /mini-app/clients/:id/send-pdf-to-lead.
+// Either the lead got the PDF directly via Telegram (`delivered: "telegram"`),
+// or the server fell back to a wa.me URL the expert opens themselves.
+interface SendPdfToLeadResult {
+  delivered: "telegram" | "whatsapp_url";
+  target?: string;
+  url?: string;
+}
+
 function SignedDocImage({
   doc,
   onPreview,
@@ -244,6 +253,27 @@ export default function ClientDetailPage() {
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       setPdfError(message || t("pdf.generateFailed"));
+    },
+  });
+
+  // Phase C4: ship the leave-behind PDF directly to the lead. Tries Telegram
+  // first; falls back to opening a wa.me URL the expert can forward themselves.
+  const sendPdfToLeadMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/mini-app/clients/${params.id}/send-pdf-to-lead`, {
+        language: i18n.language === "ru" ? "ru" : "uz",
+      }),
+    onSuccess: (result: SendPdfToLeadResult) => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      if (result.delivered === "whatsapp_url" && result.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+      } else if (result.delivered === "telegram") {
+        alert(t("clientDetail.pdfSentTelegram"));
+      }
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`${t("clientDetail.pdfSendFailed")}: ${message}`);
     },
   });
 
@@ -844,6 +874,27 @@ export default function ClientDetailPage() {
             {t("common.error")}: {pdfError}
           </p>
         )}
+
+        {/* Phase C4: Send leave-behind PDF directly to the lead. Tries
+            Telegram delivery if the client has a username on file, otherwise
+            opens a wa.me URL the expert forwards themselves. */}
+        <button
+          onClick={() => sendPdfToLeadMutation.mutate()}
+          disabled={sendPdfToLeadMutation.isPending}
+          className="mt-2 w-full h-11 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 border border-[#16A34A]/30 text-[#16A34A] bg-white"
+        >
+          {sendPdfToLeadMutation.isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t("pdf.generating")}
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4" />
+              {t("clientDetail.sendPdfToLead")}
+            </>
+          )}
+        </button>
       </div>
 
       {/* ═══════════════ CALCULATIONS (detailed) ═══════════════ */}
