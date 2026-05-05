@@ -58,7 +58,18 @@
     "collateral": "Garov",
     "users": "Foydalanuvchilar",
     "recommendations": "Tavsiyalar",
-    "activityLog": "Faoliyat jurnali"
+    "activityLog": "Faoliyat jurnali",
+    "espoSync": "Espo sinxronlash"
+  },
+  "espoSync": {
+    "title": "Espo bilan sinxronlash",
+    "subtitle": "EspoCRM-ga lidlarni jo'natish",
+    "status": { "pending": "Kutilmoqda", "failed": "Xatoliklar", "succeeded": "Muvaffaqiyat" },
+    "col": { "id": "Vazifa ID", "client": "Mijoz", "attempts": "Urinishlar", "error": "Xato", "espoLead": "Espo lid", "action": "Amal" },
+    "retry": "Qayta urinish",
+    "empty": "Bu holatda vazifalar yo'q",
+    "retrySuccess": "Vazifa navbatga qo'yildi",
+    "retryFailed": "Bajarilmadi"
   },
   "activityLog": {
     "title": "Faoliyat jurnali",

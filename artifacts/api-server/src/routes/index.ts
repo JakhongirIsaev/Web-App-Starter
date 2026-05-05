@@ -16,6 +16,7 @@ import aiRouter from "./ai";
 import telegramRouter from "./telegram";
 import collateralRouter from "./collateral";
 import recommendationDocumentsRouter from "./recommendation-documents";
+import adminEspoRouter from "./admin-espo";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(creditLinesRouter);
 router.use(miniAppRouter);
 router.use(collateralRouter);
 router.use(recommendationDocumentsRouter);
+router.use(adminEspoRouter);
 
 export default router;

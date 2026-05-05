@@ -58,7 +58,18 @@
     "collateral": "Залог",
     "users": "Пользователи",
     "recommendations": "Рекомендации",
-    "activityLog": "Журнал активности"
+    "activityLog": "Журнал активности",
+    "espoSync": "Синхронизация Espo"
+  },
+  "espoSync": {
+    "title": "Синхронизация с Espo",
+    "subtitle": "Исходящая отправка лидов в EspoCRM",
+    "status": { "pending": "Ожидают", "failed": "Ошибки", "succeeded": "Готово" },
+    "col": { "id": "ID задачи", "client": "Клиент", "attempts": "Попытки", "error": "Ошибка", "espoLead": "Espo лид", "action": "Действие" },
+    "retry": "Повторить",
+    "empty": "Нет задач в этом статусе",
+    "retrySuccess": "Задача поставлена в очередь",
+    "retryFailed": "Не удалось"
   },
   "activityLog": {
     "title": "Журнал активности",
