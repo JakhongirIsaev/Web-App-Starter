@@ -7,7 +7,7 @@ import {
   CreateClientBody, UpdateClientBody, GetClientParams,
   UpdateClientParams, ListClientsQueryParams
 } from "@workspace/api-zod";
-import { guestAuth, requireRole } from "../middleware/auth";
+import { guestAuth, requireRole, requirePermission } from "../middleware/auth";
 import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -71,6 +71,7 @@ router.get("/clients", guestAuth, async (req, res) => {
 
   const conditions: any[] = [];
 
+  // data-scope filter — not authorization
   if (user.role === "branch_head") {
     if (!user.branchId) {
       res.json({ data: [], total: 0, page, pageSize });
@@ -169,6 +170,7 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
 
   const conditions: any[] = [eq(clientsTable.id, params.data.id)];
+  // data-scope filter — not authorization
   if (user.role === "branch_head") {
     if (!user.branchId) {
       res.status(404).json({ error: NOT_FOUND_MESSAGE });
@@ -253,17 +255,12 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
   });
 });
 
-router.put("/clients/:id", guestAuth, requireClientAccess, async (req, res) => {
+router.put("/clients/:id", guestAuth, requireClientAccess, requirePermission("client.update"), async (req, res) => {
   const user = req.user!;
   const params = UpdateClientParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
   const parsed = UpdateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
-
-  if (user.role === "branch_head") {
-    res.status(403).json({ error: "Rahbarlar mijozlarni faqat ko'rishi mumkin" });
-    return;
-  }
 
   const updateData: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.fullName !== undefined) updateData.fullName = parsed.data.fullName;
