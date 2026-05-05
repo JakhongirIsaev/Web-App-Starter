@@ -26,6 +26,7 @@ import {
   recommendationDocumentsTable,
 } from "@workspace/db";
 import { matchKnowledgeDocs } from "../lib/knowledge-match";
+import { enqueueEspoSync } from "../lib/espo-enqueue";
 import { eq, and, asc, desc, count, gte, lte, or, inArray } from "drizzle-orm";
 import { guestAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
@@ -944,6 +945,10 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       assignedToId: userId,
     })
     .returning();
+
+  // Fire-and-forget Espo sync. Helper swallows errors so a queue hiccup
+  // can't fail the user-facing client save.
+  await enqueueEspoSync({ clientId: client.id, externalUuid: client.externalUuid });
 
   res.json(client);
 });

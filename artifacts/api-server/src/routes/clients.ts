@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { clientsTable, branchesTable, usersTable, questionnaireSessionsTable, questionnaireAnswersTable, clientDocumentsTable, calculationsTable } from "@workspace/db";
 import { eq, and, ilike, sql, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { enqueueEspoSync } from "../lib/espo-enqueue";
 import {
   CreateClientBody, UpdateClientBody, GetClientParams,
   UpdateClientParams, ListClientsQueryParams
@@ -152,6 +153,10 @@ router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin"
     rejectionReason: parsed.data.rejectionReason,
     status: "draft",
   }).returning();
+
+  // Fire-and-forget Espo sync. Helper swallows errors so a queue hiccup
+  // can't fail the user-facing client save.
+  await enqueueEspoSync({ clientId: client.id, externalUuid: client.externalUuid });
 
   await logActivity({
     type: "client_created",
@@ -374,19 +379,30 @@ router.post(
       }
 
       let imported = 0;
+      const insertedClients: { id: number; externalUuid: string }[] = [];
       await db.transaction(async (tx) => {
         for (const row of valid) {
-          await tx.insert(clientsTable).values({
-            sessionId: randomUUID(),
-            fullName: row.fullName ?? null,
-            phone: row.phone ?? null,
-            status: row.status ?? "draft",
-            branchId: row.branchId!,
-            assignedToId: row.assignedToId ?? null,
-          });
+          const [inserted] = await tx
+            .insert(clientsTable)
+            .values({
+              sessionId: randomUUID(),
+              fullName: row.fullName ?? null,
+              phone: row.phone ?? null,
+              status: row.status ?? "draft",
+              branchId: row.branchId!,
+              assignedToId: row.assignedToId ?? null,
+            })
+            .returning({ id: clientsTable.id, externalUuid: clientsTable.externalUuid });
+          insertedClients.push(inserted);
           imported++;
         }
       });
+
+      // Enqueue Espo sync per imported client after the tx commits. Failures
+      // here are swallowed so import success is not blocked by queue issues.
+      for (const c of insertedClients) {
+        await enqueueEspoSync({ clientId: c.id, externalUuid: c.externalUuid });
+      }
 
       await logActivity({
         type: "clients_imported",
