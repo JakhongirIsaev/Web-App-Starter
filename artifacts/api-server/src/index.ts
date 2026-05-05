@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDatabase, seedCollateralReferenceData } from "./seed";
 import { seedExcelData } from "./seed-excel";
+import { seedPolicyParamsV1 } from "./seed/policy-params-v1";
 import { startBot, stopBot } from "./bot";
 import { deleteExpiredSessions } from "./lib/session-store";
 
@@ -49,6 +50,13 @@ const seedDemoOnBoot = shouldSeedOnBoot();
 // SEED_DATABASE_ON_BOOT — that flag is for demo/dummy data only.
 seedCollateralReferenceData().catch((err) => {
   logger.error({ err }, "Failed to seed collateral reference data");
+});
+
+// Versioned credit-policy parameters (v1 = 2026.05). Idempotent — only inserts
+// when the table is empty. Same boot rules as collateral reference data: runs
+// every boot, NOT gated by SEED_DATABASE_ON_BOOT.
+seedPolicyParamsV1().catch((err) => {
+  logger.error({ err }, "Failed to seed policy params v1");
 });
 
 if (seedDemoOnBoot) {

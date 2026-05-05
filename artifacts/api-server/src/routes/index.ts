@@ -17,6 +17,7 @@ import telegramRouter from "./telegram";
 import collateralRouter from "./collateral";
 import recommendationDocumentsRouter from "./recommendation-documents";
 import adminEspoRouter from "./admin-espo";
+import policyParamsRouter from "./policy-params";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(miniAppRouter);
 router.use(collateralRouter);
 router.use(recommendationDocumentsRouter);
 router.use(adminEspoRouter);
+router.use(policyParamsRouter);
 
 export default router;

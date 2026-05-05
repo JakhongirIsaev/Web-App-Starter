@@ -59,7 +59,8 @@
     "users": "Foydalanuvchilar",
     "recommendations": "Tavsiyalar",
     "activityLog": "Faoliyat jurnali",
-    "espoSync": "Espo sinxronlash"
+    "espoSync": "Espo sinxronlash",
+    "creditPolicy": "Kredit siyosati"
   },
   "espoSync": {
     "title": "Espo bilan sinxronlash",
@@ -627,5 +628,47 @@
   "header": {
     "logOut": "Chiqish",
     "branchInfo": "Filial: {{name}}"
+  },
+  "policy": {
+    "title": "Kredit siyosati parametrlari",
+    "subtitle": "Yangi kredit hisob-kitoblariga qo'llaniladigan tahrirlanadigan stavkalar, koeffitsientlar va muddatlar.",
+    "versionLabel": "Yangi versiya",
+    "effectiveFromLabel": "Amal qilish boshlanishi",
+    "saveAsNewVersion": "Yangi versiya sifatida saqlash",
+    "discardChanges": "O'zgarishlarni bekor qilish",
+    "savedTitle": "Saqlandi",
+    "saveFailed": "Saqlashda xato",
+    "section": {
+      "coverage": "Qoplama va chegirmalar",
+      "ratios": "Koeffitsientlar",
+      "ratesUzs": "Minimal stavkalar — UZS",
+      "ratesFx": "Minimal stavkalar — valyuta",
+      "terms": "Muddatlar",
+      "industries": "Taqiqlangan sohalar",
+      "graduatedLending": "Kredit seriyasi cheklovlari (oy)",
+      "committee": "Kredit qo'mitasi cheklovlari (USD)"
+    },
+    "minCoverageRatio": "Min. qoplama koef.",
+    "realEstate": "Ko'chmas mulk %",
+    "vehicles": "Transport %",
+    "equipment": "Uskunalar %",
+    "govSecurities": "Davlat qimmatli qog'ozlari %",
+    "corpSecurities": "Korporativ qimmatli qog'ozlar %",
+    "inventory": "Aylanma tovarlar %",
+    "transportAge": "Transport yoshi chegarasi (yil)",
+    "transportAgeDisc": "Transport yoshi uchun chegirma %",
+    "dscrMax": "Max. DSCR",
+    "dscrMaxFx": "Max. DSCR (valyuta)",
+    "debtToEquity": "Max. qarz/kapital",
+    "loanToWc": "Max. kredit/aylanma kapital",
+    "maxTermWc": "Max. muddat (aylanma kapital, oy)",
+    "maxTermFa": "Max. muddat (asosiy vositalar, oy)",
+    "negKeywordsLabel": "Vergul bilan ajratilgan",
+    "loan1Max": "Kredit №1 max.",
+    "loan1MaxTrade": "Kredit №1 max. (savdo)",
+    "loan2Max": "Kredit №2 max.",
+    "loan3Max": "Kredit №3 max.",
+    "singleBorrower": "Bitta qarz oluvchi",
+    "relatedGroup": "Bog'liq guruh"
   }
 }
