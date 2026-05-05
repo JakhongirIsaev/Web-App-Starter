@@ -199,6 +199,7 @@ router.post("/users", guestAuth, requireRole("superadmin", "head_office_admin"),
   const [user] = await db.insert(usersTable).values({
     telegramId: parsed.data.telegramId,
     name: parsed.data.name,
+    phone: parsed.data.phone ?? null,
     role: parsed.data.role,
     branchId: parsed.data.branchId ?? null,
     passwordHash,
@@ -227,6 +228,7 @@ router.put("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin
 
   const updateData: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.phone !== undefined) updateData.phone = parsed.data.phone;
   if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
   if (parsed.data.branchId !== undefined) updateData.branchId = parsed.data.branchId;
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;

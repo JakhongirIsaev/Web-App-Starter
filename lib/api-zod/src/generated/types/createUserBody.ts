@@ -10,6 +10,7 @@ import type { CreateUserBodyRole } from "./createUserBodyRole";
 export interface CreateUserBody {
   telegramId: string;
   name: string;
+  phone?: string | null;
   role: CreateUserBodyRole;
   branchId?: number | null;
   password: string;

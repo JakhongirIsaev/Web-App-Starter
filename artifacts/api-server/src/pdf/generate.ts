@@ -1,5 +1,7 @@
 import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { buildPaymentSchedule } from "../lib/calculations";
 import { formatDateInAppTimeZone } from "../lib/timezone";
 
@@ -93,41 +95,32 @@ interface PdfData {
   collateralEstimate?: PdfCollateralEstimate | null;
 }
 
-function resolveFontCandidates() {
-  const regularCandidates = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-    "C:\\Windows\\Fonts\\arial.ttf",
-    "C:\\Windows\\Fonts\\segoeui.ttf",
+export function resolveBundledFonts(): { body: string; bold: string } {
+  // Works in both dev (artifacts/api-server/fonts/) and built dist (dist/fonts/).
+  // The build step copies fonts/ -> dist/fonts/ so the runtime resolution works
+  // identically in either layout.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(here, "../fonts"),       // dist/fonts when running built code (here = dist/)
+    resolve(here, "../../fonts"),    // src/pdf -> ../../fonts when running ts/dev
   ];
-  const boldCandidates = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-    "C:\\Windows\\Fonts\\arialbd.ttf",
-    "C:\\Windows\\Fonts\\segoeuib.ttf",
-  ];
-
-  const body = regularCandidates.find((candidate) => existsSync(candidate));
-  const bold = boldCandidates.find((candidate) => existsSync(candidate));
-
-  return { body, bold };
+  for (const dir of candidates) {
+    const body = resolve(dir, "DejaVuSans.ttf");
+    const bold = resolve(dir, "DejaVuSans-Bold.ttf");
+    if (existsSync(body) && existsSync(bold)) return { body, bold };
+  }
+  throw new Error(
+    "Bundled fonts not found. Run pnpm --filter @workspace/api-server build to copy fonts to dist/.",
+  );
 }
 
 function createFontApplier(doc: PdfDoc) {
-  const fonts = resolveFontCandidates();
-  if (fonts.body) doc.registerFont("minerva-body", fonts.body);
-  if (fonts.bold) doc.registerFont("minerva-bold", fonts.bold);
+  const fonts = resolveBundledFonts();
+  doc.registerFont("minerva-body", fonts.body);
+  doc.registerFont("minerva-bold", fonts.bold);
 
   return (fontName: FontName) => {
-    if (fontName === "bold" && fonts.bold) {
-      doc.font("minerva-bold");
-      return;
-    }
-    if (fonts.body) {
-      doc.font("minerva-body");
-      return;
-    }
-    doc.font(fontName === "bold" ? "Helvetica-Bold" : "Helvetica");
+    doc.font(fontName === "bold" ? "minerva-bold" : "minerva-body");
   };
 }
 

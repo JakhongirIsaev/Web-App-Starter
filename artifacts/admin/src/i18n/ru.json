@@ -447,6 +447,7 @@
     "editUserDesc": "Обновить данные и доступ пользователя.",
     "fullName": "Полное имя",
     "fullNamePlaceholder": "Полное имя",
+    "phone": "Телефон",
     "telegramIdPlaceholder": "напр. 100000001",
     "roleLabel": "Роль",
     "branchLabel": "Филиал",

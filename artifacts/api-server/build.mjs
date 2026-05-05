@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
+import { mkdirSync, copyFileSync, existsSync } from "node:fs";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -122,6 +123,25 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Copy bundled fonts into dist so PDF generation does not depend on
+  // OS-installed fonts at runtime (Railway Alpine has no DejaVu by default).
+  const fontSrcDir = path.resolve(artifactDir, "fonts");
+  const fontDestDir = path.resolve(distDir, "fonts");
+  if (existsSync(fontSrcDir)) {
+    mkdirSync(fontDestDir, { recursive: true });
+    for (const name of ["DejaVuSans.ttf", "DejaVuSans-Bold.ttf"]) {
+      const src = path.resolve(fontSrcDir, name);
+      const dest = path.resolve(fontDestDir, name);
+      if (existsSync(src)) {
+        copyFileSync(src, dest);
+      } else {
+        console.warn(`[build] WARNING: ${name} missing from fonts/ — PDF will fail at runtime`);
+      }
+    }
+  } else {
+    console.warn(`[build] WARNING: artifacts/api-server/fonts/ missing — PDF will fail at runtime`);
+  }
 }
 
 buildAll().catch((err) => {

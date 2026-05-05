@@ -29,6 +29,7 @@ import { matchKnowledgeDocs } from "../lib/knowledge-match";
 import { eq, and, asc, desc, count, gte, lte, or, inArray } from "drizzle-orm";
 import { guestAuth } from "../middleware/auth";
 import { generateClientPdf } from "../pdf/generate";
+import { generateLeaveBehindPdf, type LeaveBehindInput } from "../pdf/leave-behind";
 import { sendDocument } from "../bot";
 import { validateTelegramInitData } from "../lib/telegram";
 import {
@@ -1613,20 +1614,108 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
       ? parsed.data.telegramInitData.trim()
       : "";
 
-  const payload = await buildPdfPayload(clientId, user, language);
-  if (!payload) {
+  // Look up client to resolve expert (assignedTo) and branch.
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+  if (!client) {
     res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
 
+  // Resolve credit expert: prefer the assigned user; fall back to the
+  // authenticated caller (mini-app users typically ARE the assigned expert).
+  // The leave-behind PDF requires a phone number — fail with a 400 if neither
+  // the assigned expert nor the caller has one on file.
+  const expertUserId = client.assignedToId ?? user.id;
+  const [expertRow] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      phone: usersTable.phone,
+      telegramId: usersTable.telegramId,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.id, expertUserId))
+    .limit(1);
+
+  if (!expertRow?.name || !expertRow?.phone) {
+    res.status(400).json({
+      error: "expert_missing_contact",
+      message:
+        language === "ru"
+          ? "У назначенного эксперта не указан телефон. Заполните телефон в профиле."
+          : "Tayinlangan ekspertning telefoni ko'rsatilmagan. Profilda telefonni to'ldiring.",
+    });
+    return;
+  }
+
+  // Resolve branch name (display only — falls back to a sensible default).
+  let branchName = "IPAK YO'LI";
+  if (client.branchId) {
+    const [branch] = await db
+      .select({ name: branchesTable.name })
+      .from(branchesTable)
+      .where(eq(branchesTable.id, client.branchId))
+      .limit(1);
+    if (branch?.name) branchName = branch.name;
+  }
+
+  // Derive an indicative loan range from the most recent calculations on this
+  // client. Optional — when there are no calculations the PDF skips the block.
+  const calcs = await db
+    .select({
+      loanAmount: calculationsTable.loanAmount,
+      monthlyPayment: calculationsTable.monthlyPayment,
+    })
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt))
+    .limit(20);
+
+  let indicative: {
+    amountMinUzs: number;
+    amountMaxUzs: number;
+    monthlyMinUzs: number;
+    monthlyMaxUzs: number;
+    currency: "UZS";
+  } | null = null;
+  if (calcs.length > 0) {
+    const amounts = calcs
+      .map((c) => Number(c.loanAmount))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const monthly = calcs
+      .map((c) => Number(c.monthlyPayment ?? 0))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (amounts.length > 0 && monthly.length > 0) {
+      indicative = {
+        amountMinUzs: Math.min(...amounts),
+        amountMaxUzs: Math.max(...amounts),
+        monthlyMinUzs: Math.min(...monthly),
+        monthlyMaxUzs: Math.max(...monthly),
+        currency: "UZS",
+      };
+    }
+  }
+
   try {
-    const pdfBuffer = await generateClientPdf({
-      ...payload,
-      offerSummary: null,
+    const pdfBuffer = await generateLeaveBehindPdf({
+      client: {
+        fullName: client.fullName,
+        // No businessName column on clients yet — leave null until the schema
+        // gains one (the generator already handles the missing case).
+        businessName: null,
+      },
+      expert: { name: expertRow.name, phone: expertRow.phone },
+      indicative,
+      branchName,
+      language,
     });
 
     let telegramSent = false;
-    let targetTelegramId = payload.expertTelegramId;
+    let targetTelegramId = expertRow.telegramId || null;
 
     if (sendViaTelegram && telegramInitData && process.env.TELEGRAM_BOT_TOKEN) {
       const validatedTelegram = validateTelegramInitData(
@@ -1642,10 +1731,10 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     if (sendViaTelegram && targetTelegramId) {
       const filenamePrefix = language === "ru" ? "predlozhenie" : "taklif";
       const fallbackName = language === "ru" ? "klient" : "mijoz";
-      const filename = `${filenamePrefix}_${(payload.client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
+      const filename = `${filenamePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
       const caption = language === "ru"
-        ? `Коммерческое предложение: ${payload.client.fullName || "Клиент"}\nЭксперт: ${payload.expertName}`
-        : `Tijorat taklifi: ${payload.client.fullName || "Mijoz"}\nEkspert: ${payload.expertName}`;
+        ? `Коммерческое предложение: ${client.fullName || "Клиент"}\nЭксперт: ${expertRow.name}`
+        : `Tijorat taklifi: ${client.fullName || "Mijoz"}\nEkspert: ${expertRow.name}`;
       telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
     }
 
@@ -1850,23 +1939,83 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     return;
   }
 
-  const payload = await buildPdfPayload(clientId, req.user!, language);
-  if (!payload) {
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+  if (!client) {
     res.status(404).json({ error: language === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
     return;
   }
 
+  const expertUserId = client.assignedToId ?? req.user!.id;
+  const [expertRow] = await db
+    .select({ name: usersTable.name, phone: usersTable.phone })
+    .from(usersTable)
+    .where(eq(usersTable.id, expertUserId))
+    .limit(1);
+
+  if (!expertRow?.name || !expertRow?.phone) {
+    res.status(400).json({
+      error: "expert_missing_contact",
+      message:
+        language === "ru"
+          ? "У назначенного эксперта не указан телефон. Заполните телефон в профиле."
+          : "Tayinlangan ekspertning telefoni ko'rsatilmagan. Profilda telefonni to'ldiring.",
+    });
+    return;
+  }
+
+  let branchName = "IPAK YO'LI";
+  if (client.branchId) {
+    const [branch] = await db
+      .select({ name: branchesTable.name })
+      .from(branchesTable)
+      .where(eq(branchesTable.id, client.branchId))
+      .limit(1);
+    if (branch?.name) branchName = branch.name;
+  }
+
+  const calcs = await db
+    .select({
+      loanAmount: calculationsTable.loanAmount,
+      monthlyPayment: calculationsTable.monthlyPayment,
+    })
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt))
+    .limit(20);
+
+  let indicative: LeaveBehindInput["indicative"] = null;
+  if (calcs.length > 0) {
+    const amounts = calcs.map((c) => Number(c.loanAmount)).filter((n) => Number.isFinite(n) && n > 0);
+    const monthly = calcs.map((c) => Number(c.monthlyPayment ?? 0)).filter((n) => Number.isFinite(n) && n > 0);
+    if (amounts.length > 0 && monthly.length > 0) {
+      indicative = {
+        amountMinUzs: Math.min(...amounts),
+        amountMaxUzs: Math.max(...amounts),
+        monthlyMinUzs: Math.min(...monthly),
+        monthlyMaxUzs: Math.max(...monthly),
+        currency: "UZS",
+      };
+    }
+  }
+
   try {
-    const pdfBuffer = await generateClientPdf({
-      ...payload,
-      offerSummary: null,
+    const pdfBuffer = await generateLeaveBehindPdf({
+      client: { fullName: client.fullName, businessName: null },
+      expert: { name: expertRow.name, phone: expertRow.phone },
+      indicative,
+      branchName,
+      language,
     });
 
     const fileDate = formatFileDate();
     const filePrefix = language === "ru" ? "predlozhenie" : "taklif";
     const fallbackName = language === "ru" ? "klient" : "mijoz";
-    const safeName = `${filePrefix}_${payload.client.id}_${fileDate}.pdf`;
-    const displayName = `${filePrefix}_${(payload.client.fullName || fallbackName).replace(/\s+/g, "_")}_${fileDate}.pdf`;
+    const safeName = `${filePrefix}_${client.id}_${fileDate}.pdf`;
+    const displayName = `${filePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${fileDate}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);
