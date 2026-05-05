@@ -173,6 +173,7 @@
     "telegramUsername": "Telegram (ixtiyoriy)",
     "telegramUsernamePlaceholder": "@username",
     "preferredLanguage": "Mijoz tili",
+    "savedOffline": "Navbatga saqlandi — internet paydo bo'lganda sinxronlanadi",
     "create": "Mijozni saqlash",
     "creating": "Saqlanmoqda...",
     "created": "Mijoz yaratildi",
@@ -714,10 +715,17 @@
     "gpsUnsupported": "GPS qo'llab-quvvatlanmaydi",
     "gpsFailed": "GPS olinmadi",
     "save": "Saqlash",
-    "saveFailed": "Saqlab bo'lmadi"
+    "saveFailed": "Saqlab bo'lmadi",
+    "savedOffline": "Navbatga saqlandi — internet paydo bo'lganda sinxronlanadi"
   },
   "signature": {
     "placeholder": "Bu yerda imzo qo'ying",
     "clear": "Tozalash"
+  },
+  "offline": {
+    "label": "Internet yo'q",
+    "syncing": "Sinxronlash",
+    "pendingCount_one": "{{count}} kutmoqda",
+    "pendingCount_other": "{{count}} kutmoqda"
   }
 }
