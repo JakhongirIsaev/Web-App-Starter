@@ -87,6 +87,16 @@
     "online": "Onlayn",
     "branchLabel": "Filial"
   },
+  "myDay": {
+    "today": "Bugun",
+    "week": "Hafta davomida",
+    "funnel": "Voronka (7 kun)",
+    "lead": "Lidlar",
+    "recommendation": "Tanlash",
+    "basket": "Savat",
+    "pdfGenerated": "KP",
+    "approved": "Tasdiqlangan"
+  },
   "clients": {
     "title": "Mening mijozlarim",
     "newClient": "Yangi mijoz",

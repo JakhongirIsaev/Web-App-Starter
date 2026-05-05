@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -37,8 +37,26 @@ export default function ClientsPage() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status") || "";
+    return STATUS_KEYS.includes(status) ? status : "";
+  });
   const [genderFilter, setGenderFilter] = useState("");
+
+  // Sync statusFilter when navigated to /clients?status=... from another page
+  // (e.g. the My Day funnel widget on home).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get("status") || "";
+      if (STATUS_KEYS.includes(status)) setStatusFilter(status);
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [filterOpen, setFilterOpen] = useState(false);
 

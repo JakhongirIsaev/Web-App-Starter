@@ -87,6 +87,16 @@
     "online": "Онлайн",
     "branchLabel": "Филиал"
   },
+  "myDay": {
+    "today": "Сегодня",
+    "week": "За неделю",
+    "funnel": "Воронка (7 дней)",
+    "lead": "Лиды",
+    "recommendation": "Подбор",
+    "basket": "Корзина",
+    "pdfGenerated": "КП",
+    "approved": "Одобрено"
+  },
   "clients": {
     "title": "Мои клиенты",
     "newClient": "Новый клиент",
