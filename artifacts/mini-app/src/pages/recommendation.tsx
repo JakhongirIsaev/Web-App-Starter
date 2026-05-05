@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -141,64 +141,12 @@ export default function RecommendationPage() {
     enabled: showAll,
   });
 
-  const aiRecommendationsQuery = useQuery({
-    queryKey: [
-      "mini-ai-recommend",
-      params.clientId,
-      currentLanguage,
-      serializedAnswers,
-      data?.recommended?.map((product: ProductRecord) => product.id).join(",") ?? "",
-    ],
-    enabled: !showAll && Boolean(data?.recommended?.length),
-    retry: false,
-    queryFn: () =>
-      api.post("/ai/recommend-products", {
-        clientBusinessType: answerMap.get("business_type") || undefined,
-        sector: answerMap.get("business_type") || undefined,
-        needsGoals: answers.map((item) => `${item.questionKey}: ${item.answer}`),
-        requestedAmount: answerMap.get("desired_amount") || undefined,
-        termMonths: answerMap.get("desired_term") || undefined,
-        language: currentLanguage,
-        questionnaireAnswers: answers,
-        allowedProducts: (data?.recommended || []).map((product: ProductRecord) => ({
-          id: product.id,
-          name: product.name,
-          sapCode: product.sapCode,
-          segment: product.segment,
-          purpose: product.purpose,
-          highlight: product.highlight,
-          loanAmount: product.loanAmount,
-          termWorkingCapital: product.termWorkingCapital,
-          termFixedAssets: product.termFixedAssets,
-          termUntargeted: product.termUntargeted,
-          rateUZS: product.rateUZS,
-          rateUSD: product.rateUSD,
-          rateEUR: product.rateEUR,
-          disbursementForm: product.disbursementForm,
-          whySuitable: product.whySuitable,
-        })),
-      }),
-  });
-
-  const aiRecommendationMap = useMemo(
-    () =>
-      new Map(
-        (aiRecommendationsQuery.data?.recommendations || []).map((item: ProductRecord) => [
-          typeof item.productId === "number" ? item.productId : item.productName,
-          item,
-        ]),
-      ),
-    [aiRecommendationsQuery.data?.recommendations],
-  );
-
+  // Phase B4: AI overlay removed. The /mini-app/recommend endpoint already
+  // returns the matched + ranked product list; we render its fields directly
+  // and fall back across locales using getDisplayValue.
   const getDisplayValue = (
-    localizedValue: string | null | undefined,
     fallbackValue: string | null | undefined,
   ) => {
-    if (localizedValue?.trim() && isTextCompatibleWithLanguage(localizedValue, currentLanguage)) {
-      return localizedValue.trim();
-    }
-
     if (
       fallbackValue?.trim() &&
       currentLanguage === "ru" &&
@@ -215,48 +163,29 @@ export default function RecommendationPage() {
       return fallbackValue.trim();
     }
 
-    return null;
+    return fallbackValue?.trim() || null;
   };
 
   const baseProducts = showAll ? allProducts : data?.recommended || [];
-  const products = baseProducts.map((product: ProductRecord) => {
-    const aiRecommendation: ProductRecord | null =
-      aiRecommendationMap.get(product.id) ||
-      aiRecommendationMap.get(product.name) ||
-      null;
-    const displaySegment = getDisplayValue(
-      aiRecommendation?.localizedSegment,
-      product.segment,
-    );
-    const displayRate = getDisplayValue(
-      aiRecommendation?.localizedRate,
-      buildRateFallback(product),
-    );
-    const displayAmount = getDisplayValue(
-      aiRecommendation?.localizedLoanAmount,
-      product.loanAmount,
-    );
-    const displayPurpose = getDisplayValue(
-      aiRecommendation?.localizedPurpose,
-      product.purpose,
-    );
-    const displayHighlight = getDisplayValue(
-      aiRecommendation?.localizedHighlight,
-      product.highlight,
-    );
+  const products = baseProducts.map((product: ProductRecord, index: number) => {
+    const displaySegment = getDisplayValue(product.segment);
+    const displayRate = getDisplayValue(buildRateFallback(product));
+    const displayAmount = getDisplayValue(product.loanAmount);
+    const displayPurpose = getDisplayValue(product.purpose);
+    const displayHighlight = getDisplayValue(product.highlight);
     const displayExplanation = isTextCompatibleWithLanguage(
-      aiRecommendation?.explanation,
+      product.whySuitable,
       currentLanguage,
     )
-      ? truncateText(aiRecommendation?.explanation?.trim() || null)
-      : currentLanguage === "ru" &&
-          isTextCompatibleWithLanguage(product.whySuitable, currentLanguage)
-        ? truncateText(product.whySuitable)
-        : null;
+      ? truncateText(product.whySuitable)
+      : null;
 
     return {
       ...product,
-      aiRecommendation,
+      // Deterministic rank/confidence preserved so the existing UI badges
+      // (best match, match %) keep working without an AI overlay.
+      rank: index + 1,
+      confidence: showAll ? 0 : Number(Math.max(0.4, 0.9 - index * 0.1).toFixed(2)),
       displaySegment,
       displayRate,
       displayAmount,
@@ -281,14 +210,7 @@ export default function RecommendationPage() {
     };
   });
 
-  const visibleProducts = showAll
-    ? products
-    : [...products].sort((left: ProductRecord, right: ProductRecord) => {
-        const leftRank = left.aiRecommendation?.rank ?? Number.MAX_SAFE_INTEGER;
-        const rightRank = right.aiRecommendation?.rank ?? Number.MAX_SAFE_INTEGER;
-        if (leftRank !== rightRank) return leftRank - rightRank;
-        return left.name.localeCompare(right.name);
-      });
+  const visibleProducts = products;
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -528,7 +450,7 @@ export default function RecommendationPage() {
         <div className="px-4 space-y-3">
           {visibleProducts.map((product: ProductRecord, index: number) => {
             const isSelected = selectedIds.has(product.id);
-            const confidence = matchPercent(product.aiRecommendation?.confidence);
+            const confidence = matchPercent(product.confidence);
             const isBest = index === 0 && !showAll && confidence > 0;
             const reasons = [
               product.displayHighlight,
@@ -707,13 +629,6 @@ export default function RecommendationPage() {
             );
           })}
         </div>
-      )}
-
-      {/* AI hint */}
-      {!showAll && aiRecommendationsQuery.isFetching && (
-        <p className="text-center text-[12px] mt-4" style={{ color: "#64748B" }}>
-          {t("recommendation.aiHint")}
-        </p>
       )}
 
       {/* ═══════════════ FLOATING BASKET BUTTON ═══════════════ */}

@@ -6,8 +6,8 @@ set -eu
 # Bump: pull in root railway.toml (DOCKERFILE builder) for production.
 
 # Tailscale sidecar: joins the container to the user's private tailnet so the
-# api-server can reach a self-hosted Ollama over WireGuard — without exposing
-# it publicly and without client data ever leaving the tailnet.
+# api-server can reach private services over WireGuard — without exposing
+# them publicly and without client data ever leaving the tailnet.
 #
 # Required env:
 #   TS_AUTHKEY            reusable+ephemeral auth key tagged tag:railway

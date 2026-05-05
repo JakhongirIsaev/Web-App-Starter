@@ -3,10 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
 import { buildAuthHeaders } from "@/lib/auth-headers";
 import {
-  Users, CheckCircle2, Building2, Package, Activity, Sparkles, Wifi, WifiOff,
+  Users, CheckCircle2, Building2, Package, Activity,
   ChevronDown, TrendingUp, Download,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -239,17 +238,6 @@ export default function Dashboard() {
     },
   });
 
-  const { data: aiHealth } = useQuery({
-    queryKey: ["ai-health"],
-    queryFn: async () => {
-      const res = await fetch(buildApiUrl("/api/ai/health"), { headers: authHeaders });
-      if (!res.ok) return { status: "degraded", ollamaReachable: false, model: "noma'lum", modelAvailable: false };
-      return res.json();
-    },
-    refetchInterval: 60000,
-    retry: false,
-  });
-
   /* Spark bars fallback — zeros until the API provides a real daily series */
   const sparkData = useMemo(() => {
     const base = summary?.dailyDisbursements;
@@ -376,35 +364,6 @@ export default function Dashboard() {
           tone="teal"
           isLoading={isLoadingSummary}
         />
-      </div>
-
-      {/* ── AI status (compact inline) ── */}
-      <div className={`bg-card border rounded-xl shadow-sm p-4 px-[18px] flex items-center gap-3 ${
-        aiHealth?.ollamaReachable ? "border-[hsl(142_65%_42%/0.3)]" : "border-[hsl(38_95%_48%/0.3)]"
-      }`}>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-          aiHealth?.ollamaReachable
-            ? "bg-[hsl(142_71%_40%/0.12)] text-[hsl(142_71%_40%)]"
-            : "bg-[hsl(38_95%_48%/0.12)] text-[hsl(38_95%_48%)]"
-        }`}>
-          <Sparkles className="w-4 h-4" />
-        </div>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-sm font-medium">{t("dashboard.aiStatus")}</span>
-          <span className="text-muted-foreground">--</span>
-          {aiHealth?.ollamaReachable ? (
-            <Badge variant="default" className="bg-[hsl(142_65%_42%)] text-white text-[10px] px-2 py-0 gap-1">
-              <Wifi className="w-3 h-3" />
-              {t("dashboard.aiOnline")}
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="text-[10px] px-2 py-0 gap-1">
-              <WifiOff className="w-3 h-3" />
-              {t("dashboard.aiOffline")}
-            </Badge>
-          )}
-        </div>
-        <span className="text-xs text-muted-foreground font-mono">{aiHealth?.model || "---"}</span>
       </div>
 
       {/* ── Two-column row: funnel + spark bars ── */}

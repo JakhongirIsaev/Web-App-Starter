@@ -7,7 +7,6 @@ Keep these repo-backed services:
 - `backend-api` -> folder `artifacts/api-server`
 - `admin` -> folder `artifacts/admin`
 - `miniapp-web` -> folder `artifacts/mini-app`
-- `ollama-ai` -> folder `artifacts/ollama-ai`
 
 Remove these repo-backed services:
 
@@ -27,16 +26,6 @@ Object storage:
   default `./uploads`). Mount a Railway volume to that path for persistence.
   External S3/GCS support was removed when the Replit object-storage sidecar
   was retired.
-
-## AI architecture
-
-- The Mini App never talks to Ollama directly.
-- `backend-api` calls `ollama-ai` over Railway private networking.
-- Use this internal backend env:
-  - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-  - `OLLAMA_MODEL=gemma3:4b`
-- Do not add a public domain to `ollama-ai`.
-- Mount a persistent Railway volume on `ollama-ai` at `/root/.ollama` so the pulled model survives deploys.
 
 ## Railway service settings
 
@@ -81,8 +70,6 @@ Required in production (process refuses to start without these):
 Optional env vars:
 
 - `LOG_LEVEL`
-- `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-- `OLLAMA_MODEL=gemma3:4b`
 - `TRUST_PROXY=true` (or number of hops) behind Railway's proxy.
 - `SESSION_TTL_MS` (default 7 days).
 
@@ -174,42 +161,14 @@ To verify end-to-end:
 
 If a deploy is mid-flight when a job fires, the row stays `pending` until the worker boots and polls — graphile-worker re-reads pending rows on startup.
 
-### `ollama-ai`
-
-- Source folder: `artifacts/ollama-ai`
-- Builder: `Dockerfile`
-- Public: `false`
-- Port: `11434`
-- Volume mount: `/root/.ollama`
-
-Recommended env vars:
-
-- `OLLAMA_MODEL=gemma3:4b`
-- `OLLAMA_HOST=0.0.0.0:11434`
-- `OLLAMA_MODELS=/root/.ollama`
-
 ## Railway manual actions
 
 1. Keep your current public app services for API and frontends.
-2. Create a new service from folder `artifacts/ollama-ai`.
-3. Rename services if you want cleaner dashboard names:
+2. Rename services if you want cleaner dashboard names:
    - `@workspace/api-server` -> `backend-api`
    - `@workspace/mini-app` -> `miniapp-web`
-4. Open the `ollama-ai` service and add a persistent volume mounted at `/root/.ollama`.
-5. Do not assign any public domain to `ollama-ai`.
-6. On `backend-api`, set:
-   - `OLLAMA_URL=http://ollama-ai.railway.internal:11434`
-   - `OLLAMA_MODEL=gemma3:4b`
-7. Redeploy `ollama-ai`, wait for the first model pull to complete, then redeploy `backend-api`.
-8. Verify public backend health:
+3. Verify public backend health:
    - `GET /api/healthz`
-   - `GET /api/ai/health`
-9. Redeploy `miniapp-web` after backend AI endpoints are live.
-10. Test these flows from the Mini App:
-   - questionnaire -> AI-ranked recommendations
-   - vehicle photo scan -> structured auto extraction
-   - OCR review -> RU/UZ translation
-   - PDF generation -> AI offer summary plus Telegram delivery
 
 ## Notes
 
@@ -220,4 +179,6 @@ Recommended env vars:
 - `admin` and `mini-app` now use the checked-in `scripts/serve-spa.mjs` static server in production instead of `vite preview`.
 - Use `Asia/Tashkent` as the runtime timezone for all three deployable services so dashboards, exports, and PDFs stay aligned with Uzbekistan time.
 - The API process also starts the Telegram bot, so run a single web replica unless you split the bot into its own worker later.
-- The `ollama-ai` service keeps models on a volume at `/root/.ollama`; the first deploy will be slower because `gemma3:4b` must be pulled once.
+- The `ollama-ai` service was decommissioned (Phase B4). Deterministic rule
+  engine + static templates replaced AI inference. Remove the Railway service
+  and OLLAMA_* env vars manually.

@@ -646,10 +646,10 @@ async function buildPdfPayload(
   const profile = buildClientPreferenceProfile(answers, language);
   const preferenceSummary = summarizeClientPreferences(profile, language);
 
-  // Localization via LLM removed — it blocked every PDF for up to 30s on a
-  // self-hosted Ollama over Tailscale. The PDF renderer already falls back to
-  // the raw product fields via getDisplayValueForLanguage when localized ones
-  // are missing, so leaving these null is safe.
+  // Localization via LLM is permanently removed — the AI service was
+  // decommissioned in Phase B4. The PDF renderer falls back to the raw
+  // product fields via getDisplayValueForLanguage when localized ones are
+  // missing, so leaving these null is safe.
   const localizedBasketItems = basketItems.map((item) => ({
     ...item,
     localizedSegment: null,
