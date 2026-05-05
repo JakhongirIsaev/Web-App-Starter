@@ -307,28 +307,17 @@ export default function QuestionnairePage() {
     },
   });
 
-  const [aiLoading, setAiLoading] = useState(false);
+  // aiLoading is preserved for the JSX but never set true now that the
+  // /ai/generate-questionnaire endpoint is gone. The whole questionnaire is
+  // replaced with a fixed form in B3 — kept minimal to limit churn here.
+  const [aiLoading] = useState(false);
 
   const openFollowUps = async () => {
+    // Phase B1: AI-generated follow-ups are removed. Always use the static
+    // fallback questionnaire — the questionnaire itself is being replaced
+    // with a fixed client form in B3.
     const needType =
       answers.find((item) => item.questionKey === "need_type")?.answer ?? undefined;
-
-    setAiLoading(true);
-    try {
-      const result = await api.post("/ai/generate-questionnaire", {
-        language: currentLanguage,
-        existingAnswers: answers,
-        maxQuestions: 4,
-      }) as { questions: QuestionDefinition[]; model: string };
-
-      if (result.questions && result.questions.length >= 2 && result.model !== "fallback") {
-        setAiQuestions(result.questions);
-        setFollowUpSource("ai");
-        setStep(baseQuestions.length);
-        return;
-      }
-    } catch { /* fall through to fallback */ }
-    finally { setAiLoading(false); }
 
     const fallbackQuestions = getFallbackQuestions(t, needType);
     setAiQuestions(fallbackQuestions);
