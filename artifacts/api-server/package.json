@@ -9,7 +9,8 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "render:permissions-doc": "tsx scripts/render-permissions-doc.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
