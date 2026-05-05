@@ -72,7 +72,12 @@
     "retry": "Повторить",
     "empty": "Нет задач в этом статусе",
     "retrySuccess": "Задача поставлена в очередь",
-    "retryFailed": "Не удалось"
+    "retryFailed": "Не удалось",
+    "reconciliation": {
+      "title": "Последняя сверка",
+      "missingInEspo": "локальных лидов НЕ в Espo",
+      "missingInLocal": "Espo лидов НЕ в локальной БД"
+    }
   },
   "activityLog": {
     "title": "Журнал активности",

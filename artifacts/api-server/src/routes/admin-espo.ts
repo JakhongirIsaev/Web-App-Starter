@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, espoSyncJobsTable, pool } from "@workspace/db";
+import { db, espoSyncJobsTable, espoReconciliationRunsTable, pool } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { quickAddJob } from "graphile-worker";
 import { guestAuth, requirePermission } from "../middleware/auth";
@@ -19,6 +19,21 @@ router.get(
       .orderBy(desc(espoSyncJobsTable.updatedAt))
       .limit(100);
     res.json(rows);
+  },
+);
+
+router.get(
+  "/admin/espo-sync/reconciliation",
+  guestAuth,
+  requirePermission("espo.view_sync"),
+  async (_req, res) => {
+    const [latest] = await db
+      .select()
+      .from(espoReconciliationRunsTable)
+      .orderBy(desc(espoReconciliationRunsTable.ranAt))
+      .limit(1);
+    if (!latest) return res.json(null);
+    res.json(latest);
   },
 );
 
