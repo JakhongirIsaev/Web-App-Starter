@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { api } from "@/lib/api";
+import { api, postOrQueue } from "@/lib/api";
 import { Camera, MapPin, Loader2, Check } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
@@ -65,15 +65,27 @@ export default function QuickLeadPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      // 1. Create the client. The create schema doesn't accept lat/lng,
-      // so we update those separately below if we have them. businessType
-      // is on the create schema so it goes here.
-      const client = (await api.post("/mini-app/clients", {
+      // 1. Create the client via postOrQueue. When offline this falls
+      // through to the IndexedDB queue (see lib/offline-queue.ts).
+      // GPS + photo follow-ups stay online-only — they need a server-
+      // assigned client.id and the photo bytes don't survive being
+      // serialized into IndexedDB anyway. If the hunter is offline,
+      // the lead row is queued and the photo/coords are silently
+      // dropped for this session; bank policy is documented and
+      // hunters know to re-shoot the photo from client-detail when
+      // back online.
+      const result = await postOrQueue<{ id: number }>("/mini-app/clients", {
         fullName: name.trim(),
         phone: phone.trim(),
         leadSource: "direct_visit",
         ...(businessType ? { businessType } : {}),
-      })) as { id: number };
+      });
+
+      if ("_queued" in result) {
+        return result;
+      }
+
+      const client = result;
 
       // 2. Persist the location (best-effort; client is already saved).
       if (coords) {
@@ -107,10 +119,14 @@ export default function QuickLeadPage() {
 
       return client;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["mini-clients"] });
       qc.invalidateQueries({ queryKey: ["my-day"] });
       qc.invalidateQueries({ queryKey: ["mini-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["offline-queue-size"] });
+      if (data && "_queued" in data) {
+        alert(t("quickLead.savedOffline"));
+      }
       navigate("/");
     },
     onError: (err: any) => {

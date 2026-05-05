@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, postOrQueue } from "@/lib/api";
 import { useLocation } from "wouter";
 import { ArrowLeft, UserPlus, Save, Check } from "lucide-react";
 import { SignaturePad } from "@/components/signature-pad";
@@ -238,7 +238,14 @@ export default function NewClientPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const client = (await api.post("/mini-app/clients", {
+      // Phase D1: postOrQueue routes through IndexedDB when offline.
+      // The signature upload below depends on a server-assigned client.id
+      // and stays online-only — when queued, the consent signature is
+      // intentionally lost (a future drain will replay only the client
+      // create). Bank policy still requires the signature on file, so
+      // hunters who go offline mid-form must finish online or re-capture
+      // the signature from client-detail later.
+      const result = await postOrQueue<{ id: number }>("/mini-app/clients", {
         fullName: fullName.trim() || null,
         phone: phone.trim() || null,
         telegramUsername: telegramUsername.trim().replace(/^@+/, "") || undefined,
@@ -265,7 +272,14 @@ export default function NewClientPage() {
             : undefined,
         preferredCurrency,
         preferredLanguage,
-      })) as { id: number };
+      });
+
+      if ("_queued" in result) {
+        // Offline path — return the marker so onSuccess knows.
+        return result;
+      }
+
+      const client = result;
 
       // Phase D3: persist the consent signature as a client_documents row.
       // Pattern mirrors quick-lead.tsx photo upload (commit 6b3dc04):
@@ -295,6 +309,14 @@ export default function NewClientPage() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
+      queryClient.invalidateQueries({ queryKey: ["offline-queue-size"] });
+      if (data && "_queued" in data) {
+        // Saved to the offline queue — go back to the clients list and
+        // let the badge/toast tell the hunter what happened.
+        alert(t("newClient.savedOffline"));
+        navigate("/clients");
+        return;
+      }
       navigate(`/clients/${data.id}`);
     },
   });

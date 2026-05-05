@@ -173,6 +173,7 @@
     "telegramUsername": "Telegram (необязательно)",
     "telegramUsernamePlaceholder": "@username",
     "preferredLanguage": "Язык клиента",
+    "savedOffline": "Сохранено в очередь — синхронизируется когда появится интернет",
     "create": "Сохранить клиента",
     "creating": "Сохранение...",
     "created": "Клиент создан",
@@ -718,10 +719,19 @@
     "gpsUnsupported": "GPS не поддерживается",
     "gpsFailed": "GPS не получен",
     "save": "Сохранить",
-    "saveFailed": "Не удалось сохранить"
+    "saveFailed": "Не удалось сохранить",
+    "savedOffline": "Сохранено в очередь — синхронизируется когда появится интернет"
   },
   "signature": {
     "placeholder": "Распишитесь здесь",
     "clear": "Очистить"
+  },
+  "offline": {
+    "label": "Не в сети",
+    "syncing": "Синхронизация",
+    "pendingCount_one": "{{count}} ожидает",
+    "pendingCount_few": "{{count}} ожидают",
+    "pendingCount_many": "{{count}} ожидают",
+    "pendingCount_other": "{{count}} ожидают"
   }
 }

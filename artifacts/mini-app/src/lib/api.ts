@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { enqueue } from "./offline-queue";
 
 const API_BASE = "/api";
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN ?? "").trim().replace(/\/+$/, "");
@@ -167,6 +168,46 @@ export async function loginWithTelegram(initData: string) {
     throw e;
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Phase D1 — postOrQueue: POST that falls back to the offline
+ * queue when the network is unavailable.
+ *
+ * Returns either the server response (online success) or
+ * { _queued: true, uuid } (queued for later sync). Callers must
+ * check the discriminator before treating the result as a real
+ * server payload.
+ *
+ * Only safe for endpoints whose POST body is self-contained and
+ * non-derived (i.e. doesn't depend on a server-assigned id from a
+ * previous call). For Phase D1 that's POST /mini-app/clients and
+ * POST /quick-lead. Photo uploads, document registrations, and the
+ * separate location-update PUT all stay online-only.
+ * ──────────────────────────────────────────────────────────── */
+export async function postOrQueue<T>(
+  endpoint: string,
+  body: unknown,
+): Promise<T | { _queued: true; uuid: string }> {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    const uuid = await enqueue({ endpoint, body });
+    return { _queued: true, uuid };
+  }
+  try {
+    return (await api.post(endpoint, body)) as T;
+  } catch (err: unknown) {
+    // Network failure even though we thought we were online — queue it.
+    // fetch() throws TypeError on network failure; our request() helper
+    // re-throws an AbortError-derived "common.requestFailed" Error too.
+    const isNetworkError =
+      err instanceof TypeError ||
+      (err instanceof Error && err.message === i18n.t("common.requestFailed"));
+    if (isNetworkError) {
+      const uuid = await enqueue({ endpoint, body });
+      return { _queued: true, uuid };
+    }
+    throw err;
   }
 }
 

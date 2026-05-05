@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { Home, Users, Calculator, BookOpen, User } from "lucide-react";
+import OfflineBadge from "@/components/offline-badge";
 
 interface Props {
   children: ReactNode;
@@ -46,6 +47,10 @@ export default function MiniAppLayout({ children }: Props) {
       className="mx-auto flex min-h-screen w-full max-w-md flex-col"
       style={{ background: "radial-gradient(circle at top, rgba(22,163,74,0.08), transparent 28%), var(--tg-bg, #F4F4F5)" }}
     >
+      {/* Phase D1: offline indicator + queue drainer. Self-mounted; only
+          renders when offline or when there are pending queued saves. */}
+      <OfflineBadge />
+
       <main className="min-h-0 flex-1 overflow-y-auto pb-28">
         {children}
       </main>
