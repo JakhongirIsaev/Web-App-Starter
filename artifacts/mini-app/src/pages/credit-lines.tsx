@@ -33,18 +33,32 @@ type LineState = "active" | "stopped" | "neutral";
 function getLineOperationalState(item: Pick<CreditLine, "remainingBalance" | "section" | "notes" | "specialConditions">): LineState {
   const source = `${item.section || ""} ${item.notes || ""} ${item.specialConditions || ""}`.toLowerCase();
   const remaining = item.remainingBalance;
+  const stoppedKeywords = [
+    "stop",
+    "closed",
+    "\u0441\u0442\u043e\u043f",
+    "\u043e\u0441\u0442\u0430\u043d\u043e\u0432",
+    "\u0437\u0430\u043a\u0440\u044b\u0442",
+    "\u043f\u043e\u0433\u0430\u0448",
+  ];
+  const availableKeywords = [
+    "\u0434\u043e\u0441\u0442\u0443\u043f",
+    "\u043e\u0441\u0432\u043e\u0435\u043d\u0438\u044f",
+  ];
 
-  if (
-    source.includes("стоп") ||
-    source.includes("stop") ||
-    source.includes("освоен") ||
-    source.includes("closed") ||
-    (remaining !== null && remaining !== undefined && Number.isFinite(remaining) && remaining <= 0)
-  ) {
+  if (stoppedKeywords.some((keyword) => source.includes(keyword))) {
+    return "stopped";
+  }
+
+  if (remaining !== null && remaining !== undefined && Number.isFinite(remaining) && remaining <= 0) {
     return "stopped";
   }
 
   if (remaining !== null && remaining !== undefined && Number.isFinite(remaining) && remaining > 0) {
+    return "active";
+  }
+
+  if (availableKeywords.some((keyword) => source.includes(keyword))) {
     return "active";
   }
 

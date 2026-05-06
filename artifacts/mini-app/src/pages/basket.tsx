@@ -8,7 +8,6 @@ import {
   Monogram,
   StatusChip,
   getInitials,
-  fmtShort,
 } from "@/components/ui-primitives";
 import {
   ArrowLeft,
@@ -39,30 +38,100 @@ function resolveTypeTheme(productType: string | undefined) {
   return TYPE_THEME[key] ?? TYPE_THEME.business;
 }
 
-/* ── mock calculation helpers (would come from backend) ── */
-function mockAmount(id: number) {
-  return ((id * 137 + 42) % 9 + 1) * 100_000_000;
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value.replace(/\s+/g, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }
-function mockMonthly(amount: number) {
-  return Math.round(amount / 36);
+
+function parsePercent(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const match = value.match(/(\d+(?:[.,]\d+)?)/);
+  if (!match) return null;
+  const parsed = Number(match[1].replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }
-function mockRate(productType: string) {
-  const rates: Record<string, string> = {
-    business: "22%",
-    mortgage: "16%",
-    micro: "24%",
-    auto: "20%",
-  };
-  return rates[productType?.toLowerCase()] ?? "22%";
+
+function parseTermMonths(value: unknown): number | null {
+  const parsed = parsePercent(value);
+  return parsed && parsed > 0 ? Math.round(parsed) : null;
 }
-function mockTerm(productType: string) {
-  const terms: Record<string, string> = {
-    business: "36 мес",
-    mortgage: "120 мес",
-    micro: "24 мес",
-    auto: "60 мес",
-  };
-  return terms[productType?.toLowerCase()] ?? "36 мес";
+
+function resolveCurrency(item: any, client: any, calculation: any): string {
+  const calculatedCurrency = typeof calculation?.currency === "string" ? calculation.currency : null;
+  if (calculatedCurrency) return calculatedCurrency.toUpperCase();
+
+  const preferred = typeof client.preferredCurrency === "string"
+    ? client.preferredCurrency.toUpperCase()
+    : "UZS";
+  if (preferred === "USD" && item.rateUSD) return "USD";
+  if (preferred === "EUR" && item.rateEUR) return "EUR";
+  if (preferred === "UZS" && item.rateUZS) return "UZS";
+  if (item.rateUZS) return "UZS";
+  if (item.rateUSD) return "USD";
+  if (item.rateEUR) return "EUR";
+  return preferred;
+}
+
+function resolveRate(item: any, currency: string, calculation: any): number | null {
+  const calculatedRate = toFiniteNumber(calculation?.interestRate);
+  if (calculatedRate !== null) return calculatedRate;
+  if (currency === "USD") return parsePercent(item.rateUSD);
+  if (currency === "EUR") return parsePercent(item.rateEUR);
+  return parsePercent(item.rateUZS) ?? parsePercent(item.rateUSD) ?? parsePercent(item.rateEUR);
+}
+
+function resolveTerm(item: any, client: any, calculation: any): number | null {
+  const calculatedTerm = toFiniteNumber(calculation?.termMonths);
+  if (calculatedTerm !== null) return Math.round(calculatedTerm);
+
+  const requestedTerm = toFiniteNumber(client.desiredTermMonths);
+  if (requestedTerm !== null) return Math.round(requestedTerm);
+
+  if (client.purpose === "fixed_assets") return parseTermMonths(item.termFixedAssets);
+  if (client.purpose === "untargeted") return parseTermMonths(item.termUntargeted);
+  return (
+    parseTermMonths(item.termWorkingCapital) ??
+    parseTermMonths(item.termFixedAssets) ??
+    parseTermMonths(item.termUntargeted)
+  );
+}
+
+function calculateMonthlyPayment(amount: number | null, annualRate: number | null, termMonths: number | null) {
+  if (!amount || !termMonths || termMonths <= 0) return null;
+  if (!annualRate || annualRate <= 0) return Math.round(amount / termMonths);
+
+  const monthlyRate = annualRate / 100 / 12;
+  const factor = Math.pow(1 + monthlyRate, termMonths);
+  return Math.round((amount * monthlyRate * factor) / (factor - 1));
+}
+
+function findCalculation(item: any, calculations: any[], basketSize: number) {
+  const byId = calculations.find((calc) =>
+    calc.basketItemId === item.id || calc.id === item.calculationId,
+  );
+  if (byId) return byId;
+
+  const productName = item.productName || item.name;
+  const byName = calculations.find((calc) => calc.productName === productName);
+  if (byName) return byName;
+
+  return basketSize === 1 ? calculations[0] : null;
+}
+
+function formatCompactAmount(value: number | null, language: string, fallback: string) {
+  if (value === null || !Number.isFinite(value)) return fallback;
+
+  const suffixes = language === "uz"
+    ? { billion: "mlrd", million: "mln", thousand: "ming" }
+    : { billion: "млрд", million: "млн", thousand: "тыс" };
+
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace(".0", "")} ${suffixes.billion}`;
+  if (value >= 1_000_000) return `${Math.round(value / 1_000_000)} ${suffixes.million}`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)} ${suffixes.thousand}`;
+  return Math.round(value).toString();
 }
 
 export default function BasketPage() {
@@ -127,14 +196,35 @@ export default function BasketPage() {
   const initials = getInitials(client.fullName);
 
   /* ── derived totals ── */
+  const calculations = Array.isArray(data.calculations) ? data.calculations : [];
   const enrichedItems = basketItems.map((item: any) => {
-    const amount = mockAmount(item.id);
-    const monthly = mockMonthly(amount);
-    return { ...item, amount, monthly };
+    const calculation = findCalculation(item, calculations, basketItems.length);
+    const amount =
+      toFiniteNumber(calculation?.loanAmount) ??
+      (item.productType === "credit" ? toFiniteNumber(client.desiredAmountUzs) : null);
+    const currency = resolveCurrency(item, client, calculation);
+    const rate = resolveRate(item, currency, calculation);
+    const termMonths = resolveTerm(item, client, calculation);
+    const monthly =
+      toFiniteNumber(calculation?.monthlyPayment) ??
+      calculateMonthlyPayment(amount, rate, termMonths);
+
+    return { ...item, amount, monthly, currency, rate, termMonths };
   });
 
-  const totalAmount = enrichedItems.reduce((s: number, i: any) => s + i.amount, 0);
-  const totalMonthly = enrichedItems.reduce((s: number, i: any) => s + i.monthly, 0);
+  const knownAmounts = enrichedItems
+    .map((item: any) => item.amount)
+    .filter((value: unknown): value is number => typeof value === "number" && Number.isFinite(value));
+  const knownMonthly = enrichedItems
+    .map((item: any) => item.monthly)
+    .filter((value: unknown): value is number => typeof value === "number" && Number.isFinite(value));
+  const totalAmount = knownAmounts.length > 0
+    ? knownAmounts.reduce((sum: number, value: number) => sum + value, 0)
+    : null;
+  const totalMonthly = knownMonthly.length > 0
+    ? knownMonthly.reduce((sum: number, value: number) => sum + value, 0)
+    : null;
+  const notSetLabel = t("basket.notSet", { defaultValue: "Не указано" });
 
   return (
     <div className="min-h-screen bg-[#F4F4F5]">
@@ -165,9 +255,9 @@ export default function BasketPage() {
         {/* ── Count + Add button ── */}
         <div className="flex items-center justify-between">
           <div className="text-[15px] font-bold text-[#0F172A]">
-            В корзине{" "}
+            {t("basket.inBasket", { defaultValue: "В корзине" })}{" "}
             <span className="text-[#64748B] font-normal">
-              · {enrichedItems.length} продуктов
+              · {t("basket.productsCount", { count: enrichedItems.length, defaultValue: "{{count}} продуктов" })}
             </span>
           </div>
           <button
@@ -175,7 +265,7 @@ export default function BasketPage() {
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#ECFDF3] text-[#15803D] text-[13px] font-semibold active:scale-95 transition-transform"
           >
             <Plus className="w-3.5 h-3.5" />
-            Ещё
+            {t("basket.more", { defaultValue: "Ещё" })}
           </button>
         </div>
 
@@ -185,15 +275,15 @@ export default function BasketPage() {
             <div className="w-14 h-14 rounded-2xl bg-[#F4F4F5] flex items-center justify-center">
               <ShoppingBag className="w-7 h-7 text-[#64748B]" />
             </div>
-            <p className="text-[15px] font-semibold text-[#0F172A]">Корзина пуста</p>
+            <p className="text-[15px] font-semibold text-[#0F172A]">{t("basket.empty")}</p>
             <p className="text-[13px] text-[#64748B] max-w-[240px]">
-              Добавьте продукты из рекомендаций или каталога
+              {t("basket.emptyHint")}
             </p>
             <button
               onClick={() => navigate(`/recommendation/${params.clientId}`)}
               className="mt-1 px-5 py-2.5 rounded-xl bg-[#16A34A] text-white text-[14px] font-semibold active:scale-95 transition-transform"
             >
-              Подобрать продукты
+              {t("recommendation.title")}
             </button>
           </div>
         )}
@@ -225,9 +315,17 @@ export default function BasketPage() {
                     <div className="flex items-center gap-1.5 mt-1 text-[12px] text-[#64748B]">
                       <span className="capitalize">{item.productType || "credit"}</span>
                       <span className="w-[3px] h-[3px] rounded-full bg-[#CBD5E1]" />
-                      <span>{mockRate(item.productType)}</span>
-                      <span className="w-[3px] h-[3px] rounded-full bg-[#CBD5E1]" />
-                      <span>{mockTerm(item.productType)}</span>
+                      {item.rate !== null && (
+                        <>
+                          <span>{item.rate}%</span>
+                          <span className="w-[3px] h-[3px] rounded-full bg-[#CBD5E1]" />
+                        </>
+                      )}
+                      <span>
+                        {item.termMonths
+                          ? `${item.termMonths} ${t("calculator.months")}`
+                          : "—"}
+                      </span>
                     </div>
                   </div>
 
@@ -245,26 +343,30 @@ export default function BasketPage() {
               <div className="bg-[#F8FAFC] px-4 py-3 flex">
                 <div className="flex-1">
                   <div className="text-[11px] text-[#64748B] uppercase tracking-wide font-medium">
-                    Сумма
+                    {t("basket.amount", { defaultValue: "Сумма" })}
                   </div>
                   <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
-                    {fmtShort(amount)}
+                    {formatCompactAmount(amount, i18n.language, notSetLabel)}
                   </div>
                 </div>
                 <div className="w-px bg-[#E2E8F0]" />
                 <div className="flex-1 pl-4">
                   <div className="text-[11px] text-[#64748B] uppercase tracking-wide font-medium">
-                    Ежемес.
+                    {t("basket.monthlyShort", { defaultValue: "Ежемес." })}
                   </div>
                   <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
-                    {fmtShort(monthly)}
+                    {formatCompactAmount(monthly, i18n.language, "—")}
                   </div>
                 </div>
               </div>
 
               {/* Ghost button */}
-              <button className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#16A34A] border-t border-[#F1F5F9] active:bg-[#F8FAFC] transition-colors">
-                Изменить параметры
+              <button
+                type="button"
+                onClick={() => navigate(`/calculator?clientId=${params.clientId}&clientName=${encodeURIComponent(client.fullName || "")}`)}
+                className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#16A34A] border-t border-[#F1F5F9] active:bg-[#F8FAFC] transition-colors"
+              >
+                {t("basket.changeParams", { defaultValue: "Изменить параметры" })}
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -276,20 +378,24 @@ export default function BasketPage() {
           <>
             <div className="mn-card p-4">
               <div className="text-[11px] text-[#64748B] uppercase tracking-wide font-semibold mb-3">
-                Итого
+                {t("basket.total", { defaultValue: "Итого" })}
               </div>
               <div className="flex">
                 <div className="flex-1">
-                  <div className="text-[11px] text-[#64748B]">Общая сумма</div>
+                  <div className="text-[11px] text-[#64748B]">
+                    {t("basket.totalAmount", { defaultValue: "Общая сумма" })}
+                  </div>
                   <div className="text-[18px] font-bold text-[#0F172A] mt-0.5">
-                    {fmtShort(totalAmount)}
+                    {formatCompactAmount(totalAmount, i18n.language, notSetLabel)}
                   </div>
                 </div>
                 <div className="w-px bg-[#E2E8F0]" />
                 <div className="flex-1 pl-4">
-                  <div className="text-[11px] text-[#64748B]">Ежемес. платёж</div>
+                  <div className="text-[11px] text-[#64748B]">
+                    {t("basket.monthlyPayment", { defaultValue: "Ежемес. платёж" })}
+                  </div>
                   <div className="text-[18px] font-bold text-[#0F172A] mt-0.5">
-                    {fmtShort(totalMonthly)}
+                    {formatCompactAmount(totalMonthly, i18n.language, "—")}
                   </div>
                 </div>
               </div>
