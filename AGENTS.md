@@ -26,7 +26,8 @@ logic, not by an LLM.
 ## Preferred endpoints
 
 - `/api/mini-app/recommend` — deterministic ranking of allowed products from
-  questionnaire answers.
+  the client's intent fields (purpose, desired amount, term, currency, etc.)
+  captured via the fixed new-client form.
 - Static templates render the offer summary (no AI endpoint).
 
 ## Languages
@@ -37,7 +38,12 @@ logic, not by an LLM.
 
 ## UX
 
-- Recommendations are triggered by the questionnaire flow.
+- The multi-step questionnaire was removed in Phase B3 (replaced by a single
+  fixed new-client form with sections: Identity, Lead source, Loan intent,
+  Self-check, Consent signature). Do not reintroduce a questionnaire flow.
+- Recommendations are triggered when a client is saved with all self-check
+  flags true and the loan intent fields populated (status auto-promotes to
+  `lead`).
 - No generic "Ask AI" field.
 
 ## Output discipline
