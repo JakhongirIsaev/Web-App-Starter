@@ -235,10 +235,10 @@ export function getInitials(name: string | undefined | null): string {
 
 export function getGreeting(): string {
   const hour = (new Date().getUTCHours() + 5) % 24;
-  if (hour >= 5 && hour < 12) return "Доброе утро,";
-  if (hour >= 12 && hour < 17) return "Добрый день,";
-  if (hour >= 17 && hour < 22) return "Добрый вечер,";
-  return "Доброй ночи,";
+  if (hour >= 5 && hour < 12) return "Доброе утро";
+  if (hour >= 12 && hour < 17) return "Добрый день";
+  if (hour >= 17 && hour < 22) return "Добрый вечер";
+  return "Доброй ночи";
 }
 
 export function timeAgo(dateStr: string | null | undefined): string {
