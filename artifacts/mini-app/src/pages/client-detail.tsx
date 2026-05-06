@@ -258,17 +258,21 @@ export default function ClientDetailPage() {
   });
 
   /* Phase E — seed the credit-application card from the loaded client.
-     Runs once per client-id so the inputs reflect server values, then stays
-     under user control. Empty values fall back to "" for the inputs and
-     "UZS" for the currency default. */
+     The GET /mini-app/clients/:id endpoint returns `{ client, notes, ... }`
+     so the credit fields live under `data.client`, not `data` directly.
+     We re-run when `data` arrives (initial load is async via React Query). */
   useEffect(() => {
     if (!data) return;
-    const c = data as {
-      purpose?: string | null;
-      desiredAmountUzs?: string | number | null;
-      desiredTermMonths?: number | null;
-      preferredCurrency?: string | null;
+    const envelope = data as {
+      client?: {
+        purpose?: string | null;
+        desiredAmountUzs?: string | number | null;
+        desiredTermMonths?: number | null;
+        preferredCurrency?: string | null;
+      };
     };
+    const c = envelope.client;
+    if (!c) return;
     setCreditPurpose(c.purpose ?? "");
     const amt = c.desiredAmountUzs;
     if (amt !== null && amt !== undefined && amt !== "") {
@@ -279,8 +283,7 @@ export default function ClientDetailPage() {
     }
     setCreditTerm(c.desiredTermMonths ? String(c.desiredTermMonths) : "");
     setCreditCurrency(c.preferredCurrency ?? "UZS");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [data]);
 
   const saveCreditMutation = useMutation({
     mutationFn: () => {
