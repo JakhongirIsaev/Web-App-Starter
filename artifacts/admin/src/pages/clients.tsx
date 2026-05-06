@@ -319,6 +319,9 @@ export default function Clients({ user }: { user?: { role: string } }) {
                   {t("clients.client")}
                 </TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.phone", { defaultValue: "Телефон" })}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
                   {t("common.status")}
                 </TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
@@ -343,6 +346,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i} className="border-b border-border/50">
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-24 mt-2" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
@@ -353,7 +357,7 @@ export default function Clients({ user }: { user?: { role: string } }) {
                 ))
               ) : clientsData?.data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                     {t("clients.noClients")}
                   </TableCell>
                 </TableRow>
@@ -373,8 +377,20 @@ export default function Clients({ user }: { user?: { role: string } }) {
                       </div>
                       <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                         ID: {client.sessionId.substring(0,8)}
-                        {client.phone && <> &middot; {client.phone}</>}
                       </div>
+                    </TableCell>
+                    <TableCell className="py-[11px]">
+                      {client.phone ? (
+                        <a
+                          href={`tel:${client.phone}`}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                          className="text-sm font-mono text-foreground hover:text-primary"
+                        >
+                          {client.phone}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-[11px]">{getStatusBadge(client.status, t)}</TableCell>
                     <TableCell className="py-[11px] text-sm text-muted-foreground">

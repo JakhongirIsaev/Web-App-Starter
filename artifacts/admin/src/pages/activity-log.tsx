@@ -76,7 +76,7 @@ export default function ActivityLogPage() {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
             {t("activityLog.title")}
           </h1>

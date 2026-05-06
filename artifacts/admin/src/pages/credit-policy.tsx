@@ -116,7 +116,7 @@ export default function CreditPolicyPage() {
   return (
     <div className="space-y-4 max-w-4xl pb-32">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">{t("policy.title", { defaultValue: "Credit Policy Parameters" })}</h2>
+        <h2 className="text-3xl font-bold tracking-tight">{t("policy.title", { defaultValue: "Credit Policy Parameters" })}</h2>
         <p className="text-sm text-muted-foreground mt-1">
           {t("policy.subtitle", { defaultValue: "Editable rates, ratios, and term caps applied to new loan calculations." })}
         </p>

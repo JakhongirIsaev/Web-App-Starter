@@ -87,7 +87,7 @@ export default function EspoSyncPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">
+        <h2 className="text-3xl font-bold tracking-tight">
           {t("espoSync.title", { defaultValue: "Espo Sync" })}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">

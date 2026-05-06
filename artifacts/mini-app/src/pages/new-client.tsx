@@ -417,21 +417,21 @@ export default function NewClientPage() {
           </div>
         </SectionCard>
 
-        {/* ── CONSENT (checkbox replaces signature pad) ── */}
-        <SectionCard title={t("newClient.section.consent")}>
+        {/* ── CONSENT (inline, no card chrome — Phase E design pass) ── */}
+        <div className="px-1 pt-1 space-y-1.5">
           <ConsentCheckbox
             checked={consentAccepted}
             onChange={setConsentAccepted}
             label={t("newClient.consentText")}
           />
           {hasAnyField && !consentAccepted && (
-            <p className="text-[12px] text-[#DC2626] font-medium">
+            <p className="text-[12px] text-[#DC2626] font-medium px-1">
               {t("newClient.consentRequired", {
                 defaultValue: "Согласие клиента обязательно",
               })}
             </p>
           )}
-        </SectionCard>
+        </div>
       </div>
 
       {/* ═══════════════ FOOTER (sticky) ═══════════════ */}

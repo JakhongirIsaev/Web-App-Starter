@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FunnelReport from "@/pages/funnel";
@@ -480,7 +481,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Recent activity ── */}
+      {/* ── Recent activity (top 5 + link to full feed) ── */}
       <div className="bg-card border border-border/50 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 p-4 px-5 border-b border-border/50">
           <Activity className="h-4 w-4 text-primary" />
@@ -488,6 +489,11 @@ export default function Dashboard() {
             <h3 className="text-sm font-semibold">{t("dashboard.recentActivity")}</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.recentActivityDesc")}</p>
           </div>
+          <Link href="/activity">
+            <a className="text-[12px] font-semibold text-primary hover:underline">
+              {t("dashboard.viewAllActivity", { defaultValue: "Все активности" })}
+            </a>
+          </Link>
         </div>
         <div className="p-5">
           {isLoadingActivity ? (
@@ -508,7 +514,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {activities?.map((activity: ActivityItem) => (
+              {activities?.slice(0, 5).map((activity: ActivityItem) => (
                 <div key={activity.id} className="flex gap-3 items-start">
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                     <span className="text-[10px] font-semibold">
@@ -532,6 +538,16 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+              {activities && activities.length > 5 && (
+                <Link href="/activity">
+                  <a className="block text-center text-[12px] font-semibold text-muted-foreground hover:text-primary pt-2 border-t border-border/40">
+                    {t("dashboard.activityShowingFive", {
+                      total: activities.length,
+                      defaultValue: "Показано 5 из {{total}} — открыть журнал",
+                    })}
+                  </a>
+                </Link>
+              )}
             </div>
           )}
         </div>

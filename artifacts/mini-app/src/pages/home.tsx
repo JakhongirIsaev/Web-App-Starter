@@ -225,32 +225,9 @@ export default function HomePage() {
 
       {myDay && (
         <div className="mx-4 mt-4 mn-card overflow-hidden">
-          <div className="grid grid-cols-2 gap-3 p-4 border-b border-[#F1F5F9]">
-            <button
-              type="button"
-              onClick={() => navigate("/clients")}
-              className="text-left active:opacity-70"
-            >
-              <div className="text-[11px] text-[#64748B] uppercase tracking-wide">
-                {t("myDay.today")}
-              </div>
-              <div className="text-[28px] font-bold text-[#0F172A] leading-none mt-1">
-                {myDay.today}
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/clients")}
-              className="text-left active:opacity-70"
-            >
-              <div className="text-[11px] text-[#64748B] uppercase tracking-wide">
-                {t("myDay.week")}
-              </div>
-              <div className="text-[28px] font-bold text-[#0F172A] leading-none mt-1">
-                {myDay.week}
-              </div>
-            </button>
-          </div>
+          {/* Phase E design — the today/week stat duo was removed because the
+              hero card above already shows totalClients/today/month. Keeping
+              the funnel breakdown only — that's the unique value here. */}
           <div className="p-4">
             <div className="text-[11px] text-[#64748B] uppercase tracking-wide mb-2">
               {t("myDay.funnel")}
