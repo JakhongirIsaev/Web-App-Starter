@@ -7,7 +7,7 @@ import {
   ArrowLeft,
   Check,
   Loader2,
-  Sparkles,
+  ListChecks,
   ShoppingCart,
   Calculator,
   ChevronDown,
@@ -156,7 +156,7 @@ export default function RecommendationPage() {
     enabled: showAll,
   });
 
-  // Phase B4: AI overlay removed. The /mini-app/recommend endpoint already
+  // Phase B4: external recommendation overlay removed. The /mini-app/recommend endpoint already
   // returns the matched + ranked product list; we render its fields directly
   // and fall back across locales using getDisplayValue.
   const getDisplayValue = (
@@ -198,7 +198,7 @@ export default function RecommendationPage() {
     return {
       ...product,
       // Deterministic rank/confidence preserved so the existing UI badges
-      // (best match, match %) keep working without an AI overlay.
+      // (best match, match %) keep working with deterministic ranking.
       rank: index + 1,
       confidence: showAll ? 0 : Number(Math.max(0.4, 0.9 - index * 0.1).toFixed(2)),
       displaySegment,
@@ -290,7 +290,7 @@ export default function RecommendationPage() {
           </button>
         </div>
         <div className="flex items-center justify-center gap-2 p-12">
-          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#A855F7" }} />
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#16A34A" }} />
           <span className="text-[14px]" style={{ color: "#64748B" }}>
             {t("common.loading")}
           </span>
@@ -342,17 +342,17 @@ export default function RecommendationPage() {
           <ArrowLeft className="w-[18px] h-[18px]" style={{ color: "#0F172A" }} />
         </button>
 
-        {/* Violet icon box + label */}
+        {/* Product selection label */}
         <div className="flex items-center gap-2.5 mb-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: "#FAF5FF", color: "#A855F7" }}
+            style={{ background: "#ECFDF3", color: "#16A34A" }}
           >
-            <Sparkles className="w-5 h-5" />
+            <ListChecks className="w-5 h-5" />
           </div>
           <span
             className="text-[11px] font-bold tracking-[0.08em] uppercase"
-            style={{ color: "#A855F7" }}
+            style={{ color: "#16A34A" }}
           >
             {t("recommendation.aiSelection")}
           </span>
