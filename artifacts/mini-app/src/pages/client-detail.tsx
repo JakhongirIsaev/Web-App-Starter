@@ -81,15 +81,6 @@ interface PdfGenerationResult {
   telegramSent: boolean;
 }
 
-// Phase C4: response shape from /mini-app/clients/:id/send-pdf-to-lead.
-// Either the lead got the PDF directly via Telegram (`delivered: "telegram"`),
-// or the server fell back to a wa.me URL the expert opens themselves.
-interface SendPdfToLeadResult {
-  delivered: "telegram" | "whatsapp_url";
-  target?: string;
-  url?: string;
-}
-
 function SignedDocImage({
   doc,
   onPreview,
@@ -258,27 +249,6 @@ export default function ClientDetailPage() {
     },
   });
 
-  // Phase C4: ship the leave-behind PDF directly to the lead. Tries Telegram
-  // first; falls back to opening a wa.me URL the expert can forward themselves.
-  const sendPdfToLeadMutation = useMutation({
-    mutationFn: () =>
-      api.post(`/mini-app/clients/${params.id}/send-pdf-to-lead`, {
-        language: i18n.language === "ru" ? "ru" : "uz",
-      }),
-    onSuccess: (result: SendPdfToLeadResult) => {
-      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
-      if (result.delivered === "whatsapp_url" && result.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
-      } else if (result.delivered === "telegram") {
-        alert(t("clientDetail.pdfSentTelegram"));
-      }
-    },
-    onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
-      alert(`${t("clientDetail.pdfSendFailed")}: ${message}`);
-    },
-  });
-
   /* ── loading / error ── */
   if (isLoading) {
     return (
@@ -359,6 +329,22 @@ export default function ClientDetailPage() {
     medium: t("clientDetail.medium"),
     low: t("clientDetail.low"),
   }[value] ?? value);
+
+  const actionTypeOptions = ["follow_up", "meeting", "proposal", "documents"];
+  const priorityOptions = ["high", "medium", "low"];
+  const toIsoDate = (offsetDays: number) => {
+    const next = new Date();
+    next.setDate(next.getDate() + offsetDays);
+    const year = next.getFullYear();
+    const month = String(next.getMonth() + 1).padStart(2, "0");
+    const day = String(next.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const quickDateOptions = [
+    { label: t("myDay.today"), value: toIsoDate(0) },
+    { label: i18n.language === "ru" ? "Завтра" : "Ertaga", value: toIsoDate(1) },
+    { label: i18n.language === "ru" ? "7 дней" : "7 kun", value: toIsoDate(7) },
+  ];
 
   const getProductTypeLabel = (value: string) => ({
     credit: t("clientDetail.productTypes.credit"),
@@ -659,31 +645,60 @@ export default function ClientDetailPage() {
       {/* ═══════════════ ACTION FORM ═══════════════ */}
       {showActionForm && (
         <div className="mx-4 mt-3 mn-card p-4 space-y-3">
-          <select
-            value={actionType}
-            onChange={(e) => setActionType(e.target.value)}
-            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
-          >
-            <option value="follow_up">{t("home.followUp")}</option>
-            <option value="meeting">{t("home.meeting")}</option>
-            <option value="proposal">{t("home.proposal")}</option>
-            <option value="documents">{t("home.documents")}</option>
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            {actionTypeOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setActionType(option)}
+                className={`min-h-11 rounded-xl px-3 text-left text-[13px] font-semibold border transition-colors ${
+                  actionType === option
+                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
+                }`}
+              >
+                {getActionTypeLabel(option)}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {quickDateOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setActionDate(option.value)}
+                className={`h-10 rounded-xl px-2 text-[12px] font-semibold border transition-colors ${
+                  actionDate === option.value
+                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <input
             type="date"
             value={actionDate}
             onChange={(e) => setActionDate(e.target.value)}
             className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
           />
-          <select
-            value={actionPriority}
-            onChange={(e) => setActionPriority(e.target.value)}
-            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] border-0 outline-none"
-          >
-            <option value="high">{t("clientDetail.high")}</option>
-            <option value="medium">{t("clientDetail.medium")}</option>
-            <option value="low">{t("clientDetail.low")}</option>
-          </select>
+          <div className="grid grid-cols-3 gap-2">
+            {priorityOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setActionPriority(option)}
+                className={`h-10 rounded-xl px-2 text-[12px] font-semibold border transition-colors ${
+                  actionPriority === option
+                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
+                }`}
+              >
+                {getPriorityLabel(option)}
+              </button>
+            ))}
+          </div>
           <textarea
             value={actionDescription}
             onChange={(e) => setActionDescription(e.target.value)}
@@ -884,26 +899,6 @@ export default function ClientDetailPage() {
           </p>
         )}
 
-        {/* Phase C4: Send leave-behind PDF directly to the lead. Tries
-            Telegram delivery if the client has a username on file, otherwise
-            opens a wa.me URL the expert forwards themselves. */}
-        <button
-          onClick={() => sendPdfToLeadMutation.mutate()}
-          disabled={sendPdfToLeadMutation.isPending}
-          className="mt-2 w-full h-11 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 border border-[#16A34A]/30 text-[#16A34A] bg-white"
-        >
-          {sendPdfToLeadMutation.isPending ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t("pdf.generating")}
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              {t("clientDetail.sendPdfToLead")}
-            </>
-          )}
-        </button>
       </div>
 
       {/* ═══════════════ CALCULATIONS (detailed) ═══════════════ */}

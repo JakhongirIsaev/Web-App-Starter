@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import {
   ArrowLeft,
-  Camera,
   FileText,
   Loader2,
   CheckCircle2,
@@ -92,7 +91,6 @@ export default function ScanDocumentPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<ScanState>("capture");
   const [docType, setDocType] = useState("passport");
@@ -154,17 +152,8 @@ export default function ScanDocumentPage() {
     setError(validFiles.length > remainingSlots ? scanMessages.tooManyPhotos : "");
   };
 
-  const handleCapture = () => {
-    fileInputRef.current?.click();
-  };
-
   const handlePickFromGallery = () => {
     galleryInputRef.current?.click();
-  };
-
-  const handleCameraChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    await appendFiles(event.target.files);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleGalleryChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -358,15 +347,6 @@ export default function ScanDocumentPage() {
       </div>
 
       <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        multiple
-        onChange={handleCameraChange}
-        className="hidden"
-      />
-      <input
         ref={galleryInputRef}
         type="file"
         accept="image/*"
@@ -439,16 +419,10 @@ export default function ScanDocumentPage() {
             </Card>
           )}
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 gap-2 h-12" onClick={handleCapture}>
-              <Camera className="w-5 h-5" />
-              {photos.length > 0 ? t("scanDoc.addMore") : t("scanDoc.takePhoto")}
-            </Button>
-            <Button variant="outline" className="flex-1 gap-2 h-12" onClick={handlePickFromGallery}>
-              <ImageIcon className="w-5 h-5" />
-              {t("scanDoc.fromGallery")}
-            </Button>
-          </div>
+          <Button variant="outline" className="w-full gap-2 h-12" onClick={handlePickFromGallery}>
+            <ImageIcon className="w-5 h-5" />
+            {photos.length > 0 ? t("scanDoc.addMore") : t("scanDoc.fromGallery")}
+          </Button>
 
           {photos.length > 0 && (
             <Button className="w-full gap-2 h-12" onClick={processAllPhotos}>

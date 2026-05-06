@@ -566,6 +566,130 @@ function resolvePdfLanguageForClient(
   return candidate === "uz" ? "uz" : "ru";
 }
 
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getPurposeLabel(value: string | null | undefined, language: PdfLanguage) {
+  const labels: Record<PdfLanguage, Record<string, string>> = {
+    ru: {
+      working_capital: "Пополнение оборотных средств",
+      fixed_assets: "Покупка основных средств",
+      untargeted: "Свободное использование",
+      not_sure: "Не определено",
+    },
+    uz: {
+      working_capital: "Aylanma mablag'larni to'ldirish",
+      fixed_assets: "Asosiy vositalarni sotib olish",
+      untargeted: "Maqsadsiz foydalanish",
+      not_sure: "Aniqlanmagan",
+    },
+  };
+  if (!value) return null;
+  return labels[language][value] ?? value;
+}
+
+async function buildLeaveBehindDetails(
+  clientId: number,
+  client: typeof clientsTable.$inferSelect,
+  language: PdfLanguage,
+): Promise<Pick<LeaveBehindInput, "offer" | "collateral">> {
+  const [latestCalculation] = await db
+    .select({
+      productName: calculationsTable.productName,
+      loanAmount: calculationsTable.loanAmount,
+      interestRate: calculationsTable.interestRate,
+      termMonths: calculationsTable.termMonths,
+      monthlyPayment: calculationsTable.monthlyPayment,
+      currency: calculationsTable.currency,
+    })
+    .from(calculationsTable)
+    .where(eq(calculationsTable.clientId, clientId))
+    .orderBy(desc(calculationsTable.createdAt))
+    .limit(1);
+
+  const [basketCredit] = await db
+    .select({ productName: basketItemsTable.productName })
+    .from(basketsTable)
+    .innerJoin(basketItemsTable, eq(basketItemsTable.basketId, basketsTable.id))
+    .where(
+      and(
+        eq(basketsTable.clientId, clientId),
+        eq(basketsTable.status, "active"),
+        eq(basketItemsTable.productType, "credit"),
+      ),
+    )
+    .orderBy(desc(basketItemsTable.createdAt))
+    .limit(1);
+
+  const offer: LeaveBehindInput["offer"] = {
+    productName: latestCalculation?.productName ?? basketCredit?.productName ?? null,
+    purpose: getPurposeLabel(client.purpose, language),
+    amountUzs: toFiniteNumber(latestCalculation?.loanAmount) ?? toFiniteNumber(client.desiredAmountUzs),
+    termMonths: latestCalculation?.termMonths ?? client.desiredTermMonths ?? null,
+    interestRate: toFiniteNumber(latestCalculation?.interestRate),
+    monthlyPaymentUzs: toFiniteNumber(latestCalculation?.monthlyPayment),
+    currency: latestCalculation?.currency ?? client.preferredCurrency ?? "UZS",
+  };
+
+  const hasOffer = [
+    offer.productName,
+    offer.purpose,
+    offer.amountUzs,
+    offer.termMonths,
+    offer.interestRate,
+    offer.monthlyPaymentUzs,
+  ].some((value) => value !== null && value !== undefined && value !== "");
+
+  const [latestEstimate] = await db
+    .select()
+    .from(collateralEstimatesTable)
+    .where(eq(collateralEstimatesTable.clientId, clientId))
+    .orderBy(desc(collateralEstimatesTable.createdAt))
+    .limit(1);
+
+  let collateral: LeaveBehindInput["collateral"] = null;
+  if (latestEstimate) {
+    const estimateItems = await db
+      .select({
+        title: collateralItemsTable.title,
+        typeNameRu: collateralTypesTable.nameRu,
+        typeNameUz: collateralTypesTable.nameUz,
+      })
+      .from(collateralEstimateItemsTable)
+      .innerJoin(
+        collateralItemsTable,
+        eq(collateralEstimateItemsTable.collateralItemId, collateralItemsTable.id),
+      )
+      .innerJoin(
+        collateralTypesTable,
+        eq(collateralItemsTable.collateralTypeId, collateralTypesTable.id),
+      )
+      .where(eq(collateralEstimateItemsTable.estimateId, latestEstimate.id));
+
+    collateral = {
+      acceptedValueUzs: toFiniteNumber(latestEstimate.totalAcceptedValue),
+      coveragePercent: toFiniteNumber(latestEstimate.coveragePercent),
+      maxLoanAmountUzs: toFiniteNumber(latestEstimate.maxLoanAmount),
+      resultStatus: latestEstimate.resultStatus as "enough" | "not_enough",
+      items: estimateItems.map((item) => {
+        const typeName = language === "ru" ? item.typeNameRu : (item.typeNameUz ?? item.typeNameRu);
+        return `${item.title} (${typeName})`;
+      }),
+    };
+  }
+
+  return {
+    offer: hasOffer ? offer : null,
+    collateral,
+  };
+}
+
 function getAutoExcelCopy(language: PdfLanguage) {
   if (language === "ru") {
     return {
@@ -1862,42 +1986,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     if (branch?.name) branchName = branch.name;
   }
 
-  // Derive an indicative loan range from the most recent calculations on this
-  // client. Optional — when there are no calculations the PDF skips the block.
-  const calcs = await db
-    .select({
-      loanAmount: calculationsTable.loanAmount,
-      monthlyPayment: calculationsTable.monthlyPayment,
-    })
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt))
-    .limit(20);
-
-  let indicative: {
-    amountMinUzs: number;
-    amountMaxUzs: number;
-    monthlyMinUzs: number;
-    monthlyMaxUzs: number;
-    currency: "UZS";
-  } | null = null;
-  if (calcs.length > 0) {
-    const amounts = calcs
-      .map((c) => Number(c.loanAmount))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    const monthly = calcs
-      .map((c) => Number(c.monthlyPayment ?? 0))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    if (amounts.length > 0 && monthly.length > 0) {
-      indicative = {
-        amountMinUzs: Math.min(...amounts),
-        amountMaxUzs: Math.max(...amounts),
-        monthlyMinUzs: Math.min(...monthly),
-        monthlyMaxUzs: Math.max(...monthly),
-        currency: "UZS",
-      };
-    }
-  }
+  const leaveBehindDetails = await buildLeaveBehindDetails(clientId, client, language);
 
   try {
     const pdfBuffer = await generateLeaveBehindPdf({
@@ -1908,7 +1997,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
         businessName: null,
       },
       expert: { name: expertRow.name, phone: expertRow.phone },
-      indicative,
+      ...leaveBehindDetails,
       branchName,
       language,
     });
@@ -2029,40 +2118,14 @@ router.post(
       if (b?.name) branchName = b.name;
     }
 
-    const calcs = await db
-      .select({
-        loanAmount: calculationsTable.loanAmount,
-        monthlyPayment: calculationsTable.monthlyPayment,
-      })
-      .from(calculationsTable)
-      .where(eq(calculationsTable.clientId, clientId))
-      .orderBy(desc(calculationsTable.createdAt))
-      .limit(20);
-    let indicative: LeaveBehindInput["indicative"] = null;
-    if (calcs.length > 0) {
-      const amounts = calcs
-        .map((c) => Number(c.loanAmount))
-        .filter((n) => Number.isFinite(n) && n > 0);
-      const monthly = calcs
-        .map((c) => Number(c.monthlyPayment ?? 0))
-        .filter((n) => Number.isFinite(n) && n > 0);
-      if (amounts.length > 0 && monthly.length > 0) {
-        indicative = {
-          amountMinUzs: Math.min(...amounts),
-          amountMaxUzs: Math.max(...amounts),
-          monthlyMinUzs: Math.min(...monthly),
-          monthlyMaxUzs: Math.max(...monthly),
-          currency: "UZS",
-        };
-      }
-    }
+    const leaveBehindDetails = await buildLeaveBehindDetails(clientId, client, language);
 
     let pdfBuffer: Buffer;
     try {
       pdfBuffer = await generateLeaveBehindPdf({
         client: { fullName: client.fullName, businessName: null },
         expert: { name: expertRow.name, phone: expertRow.phone },
-        indicative,
+        ...leaveBehindDetails,
         branchName,
         language,
       });
@@ -2375,36 +2438,13 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     if (branch?.name) branchName = branch.name;
   }
 
-  const calcs = await db
-    .select({
-      loanAmount: calculationsTable.loanAmount,
-      monthlyPayment: calculationsTable.monthlyPayment,
-    })
-    .from(calculationsTable)
-    .where(eq(calculationsTable.clientId, clientId))
-    .orderBy(desc(calculationsTable.createdAt))
-    .limit(20);
-
-  let indicative: LeaveBehindInput["indicative"] = null;
-  if (calcs.length > 0) {
-    const amounts = calcs.map((c) => Number(c.loanAmount)).filter((n) => Number.isFinite(n) && n > 0);
-    const monthly = calcs.map((c) => Number(c.monthlyPayment ?? 0)).filter((n) => Number.isFinite(n) && n > 0);
-    if (amounts.length > 0 && monthly.length > 0) {
-      indicative = {
-        amountMinUzs: Math.min(...amounts),
-        amountMaxUzs: Math.max(...amounts),
-        monthlyMinUzs: Math.min(...monthly),
-        monthlyMaxUzs: Math.max(...monthly),
-        currency: "UZS",
-      };
-    }
-  }
+  const leaveBehindDetails = await buildLeaveBehindDetails(clientId, client, language);
 
   try {
     const pdfBuffer = await generateLeaveBehindPdf({
       client: { fullName: client.fullName, businessName: null },
       expert: { name: expertRow.name, phone: expertRow.phone },
-      indicative,
+      ...leaveBehindDetails,
       branchName,
       language,
     });

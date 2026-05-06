@@ -6,12 +6,21 @@ describe("generateLeaveBehindPdf", () => {
     const buf = await generateLeaveBehindPdf({
       client: { fullName: "Aziz Karimov", businessName: "Tea Trader" },
       expert: { name: "Bobur Tursunov", phone: "+998 90 123-45-67" },
-      indicative: {
-        amountMinUzs: 50_000_000,
-        amountMaxUzs: 200_000_000,
-        monthlyMinUzs: 2_500_000,
-        monthlyMaxUzs: 9_000_000,
+      offer: {
+        productName: "Biznes Ekspress",
+        purpose: "Aylanma mablag'larni to'ldirish",
+        amountUzs: 200_000_000,
+        termMonths: 36,
+        interestRate: 27,
+        monthlyPaymentUzs: 9_000_000,
         currency: "UZS",
+      },
+      collateral: {
+        acceptedValueUzs: 260_000_000,
+        coveragePercent: 130,
+        maxLoanAmountUzs: 200_000_000,
+        resultStatus: "enough",
+        items: ["Do'kon (ko'chmas mulk)"],
       },
       branchName: "IPAK YO'LI Chilonzor",
       language: "ru",
@@ -25,7 +34,8 @@ describe("generateLeaveBehindPdf", () => {
     const buf = await generateLeaveBehindPdf({
       client: { fullName: "Anonymous" },
       expert: { name: "Bobur", phone: "+998..." },
-      indicative: null,
+      offer: null,
+      collateral: null,
       branchName: "IPAK YO'LI",
       language: "ru",
     });
@@ -36,7 +46,8 @@ describe("generateLeaveBehindPdf", () => {
     const buf = await generateLeaveBehindPdf({
       client: { fullName: "Aziz" },
       expert: { name: "Bobur", phone: "+998..." },
-      indicative: null,
+      offer: null,
+      collateral: null,
       branchName: "IPAK YO'LI",
       language: "uz",
     });
