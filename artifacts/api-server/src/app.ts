@@ -165,9 +165,29 @@ function mountSpa(mount: string, distRelative: string) {
     logger.warn({ mount, distDir }, "SPA dist not found — skipping");
     return;
   }
-  app.use(mount, express.static(distDir, { fallthrough: true, index: false }));
+  app.use(mount, express.static(distDir, {
+    fallthrough: true,
+    index: false,
+    setHeaders(res, filePath) {
+      const relativePath = path.relative(distDir, filePath).replace(/\\/g, "/");
+      if (relativePath === "index.html") {
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        return;
+      }
+      if (relativePath.startsWith("assets/")) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return;
+      }
+      res.setHeader("Cache-Control", "public, max-age=300");
+    },
+  }));
   app.use(mount, (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.sendFile(path.join(distDir, "index.html"));
   });
 }

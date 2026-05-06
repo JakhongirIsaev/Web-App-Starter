@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
 import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,26 +10,44 @@ import { useTranslation } from "react-i18next";
 import "@/i18n";
 import MiniAppLayout from "@/components/mini-app-layout";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { clearChunkReloadAttempt, reloadForFreshChunks } from "@/lib/chunk-reload";
 
-const HomePage = lazy(() => import("@/pages/home"));
-const ClientsPage = lazy(() => import("@/pages/clients"));
-const NewClientPage = lazy(() => import("@/pages/new-client"));
-const QuickLeadPage = lazy(() => import("@/pages/quick-lead"));
-const ClientDetailPage = lazy(() => import("@/pages/client-detail"));
+function lazyWithChunkRecovery<T extends ComponentType<Record<string, never>>>(
+  importer: () => Promise<{ default: T }>,
+) {
+  return lazy(async () => {
+    try {
+      const module = await importer();
+      clearChunkReloadAttempt();
+      return module;
+    } catch (error) {
+      if (reloadForFreshChunks(error)) {
+        return new Promise<never>(() => undefined);
+      }
+      throw error;
+    }
+  });
+}
+
+const HomePage = lazyWithChunkRecovery(() => import("@/pages/home"));
+const ClientsPage = lazyWithChunkRecovery(() => import("@/pages/clients"));
+const NewClientPage = lazyWithChunkRecovery(() => import("@/pages/new-client"));
+const QuickLeadPage = lazyWithChunkRecovery(() => import("@/pages/quick-lead"));
+const ClientDetailPage = lazyWithChunkRecovery(() => import("@/pages/client-detail"));
 // QuestionnairePage was removed in B3.3 — the /questionnaire/:clientId route
 // now redirects to the client detail page (the new fixed form lives at the
 // new-client URL).
-const RecommendationPage = lazy(() => import("@/pages/recommendation"));
-const CalculatorPage = lazy(() => import("@/pages/calculator"));
-const KnowledgePage = lazy(() => import("@/pages/knowledge"));
-const BasketPage = lazy(() => import("@/pages/basket"));
-const PdfSharePage = lazy(() => import("@/pages/pdf-share"));
-const ProfilePage = lazy(() => import("@/pages/profile"));
-const ProductsPage = lazy(() => import("@/pages/products"));
-const ScanDocumentPage = lazy(() => import("@/pages/scan-document"));
-const CollateralPage = lazy(() => import("@/pages/collateral"));
-const CreditLinesPage = lazy(() => import("@/pages/credit-lines"));
-const NotFound = lazy(() => import("@/pages/not-found"));
+const RecommendationPage = lazyWithChunkRecovery(() => import("@/pages/recommendation"));
+const CalculatorPage = lazyWithChunkRecovery(() => import("@/pages/calculator"));
+const KnowledgePage = lazyWithChunkRecovery(() => import("@/pages/knowledge"));
+const BasketPage = lazyWithChunkRecovery(() => import("@/pages/basket"));
+const PdfSharePage = lazyWithChunkRecovery(() => import("@/pages/pdf-share"));
+const ProfilePage = lazyWithChunkRecovery(() => import("@/pages/profile"));
+const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
+const ScanDocumentPage = lazyWithChunkRecovery(() => import("@/pages/scan-document"));
+const CollateralPage = lazyWithChunkRecovery(() => import("@/pages/collateral"));
+const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
+const NotFound = lazyWithChunkRecovery(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
 
