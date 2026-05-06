@@ -166,9 +166,9 @@
   "newClient": {
     "title": "Yangi mijoz",
     "subtitle": "Mijoz anketasini to'ldiring — tavsiyalar darhol o'z-o'zini tekshirish va maqsadlarni hisobga oladi",
-    "fullName": "F.I.Sh. (keyinroq ham bo'ladi)",
+    "fullName": "F.I.Sh.",
     "fullNamePlaceholder": "Mijoz F.I.Sh. ni kiriting",
-    "phone": "Telefon (keyinroq ham bo'ladi)",
+    "phone": "Telefon",
     "phonePlaceholder": "+998 ...",
     "telegramUsername": "Telegram (ixtiyoriy)",
     "telegramUsernamePlaceholder": "@username",

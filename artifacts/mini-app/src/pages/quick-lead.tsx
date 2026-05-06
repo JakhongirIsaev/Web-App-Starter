@@ -260,23 +260,28 @@ export default function QuickLeadPage() {
       </div>
 
       {/* Save button (sticky at bottom) */}
-      <div className="fixed bottom-4 left-4 right-4 z-30">
-        <button
-          type="button"
-          onClick={() => save.mutate()}
-          disabled={!canSave || save.isPending}
-          className="w-full h-14 rounded-2xl text-[16px] font-bold text-white flex items-center justify-center gap-2 transition-opacity"
-          style={{
-            background: "#16A34A",
-            opacity: !canSave || save.isPending ? 0.5 : 1,
-            boxShadow: "0 6px 20px rgba(22,163,74,0.35)",
-          }}
-        >
-          {save.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {save.isPending
-            ? t("common.saving", { defaultValue: "Сохранение..." })
-            : t("quickLead.save", { defaultValue: "Сохранить" })}
-        </button>
+      <div
+        className="fixed inset-x-0 z-40 px-4"
+        style={{ bottom: "calc(88px + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <div className="mx-auto max-w-md">
+          <button
+            type="button"
+            onClick={() => save.mutate()}
+            disabled={!canSave || save.isPending}
+            className="w-full h-14 rounded-2xl text-[16px] font-bold text-white flex items-center justify-center gap-2 transition-opacity"
+            style={{
+              background: "#16A34A",
+              opacity: !canSave || save.isPending ? 0.5 : 1,
+              boxShadow: "0 6px 20px rgba(22,163,74,0.35)",
+            }}
+          >
+            {save.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+            {save.isPending
+              ? t("common.saving", { defaultValue: "Сохранение..." })
+              : t("quickLead.save", { defaultValue: "Сохранить" })}
+          </button>
+        </div>
       </div>
     </div>
   );

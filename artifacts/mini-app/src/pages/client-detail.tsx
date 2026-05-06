@@ -7,7 +7,6 @@ import { useLocation, useParams } from "wouter";
 import { fmtDate, fmtDateTime, fmtNum } from "@/lib/format";
 import {
   Monogram,
-  StatusChip,
   SectionHeader,
   getInitials,
   GenderIcon,
@@ -389,10 +388,11 @@ export default function ClientDetailPage() {
             <div className="text-[13px] text-[#64748B] mt-0.5">
               {client.phone || t("clients.noPhone")}
             </div>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <StatusChip status={client.status} />
-              <GenderBadge gender={client.gender} />
-            </div>
+            {client.gender && (
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <GenderBadge gender={client.gender} />
+              </div>
+            )}
           </div>
         </div>
 
