@@ -235,6 +235,14 @@ export default function NewClientPage() {
     phone.trim().length > 0 ||
     !!leadSource;
   const canSubmit = hasAnyField && signatureDataUrl != null;
+  const completedSections = [
+    fullName.trim() || phone.trim() || telegramUsername.trim() || gender || businessName.trim() || businessType,
+    leadSource,
+    purpose && desiredAmountNum !== null && desiredTermNum !== null,
+    scCitizenship && scSixMonths && scPrivate && scBranch,
+    signatureDataUrl,
+  ].filter(Boolean).length;
+  const totalSections = 5;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -365,7 +373,7 @@ export default function NewClientPage() {
       </div>
 
       {/* ═══════════════ FORM SECTIONS ═══════════════ */}
-      <div className="flex-1 px-4 pt-4 pb-32 space-y-3">
+      <div className="flex-1 px-4 pt-4 pb-56 space-y-3">
         {/* ── 1. IDENTITY ── */}
         <SectionCard title={t("newClient.fullName")}>
           <div>
@@ -663,35 +671,46 @@ export default function NewClientPage() {
 
       {/* ═══════════════ FOOTER (sticky) ═══════════════ */}
       <div
-        className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-5 border-t"
+        className="fixed left-0 right-0 z-40 border-t"
         style={{
+          bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
           background: "rgba(255,255,255,0.96)",
           backdropFilter: "blur(8px)",
           borderColor: "#E2E8F0",
         }}
       >
-        <button
-          onClick={() => createMutation.mutate()}
-          disabled={!canSubmit || createMutation.isPending}
-          className="w-full flex items-center justify-center gap-2 transition-opacity"
-          style={{
-            height: 52,
-            borderRadius: 12,
-            background: canSubmit && !createMutation.isPending ? "#16A34A" : "#A7F3D0",
-            color: "#fff",
-            fontSize: 16,
-            fontWeight: 600,
-          }}
-        >
-          {createMutation.isPending ? (
-            <div
-              className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {createMutation.isPending ? t("newClient.creating") : t("newClient.create")}
-        </button>
+        <div className="mx-auto max-w-md px-4 pt-2.5 pb-3">
+          <div className="mb-2 text-center text-[12px] font-semibold text-[#64748B]">
+            {t("newClient.progress", {
+              completed: completedSections,
+              total: totalSections,
+              defaultValue: "Заполнено: {{completed}}/{{total}}",
+            })}
+          </div>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={!canSubmit || createMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 transition-opacity"
+            style={{
+              height: 52,
+              borderRadius: 12,
+              background: canSubmit && !createMutation.isPending ? "#16A34A" : "#A7F3D0",
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: 600,
+              boxShadow: canSubmit ? "0 10px 24px rgba(22,163,74,0.24)" : "none",
+            }}
+          >
+            {createMutation.isPending ? (
+              <div
+                className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
+              />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {createMutation.isPending ? t("newClient.creating") : t("newClient.create")}
+          </button>
+        </div>
       </div>
     </div>
   );

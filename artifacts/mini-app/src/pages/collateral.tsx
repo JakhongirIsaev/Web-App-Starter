@@ -89,6 +89,34 @@ function fmtMoney(value: string | number, currency = "UZS"): string {
   return `${fmtNum(num, "ru-RU")} ${currency}`;
 }
 
+function parseAmountInput(value: string): number {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return 0;
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatAmountInput(value: string): string {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("ru-RU").replace(/\u00A0/g, " ");
+}
+
+function AmountReadout({ value, currency = "UZS" }: { value: number; currency?: string }) {
+  if (!Number.isFinite(value) || value <= 0) return null;
+
+  return (
+    <div className="mt-2 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#15803D]">
+        {currency}
+      </div>
+      <div className="mt-0.5 text-[22px] font-black leading-none tracking-[-0.03em] text-[#0F172A]">
+        {fmtNum(value, "ru-RU")}
+      </div>
+    </div>
+  );
+}
+
 const TYPE_ICONS: Record<string, typeof Building2> = {
   real_estate: Building2,
   transport: Car,
@@ -515,6 +543,7 @@ function AddItemView({
   const typeCode = selectedType?.code ?? "";
   const isTransport = typeCode === "transport";
   const isRealEstate = typeCode === "real_estate" || typeCode === "land_plot";
+  const marketValueAmount = parseAmountInput(marketValue);
 
   const create = useMutation({
     mutationFn: async (body: {
@@ -547,7 +576,7 @@ function AddItemView({
   });
 
   const previewInfo = useMemo(() => {
-    const mv = Number.parseFloat(marketValue);
+    const mv = marketValueAmount;
     if (!Number.isFinite(mv) || mv <= 0) return null;
 
     if (isRealEstate) {
@@ -576,7 +605,7 @@ function AddItemView({
     }
 
     return { accepted: mv, discount: null, tierLabel: null };
-  }, [marketValue, isTransport, isRealEstate, year, t]);
+  }, [marketValueAmount, isTransport, isRealEstate, year, t]);
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -602,7 +631,7 @@ function AddItemView({
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (typeof collateralTypeId !== "number" || !title || !marketValue) return;
+    if (typeof collateralTypeId !== "number" || !title || marketValueAmount <= 0) return;
 
     const metadata: Record<string, unknown> = {};
     if (isTransport && year) metadata.year = Number(year);
@@ -610,7 +639,7 @@ function AddItemView({
     create.mutate({
       collateralTypeId,
       title,
-      marketValue: Number(marketValue),
+      marketValue: marketValueAmount,
       isThirdParty,
       thirdPartyOwnerName: isThirdParty ? thirdPartyOwnerName : undefined,
       metadata,
@@ -678,16 +707,16 @@ function AddItemView({
 
         <Field label={t("collateral.marketValue")}>
           <input
-            type="number"
-            step="1"
-            min="1"
+            type="text"
             value={marketValue}
-            onChange={(e) => setMarketValue(e.target.value)}
+            onChange={(e) => setMarketValue(formatAmountInput(e.target.value))}
             placeholder="100 000 000"
             className="w-full h-10 rounded-lg border border-[#E2E8F0] px-3 text-[14px] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] outline-none"
             inputMode="numeric"
+            autoComplete="off"
             required
           />
+          <AmountReadout value={marketValueAmount} />
         </Field>
 
         {isTransport && (
@@ -780,7 +809,7 @@ function AddItemView({
           </div>
           <SummaryRow
             label={t("collateral.marketValue")}
-            value={fmtMoney(Number(marketValue))}
+            value={fmtMoney(marketValueAmount)}
           />
           {previewInfo.discount !== null && previewInfo.tierLabel && (
             <div className="flex justify-between items-center text-[12px]">
@@ -807,7 +836,7 @@ function AddItemView({
       <div className="space-y-2">
         <button
           type="submit"
-          disabled={create.isPending || !collateralTypeId || !title || !marketValue}
+          disabled={create.isPending || !collateralTypeId || !title || marketValueAmount <= 0}
           className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
           style={{ background: "#16A34A" }}
         >
@@ -850,6 +879,7 @@ function EstimateView({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState("");
   const [showProducts, setShowProducts] = useState(false);
+  const requestedLoanAmountValue = parseAmountInput(requestedLoanAmount);
 
   const create = useMutation({
     mutationFn: (body: unknown) => api.post(`/clients/${clientId}/collateral-estimates`, body),
@@ -861,12 +891,12 @@ function EstimateView({
   const live = useMemo(() => {
     const accepted = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.acceptedValue) || 0), 0);
     const market = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.marketValue) || 0), 0);
-    const requested = Number.parseFloat(requestedLoanAmount) || 0;
+    const requested = requestedLoanAmountValue;
     const required = requested * coverageRatio;
     const coverage = requested > 0 ? (accepted / requested) * 100 : 0;
     const maxLoan = accepted / coverageRatio;
     return { accepted, market, requested, required, coverage, maxLoan };
-  }, [selectedItems, requestedLoanAmount, coverageRatio]);
+  }, [selectedItems, requestedLoanAmountValue, coverageRatio]);
 
   const equipmentOnly =
     selectedItems.length > 0 &&
@@ -874,10 +904,10 @@ function EstimateView({
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (typeof creditProductId !== "number" || !requestedLoanAmount || selectedIds.size === 0) return;
+    if (typeof creditProductId !== "number" || requestedLoanAmountValue <= 0 || selectedIds.size === 0) return;
     create.mutate({
       creditProductId,
-      requestedLoanAmount: Number(requestedLoanAmount),
+      requestedLoanAmount: requestedLoanAmountValue,
       collateralItemIds: Array.from(selectedIds),
       notes: notes || undefined,
     });
@@ -925,16 +955,16 @@ function EstimateView({
 
         <Field label={t("collateral.requestedLoanAmount")}>
           <input
-            type="number"
-            step="1"
-            min="1"
+            type="text"
             value={requestedLoanAmount}
-            onChange={(e) => setRequestedLoanAmount(e.target.value)}
+            onChange={(e) => setRequestedLoanAmount(formatAmountInput(e.target.value))}
             placeholder="100 000 000"
             className="w-full h-10 rounded-lg border border-[#E2E8F0] px-3 text-[14px] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] outline-none"
             inputMode="numeric"
+            autoComplete="off"
             required
           />
+          <AmountReadout value={requestedLoanAmountValue} />
         </Field>
       </div>
 
@@ -1040,7 +1070,7 @@ function EstimateView({
       <div className="space-y-2">
         <button
           type="submit"
-          disabled={create.isPending || selectedIds.size === 0 || !creditProductId || !requestedLoanAmount}
+          disabled={create.isPending || selectedIds.size === 0 || !creditProductId || requestedLoanAmountValue <= 0}
           className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
           style={{ background: "#16A34A" }}
         >

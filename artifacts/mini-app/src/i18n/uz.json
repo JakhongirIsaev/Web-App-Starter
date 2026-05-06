@@ -177,6 +177,7 @@
     "create": "Mijozni saqlash",
     "creating": "Saqlanmoqda...",
     "created": "Mijoz yaratildi",
+    "progress": "To'ldirildi: {{completed}}/{{total}}",
     "step": "Mijoz anketasi",
     "saveDraft": "Qoralama saqlash",
     "section": {
@@ -720,7 +721,8 @@
   },
   "signature": {
     "placeholder": "Bu yerda imzo qo'ying",
-    "clear": "Tozalash"
+    "clear": "Tozalash",
+    "hint": "Barmoq bilan imzolang"
   },
   "offline": {
     "label": "Internet yo'q",

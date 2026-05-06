@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { Trash2 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
  * Phase D3 — Signature pad.
@@ -103,6 +104,21 @@ export function SignaturePad({ value, onChange, height = 180 }: SignaturePadProp
 
   return (
     <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12px] text-[#64748B]">
+          {t("signature.hint", { defaultValue: "Подпишитесь пальцем" })}
+        </p>
+        <button
+          type="button"
+          onClick={clear}
+          disabled={isEmpty}
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#64748B] transition-colors active:opacity-70 disabled:opacity-40"
+          style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {t("signature.clear", { defaultValue: "Очистить" })}
+        </button>
+      </div>
       <div
         className="rounded-xl border border-[#E2E8F0] overflow-hidden bg-white relative"
         style={{ height }}
@@ -121,15 +137,6 @@ export function SignaturePad({ value, onChange, height = 180 }: SignaturePadProp
             {t("signature.placeholder", { defaultValue: "Распишитесь здесь" })}
           </div>
         )}
-      </div>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={clear}
-          className="text-[12px] font-medium text-[#64748B] active:opacity-70"
-        >
-          {t("signature.clear", { defaultValue: "Очистить" })}
-        </button>
       </div>
     </div>
   );
