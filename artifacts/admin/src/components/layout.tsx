@@ -15,12 +15,10 @@ import {
   Languages,
   Menu,
   Hash,
-  ShieldCheck,
   Coins,
   Activity,
   Repeat,
   SlidersHorizontal,
-  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,11 +55,9 @@ const navItems = [
   { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/users", labelKey: "nav.users", icon: UserPlus, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
-  { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/activity", labelKey: "nav.activityLog", icon: Activity, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/espo-sync", labelKey: "nav.espoSync", icon: Repeat, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
   { href: "/credit-policy", labelKey: "nav.creditPolicy", icon: SlidersHorizontal, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
-  { href: "/funnel", labelKey: "nav.funnel", icon: TrendingUp, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
 ];
 
 export function getRoleColor(role: string) {

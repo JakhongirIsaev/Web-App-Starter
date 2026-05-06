@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +15,6 @@ const ClientDetail = lazy(() => import("@/pages/client-detail"));
 const Articles = lazy(() => import("@/pages/articles"));
 const Users = lazy(() => import("@/pages/users"));
 const Branches = lazy(() => import("@/pages/branches"));
-const Accesses = lazy(() => import("@/pages/accesses"));
 const CreditProducts = lazy(() => import("@/pages/credit-products"));
 const SapCodes = lazy(() => import("@/pages/sap-codes"));
 const CollateralAdmin = lazy(() => import("@/pages/collateral"));
@@ -24,7 +23,6 @@ const ActivityLog = lazy(() => import("@/pages/activity-log"));
 const CreditLines = lazy(() => import("@/pages/credit-lines"));
 const EspoSync = lazy(() => import("@/pages/espo-sync"));
 const CreditPolicy = lazy(() => import("@/pages/credit-policy"));
-const FunnelReport = lazy(() => import("@/pages/funnel"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -140,7 +138,7 @@ function Router() {
         {() => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/accesses">
-        {() => <ProtectedRoute component={Accesses} requiredRoles={adminRoles} />}
+        {() => <Redirect to="/users" />}
       </Route>
       <Route path="/credit-products">
         {() => <ProtectedRoute component={CreditProducts} />}
@@ -167,7 +165,7 @@ function Router() {
         {() => <ProtectedRoute component={CreditPolicy} requiredRoles={["superadmin", "head_office_admin", "editor", "branch_head", "hunter"]} />}
       </Route>
       <Route path="/funnel">
-        {() => <ProtectedRoute component={FunnelReport} requiredRoles={["superadmin", "head_office_admin", "editor", "branch_head"]} />}
+        {() => <Redirect to="/" />}
       </Route>
       <Route>
         {() => (

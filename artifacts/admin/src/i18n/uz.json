@@ -272,7 +272,9 @@
     "anonymous": "Anonim",
     "noPhone": "Telefon yo'q",
     "unknownBranch": "Noma'lum filial",
-    "unassigned": "Tayinlanmagan"
+    "unassigned": "Tayinlanmagan",
+    "location": "Lokatsiya",
+    "openMap": "Xarita"
   },
   "clientsImport": {
     "title": "Mijozlarni import qilish — oldindan ko'rish",
@@ -294,6 +296,7 @@
     "fullName": "F.I.Sh.",
     "phone": "Telefon raqami",
     "branchLabel": "Filial",
+    "businessLocation": "Biznes lokatsiyasi",
     "createdDate": "Yaratilgan sana",
     "notProvided": "Ko'rsatilmagan",
     "documents": "Hujjatlar",

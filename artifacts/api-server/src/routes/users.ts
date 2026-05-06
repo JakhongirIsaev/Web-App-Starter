@@ -37,6 +37,7 @@ async function getUserWithBranch(id: number) {
       id: usersTable.id,
       telegramId: usersTable.telegramId,
       name: usersTable.name,
+      phone: usersTable.phone,
       role: usersTable.role,
       branchId: usersTable.branchId,
       isActive: usersTable.isActive,
@@ -59,6 +60,7 @@ async function getUserWithBranch(id: number) {
     id: u.id,
     telegramId: u.telegramId,
     name: u.name,
+    phone: u.phone ?? null,
     role: u.role,
     branchId: u.branchId ?? null,
     branch: u.branchId ? {
@@ -109,6 +111,7 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
       id: usersTable.id,
       telegramId: usersTable.telegramId,
       name: usersTable.name,
+      phone: usersTable.phone,
       role: usersTable.role,
       branchId: usersTable.branchId,
       isActive: usersTable.isActive,
@@ -131,6 +134,7 @@ router.get("/users", guestAuth, requireRole("superadmin", "head_office_admin", "
     id: u.id,
     telegramId: u.telegramId,
     name: u.name,
+    phone: u.phone ?? null,
     role: u.role,
     branchId: u.branchId ?? null,
     branch: u.branchId ? {
@@ -527,6 +531,7 @@ router.post(
             await tx.insert(usersTable).values({
               telegramId: result.telegramId!,
               name: result.name!,
+              phone: originalRow.phone || null,
               role: result.role as UserRole,
               branchId: result.branchId ?? null,
               passwordHash,

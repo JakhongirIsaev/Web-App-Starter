@@ -1,6 +1,7 @@
 ﻿import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import XLSX from "xlsx";
+import { randomUUID } from "crypto";
 import {
   clientsTable,
   type ClientStatus,
@@ -57,6 +58,7 @@ import {
   verifyClientAccess,
 } from "../lib/client-access";
 import { logger } from "../lib/logger";
+import { getR2 } from "../storage/r2-client";
 import {
   MiniAppBasketBody,
   MiniAppCalculateBody,
@@ -76,6 +78,53 @@ const adminRoles = ["superadmin", "head_office_admin"];
 type PdfLanguage = "ru" | "uz";
 
 const INVALID_BODY_ERROR = "Некорректные данные / Noto'g'ri ma'lumot";
+
+async function persistGeneratedClientDocument({
+  clientId,
+  userId,
+  buffer,
+  fileName,
+  docType,
+  mimeType,
+}: {
+  clientId: number;
+  userId: number;
+  buffer: Buffer;
+  fileName: string;
+  docType: string;
+  mimeType: string;
+}) {
+  if (process.env.STORAGE_BACKEND !== "r2") return null;
+
+  const extension = fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const storagePath = `clients/${clientId}/generated/${randomUUID()}.${extension}`;
+
+  try {
+    await getR2().upload({
+      key: storagePath,
+      body: buffer,
+      contentType: mimeType,
+    });
+
+    const [doc] = await db
+      .insert(clientDocumentsTable)
+      .values({
+        clientId,
+        userId,
+        docType,
+        fileName,
+        storagePath,
+        mimeType,
+        sizeBytes: buffer.length,
+      })
+      .returning();
+
+    return doc;
+  } catch (error) {
+    logger.error({ err: error, clientId, fileName, docType }, "Failed to persist generated client document");
+    return null;
+  }
+}
 
 interface DetailedBasketItem extends ProductLike {
   id: number;
@@ -1864,6 +1913,19 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
       language,
     });
 
+    const filenamePrefix = language === "ru" ? "predlozhenie" : "taklif";
+    const fallbackName = language === "ru" ? "klient" : "mijoz";
+    const filename = `${filenamePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
+
+    await persistGeneratedClientDocument({
+      clientId,
+      userId: user.id,
+      buffer: pdfBuffer,
+      fileName: filename,
+      docType: "generated_pdf",
+      mimeType: "application/pdf",
+    });
+
     let telegramSent = false;
     let targetTelegramId = expertRow.telegramId || null;
 
@@ -1879,9 +1941,6 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     }
 
     if (sendViaTelegram && targetTelegramId) {
-      const filenamePrefix = language === "ru" ? "predlozhenie" : "taklif";
-      const fallbackName = language === "ru" ? "klient" : "mijoz";
-      const filename = `${filenamePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${formatFileDate()}.pdf`;
       const caption = language === "ru"
         ? `Коммерческое предложение: ${client.fullName || "Клиент"}\nЭксперт: ${expertRow.name}`
         : `Tijorat taklifi: ${client.fullName || "Mijoz"}\nEkspert: ${expertRow.name}`;
@@ -2022,6 +2081,15 @@ router.post(
       language === "ru"
         ? "Ваше индикативное предложение"
         : "Indikativ taklifingiz";
+
+    await persistGeneratedClientDocument({
+      clientId,
+      userId: req.user!.id,
+      buffer: pdfBuffer,
+      fileName: filename,
+      docType: "generated_pdf",
+      mimeType: "application/pdf",
+    });
 
     // Try Telegram delivery first when we have a username on file. grammy's
     // bot.api.sendDocument accepts either a numeric chat_id or a "@username"
@@ -2234,6 +2302,17 @@ router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   const fileName = `${copy.filePrefix}_${getDocumentTypeFilePart(normalizedDocType, language)}_${clientRow?.id ?? copy.previewName}_${formatFileDate()}.xlsx`;
 
+  if (clientRow && req.user) {
+    await persistGeneratedClientDocument({
+      clientId: clientRow.id,
+      userId: req.user.id,
+      buffer,
+      fileName,
+      docType: "generated_excel",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+  }
+
   res.setHeader(
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2335,6 +2414,16 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     const fallbackName = language === "ru" ? "klient" : "mijoz";
     const safeName = `${filePrefix}_${client.id}_${fileDate}.pdf`;
     const displayName = `${filePrefix}_${(client.fullName || fallbackName).replace(/\s+/g, "_")}_${fileDate}.pdf`;
+
+    await persistGeneratedClientDocument({
+      clientId,
+      userId: req.user!.id,
+      buffer: pdfBuffer,
+      fileName: displayName,
+      docType: "generated_pdf",
+      mimeType: "application/pdf",
+    });
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(displayName)}`);
     res.send(pdfBuffer);

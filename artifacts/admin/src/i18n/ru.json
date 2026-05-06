@@ -272,7 +272,9 @@
     "anonymous": "Аноним",
     "noPhone": "Нет телефона",
     "unknownBranch": "Неизвестный филиал",
-    "unassigned": "Не назначен"
+    "unassigned": "Не назначен",
+    "location": "Локация",
+    "openMap": "Карта"
   },
   "clientsImport": {
     "title": "Предпросмотр импорта клиентов",
@@ -294,6 +296,7 @@
     "fullName": "ФИО",
     "phone": "Номер телефона",
     "branchLabel": "Филиал",
+    "businessLocation": "Локация бизнеса",
     "createdDate": "Дата создания",
     "notProvided": "Не указано",
     "documents": "Документы",

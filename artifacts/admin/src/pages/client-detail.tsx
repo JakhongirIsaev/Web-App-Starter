@@ -189,6 +189,10 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
   const questionnaireAnswers: Array<{ questionKey: string; answer: string }> = (client as any).questionnaireAnswers || [];
   const documents: Array<any> = (client as any).documents || [];
   const calculations: Array<any> = (client as any).calculations || [];
+  const hasBusinessLocation = client.latitude != null && client.longitude != null;
+  const businessMapUrl = hasBusinessLocation
+    ? `https://www.google.com/maps?q=${client.latitude},${client.longitude}`
+    : null;
 
   const pipelineSteps = [
     { id: 'draft', label: t("statuses.draft") },
@@ -314,6 +318,28 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">{t("clientDetail.branchLabel")}</dt>
                     <dd className="text-base text-foreground mt-1">{client.branch?.name || t("clients.unassigned")}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">
+                      {t("clientDetail.businessLocation", { defaultValue: "Локация бизнеса" })}
+                    </dt>
+                    <dd className="text-base text-foreground mt-1">
+                      {businessMapUrl ? (
+                        <a
+                          href={businessMapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-primary hover:underline"
+                        >
+                          {Number(client.latitude).toFixed(6)}, {Number(client.longitude).toFixed(6)}
+                        </a>
+                      ) : (
+                        t("clientDetail.notProvided")
+                      )}
+                    </dd>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -637,7 +663,7 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
 // type starts with "image/" -- or, for legacy rows that pre-date the
 // `mime_type` column, when the canonical photo `doc_type` values are set
 // (see lib/db/src/schema/mini-app.ts comment).
-const PHOTO_DOC_TYPES = new Set(["photo_storefront", "photo_owner"]);
+const PHOTO_DOC_TYPES = new Set(["photo_storefront", "photo_owner", "consent_signature"]);
 function isPhotoDoc(doc: { mimeType?: string | null; docType?: string | null }): boolean {
   if (typeof doc.mimeType === "string" && doc.mimeType.startsWith("image/")) return true;
   if (typeof doc.docType === "string" && PHOTO_DOC_TYPES.has(doc.docType)) return true;

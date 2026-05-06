@@ -16,6 +16,7 @@ import { formatAdminDateTime } from "@/lib/time";
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import FunnelReport from "@/pages/funnel";
 
 /* ── Pipeline status palette ── */
 const STATUS_COLORS: Record<string, string> = {
@@ -425,6 +426,16 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm p-5">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold">{t("funnel.title", { defaultValue: "Воронка" })}</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {t("funnel.subtitle", { defaultValue: "Конверсия лидов по этапам" })}
+          </p>
+        </div>
+        <FunnelReport embedded />
       </div>
 
       {/* ── Branch performance chart ── */}

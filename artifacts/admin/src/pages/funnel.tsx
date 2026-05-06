@@ -37,7 +37,7 @@ const SOURCES = [
   "other",
 ] as const;
 
-export default function FunnelReport() {
+export default function FunnelReport({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const [branch, setBranch] = useState<string>("");
   const [source, setSource] = useState<string>("");
@@ -72,15 +72,17 @@ export default function FunnelReport() {
   const total = data ? STAGES.reduce((sum, s) => sum + (data.byStatus[s.key] ?? 0), 0) : 0;
 
   return (
-    <div className="space-y-4 max-w-4xl">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          {t("funnel.title", { defaultValue: "Воронка" })}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("funnel.subtitle", { defaultValue: "Конверсия лидов по этапам" })}
-        </p>
-      </div>
+    <div className={`space-y-4 ${embedded ? "" : "max-w-4xl"}`}>
+      {!embedded && (
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            {t("funnel.title", { defaultValue: "Воронка" })}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("funnel.subtitle", { defaultValue: "Конверсия лидов по этапам" })}
+          </p>
+        </div>
+      )}
 
       <div className="bg-card border rounded-xl p-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div>

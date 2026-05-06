@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useListClients, getListClientsQueryKey, useListBranches, getListBranchesQueryKey } from "@workspace/api-client-react";
-import { Search, Download, Upload, Plus, AlertCircle, CheckCircle2, Mars, Venus } from "lucide-react";
+import { Search, Download, Upload, Plus, AlertCircle, CheckCircle2, Mars, Venus, MapPin } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -133,6 +133,8 @@ export default function Clients({ user }: { user?: { role: string } }) {
       branchName: c.branch?.name || "",
       assignedToId: c.assignedToId || "",
       assignedToName: c.assignedTo?.name || "",
+      latitude: c.latitude || "",
+      longitude: c.longitude || "",
       sessionId: c.sessionId,
       createdAt: c.createdAt,
     }));
@@ -326,6 +328,9 @@ export default function Clients({ user }: { user?: { role: string } }) {
                   {t("clients.assignedTo")}
                 </TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
+                  {t("clients.location", { defaultValue: "Локация" })}
+                </TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
                   {t("clients.created")}
                 </TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground text-right">
@@ -341,13 +346,14 @@ export default function Clients({ user }: { user?: { role: string } }) {
                     <TableCell className="py-[11px]"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell className="py-[11px]"><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell className="py-[11px]"><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell className="py-[11px] text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : clientsData?.data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                     {t("clients.noClients")}
                   </TableCell>
                 </TableRow>
@@ -376,6 +382,28 @@ export default function Clients({ user }: { user?: { role: string } }) {
                     </TableCell>
                     <TableCell className="py-[11px] text-sm text-muted-foreground">
                       {client.assignedTo?.name || t("clients.unassigned")}
+                    </TableCell>
+                    <TableCell className="py-[11px] text-sm text-muted-foreground">
+                      {client.latitude != null && client.longitude != null ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1.5 px-2 text-xs"
+                          asChild
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        >
+                          <a
+                            href={`https://www.google.com/maps?q=${client.latitude},${client.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            {t("clients.openMap", { defaultValue: "Карта" })}
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-[11px] text-sm text-muted-foreground">
                       {formatAdminShortDate(client.createdAt)}
