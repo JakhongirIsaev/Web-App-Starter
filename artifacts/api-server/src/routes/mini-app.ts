@@ -1188,6 +1188,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     phone,
     telegramUsername,
     gender,
+    legalName,
     leadSource,
     referrerClientId,
     selfCheckCitizenshipUz,
@@ -1220,17 +1221,14 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
     assignedBranchId = firstBranch.id;
   }
 
-  // B3.4: auto-promote to "lead" status when the fixed form is fully
-  // populated (all four self-check booleans true plus loan-intent triple).
-  // Otherwise stay in "draft" so the form can be completed later.
-  const isFullLead =
-    selfCheckCitizenshipUz === true &&
-    selfCheckSixMonthsOperation === true &&
-    selfCheckPredominantlyPrivate === true &&
-    selfCheckBranchServiceArea === true &&
-    !!purpose &&
-    desiredAmountUzs !== undefined && desiredAmountUzs !== null &&
-    desiredTermMonths !== undefined && desiredTermMonths !== null;
+  // Phase E: any submitted client is a lead. Self-checks and the loan-intent
+  // triple are no longer required at lead time — they were rudiments of the
+  // old recommendation flow. Credit info is filled later on client-detail
+  // (which promotes status lead → recommendation).
+  const hasAnyIdentity =
+    !!(fullName && fullName.trim()) ||
+    !!(phone && phone.trim()) ||
+    !!(legalName && legalName.trim());
 
   // Phase D1 followup — offline-queue idempotency. The mini-app passes an
   // externalUuid generated at first-send-attempt time. If the request is a
@@ -1246,10 +1244,11 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       fullName: fullName || null,
       phone: phone || null,
       telegramUsername: normalizedTelegramUsername,
-      status: isFullLead ? "lead" : "draft",
+      status: hasAnyIdentity ? "lead" : "draft",
       branchId: assignedBranchId,
       assignedToId: userId,
       gender: gender ?? null,
+      legalName: legalName?.trim() || null,
       leadSource: leadSource ?? null,
       // Only persist the referrer when the lead source actually warrants it.
       // This prevents stray IDs from hanging off non-referral leads.
@@ -1460,7 +1459,22 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
-  const { fullName, phone, telegramUsername, status, latitude, longitude, gender, clientType, clientSegment } = parsed.data;
+  const {
+    fullName,
+    phone,
+    telegramUsername,
+    legalName,
+    status,
+    latitude,
+    longitude,
+    gender,
+    clientType,
+    clientSegment,
+    purpose,
+    desiredAmountUzs,
+    desiredTermMonths,
+    preferredCurrency,
+  } = parsed.data;
 
   const updates: any = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
@@ -1469,12 +1483,64 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     const trimmed = telegramUsername.trim().replace(/^@+/, "");
     updates.telegramUsername = trimmed === "" ? null : trimmed;
   }
+  if (legalName !== undefined) {
+    const trimmed = legalName.trim();
+    updates.legalName = trimmed === "" ? null : trimmed;
+  }
   if (status !== undefined) updates.status = status;
   if (latitude !== undefined) updates.latitude = latitude.toString();
   if (longitude !== undefined) updates.longitude = longitude.toString();
   if (gender !== undefined) updates.gender = gender;
   if (clientType !== undefined) updates.clientType = clientType;
   if (clientSegment !== undefined) updates.clientSegment = clientSegment;
+  if (purpose !== undefined) updates.purpose = purpose || null;
+  if (desiredAmountUzs !== undefined) {
+    updates.desiredAmountUzs =
+      desiredAmountUzs !== null ? String(desiredAmountUzs) : null;
+  }
+  if (desiredTermMonths !== undefined) {
+    updates.desiredTermMonths = desiredTermMonths ?? null;
+  }
+  if (preferredCurrency !== undefined) updates.preferredCurrency = preferredCurrency || null;
+
+  // Phase E — auto-promote status from lead/draft → recommendation when all
+  // four credit-application fields are populated. Status is the repurposed
+  // "credit info ready, needs product picked" stage. Idempotent: if the
+  // client is already past `recommendation` we don't downgrade.
+  if (
+    purpose !== undefined ||
+    desiredAmountUzs !== undefined ||
+    desiredTermMonths !== undefined ||
+    preferredCurrency !== undefined
+  ) {
+    const [current] = await db
+      .select()
+      .from(clientsTable)
+      .where(eq(clientsTable.id, clientId))
+      .limit(1);
+    if (current) {
+      const nextPurpose = purpose !== undefined ? (purpose || null) : current.purpose;
+      const nextAmount =
+        desiredAmountUzs !== undefined
+          ? (desiredAmountUzs !== null ? String(desiredAmountUzs) : null)
+          : current.desiredAmountUzs;
+      const nextTerm =
+        desiredTermMonths !== undefined ? (desiredTermMonths ?? null) : current.desiredTermMonths;
+      const nextCurrency =
+        preferredCurrency !== undefined
+          ? (preferredCurrency || null)
+          : current.preferredCurrency;
+      const allCreditFieldsSet =
+        !!nextPurpose && !!nextAmount && !!nextTerm && !!nextCurrency;
+      if (
+        allCreditFieldsSet &&
+        (current.status === "draft" || current.status === "lead") &&
+        status === undefined
+      ) {
+        updates.status = "recommendation";
+      }
+    }
+  }
 
   const [updated] = await db
     .update(clientsTable)

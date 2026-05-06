@@ -84,7 +84,12 @@ export default function RecommendationPage() {
   const params = useParams<{ clientId: string }>();
   const [, navigate] = useLocation();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [showAll, setShowAll] = useState(false);
+  // Phase E — manual product picker. We always show the full catalog
+  // instead of asking the engine for a ranked subset. The /recommend call
+  // is gated off below; products come from /mini-app/products as a
+  // knowledge-base list. `showAll = true` keeps the existing branches in
+  // the JSX shape the page already expects.
+  const showAll = true;
   const [sortOpen, setSortOpen] = useState(false);
   const currentLanguage = i18n.language === "ru" ? "ru" : "uz";
 
@@ -136,18 +141,13 @@ export default function RecommendationPage() {
   const answerMap = new Map(answers.map((item) => [item.questionKey, item.answer]));
   const needType = answerMap.get("need_type") || undefined;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["mini-recommend", params.clientId, currentLanguage, serializedAnswers],
-    queryFn: () =>
-      api.post("/mini-app/recommend", {
-        clientId: parseInt(params.clientId),
-        answers,
-        language: currentLanguage,
-      }),
-    enabled: answers.length > 0,
-  });
+  // Phase E — recommendation engine removed. `data` is the legacy shape
+  // the rest of the page expects; we leave it `undefined` so `data?.recommended`
+  // returns `undefined` and the UI falls back to `allProducts` (knowledge
+  // base mode). `isLoading` mirrors the all-products query.
+  const data: undefined = undefined;
 
-  const { data: allProducts = [] } = useQuery({
+  const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ["mini-all-products", needType ?? "credit"],
     queryFn: () =>
       api.get(
@@ -378,55 +378,8 @@ export default function RecommendationPage() {
           {t("recommendation.aiSortedDescription")}
         </p>
 
-        {/* Tab toggle: Recommended / All */}
-        {!showAll && (
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => setShowAll(false)}
-              className="px-4 py-2 rounded-full text-[13px] font-semibold"
-              style={{
-                background: "#16A34A",
-                color: "#fff",
-              }}
-            >
-              {t("recommendation.recommended")}
-            </button>
-            <button
-              onClick={() => setShowAll(true)}
-              className="px-4 py-2 rounded-full text-[13px] font-semibold"
-              style={{
-                background: "#F1F5F9",
-                color: "#64748B",
-              }}
-            >
-              {t("recommendation.allProducts")}
-            </button>
-          </div>
-        )}
-        {showAll && (
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={() => setShowAll(false)}
-              className="px-4 py-2 rounded-full text-[13px] font-semibold"
-              style={{
-                background: "#F1F5F9",
-                color: "#64748B",
-              }}
-            >
-              {t("recommendation.recommended")}
-            </button>
-            <button
-              onClick={() => setShowAll(true)}
-              className="px-4 py-2 rounded-full text-[13px] font-semibold"
-              style={{
-                background: "#16A34A",
-                color: "#fff",
-              }}
-            >
-              {t("recommendation.allProducts")}
-            </button>
-          </div>
-        )}
+        {/* Phase E: recommended/all tabs removed — page always shows the
+            full product catalog as a knowledge base. */}
       </div>
 
       {/* ═══════════════ SORT BAR ═══════════════ */}

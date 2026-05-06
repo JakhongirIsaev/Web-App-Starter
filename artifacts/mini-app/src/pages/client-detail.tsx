@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, getSignedImageUrl } from "@/lib/api";
@@ -146,6 +146,15 @@ export default function ClientDetailPage() {
   const [actionDescription, setActionDescription] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  /* Phase E — credit-application card.
+     Local state hydrates once from the client query (per client-id), then
+     stays editable. Save uses PUT /mini-app/clients/:id which auto-promotes
+     status from lead → recommendation when all four fields are populated. */
+  const [creditPurpose, setCreditPurpose] = useState<string>("");
+  const [creditAmount, setCreditAmount] = useState<string>(""); // space-formatted UZS
+  const [creditTerm, setCreditTerm] = useState<string>("");
+  const [creditCurrency, setCreditCurrency] = useState<string>("UZS");
+
   /* ── queries ── */
   const { data, isLoading } = useQuery({
     queryKey: ["mini-client", params.id],
@@ -245,6 +254,50 @@ export default function ClientDetailPage() {
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       setPdfError(message || t("pdf.generateFailed"));
+    },
+  });
+
+  /* Phase E — seed the credit-application card from the loaded client.
+     Runs once per client-id so the inputs reflect server values, then stays
+     under user control. Empty values fall back to "" for the inputs and
+     "UZS" for the currency default. */
+  useEffect(() => {
+    if (!data) return;
+    const c = data as {
+      purpose?: string | null;
+      desiredAmountUzs?: string | number | null;
+      desiredTermMonths?: number | null;
+      preferredCurrency?: string | null;
+    };
+    setCreditPurpose(c.purpose ?? "");
+    const amt = c.desiredAmountUzs;
+    if (amt !== null && amt !== undefined && amt !== "") {
+      const digits = String(amt).replace(/\D/g, "");
+      setCreditAmount(digits ? Number(digits).toLocaleString().replace(/,/g, " ") : "");
+    } else {
+      setCreditAmount("");
+    }
+    setCreditTerm(c.desiredTermMonths ? String(c.desiredTermMonths) : "");
+    setCreditCurrency(c.preferredCurrency ?? "UZS");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
+
+  const saveCreditMutation = useMutation({
+    mutationFn: () => {
+      const amountDigits = creditAmount.replace(/\D/g, "");
+      const amountNum = amountDigits ? Number(amountDigits) : null;
+      const termNum = creditTerm.trim() ? Number(creditTerm.trim()) : null;
+      return api.put(`/mini-app/clients/${params.id}`, {
+        purpose: creditPurpose || undefined,
+        desiredAmountUzs: amountNum !== null && Number.isFinite(amountNum) ? amountNum : undefined,
+        desiredTermMonths:
+          termNum !== null && Number.isFinite(termNum) && termNum > 0 ? termNum : undefined,
+        preferredCurrency: creditCurrency || undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["mini-clients"] });
     },
   });
 
@@ -567,6 +620,157 @@ export default function ClientDetailPage() {
               <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* ═══════════════ CREDIT APPLICATION (Phase E) ═══════════════ */}
+      <div className="mx-4 mt-3">
+        <div className="mn-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[14px] font-bold text-[#0F172A]">
+              {t("clientDetail.credit.title", { defaultValue: "Кредитная заявка" })}
+            </div>
+            {client.status === "recommendation" || client.status === "basket" || client.status === "pdf_generated" ? (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "#ECFDF3", color: "#15803D" }}
+              >
+                {t("clientDetail.credit.ready", { defaultValue: "Готово" })}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <div className="text-[12px] font-semibold text-[#334155] mb-1">
+                {t("clientDetail.credit.purpose", { defaultValue: "Цель кредита" })}
+              </div>
+              <select
+                value={creditPurpose}
+                onChange={(e) => setCreditPurpose(e.target.value)}
+                className="w-full"
+                style={{
+                  borderRadius: 10,
+                  border: "1.5px solid #E2E8F0",
+                  fontSize: 15,
+                  padding: 12,
+                  background: "#fff",
+                  color: "#0F172A",
+                }}
+              >
+                <option value="">
+                  {t("clientDetail.credit.purposeChoose", { defaultValue: "— выберите —" })}
+                </option>
+                <option value="working_capital">
+                  {t("questionnaire.loanPurposeOptions.working_capital")}
+                </option>
+                <option value="fixed_assets">
+                  {t("questionnaire.loanPurposeOptions.fixed_assets")}
+                </option>
+                <option value="untargeted">
+                  {t("questionnaire.loanPurposeOptions.untargeted")}
+                </option>
+                <option value="not_sure">
+                  {t("questionnaire.loanPurposeOptions.not_sure")}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <div className="text-[12px] font-semibold text-[#334155] mb-1">
+                {t("clientDetail.credit.amount", { defaultValue: "Сумма (UZS)" })}
+              </div>
+              <input
+                value={creditAmount}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setCreditAmount(raw ? Number(raw).toLocaleString().replace(/,/g, " ") : "");
+                }}
+                placeholder="напр. 500 000 000"
+                inputMode="numeric"
+                className="w-full"
+                style={{
+                  borderRadius: 10,
+                  border: "1.5px solid #E2E8F0",
+                  fontSize: 15,
+                  padding: 12,
+                  background: "#fff",
+                  color: "#0F172A",
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-[12px] font-semibold text-[#334155] mb-1">
+                  {t("clientDetail.credit.term", { defaultValue: "Срок (мес.)" })}
+                </div>
+                <input
+                  value={creditTerm}
+                  onChange={(e) => setCreditTerm(e.target.value.replace(/\D/g, ""))}
+                  placeholder="36"
+                  inputMode="numeric"
+                  className="w-full"
+                  style={{
+                    borderRadius: 10,
+                    border: "1.5px solid #E2E8F0",
+                    fontSize: 15,
+                    padding: 12,
+                    background: "#fff",
+                    color: "#0F172A",
+                  }}
+                />
+              </div>
+              <div>
+                <div className="text-[12px] font-semibold text-[#334155] mb-1">
+                  {t("clientDetail.credit.currency", { defaultValue: "Валюта" })}
+                </div>
+                <select
+                  value={creditCurrency}
+                  onChange={(e) => setCreditCurrency(e.target.value)}
+                  className="w-full"
+                  style={{
+                    borderRadius: 10,
+                    border: "1.5px solid #E2E8F0",
+                    fontSize: 15,
+                    padding: 12,
+                    background: "#fff",
+                    color: "#0F172A",
+                  }}
+                >
+                  <option value="UZS">UZS</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="RUB">RUB</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => saveCreditMutation.mutate()}
+              disabled={saveCreditMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 transition-opacity active:scale-[0.99]"
+              style={{
+                height: 44,
+                borderRadius: 10,
+                background: "#16A34A",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                opacity: saveCreditMutation.isPending ? 0.6 : 1,
+              }}
+            >
+              {saveCreditMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+              {saveCreditMutation.isPending
+                ? t("common.saving", { defaultValue: "Сохранение..." })
+                : t("clientDetail.credit.save", { defaultValue: "Сохранить кредит" })}
+            </button>
+          </div>
         </div>
       </div>
 

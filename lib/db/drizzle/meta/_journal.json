@@ -92,6 +92,13 @@
       "when": 1779379200000,
       "tag": "0012_archive_questionnaire",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779465600000,
+      "tag": "0013_clients_legal_name",
+      "breakpoints": true
     }
   ]
 }

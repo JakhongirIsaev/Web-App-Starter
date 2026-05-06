@@ -24,6 +24,10 @@ export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   sessionId: text("session_id").notNull().unique(),
   fullName: text("full_name"),
+  // Yuridik nomi — registered legal entity name for the client's business
+  // (Phase E). Captured at lead time so the credit expert can look up the
+  // company in external registries / Google Earth.
+  legalName: text("legal_name"),
   phone: text("phone"),
   // Lead's Telegram @username (optional). Captured during the visit so the
   // hunter can ship the leave-behind PDF directly to the client's Telegram

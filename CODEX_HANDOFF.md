@@ -293,4 +293,68 @@ pnpm --filter @workspace/api-server test
 
 ---
 
+## Phase E — Simplification (added 2026-05-07)
+
+The questionnaire and recommendation engine are gone. New shape:
+
+**Lead form** (`artifacts/mini-app/src/pages/new-client.tsx`)
+- Captures: name, phone, telegram, gender, language, legal name (NEW —
+  `legalName` / `legal_name` column added in migration `0013`), business
+  type, geolocation. That's it.
+- Removed: lead source, referrer, loan-intent (purpose/amount/term/
+  currency), 4 self-check booleans, signature pad. Consent is now a
+  checkbox.
+- The `bool_*` columns and `lead_source` / `referrer_client_id` columns
+  remain in the schema (phased deprecation — they're set to null on new
+  rows but legacy data is preserved).
+
+**Credit application** (`artifacts/mini-app/src/pages/client-detail.tsx`)
+- New "Кредитная заявка" card on the client-detail screen with: sum,
+  purpose, term (months), currency.
+- Saves via `PUT /mini-app/clients/:id` (extended schema in
+  `lib/api-zod/src/mini-app.ts`). Server auto-promotes status from
+  `lead`/`draft` → `recommendation` when all four credit fields are
+  populated.
+
+**Manual product picker** (`artifacts/mini-app/src/pages/recommendation.tsx`)
+- Same route (`/recommendation/:clientId`) but now shows the full
+  product catalog (knowledge base) instead of an engine-ranked list.
+- `/api/mini-app/recommend` endpoint still exists but is no longer
+  called by the UI. `lib/recommend-engine.ts` and its test were
+  deleted.
+- Selecting products and adding to basket works as before. Status
+  promotes `recommendation` → `basket`.
+
+**Status enum** — string values unchanged (`recommendation`, `basket`)
+but their meaning is repurposed:
+- `recommendation` = "credit info filled, needs product picked"
+- `basket` = "product manually selected, ready for KP"
+- See AGENTS.md "Status lifecycle (Phase E)" for the full diagram.
+
+**Funnel labels** (admin) — i18n updated to reflect new semantics:
+"Кредит заявлен" / "Kredit so'ralgan" and "Продукт выбран" /
+"Mahsulot tanlangan".
+
+**What was NOT touched:**
+- Espo payload — already minimal/clean.
+- PDF generators — `whySuitable` is optional; new clients render blank.
+- SignaturePad component — file kept, no consumers. Available if you
+  want to add a signature step at credit-application time later.
+- Collateral page — the user said leave it alone.
+- Knowledge-match library + recommendation-documents admin page —
+  both kept as the "knowledge base" that experts read.
+
+**Deferred follow-ups:**
+1. Drop the `bool_*` columns and `lead_source` / `referrer_client_id`
+   in a future migration once we're confident no code reads them.
+2. Add `legalName` to Espo lead payload (requires Espo custom field).
+3. Add `legalName` editing to the admin client-detail form (orval
+   regen needed).
+4. Optional: a separate "credit location" field if the user comes
+   back and wants to track where the loan will be used vs. business
+   HQ.
+
+---
+
 *Generated 2026-05-06 at the end of a 23-PR session. Hand off ready.*
+*Updated 2026-05-07 with Phase E (simplification).*

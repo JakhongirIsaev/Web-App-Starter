@@ -90,6 +90,10 @@ export const MiniAppCreateClientBody = z.object({
   // the leave-behind PDF can ship to the client's Telegram in Phase C4.
   telegramUsername: z.string().optional(),
   gender: z.enum(["male", "female"]).optional(),
+  // Phase E — yuridik nomi (registered legal entity name). Captured at lead
+  // time so the credit expert can look up the company in external registries
+  // / Google Earth.
+  legalName: z.string().optional(),
   businessType: z.string().optional(),
   businessSize: z.string().optional(),
   needType: z.string().optional(),
@@ -123,6 +127,7 @@ export const MiniAppUpdateClientBody = z.object({
   fullName: z.string().min(1).optional(),
   phone: z.string().optional(),
   telegramUsername: z.string().optional(),
+  legalName: z.string().optional(),
   status: z.enum([
     "draft",
     "lead",
@@ -145,6 +150,14 @@ export const MiniAppUpdateClientBody = z.object({
   gender: z.enum(["male", "female"]).optional(),
   clientType: z.enum(["individual", "corporate"]).optional(),
   clientSegment: z.string().optional(),
+  // Phase E — credit application fields (filled on client-detail after the
+  // lead is saved). When all four are populated, the server auto-promotes
+  // status from "lead" to "recommendation" (the repurposed "credit info
+  // ready" state).
+  purpose: z.string().optional(),
+  desiredAmountUzs: z.coerce.number().nonnegative().optional(),
+  desiredTermMonths: z.coerce.number().int().positive().optional(),
+  preferredCurrency: preferredCurrencySchema,
 });
 
 export const MiniAppNoteBody = z.object({

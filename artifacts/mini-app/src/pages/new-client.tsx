@@ -1,46 +1,22 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, postOrQueue } from "@/lib/api";
 import { useLocation } from "wouter";
-import { ArrowLeft, UserPlus, Save, Check } from "lucide-react";
-import { SignaturePad } from "@/components/signature-pad";
+import { ArrowLeft, UserPlus, Save, Check, MapPin } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
- * Fixed new-client form (Phase B3.2).
- * Captures everything the rule-engine needs in one screen:
- *   1. Identity (name, gender, phone, business name, business type)
- *   2. Lead source (radio chips)
- *   3. Referrer (conditional on lead_source === referral_existing_client)
- *   4. Loan intent (purpose, amount UZS, term months, currency)
- *   5. Self-check (4 yes/no checkboxes)
- * Branch comes from the authed user; GPS is Phase C.
+ * New-client form (Phase E — simplified lead capture).
+ *
+ * Captures the minimum info a credit expert needs to register a lead
+ * during a marketing visit. Credit application (sum/purpose/term/currency),
+ * collateral, and product selection happen on the client-detail screen
+ * AFTER the lead is saved. Self-check booleans, lead source, referrer,
+ * and the consent signature pad were removed in Phase E — consent is
+ * now a single checkbox.
  * ──────────────────────────────────────────────────────────── */
 
-const LEAD_SOURCES = [
-  "direct_visit",
-  "referral_existing_client",
-  "mass_media_tv",
-  "mass_media_radio",
-  "mass_media_print",
-  "mahalla_booklet",
-  "walk_in",
-  "other",
-] as const;
-type LeadSource = (typeof LEAD_SOURCES)[number];
-
-const CURRENCIES = ["UZS", "USD", "EUR", "RUB"] as const;
-type Currency = (typeof CURRENCIES)[number];
-
-const PURPOSES = ["working_capital", "fixed_assets", "untargeted", "not_sure"] as const;
-
 const BUSINESS_TYPES = ["trade", "services", "production", "agriculture", "other"] as const;
-
-interface ReferrerCandidate {
-  id: number;
-  fullName: string | null;
-  phone: string | null;
-}
 
 const inputBaseStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -118,7 +94,7 @@ function ChipGroup<T extends string>({
   );
 }
 
-function CheckboxRow({
+function ConsentCheckbox({
   checked,
   onChange,
   label,
@@ -131,7 +107,7 @@ function CheckboxRow({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center gap-3 rounded-xl text-left transition-colors active:scale-[0.99]"
+      className="flex w-full items-start gap-3 rounded-xl text-left transition-colors active:scale-[0.99]"
       style={{
         padding: "12px",
         border: checked ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
@@ -139,7 +115,7 @@ function CheckboxRow({
       }}
     >
       <span
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md mt-0.5"
         style={{
           background: checked ? "#16A34A" : "#FFFFFF",
           border: checked ? "1.5px solid #16A34A" : "1.5px solid #CBD5E1",
@@ -147,7 +123,7 @@ function CheckboxRow({
       >
         {checked && <Check className="h-3.5 w-3.5 text-white" />}
       </span>
-      <span className="text-[14px] font-medium text-[#0F172A]">{label}</span>
+      <span className="text-[13px] leading-relaxed text-[#0F172A]">{label}</span>
     </button>
   );
 }
@@ -160,155 +136,79 @@ export default function NewClientPage() {
   /* Identity */
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  // Phase C4: optional Telegram username so the leave-behind PDF can ship
-  // directly to the client. Stored without the leading "@" — the input
-  // accepts either form for convenience.
   const [telegramUsername, setTelegramUsername] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
-  // Phase D2: per-client language preference. Default to the hunter's current
-  // mini-app UI language, so the leave-behind PDF defaults to whatever the
-  // hunter is already reading in front of the lead.
   const [preferredLanguage, setPreferredLanguage] = useState<"ru" | "uz">(
     i18n.language === "uz" ? "uz" : "ru",
   );
-  const [businessName, setBusinessName] = useState("");
+  const [legalName, setLegalName] = useState("");
   const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number] | "">("");
 
-  /* Lead source */
-  const [leadSource, setLeadSource] = useState<LeadSource | "">("");
+  /* Geolocation — captured client-side, attached after create via PUT :id
+     (POST /mini-app/clients schema doesn't accept lat/lon). Same pattern as
+     quick-lead.tsx. */
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
-  /* Referrer */
-  const [referrerSearch, setReferrerSearch] = useState("");
-  const [referrerClientId, setReferrerClientId] = useState<number | null>(null);
-  const [referrerLabel, setReferrerLabel] = useState<string>("");
+  const captureLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError(t("newClient.gpsUnavailable", { defaultValue: "GPS недоступен" }));
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsError(err.message || "GPS error");
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
 
-  /* Loan intent */
-  const [purpose, setPurpose] = useState<(typeof PURPOSES)[number] | "">("");
-  const [desiredAmountUzs, setDesiredAmountUzs] = useState<string>(""); // formatted with spaces
-  const [desiredTermMonths, setDesiredTermMonths] = useState<string>("");
-  const [preferredCurrency, setPreferredCurrency] = useState<Currency>("UZS");
+  /* Consent — replaces signature pad. PDN consent is captured as a
+     checkbox per Phase E simplification. The legal text is the same as
+     before; only the canvas is gone. */
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
-  /* Self-check */
-  const [scCitizenship, setScCitizenship] = useState(false);
-  const [scSixMonths, setScSixMonths] = useState(false);
-  const [scPrivate, setScPrivate] = useState(false);
-  const [scBranch, setScBranch] = useState(false);
-
-  /* Phase D3: personal-data consent signature. Bank-required before
-     launch with real users. We capture as PNG data URL and persist
-     after the client row is created (best-effort upload). */
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
-
-  /* Referrer search — only fired when the lead source needs it. We rely on
-     the existing GET /mini-app/clients endpoint and filter client-side; the
-     candidate list is already scoped by branch/role on the server. */
-  const { data: referrerCandidates = [] } = useQuery<ReferrerCandidate[]>({
-    queryKey: ["referrer-candidates"],
-    queryFn: () => api.get("/mini-app/clients"),
-    enabled: leadSource === "referral_existing_client",
-    staleTime: 60_000,
-  });
-
-  const filteredReferrers = useMemo(() => {
-    const q = referrerSearch.trim().toLowerCase();
-    if (!q) return referrerCandidates.slice(0, 6);
-    return referrerCandidates
-      .filter((candidate) => {
-        const name = (candidate.fullName ?? "").toLowerCase();
-        const phoneStr = (candidate.phone ?? "").toLowerCase();
-        return name.includes(q) || phoneStr.includes(q);
-      })
-      .slice(0, 6);
-  }, [referrerCandidates, referrerSearch]);
-
-  const desiredAmountDigits = desiredAmountUzs.replace(/\D/g, "");
-  const desiredAmountNum = desiredAmountDigits ? Number(desiredAmountDigits) : null;
-  const desiredTermNum = desiredTermMonths.trim() ? Number(desiredTermMonths.trim()) : null;
-
-  /* The form is "save-able" with anything filled in — only fully-populated
-     leads get auto-promoted to status="lead" by the server. This keeps the
-     hunter from being blocked when they want to capture a draft.
-     Phase D3: a personal-data consent signature is required before save —
-     bank policy. Without it the green button stays disabled. */
   const hasAnyField =
-    fullName.trim().length > 0 ||
-    phone.trim().length > 0 ||
-    !!leadSource;
-  const canSubmit = hasAnyField && signatureDataUrl != null;
-  const completedSections = [
-    fullName.trim() || phone.trim() || telegramUsername.trim() || gender || businessName.trim() || businessType,
-    leadSource,
-    purpose && desiredAmountNum !== null && desiredTermNum !== null,
-    scCitizenship && scSixMonths && scPrivate && scBranch,
-    signatureDataUrl,
-  ].filter(Boolean).length;
-  const totalSections = 5;
+    fullName.trim().length > 0 || phone.trim().length > 0 || legalName.trim().length > 0;
+  const canSubmit = hasAnyField && consentAccepted;
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Phase D1: postOrQueue routes through IndexedDB when offline.
-      // The signature upload below depends on a server-assigned client.id
-      // and stays online-only — when queued, the consent signature is
-      // intentionally lost (a future drain will replay only the client
-      // create). Bank policy still requires the signature on file, so
-      // hunters who go offline mid-form must finish online or re-capture
-      // the signature from client-detail later.
       const result = await postOrQueue<{ id: number }>("/mini-app/clients", {
         fullName: fullName.trim() || null,
         phone: phone.trim() || null,
         telegramUsername: telegramUsername.trim().replace(/^@+/, "") || undefined,
         gender: gender || undefined,
-        businessName: businessName.trim() || undefined,
+        legalName: legalName.trim() || undefined,
         businessType: businessType || undefined,
-        leadSource: leadSource || undefined,
-        referrerClientId:
-          leadSource === "referral_existing_client" && referrerClientId
-            ? referrerClientId
-            : undefined,
-        selfCheckCitizenshipUz: scCitizenship,
-        selfCheckSixMonthsOperation: scSixMonths,
-        selfCheckPredominantlyPrivate: scPrivate,
-        selfCheckBranchServiceArea: scBranch,
-        purpose: purpose || undefined,
-        desiredAmountUzs:
-          desiredAmountNum !== null && Number.isFinite(desiredAmountNum)
-            ? desiredAmountNum
-            : undefined,
-        desiredTermMonths:
-          desiredTermNum !== null && Number.isFinite(desiredTermNum) && desiredTermNum > 0
-            ? desiredTermNum
-            : undefined,
-        preferredCurrency,
         preferredLanguage,
       });
 
       if ("_queued" in result) {
-        // Offline path — return the marker so onSuccess knows.
         return result;
       }
 
       const client = result;
 
-      // Phase D3: persist the consent signature as a client_documents row.
-      // Pattern mirrors quick-lead.tsx photo upload (commit 6b3dc04):
-      // best-effort — the client row is already saved, so a failed
-      // upload should not roll back the lead. Hunter can re-capture the
-      // signature from client-detail later if this fails.
-      if (signatureDataUrl) {
+      // Best-effort: attach coordinates after create. Same pattern as quick-lead.
+      if (coords) {
         try {
-          const upload = (await api.post("/storage/uploads/direct", {
-            name: `clients/${client.id}/consent-signature.png`,
-            dataUrl: signatureDataUrl,
-          })) as { objectPath: string; metadata?: { name?: string } };
-          await api.post(`/mini-app/clients/${client.id}/documents`, {
-            docType: "consent_signature",
-            fileName: upload.metadata?.name ?? `consent-${client.id}.png`,
-            storagePath: upload.objectPath,
+          await api.put(`/mini-app/clients/${client.id}`, {
+            latitude: coords.lat,
+            longitude: coords.lng,
           });
         } catch (err) {
           // Non-fatal; client was saved.
           // eslint-disable-next-line no-console
-          console.warn("signature upload failed:", err);
+          console.warn("location update failed:", err);
         }
       }
 
@@ -319,8 +219,6 @@ export default function NewClientPage() {
       queryClient.invalidateQueries({ queryKey: ["mini-todo"] });
       queryClient.invalidateQueries({ queryKey: ["offline-queue-size"] });
       if (data && "_queued" in data) {
-        // Saved to the offline queue — go back to the clients list and
-        // let the badge/toast tell the hunter what happened.
         alert(t("newClient.savedOffline"));
         navigate("/clients");
         return;
@@ -374,8 +272,8 @@ export default function NewClientPage() {
 
       {/* ═══════════════ FORM SECTIONS ═══════════════ */}
       <div className="flex-1 px-4 pt-4 pb-56 space-y-3">
-        {/* ── 1. IDENTITY ── */}
-        <SectionCard title={t("newClient.fullName")}>
+        {/* ── IDENTITY ── */}
+        <SectionCard title={t("newClient.section.identity", { defaultValue: "Контактные данные" })}>
           <div>
             <FieldLabel>{t("newClient.fullName")}</FieldLabel>
             <input
@@ -433,7 +331,6 @@ export default function NewClientPage() {
             />
           </div>
 
-          {/* Phase D2: per-client preferred language for the leave-behind PDF. */}
           <div>
             <FieldLabel>
               {t("newClient.preferredLanguage", { defaultValue: "Язык клиента" })}
@@ -459,13 +356,20 @@ export default function NewClientPage() {
               })}
             </div>
           </div>
+        </SectionCard>
 
+        {/* ── BUSINESS ── */}
+        <SectionCard title={t("newClient.section.business", { defaultValue: "Бизнес" })}>
           <div>
-            <FieldLabel>{t("newClient.identity.businessName")}</FieldLabel>
+            <FieldLabel>
+              {t("newClient.identity.legalName", { defaultValue: "Юридическое название" })}
+            </FieldLabel>
             <input
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder={t("newClient.identity.businessNamePlaceholder")}
+              value={legalName}
+              onChange={(e) => setLegalName(e.target.value)}
+              placeholder={t("newClient.identity.legalNamePlaceholder", {
+                defaultValue: "напр. ООО «Текстиль-Инвест»",
+              })}
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
               onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
@@ -482,188 +386,49 @@ export default function NewClientPage() {
               getLabel={(v) => t(`questionnaire.businessTypeOptions.${v}`)}
             />
           </div>
-        </SectionCard>
-
-        {/* ── 2. LEAD SOURCE ── */}
-        <SectionCard title={t("newClient.section.leadSource")}>
-          <ChipGroup
-            options={LEAD_SOURCES}
-            value={leadSource}
-            onChange={(v) => {
-              setLeadSource(v);
-              if (v !== "referral_existing_client") {
-                setReferrerClientId(null);
-                setReferrerLabel("");
-                setReferrerSearch("");
-              }
-            }}
-            getLabel={(v) => t(`newClient.leadSource.${v}`)}
-          />
-        </SectionCard>
-
-        {/* ── 3. REFERRER (conditional) ── */}
-        {leadSource === "referral_existing_client" && (
-          <SectionCard title={t("newClient.section.referrer")}>
-            {referrerClientId ? (
-              <div
-                className="flex items-center justify-between rounded-xl p-3"
-                style={{ background: "#ECFDF3", border: "1.5px solid #16A34A" }}
-              >
-                <span className="text-[14px] font-semibold text-[#15803D]">
-                  {referrerLabel || `#${referrerClientId}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReferrerClientId(null);
-                    setReferrerLabel("");
-                  }}
-                  className="text-[12px] font-semibold text-[#15803D] underline"
-                >
-                  {t("common.cancel")}
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  value={referrerSearch}
-                  onChange={(e) => setReferrerSearch(e.target.value)}
-                  placeholder={t("newClient.referrer.searchPlaceholder")}
-                  className="w-full outline-none transition-colors"
-                  style={inputBaseStyle}
-                  onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
-                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
-                />
-                <div className="space-y-1.5 mt-2">
-                  {filteredReferrers.length === 0 ? (
-                    <div className="text-[13px] text-[#94A3B8] py-2">
-                      {t("newClient.referrer.empty")}
-                    </div>
-                  ) : (
-                    filteredReferrers.map((candidate) => (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        onClick={() => {
-                          setReferrerClientId(candidate.id);
-                          setReferrerLabel(
-                            candidate.fullName ||
-                              candidate.phone ||
-                              `#${candidate.id}`,
-                          );
-                        }}
-                        className="flex w-full items-center justify-between rounded-xl border border-[#E2E8F0] p-3 text-left active:scale-[0.99]"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-[14px] font-semibold text-[#0F172A] truncate">
-                            {candidate.fullName || t("clients.anonymous")}
-                          </div>
-                          {candidate.phone && (
-                            <div className="text-[12px] text-[#64748B] truncate">
-                              {candidate.phone}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
-          </SectionCard>
-        )}
-
-        {/* ── 4. LOAN INTENT ── */}
-        <SectionCard title={t("newClient.section.loanIntent")}>
-          <div>
-            <FieldLabel>{t("newClient.intent.purposeLabel")}</FieldLabel>
-            <ChipGroup
-              options={PURPOSES}
-              value={purpose}
-              onChange={(v) => setPurpose(v)}
-              getLabel={(v) => t(`questionnaire.loanPurposeOptions.${v}`)}
-            />
-          </div>
 
           <div>
-            <FieldLabel>{t("newClient.intent.amountLabel")}</FieldLabel>
-            <input
-              value={desiredAmountUzs}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/\D/g, "");
-                setDesiredAmountUzs(
-                  raw ? Number(raw).toLocaleString().replace(/,/g, " ") : "",
-                );
+            <FieldLabel>
+              {t("newClient.identity.location", { defaultValue: "Координаты бизнеса" })}
+            </FieldLabel>
+            <button
+              type="button"
+              onClick={captureLocation}
+              disabled={gpsLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold transition-colors active:scale-[0.99]"
+              style={{
+                padding: "12px",
+                border: coords ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
+                background: coords ? "#ECFDF3" : "#FFFFFF",
+                color: coords ? "#15803D" : "#334155",
+                opacity: gpsLoading ? 0.6 : 1,
               }}
-              placeholder={t("questionnaire.desiredAmountPlaceholder")}
-              inputMode="numeric"
-              className="w-full outline-none transition-colors"
-              style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
-              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
-            />
-          </div>
-
-          <div>
-            <FieldLabel>{t("newClient.intent.termLabel")}</FieldLabel>
-            <input
-              value={desiredTermMonths}
-              onChange={(e) =>
-                setDesiredTermMonths(e.target.value.replace(/\D/g, ""))
-              }
-              placeholder={t("questionnaire.desiredTermPlaceholder")}
-              inputMode="numeric"
-              className="w-full outline-none transition-colors"
-              style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
-              onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
-            />
-          </div>
-
-          <div>
-            <FieldLabel>{t("newClient.intent.currencyLabel")}</FieldLabel>
-            <ChipGroup
-              options={CURRENCIES}
-              value={preferredCurrency}
-              onChange={(v) => setPreferredCurrency(v)}
-              getLabel={(v) => t(`newClient.currency.${v}`)}
-            />
+            >
+              <MapPin className="h-4 w-4" />
+              {coords
+                ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+                : gpsLoading
+                  ? t("newClient.identity.locationCapturing", { defaultValue: "Получаем GPS..." })
+                  : t("newClient.identity.locationCapture", { defaultValue: "Захватить координаты" })}
+            </button>
+            {gpsError && (
+              <p className="text-[12px] text-[#DC2626] mt-1.5">{gpsError}</p>
+            )}
           </div>
         </SectionCard>
 
-        {/* ── 5. SELF-CHECK ── */}
-        <SectionCard title={t("newClient.section.selfCheck")}>
-          <CheckboxRow
-            checked={scCitizenship}
-            onChange={setScCitizenship}
-            label={t("newClient.selfCheck.citizenshipUz")}
-          />
-          <CheckboxRow
-            checked={scSixMonths}
-            onChange={setScSixMonths}
-            label={t("newClient.selfCheck.sixMonths")}
-          />
-          <CheckboxRow
-            checked={scPrivate}
-            onChange={setScPrivate}
-            label={t("newClient.selfCheck.private")}
-          />
-          <CheckboxRow
-            checked={scBranch}
-            onChange={setScBranch}
-            label={t("newClient.selfCheck.branchService")}
-          />
-        </SectionCard>
-
-        {/* ── 6. CONSENT (Phase D3) ── */}
+        {/* ── CONSENT (checkbox replaces signature pad) ── */}
         <SectionCard title={t("newClient.section.consent")}>
-          <p className="text-[12px] text-[#64748B] leading-relaxed">
-            {t("newClient.consentText")}
-          </p>
-          <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
-          {hasAnyField && !signatureDataUrl && (
+          <ConsentCheckbox
+            checked={consentAccepted}
+            onChange={setConsentAccepted}
+            label={t("newClient.consentText")}
+          />
+          {hasAnyField && !consentAccepted && (
             <p className="text-[12px] text-[#DC2626] font-medium">
-              {t("newClient.signatureRequired")}
+              {t("newClient.consentRequired", {
+                defaultValue: "Согласие клиента обязательно",
+              })}
             </p>
           )}
         </SectionCard>
@@ -680,13 +445,6 @@ export default function NewClientPage() {
         }}
       >
         <div className="mx-auto max-w-md px-4 pt-2.5 pb-3">
-          <div className="mb-2 text-center text-[12px] font-semibold text-[#64748B]">
-            {t("newClient.progress", {
-              completed: completedSections,
-              total: totalSections,
-              defaultValue: "Заполнено: {{completed}}/{{total}}",
-            })}
-          </div>
           <button
             onClick={() => createMutation.mutate()}
             disabled={!canSubmit || createMutation.isPending}

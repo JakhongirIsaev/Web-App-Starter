@@ -165,10 +165,10 @@
   },
   "newClient": {
     "title": "Новый клиент",
-    "subtitle": "Заполните анкету клиента — рекомендации сразу учтут самопроверку и цели",
-    "fullName": "ФИО (можно позже)",
+    "subtitle": "Контактные данные клиента — кредит и залог можно добавить позже",
+    "fullName": "ФИО",
     "fullNamePlaceholder": "Введите ФИО клиента",
-    "phone": "Телефон (можно позже)",
+    "phone": "Телефон",
     "phonePlaceholder": "+998 ...",
     "telegramUsername": "Telegram (необязательно)",
     "telegramUsernamePlaceholder": "@username",
@@ -181,6 +181,8 @@
     "step": "Анкета клиента",
     "saveDraft": "Сохранить черновик",
     "section": {
+      "identity": "Контактные данные",
+      "business": "Бизнес",
       "leadSource": "Источник лида",
       "referrer": "Кто рекомендовал",
       "loanIntent": "Желаемые условия",
@@ -188,11 +190,18 @@
       "consent": "Согласие клиента"
     },
     "consentText": "Я согласен на обработку персональных данных в соответствии с законодательством РУз.",
+    "consentRequired": "Согласие клиента обязательно",
     "signatureRequired": "Требуется подпись клиента",
+    "gpsUnavailable": "GPS недоступен на этом устройстве",
     "identity": {
+      "legalName": "Юридическое название (юридик номи)",
+      "legalNamePlaceholder": "напр. ООО «Текстиль-Инвест»",
       "businessName": "Название бизнеса",
       "businessNamePlaceholder": "Например: ИП «Шарк-Дон»",
-      "businessType": "Тип бизнеса"
+      "businessType": "Тип бизнеса",
+      "location": "Координаты бизнеса",
+      "locationCapture": "Захватить координаты",
+      "locationCapturing": "Получаем GPS..."
     },
     "leadSource": {
       "direct_visit": "Прямой визит",

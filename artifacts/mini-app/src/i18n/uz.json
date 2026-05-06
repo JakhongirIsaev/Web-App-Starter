@@ -165,7 +165,7 @@
   },
   "newClient": {
     "title": "Yangi mijoz",
-    "subtitle": "Mijoz anketasini to'ldiring — tavsiyalar darhol o'z-o'zini tekshirish va maqsadlarni hisobga oladi",
+    "subtitle": "Mijozning aloqa ma'lumotlari — kredit va garovni keyinroq qo'shish mumkin",
     "fullName": "F.I.Sh.",
     "fullNamePlaceholder": "Mijoz F.I.Sh. ni kiriting",
     "phone": "Telefon",
@@ -181,6 +181,8 @@
     "step": "Mijoz anketasi",
     "saveDraft": "Qoralama saqlash",
     "section": {
+      "identity": "Aloqa ma'lumotlari",
+      "business": "Biznes",
       "leadSource": "Lid manbasi",
       "referrer": "Kim tavsiya qildi",
       "loanIntent": "Mo'ljallangan shartlar",
@@ -188,11 +190,18 @@
       "consent": "Mijoz roziligi"
     },
     "consentText": "Men O'zbekiston Respublikasi qonunchiligiga muvofiq shaxsiy ma'lumotlarni qayta ishlashga roziman.",
+    "consentRequired": "Mijoz roziligi shart",
     "signatureRequired": "Mijoz imzosi talab qilinadi",
+    "gpsUnavailable": "Bu qurilmada GPS mavjud emas",
     "identity": {
+      "legalName": "Yuridik nomi",
+      "legalNamePlaceholder": "masalan: «Tekstil-Invest» MChJ",
       "businessName": "Biznes nomi",
       "businessNamePlaceholder": "Masalan: \"Sharq-Don\" YaTT",
-      "businessType": "Biznes turi"
+      "businessType": "Biznes turi",
+      "location": "Biznes koordinatalari",
+      "locationCapture": "Koordinatalarni olish",
+      "locationCapturing": "GPS olinmoqda..."
     },
     "leadSource": {
       "direct_visit": "To'g'ridan-to'g'ri tashrif",

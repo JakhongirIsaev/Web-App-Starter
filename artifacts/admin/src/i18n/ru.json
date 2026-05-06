@@ -692,8 +692,8 @@
     "total": "Всего",
     "stage": {
       "lead": "Лиды",
-      "recommendation": "Подбор",
-      "basket": "Корзина",
+      "recommendation": "Кредит заявлен",
+      "basket": "Продукт выбран",
       "pdfGenerated": "КП готово",
       "completed": "Завершено"
     },
