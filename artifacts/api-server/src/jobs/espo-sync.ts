@@ -50,7 +50,19 @@ export const espoSync: Task = async (payload, helpers) => {
         fullName: client.fullName,
         phone: client.phone,
         externalUuid: client.externalUuid,
+        legalName: client.legalName,
+        gender: client.gender,
+        preferredLanguage: client.preferredLanguage,
+        clientType: client.clientType,
+        clientSegment: client.clientSegment,
+        latitude: client.latitude,
+        longitude: client.longitude,
+        purpose: client.purpose,
+        desiredAmountUzs: client.desiredAmountUzs,
+        desiredTermMonths: client.desiredTermMonths,
+        preferredCurrency: client.preferredCurrency,
         branch: branch ? { name: branch.name } : null,
+        createdAt: client.createdAt,
       });
       espoLead = await espo.createLead(leadPayload, client.externalUuid);
     }

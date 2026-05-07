@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGetClient, getGetClientQueryKey, useUpdateClient, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { useRoute } from "wouter";
-import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask, Mars, Venus, Eye } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Phone, MapPin, Calendar, Activity, CheckCircle, FileText, Upload, UserPlus, ClipboardList, Sparkles, FileImage, Calculator, CreditCard, Pencil, Briefcase, VenetianMask, Mars, Venus, Eye, Database, ExternalLink, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -524,6 +524,9 @@ export default function ClientDetail({ params, user: currentUser }: { params: { 
             </CardContent>
           </Card>
 
+          {/* Espo CRM */}
+          <EspoCard client={client as any} />
+
           {/* Quick stats */}
           <Card className="shadow-sm border-border/50">
             <CardHeader>
@@ -892,6 +895,88 @@ function CollateralEstimatesCard({ clientId }: { clientId: number }) {
               </div>
             ))}
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface EspoCardClient {
+  espoLeadId?: string | null;
+  espoSyncedAt?: string | null;
+  espoLastError?: string | null;
+}
+
+function EspoCard({ client }: { client: EspoCardClient }) {
+  const { t } = useTranslation();
+  const espoBaseUrl = (import.meta.env.VITE_ESPO_BASE_URL as string | undefined)?.replace(/\/+$/, "");
+  const leadUrl = client.espoLeadId && espoBaseUrl ? `${espoBaseUrl}/#Lead/view/${client.espoLeadId}` : null;
+  const synced = !!client.espoLeadId;
+  const hasError = !!client.espoLastError;
+
+  return (
+    <Card className="shadow-sm border-border/50">
+      <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+        <Database className="w-4 h-4 text-muted-foreground" />
+        <CardTitle className="text-sm">
+          {t("clientDetail.espoTitle", { defaultValue: "Espo CRM" })}
+        </CardTitle>
+        {synced ? (
+          <Badge className="ml-auto bg-emerald-600 hover:bg-emerald-600 text-[10px]">
+            {t("clientDetail.espoSynced", { defaultValue: "Синхронизирован" })}
+          </Badge>
+        ) : hasError ? (
+          <Badge variant="destructive" className="ml-auto text-[10px]">
+            {t("clientDetail.espoError", { defaultValue: "Ошибка" })}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="ml-auto text-[10px]">
+            {t("clientDetail.espoPending", { defaultValue: "Не отправлен" })}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {client.espoLeadId && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">
+              {t("clientDetail.espoLeadId", { defaultValue: "ID лида в Espo" })}
+            </div>
+            <div className="font-mono text-xs break-all">{client.espoLeadId}</div>
+          </div>
+        )}
+        {client.espoSyncedAt && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">
+              {t("clientDetail.espoSyncedAt", { defaultValue: "Отправлен в Espo" })}
+            </div>
+            <div className="text-xs tabular-nums">{formatAdminLongDate(client.espoSyncedAt)}</div>
+          </div>
+        )}
+        {hasError && (
+          <div className="rounded-md bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 p-2">
+            <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 text-xs font-medium mb-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {t("clientDetail.espoErrorTitle", { defaultValue: "Последняя ошибка" })}
+            </div>
+            <pre className="text-[10px] font-mono whitespace-pre-wrap break-all max-h-32 overflow-auto text-rose-700 dark:text-rose-400">
+              {client.espoLastError}
+            </pre>
+          </div>
+        )}
+        {leadUrl && (
+          <a href={leadUrl} target="_blank" rel="noopener noreferrer" className="block">
+            <Button variant="outline" size="sm" className="w-full gap-2">
+              <ExternalLink className="w-3.5 h-3.5" />
+              {t("clientDetail.espoOpen", { defaultValue: "Открыть в Espo" })}
+            </Button>
+          </a>
+        )}
+        {!leadUrl && client.espoLeadId && !espoBaseUrl && (
+          <p className="text-[10px] text-muted-foreground italic">
+            {t("clientDetail.espoNoBaseUrl", {
+              defaultValue: "Чтобы заработала кнопка «Открыть в Espo», укажите VITE_ESPO_BASE_URL в Railway.",
+            })}
+          </p>
         )}
       </CardContent>
     </Card>

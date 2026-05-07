@@ -1,5 +1,7 @@
 import { EspoClient, EspoLeadPayload, EspoLeadResponse } from "./types";
 
+export type EspoHealth = { ok: true; mode: "live" | "stub" } | { ok: false; mode: "live" | "stub"; error: string };
+
 class StubEspoClient implements EspoClient {
   async createLead(p: EspoLeadPayload, idempotencyKey: string): Promise<EspoLeadResponse> {
     return {
@@ -80,6 +82,35 @@ export function getEspoClient(): EspoClient {
     _client = new StubEspoClient();
   }
   return _client;
+}
+
+// Lightweight health check — calls Espo's /User/me endpoint with a short
+// timeout. Stub mode always reports OK so the admin UI shows "stub" instead
+// of "down" when integration isn't configured.
+export async function checkEspoHealth(): Promise<EspoHealth> {
+  const mode = (process.env.ESPO_INTEGRATION ?? "stub") === "live" ? "live" : "stub";
+  if (mode === "stub") return { ok: true, mode };
+
+  const baseUrl = process.env.ESPO_BASE_URL;
+  const apiKey = process.env.ESPO_API_KEY;
+  if (!baseUrl || !apiKey) {
+    return { ok: false, mode, error: "missing_credentials" };
+  }
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(`${baseUrl}/api/v1/App/user`, {
+      method: "GET",
+      headers: { "X-Api-Key": apiKey, "Content-Type": "application/json" },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return { ok: false, mode, error: `http_${res.status}` };
+    return { ok: true, mode };
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "unknown";
+    return { ok: false, mode, error: name === "AbortError" ? "timeout" : String(err) };
+  }
 }
 
 // Test helper

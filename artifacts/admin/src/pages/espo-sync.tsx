@@ -81,6 +81,12 @@ export default function EspoSyncPage() {
     queryFn: () => apiFetch("/admin/espo-sync/reconciliation"),
   });
 
+  const healthQuery = useQuery<{ ok: boolean; mode: "live" | "stub"; error?: string }>({
+    queryKey: ["admin/espo-sync/health"],
+    queryFn: () => apiFetch("/admin/espo-sync/health"),
+    refetchInterval: 60000, // re-check every minute
+  });
+
   const retry = useMutation({
     mutationFn: (id: number) => apiFetch(`/admin/espo-sync/retry/${id}`, { method: "POST" }),
     onSuccess: () => {
@@ -145,6 +151,7 @@ export default function EspoSyncPage() {
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Database className="w-7 h-7 text-primary" />
             {t("espoSync.title", { defaultValue: "Синхронизация с Espo" })}
+            <HealthBadge health={healthQuery.data} loading={healthQuery.isLoading} />
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {t("espoSync.subtitleV2", { defaultValue: "Отправка лидов в EspoCRM, отслеживание ошибок и сверка." })}
@@ -278,6 +285,29 @@ export default function EspoSyncPage() {
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
+
+function HealthBadge({ health, loading }: { health?: { ok: boolean; mode: "live" | "stub"; error?: string }; loading?: boolean }) {
+  if (loading || !health) {
+    return <Badge variant="outline" className="ml-2 text-[10px]">…</Badge>;
+  }
+  if (health.mode === "stub") {
+    return <Badge variant="outline" className="ml-2 text-[10px]">stub</Badge>;
+  }
+  if (health.ok) {
+    return (
+      <Badge className="ml-2 text-[10px] bg-emerald-600 hover:bg-emerald-600 gap-1">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" />
+        online
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="destructive" className="ml-2 text-[10px] gap-1" title={health.error ?? "down"}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-200" />
+      offline
+    </Badge>
+  );
+}
 
 function StatCard({ label, value, icon: Icon, tone, loading }: { label: string; value: any; icon: any; tone?: string; loading?: boolean }) {
   return (

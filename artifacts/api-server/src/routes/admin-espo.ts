@@ -3,8 +3,19 @@ import { db, espoSyncJobsTable, espoReconciliationRunsTable, pool, clientsTable 
 import { eq, desc, count, inArray } from "drizzle-orm";
 import { quickAddJob } from "graphile-worker";
 import { guestAuth, requirePermission } from "../middleware/auth";
+import { checkEspoHealth } from "../integrations/espo/client";
 
 const router: IRouter = Router();
+
+router.get(
+  "/admin/espo-sync/health",
+  guestAuth,
+  requirePermission("espo.view_sync"),
+  async (_req, res) => {
+    const health = await checkEspoHealth();
+    res.json(health);
+  },
+);
 
 router.get(
   "/admin/espo-sync/jobs",
