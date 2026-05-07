@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
 import { buildAuthHeaders } from "@/lib/auth-headers";
 import {
-  Users, CheckCircle2, Building2, Package, Activity,
-  ChevronDown, TrendingUp, Download,
+  Users, CheckCircle2, Building2, Package, Activity, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
 import { formatAdminDateTime } from "@/lib/time";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -162,24 +161,7 @@ function HorizontalFunnelBar({
   );
 }
 
-/* ── Spark bars ── */
-function SparkBars({ data }: { data: number[] }) {
-  const max = Math.max(...data, 1);
-  return (
-    <div className="flex gap-[3px] items-end h-[54px]">
-      {data.map((v, i) => (
-        <div
-          key={i}
-          className="flex-1 rounded-sm bg-primary transition-all"
-          style={{
-            height: `${(v / max) * 100}%`,
-            opacity: 0.4 + (v / max) * 0.6,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+interface BranchOption { id: number; name: string }
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -240,12 +222,33 @@ export default function Dashboard() {
     },
   });
 
-  /* Spark bars fallback — zeros until the API provides a real daily series */
-  const sparkData = useMemo(() => {
-    const base = summary?.dailyDisbursements;
-    if (Array.isArray(base) && base.length) return base;
-    return new Array(14).fill(0);
-  }, [summary]);
+  const { data: branchOptions = [] } = useQuery<BranchOption[]>({
+    queryKey: ["branches", "list-for-filter"],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl(`/api/branches`), { headers: authHeaders });
+      if (!res.ok) throw new Error(t("common.requestFailed"));
+      return res.json();
+    },
+  });
+
+  const exportBranchStatsCsv = () => {
+    if (!Array.isArray(branchStats) || branchStats.length === 0) return;
+    const header = ["Филиал", "Всего клиентов", "Завершено", "Хантеры"];
+    const rows: any[] = branchStats as any[];
+    const csv = [
+      header,
+      ...rows.map((r) => [r.branchName ?? "", r.totalClients ?? 0, r.completedClients ?? 0, r.hunterCount ?? 0]),
+    ]
+      .map((r) => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `branch-stats-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-[14px] animate-in fade-in duration-500">
@@ -261,11 +264,15 @@ export default function Dashboard() {
           <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
             {t("dashboard.filterBranch")}
           </label>
-          <Input
-            placeholder={t("dashboard.filterBranchPlaceholder")}
-            value={filters.branchId}
-            onChange={(e) => setFilters((f) => ({ ...f, branchId: e.target.value }))}
-          />
+          <Select value={filters.branchId || "all"} onValueChange={(v) => setFilters((f) => ({ ...f, branchId: v === "all" ? "" : v }))}>
+            <SelectTrigger><SelectValue placeholder={t("dashboard.filterBranchPlaceholder", { defaultValue: "Все филиалы" })} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("dashboard.all", { defaultValue: "Все" })}</SelectItem>
+              {branchOptions.map((b) => (
+                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
@@ -368,64 +375,30 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Two-column row: funnel + spark bars ── */}
-      <div className="grid lg:grid-cols-[1.3fr_1fr] gap-3.5">
-        {/* Client funnel (horizontal bars) */}
-        <div className="bg-card border border-border/50 rounded-xl shadow-sm">
-          <div className="flex items-center p-4 px-5 border-b border-border/50">
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold">{t("dashboard.clientStatus")}</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.clientStatusDesc")}</p>
-            </div>
-            <Button variant="outline" size="sm" className="text-xs gap-1 h-7">
-              30 {t("dashboard.all") === "Все" ? "дней" : "days"} <ChevronDown className="w-3 h-3" />
-            </Button>
-          </div>
-          <div className="p-5">
-            {isLoadingStatus ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="w-[120px] h-4" />
-                    <Skeleton className="flex-1 h-[22px] rounded" />
-                    <Skeleton className="w-12 h-4" />
-                  </div>
-                ))}
-              </div>
-            ) : statusBreakdown?.length ? (
-              <HorizontalFunnelBar data={statusBreakdown} t={t} />
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.noActivity")}</p>
-            )}
+      {/* ── Client status funnel ── */}
+      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+        <div className="flex items-center p-4 px-5 border-b border-border/50">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">{t("dashboard.clientStatus")}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.clientStatusDesc")}</p>
           </div>
         </div>
-
-        {/* Spark bars (daily disbursements) */}
-        <div className="bg-card border border-border/50 rounded-xl shadow-sm">
-          <div className="p-4 px-5">
-            <h3 className="text-sm font-semibold">{t("dashboard.branchPerformance")}</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.branchPerformanceDesc")}</p>
-          </div>
-          <div className="px-5 pb-5">
-            {isLoadingBranch ? (
-              <Skeleton className="h-[54px] w-full rounded" />
-            ) : (
-              <>
-                <SparkBars data={sparkData} />
-                <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-mono">
-                  <span>01</span><span>07</span><span>14</span>
+        <div className="p-5">
+          {isLoadingStatus ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-[120px] h-4" />
+                  <Skeleton className="flex-1 h-[22px] rounded" />
+                  <Skeleton className="w-12 h-4" />
                 </div>
-                {/* insight callout */}
-                <div className="mt-3.5 p-2.5 px-3 bg-[hsl(142_71%_40%/0.08)] rounded-lg flex gap-2.5 items-start">
-                  <TrendingUp className="w-3.5 h-3.5 mt-0.5 text-[hsl(142_65%_25%)] flex-shrink-0" />
-                  <p className="text-xs text-[hsl(142_65%_25%)]">
-                    <strong>+18% WoW.</strong>{" "}
-                    {t("dashboard.branchPerformanceDesc")}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : statusBreakdown?.length ? (
+            <HorizontalFunnelBar data={statusBreakdown} t={t} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.noActivity")}</p>
+          )}
         </div>
       </div>
 
@@ -446,9 +419,9 @@ export default function Dashboard() {
             <h3 className="text-sm font-semibold">{t("dashboard.branchPerformance")}</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{t("dashboard.branchPerformanceDesc")}</p>
           </div>
-          <Button variant="outline" size="sm" className="text-xs gap-1 h-7">
+          <Button variant="outline" size="sm" className="text-xs gap-1 h-7" onClick={exportBranchStatsCsv} disabled={!Array.isArray(branchStats) || branchStats.length === 0}>
             <Download className="w-3 h-3" />
-            {t("common.export")}
+            {t("common.export", { defaultValue: "Экспорт" })}
           </Button>
         </div>
         <div className="p-5">

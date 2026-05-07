@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { clientsTable, usersTable, branchesTable, productsTable, activityLogTable, clientNextActionsTable } from "@workspace/db";
-import { eq, and, sql, gte, lte, desc, inArray, count } from "drizzle-orm";
+import { eq, and, sql, gte, lte, desc, inArray, count, or, ilike } from "drizzle-orm";
 import { GetRecentActivityQueryParams } from "@workspace/api-zod";
 import { guestAuth, requireRole } from "../middleware/auth";
 import { startOfAppDay, startOfAppMonth } from "../lib/timezone";
@@ -146,6 +146,20 @@ router.get("/admin/activity-log", guestAuth, requireRole("superadmin", "head_off
   if (typeof req.query.to === "string" && req.query.to.length > 0) {
     const toDate = new Date(req.query.to);
     if (!Number.isNaN(toDate.getTime())) conditions.push(lte(activityLogTable.createdAt, toDate));
+  }
+  // Free-text search: matches description (with userName lookup pulled
+  // through later for display). Capped to 80 chars to stop accidental DDoS
+  // on the description column from gigantic substrings.
+  if (typeof req.query.search === "string" && req.query.search.length > 0) {
+    const term = req.query.search.slice(0, 80).trim();
+    if (term.length > 0) {
+      const pattern = `%${term}%`;
+      conditions.push(or(
+        ilike(activityLogTable.description, pattern),
+        ilike(activityLogTable.userName, pattern),
+        ilike(activityLogTable.type, pattern),
+      ) as any);
+    }
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
