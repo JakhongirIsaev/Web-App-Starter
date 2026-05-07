@@ -151,6 +151,11 @@ export default function ClientDetailPage() {
      stays editable. Save uses PUT /mini-app/clients/:id which auto-promotes
      status from lead → recommendation when all four fields are populated. */
   const [creditPurpose, setCreditPurpose] = useState<string>("");
+  // Free-text purpose used when creditPurpose === "not_sure". Lets the
+  // credit expert describe the actual goal in their own words (e.g.
+  // "Покупка коровы"). Saved into the same `purpose` column on submit
+  // when non-empty so the PDF / Espo see the human-readable text.
+  const [creditPurposeNote, setCreditPurposeNote] = useState<string>("");
   const [creditAmount, setCreditAmount] = useState<string>(""); // space-formatted UZS
   const [creditTerm, setCreditTerm] = useState<string>("");
   const [creditCurrency, setCreditCurrency] = useState<string>("UZS");
@@ -273,7 +278,18 @@ export default function ClientDetailPage() {
     };
     const c = envelope.client;
     if (!c) return;
-    setCreditPurpose(c.purpose ?? "");
+    // If the saved purpose is one of the four enums, hydrate the dropdown.
+    // Anything else means the expert used the free-text path — pre-fill
+    // both the dropdown (to "not_sure") and the textarea.
+    const ENUM_PURPOSES = ["working_capital", "fixed_assets", "untargeted", "not_sure"];
+    const savedPurpose = c.purpose ?? "";
+    if (savedPurpose && !ENUM_PURPOSES.includes(savedPurpose)) {
+      setCreditPurpose("not_sure");
+      setCreditPurposeNote(savedPurpose);
+    } else {
+      setCreditPurpose(savedPurpose);
+      setCreditPurposeNote("");
+    }
     const amt = c.desiredAmountUzs;
     if (amt !== null && amt !== undefined && amt !== "") {
       const digits = String(amt).replace(/\D/g, "");
@@ -290,8 +306,14 @@ export default function ClientDetailPage() {
       const amountDigits = creditAmount.replace(/\D/g, "");
       const amountNum = amountDigits ? Number(amountDigits) : null;
       const termNum = creditTerm.trim() ? Number(creditTerm.trim()) : null;
+      // When "not_sure" is picked AND the expert typed a description, save
+      // the description as the purpose. Otherwise save the enum value.
+      const purposeToSave =
+        creditPurpose === "not_sure" && creditPurposeNote.trim()
+          ? creditPurposeNote.trim()
+          : creditPurpose;
       return api.put(`/mini-app/clients/${params.id}`, {
-        purpose: creditPurpose || undefined,
+        purpose: purposeToSave || undefined,
         desiredAmountUzs: amountNum !== null && Number.isFinite(amountNum) ? amountNum : undefined,
         desiredTermMonths:
           termNum !== null && Number.isFinite(termNum) && termNum > 0 ? termNum : undefined,
@@ -354,18 +376,16 @@ export default function ClientDetailPage() {
   };
 
   const getNextAction = () => {
-    // After B3, the funnel is: draft → lead → recommendation → ...
-    // The fixed form lives at /new-client; once a client has been seeded
-    // we let the hunter jump straight to the recommendation page.
+    // Phase F: product selection is gone. The "next action" CTA used to
+    // bounce the expert to the recommendation page; now the credit form
+    // is on this same screen and the next step after credit info is the
+    // KP. We only surface a CTA for `draft` (finish the lead form). For
+    // lead/recommendation, the in-page credit card and PDF button are
+    // self-explanatory.
     if (client.status === "draft")
       return {
         label: t("clientDetail.completeForm"),
         path: `/new-client`,
-      };
-    if (client.status === "lead" || client.status === "recommendation")
-      return {
-        label: t("basket.title"),
-        path: `/recommendation/${client.id}`,
       };
     return null;
   };
@@ -529,7 +549,11 @@ export default function ClientDetailPage() {
               </div>
             )}
 
-            {basketItems?.length > 0 && (
+            {/* Phase F: basket card is rendered ONLY for legacy clients
+                that already have items. New clients never enter the basket
+                workflow — the credit-application card on this same screen
+                is the one source of truth for what credit they want. */}
+            {false && basketItems?.length > 0 && (
               <button
                 onClick={() => navigate(`/basket/${client.id}`)}
                 className="w-full flex items-center gap-3 mt-3 p-3 rounded-xl text-left active:scale-[0.99] transition-transform"
@@ -677,6 +701,26 @@ export default function ClientDetailPage() {
                   {t("questionnaire.loanPurposeOptions.not_sure")}
                 </option>
               </select>
+              {creditPurpose === "not_sure" && (
+                <textarea
+                  value={creditPurposeNote}
+                  onChange={(e) => setCreditPurposeNote(e.target.value)}
+                  placeholder={t("clientDetail.credit.purposeNotePlaceholder", {
+                    defaultValue: "Опишите цель кредита (напр. покупка коровы, ремонт цеха...)",
+                  })}
+                  rows={2}
+                  className="w-full mt-2"
+                  style={{
+                    borderRadius: 10,
+                    border: "1.5px solid #E2E8F0",
+                    fontSize: 14,
+                    padding: 10,
+                    background: "#fff",
+                    color: "#0F172A",
+                    resize: "vertical",
+                  }}
+                />
+              )}
             </div>
 
             <div>
@@ -786,14 +830,19 @@ export default function ClientDetailPage() {
           <MessageSquare className="w-4 h-4 text-[#64748B]" />
           {t("clientDetail.addNote")}
         </button>
-        <button
-          onClick={handleSaveBusinessLocation}
-          disabled={saveLocationMutation.isPending}
-          className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform disabled:opacity-60"
-        >
-          <MapPin className="w-4 h-4 text-[#64748B]" />
-          {t("clientDetail.businessLocation")}
-        </button>
+        {/* Phase F: location button only shows for legacy clients that
+            don't yet have coords — new-client form captures GPS at lead
+            time so we don't ask twice. */}
+        {(client.latitude == null || client.longitude == null) && (
+          <button
+            onClick={handleSaveBusinessLocation}
+            disabled={saveLocationMutation.isPending}
+            className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform disabled:opacity-60"
+          >
+            <MapPin className="w-4 h-4 text-[#64748B]" />
+            {t("clientDetail.businessLocation")}
+          </button>
+        )}
         <button
           onClick={() => setShowActionForm(!showActionForm)}
           className="mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#0F172A] active:scale-[0.97] transition-transform"

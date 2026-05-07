@@ -599,27 +599,11 @@ export default function RecommendationPage() {
         </div>
       )}
 
-      {/* ═══════════════ FLOATING BASKET BUTTON ═══════════════ */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-24 left-4 right-4 z-50 mx-auto max-w-md">
-          <button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-[15px] font-bold text-white"
-            style={{
-              background: "#16A34A",
-              boxShadow: "0 8px 24px rgba(22,163,74,0.3)",
-            }}
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ShoppingCart className="h-5 w-5" />
-            )}
-            {t("recommendation.goToBasket")} ({selectedIds.size})
-          </button>
-        </div>
-      )}
+      {/* Phase F: the floating "Savat" CTA was removed because product
+          selection is gone — experts record the credit the customer wants
+          (sum/goal/term/currency) on the client-detail page directly,
+          they don't pick from this catalog. The page stays as a
+          knowledge-base reference. */}
     </div>
   );
 }

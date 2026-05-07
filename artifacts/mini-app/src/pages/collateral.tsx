@@ -240,6 +240,22 @@ export default function CollateralPage() {
   });
   const coverageRatio = settingsQuery.data?.coverageRatio ?? 1.25;
 
+  // Phase F: pull the credit info the expert already saved on the client
+  // page so we can auto-fill the requested loan amount and stop asking
+  // for a credit-product pick. The collateral estimate just needs to know
+  // "is the collateral enough for the credit they asked for?".
+  const clientQuery = useQuery<{ client?: { desiredAmountUzs?: string | number | null } }>({
+    queryKey: ["mini-client", String(clientId)],
+    queryFn: () => api.get(`/mini-app/clients/${clientId}`),
+    enabled: Number.isFinite(clientId),
+  });
+  const clientDesiredAmount = (() => {
+    const raw = clientQuery.data?.client?.desiredAmountUzs;
+    if (raw === null || raw === undefined || raw === "") return 0;
+    const n = Number(String(raw).replace(/\D/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  })();
+
   const typeById = useMemo(
     () => new Map((typesQuery.data ?? []).map((tp) => [tp.id, tp])),
     [typesQuery.data],
@@ -292,6 +308,7 @@ export default function CollateralPage() {
           products={productsQuery.data ?? []}
           coverageRatio={coverageRatio}
           clientId={clientId}
+          clientDesiredAmount={clientDesiredAmount}
           onCancel={() => setView("list")}
           onCreated={(result) => {
             setEstimate(result);
@@ -862,6 +879,7 @@ function EstimateView({
   products,
   coverageRatio,
   clientId,
+  clientDesiredAmount,
   onCancel,
   onCreated,
 }: {
@@ -870,15 +888,21 @@ function EstimateView({
   products: CreditProduct[];
   coverageRatio: number;
   clientId: number;
+  clientDesiredAmount: number;
   onCancel: () => void;
   onCreated: (estimate: EstimateResult) => void;
 }) {
   const { t } = useTranslation();
-  const [creditProductId, setCreditProductId] = useState<number | "">("");
-  const [requestedLoanAmount, setRequestedLoanAmount] = useState("");
+  // Phase F: product picker is gone. We auto-attach the first available
+  // credit product purely to satisfy the FK on the persisted estimate —
+  // the user-facing math (coverage %) doesn't depend on it. Down the road
+  // the server should make creditProductId nullable.
+  const creditProductId: number | "" = products[0]?.id ?? "";
+  const [requestedLoanAmount, setRequestedLoanAmount] = useState(
+    clientDesiredAmount > 0 ? formatAmountInput(String(clientDesiredAmount)) : "",
+  );
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState("");
-  const [showProducts, setShowProducts] = useState(false);
   const requestedLoanAmountValue = parseAmountInput(requestedLoanAmount);
 
   const create = useMutation({
@@ -886,7 +910,6 @@ function EstimateView({
     onSuccess: (data: any) => onCreated(data),
   });
 
-  const selectedProduct = products.find((p) => p.id === creditProductId);
   const selectedItems = items.filter((it) => selectedIds.has(it.id));
   const live = useMemo(() => {
     const accepted = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.acceptedValue) || 0), 0);
@@ -920,39 +943,10 @@ function EstimateView({
       </div>
 
       <div className="mn-card p-4 space-y-3">
-        <Field label={t("collateral.creditProduct")}>
-          <button
-            type="button"
-            onClick={() => setShowProducts(!showProducts)}
-            className="w-full h-10 rounded-lg border border-[#E2E8F0] px-3 bg-white text-[14px] text-left flex items-center justify-between"
-          >
-            <span className={selectedProduct ? "text-[#0F172A]" : "text-[#94A3B8]"}>
-              {selectedProduct ? selectedProduct.name : "—"}
-            </span>
-            <ChevronDown className={`w-4 h-4 text-[#94A3B8] transition-transform ${showProducts ? "rotate-180" : ""}`} />
-          </button>
-          {showProducts && (
-            <div className="mt-1 rounded-lg border border-[#E2E8F0] bg-white max-h-48 overflow-y-auto">
-              {products.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setCreditProductId(p.id);
-                    setShowProducts(false);
-                  }}
-                  className={`w-full px-3 py-2.5 text-left text-[13px] border-b border-[#F1F5F9] last:border-b-0 ${
-                    creditProductId === p.id ? "bg-[#EFF6FF] text-[#2563EB] font-semibold" : "text-[#0F172A]"
-                  }`}
-                >
-                  {p.name}
-                  {p.rateUZS ? <span className="text-[#64748B] ml-1">— {p.rateUZS}</span> : ""}
-                </button>
-              ))}
-            </div>
-          )}
-        </Field>
-
+        {/* Phase F: credit-product dropdown removed. The estimate is
+            computed against the credit amount the customer asked for
+            (saved on the client page). Expert can override the amount
+            here if needed. */}
         <Field label={t("collateral.requestedLoanAmount")}>
           <input
             type="text"
@@ -965,6 +959,13 @@ function EstimateView({
             required
           />
           <AmountReadout value={requestedLoanAmountValue} />
+          {clientDesiredAmount > 0 && (
+            <p className="mt-1 text-[11px] text-[#64748B]">
+              {t("collateral.amountFromClient", {
+                defaultValue: "Сумма взята из кредитной заявки клиента — можно изменить",
+              })}
+            </p>
+          )}
         </Field>
       </div>
 
