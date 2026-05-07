@@ -1,12 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import {
+  History, Save, Undo2, Percent, Calculator, BadgeDollarSign,
+  Calendar, Ban, TrendingUp, ShieldAlert, Plus, X, Check, Clock,
+} from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
 import { buildAuthHeaders, buildJsonHeaders } from "@/lib/auth-headers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface PolicyParams {
   minCoverageRatio: number;
@@ -32,23 +44,70 @@ interface PolicyParams {
   creditCommitteeLimitsUsd: { singleBorrower: number; relatedGroup: number };
 }
 
-function setNestedNumber(obj: PolicyParams, path: (string | number)[], value: number): PolicyParams {
-  const next = JSON.parse(JSON.stringify(obj)) as PolicyParams;
+interface PolicyVersion {
+  id: number;
+  version: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  value: PolicyParams;
+  createdBy: number | null;
+  createdAt: string;
+}
+
+type Path = (string | number)[];
+
+const setNested = <T,>(obj: T, path: Path, value: unknown): T => {
+  const next = JSON.parse(JSON.stringify(obj));
   let cur: any = next;
   for (let i = 0; i < path.length - 1; i++) cur = cur[path[i]];
   cur[path[path.length - 1]] = value;
   return next;
-}
+};
+
+const getNested = (obj: any, path: Path): any => {
+  let cur = obj;
+  for (const p of path) cur = cur?.[p];
+  return cur;
+};
+
+const isEqualDeep = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+// Field constraints mirror the Zod schema in the API. Keep in sync.
+const FIELD_LIMITS: Record<string, { min: number; max: number; step?: number; suffix?: string }> = {
+  minCoverageRatio: { min: 0.5, max: 5, step: 0.01, suffix: "×" },
+  "collateralDiscounts.governmentSecurities": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  "collateralDiscounts.realEstate": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  "collateralDiscounts.vehicles": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  "collateralDiscounts.corporateSecurities": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  "collateralDiscounts.inventoryCirculation": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  "collateralDiscounts.equipment": { min: 0, max: 1, step: 0.01, suffix: "×" },
+  transportAgeThresholdYears: { min: 1, max: 30, step: 1, suffix: "лет" },
+  transportAgeDiscount: { min: 0, max: 1, step: 0.01, suffix: "×" },
+  dscrMax: { min: 0, max: 2, step: 0.01 },
+  dscrMaxFx: { min: 0, max: 2, step: 0.01 },
+  debtToEquityMax: { min: 0, max: 10, step: 0.01 },
+  loanToWorkingCapitalMax: { min: 0, max: 2, step: 0.01 },
+  rateUzs: { min: 0, max: 1, step: 0.001, suffix: "× год" },
+  rateFx: { min: 0, max: 1, step: 0.001, suffix: "× год" },
+  "maxTermMonths.workingCapital": { min: 1, max: 120, step: 1, suffix: "мес." },
+  "maxTermMonths.fixedAssets": { min: 1, max: 120, step: 1, suffix: "мес." },
+  "graduatedLending.loan1MaxMonths": { min: 1, max: 24, step: 1, suffix: "мес." },
+  "graduatedLending.loan1MaxMonthsTrade": { min: 1, max: 24, step: 1, suffix: "мес." },
+  "graduatedLending.loan2MaxMonths": { min: 1, max: 36, step: 1, suffix: "мес." },
+  "graduatedLending.loan3MaxMonths": { min: 1, max: 48, step: 1, suffix: "мес." },
+  "creditCommitteeLimitsUsd.singleBorrower": { min: 0, max: 1e12, step: 1000, suffix: "USD" },
+  "creditCommitteeLimitsUsd.relatedGroup": { min: 0, max: 1e12, step: 1000, suffix: "USD" },
+};
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
 
 export default function CreditPolicyPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [draft, setDraft] = useState<PolicyParams | null>(null);
-  const [version, setVersion] = useState<string>("");
-  const [effectiveFrom, setEffectiveFrom] = useState<string>("");
 
-  const { data: active, isLoading } = useQuery<PolicyParams>({
+  const activeQuery = useQuery<PolicyParams>({
     queryKey: ["policy-params", "active"],
     queryFn: async () => {
       const res = await fetch(buildApiUrl("/api/admin/policy-params/active"), { headers: buildAuthHeaders() });
@@ -57,14 +116,32 @@ export default function CreditPolicyPage() {
     },
   });
 
+  const versionsQuery = useQuery<PolicyVersion[]>({
+    queryKey: ["policy-params", "versions"],
+    queryFn: async () => {
+      const res = await fetch(buildApiUrl("/api/admin/policy-params/versions"), { headers: buildAuthHeaders() });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
+  });
+
+  const [draft, setDraft] = useState<PolicyParams | null>(null);
+  const [version, setVersion] = useState<string>("");
+  const [effectiveFrom, setEffectiveFrom] = useState<string>("");
+  const [viewingVersionId, setViewingVersionId] = useState<number | null>(null);
+  const [tab, setTab] = useState("rates");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [keywordInput, setKeywordInput] = useState("");
+
+  // Initialize draft from active when data loads.
   useEffect(() => {
-    if (active && !draft) {
-      setDraft(active);
+    if (activeQuery.data && !draft) {
+      setDraft(activeQuery.data);
       const now = new Date();
       setVersion(`${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, "0")}`);
       setEffectiveFrom(now.toISOString());
     }
-  }, [active, draft]);
+  }, [activeQuery.data, draft]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -78,132 +155,460 @@ export default function CreditPolicyPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: t("policy.savedTitle", { defaultValue: "Saved" }) });
+      toast({ title: t("policy.savedTitle", { defaultValue: "Сохранено" }) });
       qc.invalidateQueries({ queryKey: ["policy-params"] });
     },
     onError: (err) => {
       toast({
         variant: "destructive",
-        title: t("policy.saveFailed", { defaultValue: "Save failed" }),
+        title: t("policy.saveFailed", { defaultValue: "Не удалось сохранить" }),
         description: err instanceof Error ? err.message : String(err),
       });
     },
   });
 
-  if (isLoading || !draft) {
-    return <div className="p-8 text-muted-foreground">{t("common.loading")}</div>;
-  }
+  const active = activeQuery.data;
+  const isLoading = activeQuery.isLoading || !draft || !active;
 
-  const update = (path: (string | number)[]) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const n = Number(e.target.value);
-    if (Number.isFinite(n)) setDraft(setNestedNumber(draft, path, n));
+  // List of paths whose draft value differs from the active version.
+  const changedPaths = useMemo(() => {
+    if (!draft || !active) return new Set<string>();
+    const out = new Set<string>();
+    const walk = (a: any, b: any, prefix: string) => {
+      if (Array.isArray(a) || Array.isArray(b)) {
+        if (!isEqualDeep(a, b)) out.add(prefix);
+        return;
+      }
+      if (a && typeof a === "object" && b && typeof b === "object") {
+        for (const k of Object.keys({ ...a, ...b })) walk(a[k], b[k], prefix ? `${prefix}.${k}` : k);
+        return;
+      }
+      if (a !== b) out.add(prefix);
+    };
+    walk(draft, active, "");
+    return out;
+  }, [draft, active]);
+
+  const update = (path: Path, value: number) => {
+    if (!draft) return;
+    setDraft(setNested(draft, path, value));
   };
 
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="bg-card border rounded-xl p-5 space-y-3 shadow-sm">
-      <h3 className="text-base font-semibold">{title}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
-    </div>
-  );
+  const onDiscardConfirm = () => {
+    if (active) setDraft(JSON.parse(JSON.stringify(active)));
+    setDiscardOpen(false);
+    setViewingVersionId(null);
+    setKeywordInput("");
+  };
 
-  const Field = ({ label, value, onChange, step = "0.01" }: { label: string; value: number; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; step?: string }) => (
-    <div>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Input type="number" step={step} value={value} onChange={onChange} />
-    </div>
-  );
+  const onLoadVersion = (v: PolicyVersion) => {
+    setDraft(JSON.parse(JSON.stringify(v.value)));
+    setViewingVersionId(v.id);
+  };
+
+  const removeKeyword = (kw: string) => {
+    if (!draft) return;
+    setDraft({ ...draft, negativeIndustryKeywords: draft.negativeIndustryKeywords.filter((k) => k !== kw) });
+  };
+
+  const addKeyword = () => {
+    const v = keywordInput.trim();
+    if (!v || !draft) return;
+    if (draft.negativeIndustryKeywords.includes(v)) {
+      setKeywordInput("");
+      return;
+    }
+    setDraft({ ...draft, negativeIndustryKeywords: [...draft.negativeIndustryKeywords, v] });
+    setKeywordInput("");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-4">
+        <Skeleton className="h-10 w-72" />
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          <Skeleton className="h-96" />
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
+
+  const changes = changedPaths.size;
+  const isViewingHistorical = viewingVersionId !== null;
 
   return (
-    <div className="space-y-4 max-w-4xl pb-32">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">{t("policy.title", { defaultValue: "Credit Policy Parameters" })}</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("policy.subtitle", { defaultValue: "Editable rates, ratios, and term caps applied to new loan calculations." })}
-        </p>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800 rounded-lg p-3 text-sm flex flex-wrap items-center gap-2">
-        <strong>{t("policy.versionLabel", { defaultValue: "New version" })}:</strong>
-        <Input className="inline-block w-32" value={version} onChange={(e) => setVersion(e.target.value)} />
-        <strong className="ml-4">{t("policy.effectiveFromLabel", { defaultValue: "Effective from" })}:</strong>
-        <Input
-          type="datetime-local"
-          className="inline-block w-56"
-          value={effectiveFrom.slice(0, 16)}
-          onChange={(e) => setEffectiveFrom(new Date(e.target.value).toISOString())}
-        />
-      </div>
-
-      <Section title={t("policy.section.coverage", { defaultValue: "Coverage & Discounts" })}>
-        <Field label={t("policy.minCoverageRatio", { defaultValue: "Min coverage ratio" })} value={draft.minCoverageRatio} onChange={update(["minCoverageRatio"])} />
-        <Field label={t("policy.realEstate", { defaultValue: "Real estate %" })} value={draft.collateralDiscounts.realEstate} onChange={update(["collateralDiscounts", "realEstate"])} />
-        <Field label={t("policy.vehicles", { defaultValue: "Vehicles %" })} value={draft.collateralDiscounts.vehicles} onChange={update(["collateralDiscounts", "vehicles"])} />
-        <Field label={t("policy.equipment", { defaultValue: "Equipment %" })} value={draft.collateralDiscounts.equipment} onChange={update(["collateralDiscounts", "equipment"])} />
-        <Field label={t("policy.govSecurities", { defaultValue: "Government securities %" })} value={draft.collateralDiscounts.governmentSecurities} onChange={update(["collateralDiscounts", "governmentSecurities"])} />
-        <Field label={t("policy.corpSecurities", { defaultValue: "Corporate securities %" })} value={draft.collateralDiscounts.corporateSecurities} onChange={update(["collateralDiscounts", "corporateSecurities"])} />
-        <Field label={t("policy.inventory", { defaultValue: "Inventory %" })} value={draft.collateralDiscounts.inventoryCirculation} onChange={update(["collateralDiscounts", "inventoryCirculation"])} />
-        <Field label={t("policy.transportAge", { defaultValue: "Transport age threshold (years)" })} value={draft.transportAgeThresholdYears} onChange={update(["transportAgeThresholdYears"])} step="1" />
-        <Field label={t("policy.transportAgeDisc", { defaultValue: "Transport age discount %" })} value={draft.transportAgeDiscount} onChange={update(["transportAgeDiscount"])} />
-      </Section>
-
-      <Section title={t("policy.section.ratios", { defaultValue: "Ratios" })}>
-        <Field label={t("policy.dscrMax", { defaultValue: "DSCR max" })} value={draft.dscrMax} onChange={update(["dscrMax"])} />
-        <Field label={t("policy.dscrMaxFx", { defaultValue: "DSCR max (FX)" })} value={draft.dscrMaxFx} onChange={update(["dscrMaxFx"])} />
-        <Field label={t("policy.debtToEquity", { defaultValue: "Debt/equity max" })} value={draft.debtToEquityMax} onChange={update(["debtToEquityMax"])} />
-        <Field label={t("policy.loanToWc", { defaultValue: "Loan/working-capital max" })} value={draft.loanToWorkingCapitalMax} onChange={update(["loanToWorkingCapitalMax"])} />
-      </Section>
-
-      <Section title={t("policy.section.ratesUzs", { defaultValue: "Min rates — UZS" })}>
-        <Field label="Micro <=12m" value={draft.minRatesUzs.micro.le12m} onChange={update(["minRatesUzs", "micro", "le12m"])} />
-        <Field label="Micro >12m" value={draft.minRatesUzs.micro.gt12m} onChange={update(["minRatesUzs", "micro", "gt12m"])} />
-        <Field label="Small <=12m" value={draft.minRatesUzs.small.le12m} onChange={update(["minRatesUzs", "small", "le12m"])} />
-        <Field label="Small >12m" value={draft.minRatesUzs.small.gt12m} onChange={update(["minRatesUzs", "small", "gt12m"])} />
-        <Field label="Medium" value={draft.minRatesUzs.medium.any} onChange={update(["minRatesUzs", "medium", "any"])} />
-      </Section>
-
-      <Section title={t("policy.section.ratesFx", { defaultValue: "Min rates — FX" })}>
-        <Field label="Micro" value={draft.minRatesFx.micro} onChange={update(["minRatesFx", "micro"])} />
-        <Field label="Small" value={draft.minRatesFx.small} onChange={update(["minRatesFx", "small"])} />
-        <Field label="Medium" value={draft.minRatesFx.medium} onChange={update(["minRatesFx", "medium"])} />
-      </Section>
-
-      <Section title={t("policy.section.terms", { defaultValue: "Terms" })}>
-        <Field label={t("policy.maxTermWc", { defaultValue: "Max term (working capital, mo)" })} value={draft.maxTermMonths.workingCapital} onChange={update(["maxTermMonths", "workingCapital"])} step="1" />
-        <Field label={t("policy.maxTermFa", { defaultValue: "Max term (fixed assets, mo)" })} value={draft.maxTermMonths.fixedAssets} onChange={update(["maxTermMonths", "fixedAssets"])} step="1" />
-      </Section>
-
-      <Section title={t("policy.section.industries", { defaultValue: "Negative industry keywords" })}>
-        <div className="col-span-full">
-          <Label className="text-xs text-muted-foreground">{t("policy.negKeywordsLabel", { defaultValue: "Comma-separated" })}</Label>
-          <Input
-            value={draft.negativeIndustryKeywords.join(", ")}
-            onChange={(e) =>
-              setDraft((d) => d ? { ...d, negativeIndustryKeywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } : d)
-            }
-          />
+    <div className="p-6 max-w-7xl mx-auto pb-24">
+      {/* ── Top bar ── */}
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("policy.title", { defaultValue: "Параметры кредитной политики" })}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("policy.subtitle", { defaultValue: "Редактируемые ставки, коэффициенты и сроки, применяемые к новым кредитным расчётам." })}
+          </p>
         </div>
-      </Section>
 
-      <Section title={t("policy.section.graduatedLending", { defaultValue: "Graduated lending caps (months)" })}>
-        <Field label={t("policy.loan1Max", { defaultValue: "Loan #1 max" })} value={draft.graduatedLending.loan1MaxMonths} onChange={update(["graduatedLending", "loan1MaxMonths"])} step="1" />
-        <Field label={t("policy.loan1MaxTrade", { defaultValue: "Loan #1 max (trade)" })} value={draft.graduatedLending.loan1MaxMonthsTrade} onChange={update(["graduatedLending", "loan1MaxMonthsTrade"])} step="1" />
-        <Field label={t("policy.loan2Max", { defaultValue: "Loan #2 max" })} value={draft.graduatedLending.loan2MaxMonths} onChange={update(["graduatedLending", "loan2MaxMonths"])} step="1" />
-        <Field label={t("policy.loan3Max", { defaultValue: "Loan #3 max" })} value={draft.graduatedLending.loan3MaxMonths} onChange={update(["graduatedLending", "loan3MaxMonths"])} step="1" />
-      </Section>
-
-      <Section title={t("policy.section.committee", { defaultValue: "Credit committee limits (USD)" })}>
-        <Field label={t("policy.singleBorrower", { defaultValue: "Single borrower" })} value={draft.creditCommitteeLimitsUsd.singleBorrower} onChange={update(["creditCommitteeLimitsUsd", "singleBorrower"])} step="1" />
-        <Field label={t("policy.relatedGroup", { defaultValue: "Related group" })} value={draft.creditCommitteeLimitsUsd.relatedGroup} onChange={update(["creditCommitteeLimitsUsd", "relatedGroup"])} step="1" />
-      </Section>
-
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background border rounded-xl shadow-md p-3">
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? t("common.saving") : t("policy.saveAsNewVersion", { defaultValue: "Save as new version" })}
-        </Button>
-        <Button variant="outline" onClick={() => setDraft(active ?? null)}>
-          {t("policy.discardChanges", { defaultValue: "Discard" })}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {changes > 0 && (
+            <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 border border-amber-200">
+              {t("policy.unsavedChanges", { defaultValue: "Несохранённых: {{n}}", n: changes })}
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={changes === 0}
+            onClick={() => setDiscardOpen(true)}
+            className="gap-2"
+          >
+            <Undo2 className="w-4 h-4" />
+            {t("policy.discardChanges", { defaultValue: "Отменить" })}
+          </Button>
+          <Button
+            size="sm"
+            disabled={save.isPending || changes === 0}
+            onClick={() => save.mutate()}
+            className="gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {save.isPending
+              ? t("common.saving", { defaultValue: "Сохранение…" })
+              : t("policy.saveAsNewVersion", { defaultValue: "Сохранить как новую версию" })}
+          </Button>
+        </div>
       </div>
+
+      {/* ── Body grid: history sidebar + form ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        {/* History sidebar */}
+        <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-auto">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-semibold text-sm">
+              {t("policy.versionHistory", { defaultValue: "История версий" })}
+            </h2>
+            <Badge variant="outline" className="ml-auto text-[10px]">
+              {versionsQuery.data?.length ?? 0}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("policy.versionHistoryHint", { defaultValue: "Кликните на версию, чтобы загрузить её для просмотра или редактирования." })}
+          </p>
+
+          <div className="space-y-1.5">
+            {versionsQuery.isLoading && (
+              <>
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+              </>
+            )}
+            {versionsQuery.data?.length === 0 && (
+              <p className="text-xs text-muted-foreground italic py-4 text-center border rounded-lg border-dashed">
+                {t("policy.noVersions", { defaultValue: "Версий пока нет" })}
+              </p>
+            )}
+            {versionsQuery.data?.map((v, i) => {
+              const isActive = i === 0 || (v.effectiveTo === null && new Date(v.effectiveFrom) <= new Date());
+              const isViewing = viewingVersionId === v.id;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => onLoadVersion(v)}
+                  className={cn(
+                    "w-full text-left rounded-lg border p-3 hover:bg-accent transition-colors",
+                    isViewing && "ring-2 ring-primary border-primary",
+                    !isViewing && isActive && "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/10",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-sm font-medium">{v.version}</span>
+                    {isActive && (
+                      <Badge variant="default" className="text-[9px] bg-emerald-600 hover:bg-emerald-600">
+                        {t("policy.active", { defaultValue: "Активна" })}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-1">
+                    <Clock className="w-3 h-3" />
+                    <span className="tabular-nums">{formatDateTime(v.effectiveFrom)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* Form */}
+        <div className="min-w-0 space-y-4">
+          {/* Version meta strip */}
+          <div className="rounded-xl border bg-card p-4 flex flex-wrap items-end gap-4 shadow-sm">
+            <div className="flex-1 min-w-[140px]">
+              <Label className="text-xs text-muted-foreground">
+                {t("policy.versionLabel", { defaultValue: "Новая версия" })}
+              </Label>
+              <Input value={version} onChange={(e) => setVersion(e.target.value)} className="font-mono" />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <Label className="text-xs text-muted-foreground">
+                {t("policy.effectiveFromLabel", { defaultValue: "Действует с" })}
+              </Label>
+              <Input
+                type="datetime-local"
+                value={effectiveFrom.slice(0, 16)}
+                onChange={(e) => setEffectiveFrom(new Date(e.target.value).toISOString())}
+              />
+            </div>
+            {isViewingHistorical && (
+              <Badge variant="outline" className="gap-1">
+                <History className="w-3 h-3" />
+                {t("policy.viewingHistorical", { defaultValue: "Просмотр исторической версии" })}
+              </Badge>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="grid grid-cols-3 lg:grid-cols-6 w-full h-auto p-1">
+              <TabsTrigger value="rates" className="gap-1.5"><BadgeDollarSign className="w-3.5 h-3.5" />{t("policy.tabs.rates", { defaultValue: "Ставки" })}</TabsTrigger>
+              <TabsTrigger value="ratios" className="gap-1.5"><TrendingUp className="w-3.5 h-3.5" />{t("policy.tabs.ratios", { defaultValue: "Коэффициенты" })}</TabsTrigger>
+              <TabsTrigger value="collateral" className="gap-1.5"><Percent className="w-3.5 h-3.5" />{t("policy.tabs.collateral", { defaultValue: "Залог" })}</TabsTrigger>
+              <TabsTrigger value="terms" className="gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("policy.tabs.terms", { defaultValue: "Сроки" })}</TabsTrigger>
+              <TabsTrigger value="limits" className="gap-1.5"><ShieldAlert className="w-3.5 h-3.5" />{t("policy.tabs.limits", { defaultValue: "Лимиты" })}</TabsTrigger>
+              <TabsTrigger value="industries" className="gap-1.5"><Ban className="w-3.5 h-3.5" />{t("policy.tabs.industries", { defaultValue: "Отрасли" })}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="rates" className="mt-4 space-y-4">
+              <Card title={t("policy.section.ratesUzs", { defaultValue: "Минимальные ставки — UZS" })} icon={<BadgeDollarSign className="w-4 h-4" />}>
+                <PolicyField label="Micro ≤ 12 мес." path={["minRatesUzs", "micro", "le12m"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateUzs" />
+                <PolicyField label="Micro > 12 мес." path={["minRatesUzs", "micro", "gt12m"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateUzs" />
+                <PolicyField label="Small ≤ 12 мес." path={["minRatesUzs", "small", "le12m"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateUzs" />
+                <PolicyField label="Small > 12 мес." path={["minRatesUzs", "small", "gt12m"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateUzs" />
+                <PolicyField label="Medium" path={["minRatesUzs", "medium", "any"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateUzs" />
+              </Card>
+              <Card title={t("policy.section.ratesFx", { defaultValue: "Минимальные ставки — валюта" })} icon={<BadgeDollarSign className="w-4 h-4" />}>
+                <PolicyField label="Micro" path={["minRatesFx", "micro"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateFx" />
+                <PolicyField label="Small" path={["minRatesFx", "small"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateFx" />
+                <PolicyField label="Medium" path={["minRatesFx", "medium"]} draft={draft} active={active} changedPaths={changedPaths} update={update} limitKey="rateFx" />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="ratios" className="mt-4 space-y-4">
+              <Card title={t("policy.section.ratios", { defaultValue: "Коэффициенты" })} icon={<TrendingUp className="w-4 h-4" />}>
+                <PolicyField label={t("policy.dscrMax", { defaultValue: "Макс. DSCR" })} path={["dscrMax"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.dscrMaxFx", { defaultValue: "Макс. DSCR (валюта)" })} path={["dscrMaxFx"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.debtToEquity", { defaultValue: "Макс. долг/капитал" })} path={["debtToEquityMax"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.loanToWc", { defaultValue: "Макс. кредит/оборотный капитал" })} path={["loanToWorkingCapitalMax"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="collateral" className="mt-4 space-y-4">
+              <Card title={t("policy.section.coverage", { defaultValue: "Покрытие" })} icon={<Calculator className="w-4 h-4" />}>
+                <PolicyField label={t("policy.minCoverageRatio", { defaultValue: "Мин. коэф. покрытия" })} path={["minCoverageRatio"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+              <Card title={t("policy.section.discounts", { defaultValue: "Дисконты по типам залога" })} icon={<Percent className="w-4 h-4" />}>
+                <PolicyField label={t("policy.realEstate", { defaultValue: "Недвижимость" })} path={["collateralDiscounts", "realEstate"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.vehicles", { defaultValue: "Транспорт" })} path={["collateralDiscounts", "vehicles"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.equipment", { defaultValue: "Оборудование" })} path={["collateralDiscounts", "equipment"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.govSecurities", { defaultValue: "Гос. ценные бумаги" })} path={["collateralDiscounts", "governmentSecurities"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.corpSecurities", { defaultValue: "Корп. ценные бумаги" })} path={["collateralDiscounts", "corporateSecurities"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.inventory", { defaultValue: "Товары в обороте" })} path={["collateralDiscounts", "inventoryCirculation"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.transportAge", { defaultValue: "Порог возраста транспорта" })} path={["transportAgeThresholdYears"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.transportAgeDisc", { defaultValue: "Дисконт за возраст транспорта" })} path={["transportAgeDiscount"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="terms" className="mt-4 space-y-4">
+              <Card title={t("policy.section.terms", { defaultValue: "Максимальные сроки" })} icon={<Calendar className="w-4 h-4" />}>
+                <PolicyField label={t("policy.maxTermWc", { defaultValue: "Оборотный капитал" })} path={["maxTermMonths", "workingCapital"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.maxTermFa", { defaultValue: "Основные средства" })} path={["maxTermMonths", "fixedAssets"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+              <Card title={t("policy.section.graduatedLending", { defaultValue: "Серия кредитов" })} icon={<Calendar className="w-4 h-4" />}>
+                <PolicyField label={t("policy.loan1Max", { defaultValue: "Кредит №1" })} path={["graduatedLending", "loan1MaxMonths"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.loan1MaxTrade", { defaultValue: "Кредит №1 (торговля)" })} path={["graduatedLending", "loan1MaxMonthsTrade"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.loan2Max", { defaultValue: "Кредит №2" })} path={["graduatedLending", "loan2MaxMonths"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.loan3Max", { defaultValue: "Кредит №3" })} path={["graduatedLending", "loan3MaxMonths"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="limits" className="mt-4 space-y-4">
+              <Card title={t("policy.section.committee", { defaultValue: "Лимиты кредитного комитета (USD)" })} icon={<ShieldAlert className="w-4 h-4" />}>
+                <PolicyField label={t("policy.singleBorrower", { defaultValue: "Один заёмщик" })} path={["creditCommitteeLimitsUsd", "singleBorrower"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+                <PolicyField label={t("policy.relatedGroup", { defaultValue: "Связанная группа" })} path={["creditCommitteeLimitsUsd", "relatedGroup"]} draft={draft} active={active} changedPaths={changedPaths} update={update} />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="industries" className="mt-4 space-y-4">
+              <div className="rounded-xl border bg-card p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <Ban className="w-4 h-4 text-rose-600" />
+                  <h3 className="font-semibold">{t("policy.section.industries", { defaultValue: "Запрещённые отрасли" })}</h3>
+                  <Badge variant="outline" className="ml-auto text-[10px]">
+                    {draft.negativeIndustryKeywords.length} / 50
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t("policy.industriesHint", { defaultValue: "Если заявка содержит хоть одно из этих ключевых слов, она помечается как несоответствующая." })}
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 mb-3 min-h-[32px]">
+                  {draft.negativeIndustryKeywords.length === 0 && (
+                    <span className="text-xs text-muted-foreground italic py-1">
+                      {t("policy.noKeywords", { defaultValue: "Список пуст" })}
+                    </span>
+                  )}
+                  {draft.negativeIndustryKeywords.map((kw) => (
+                    <Badge key={kw} variant="secondary" className="gap-1.5 pr-1">
+                      {kw}
+                      <button
+                        type="button"
+                        onClick={() => removeKeyword(kw)}
+                        className="rounded-full hover:bg-foreground/10 p-0.5"
+                        aria-label={`Remove ${kw}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={t("policy.addKeywordPlaceholder", { defaultValue: "Например: казино" })}
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                    disabled={draft.negativeIndustryKeywords.length >= 50}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addKeyword}
+                    disabled={!keywordInput.trim() || draft.negativeIndustryKeywords.length >= 50}
+                    className="gap-1.5 shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {t("common.add", { defaultValue: "Добавить" })}
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Discard confirm */}
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("policy.discardConfirmTitle", { defaultValue: "Отменить изменения?" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("policy.discardConfirmDesc", {
+                defaultValue: "Все {{n}} несохранённых изменений будут потеряны.",
+                n: changes,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel", { defaultValue: "Отмена" })}</AlertDialogCancel>
+            <AlertDialogAction onClick={onDiscardConfirm}>
+              {t("policy.discardChanges", { defaultValue: "Отменить" })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function Card({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="flex items-center gap-2 mb-4">
+        {icon}
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
+    </div>
+  );
+}
+
+function PolicyField({
+  label,
+  path,
+  draft,
+  active,
+  changedPaths,
+  update,
+  limitKey,
+}: {
+  label: string;
+  path: Path;
+  draft: PolicyParams;
+  active: PolicyParams;
+  changedPaths: Set<string>;
+  update: (path: Path, value: number) => void;
+  limitKey?: string;
+}) {
+  const value = getNested(draft, path) as number;
+  const activeValue = getNested(active, path) as number;
+  const pathStr = path.join(".");
+  const limits = FIELD_LIMITS[limitKey ?? pathStr];
+  const isChanged = changedPaths.has(pathStr);
+  const outOfBounds = limits ? value < limits.min || value > limits.max : false;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+          {label}
+          {isChanged && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" title="Изменено" />
+          )}
+        </Label>
+        {limits && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {limits.min}–{limits.max}
+          </span>
+        )}
+      </div>
+      <div className="relative">
+        <Input
+          type="number"
+          step={limits?.step ?? 0.01}
+          min={limits?.min}
+          max={limits?.max}
+          value={Number.isFinite(value) ? value : ""}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n)) update(path, n);
+          }}
+          className={cn(
+            "tabular-nums pr-12",
+            isChanged && "border-amber-300 focus-visible:ring-amber-300/40",
+            outOfBounds && "border-rose-400 focus-visible:ring-rose-400/40",
+          )}
+        />
+        {limits?.suffix && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
+            {limits.suffix}
+          </span>
+        )}
+      </div>
+      {isChanged && (
+        <p className="text-[10px] text-muted-foreground mt-1 tabular-nums flex items-center gap-1">
+          <Check className="w-2.5 h-2.5" />
+          Было: {Number.isFinite(activeValue) ? activeValue : "—"}
+        </p>
+      )}
+      {outOfBounds && limits && (
+        <p className="text-[10px] text-rose-600 mt-1">
+          Допустимо: {limits.min}–{limits.max}
+        </p>
+      )}
     </div>
   );
 }
