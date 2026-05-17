@@ -25,6 +25,20 @@ declare global {
   }
 }
 
+
+// SECURITY (PR-S1): refuse to boot if someone tries to enable DEMO_MODE in
+// production. DEMO_MODE installs an open-by-default `guestAuth` fallback
+// that hands out the highest-privilege user to any anonymous caller; that
+// must NEVER be reachable from a production-exposed instance. This check
+// runs at module-import time so the process exits before the listener binds.
+if (process.env.NODE_ENV === "production" && process.env.DEMO_MODE === "true") {
+  throw new Error(
+    "Refusing to start: DEMO_MODE=true is not permitted when NODE_ENV=production. " +
+    "DEMO_MODE enables an open auth fallback (guestAuth) that exposes superadmin " +
+    "to anonymous callers. Unset DEMO_MODE (or set NODE_ENV=development) and retry.",
+  );
+}
+
 export function extractBearerToken(req: Request): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
@@ -37,6 +51,13 @@ export function extractAuthToken(req: Request): string | undefined {
   return extractBearerToken(req);
 }
 
+/**
+ * Strict bearer-token authentication. Returns 401 when the Authorization
+ * header is missing, malformed, points at an unknown/expired session, or
+ * resolves to a deactivated user. Every production-exposed route MUST use
+ * this middleware (or `requirePermission` which composes on top of it via
+ * the router-level auth chain). Never substitute `guestAuth` for this.
+ */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = extractAuthToken(req);
   if (!token) {
@@ -90,6 +111,19 @@ export async function requireAuthOrSignedUrl(req: Request, res: Response, next: 
   return requireAuth(req, res, next);
 }
 
+/**
+ * DEVELOPMENT-ONLY auth fallback. When DEMO_MODE=true (and NODE_ENV is NOT
+ * production — enforced by the module-top guard above), unauthenticated
+ * requests are silently elevated to the highest-privilege active user so
+ * the local demo SPAs can be poked without signing in.
+ *
+ * WARNING: This MUST NEVER be wired into a route that is reachable from a
+ * production deployment. Use `requireAuth` for anything user-facing. The
+ * boot guard at the top of this module makes it impossible to launch with
+ * NODE_ENV=production + DEMO_MODE=true, but do not rely on that alone —
+ * default to `requireAuth` and reach for `guestAuth` only for explicitly
+ * dev-only tooling.
+ */
 export async function guestAuth(req: Request, res: Response, next: NextFunction) {
   const token = extractAuthToken(req);
   if (token) {
@@ -172,10 +206,12 @@ export function requirePermission(permission: Permission) {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as { user?: { role?: string } }).user;
     if (!user || !user.role) {
-      return res.status(401).json({ error: "unauthenticated" });
+      res.status(401).json({ error: "unauthenticated" });
+      return;
     }
     if (!hasPermission(user.role as Role, permission)) {
-      return res.status(403).json({ error: "forbidden", required: permission });
+      res.status(403).json({ error: "forbidden", required: permission });
+      return;
     }
     next();
   };

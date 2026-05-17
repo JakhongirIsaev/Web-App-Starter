@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import { usersTable, branchesTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { LoginBody } from "@workspace/api-zod";
 import { validateTelegramInitData } from "../lib/telegram";
@@ -73,49 +73,29 @@ const changePasswordLimiter = rateLimit({
 });
 
 
-router.get("/auth/guest", async (_req, res) => {
-  const [user] = await db
-    .select({
-      id: usersTable.id,
-      telegramId: usersTable.telegramId,
-      name: usersTable.name,
-      role: usersTable.role,
-      branchId: usersTable.branchId,
-      isActive: usersTable.isActive,
-    })
-    .from(usersTable)
-    .where(eq(usersTable.isActive, true))
-    .orderBy(sql`
-      CASE ${usersTable.role}
-        WHEN 'superadmin' THEN 0
-        WHEN 'head_office_admin' THEN 1
-        WHEN 'editor' THEN 2
-        WHEN 'branch_head' THEN 3
-        WHEN 'hunter' THEN 4
-        ELSE 5
-      END
-    `, usersTable.id)
-    .limit(1);
+// NOTE (PR-S1 security hotfix): The former GET /auth/guest route was DELETED.
+// It returned the highest-privilege active user (typically superadmin) to any
+// anonymous caller, which is a critical authentication-bypass vulnerability.
+// Clients that still call it will now receive 404, which is the correct,
+// fail-closed behaviour. Do NOT reintroduce it under any flag.
 
-  if (!user) {
-    res.status(503).json({ error: "No active users" });
+router.get("/auth/me", async (req, res) => {
+  // SECURITY (PR-S1): /auth/me MUST require a valid bearer token. The previous
+  // implementation fell back to a "first active user" lookup when no token was
+  // provided, effectively handing out the superadmin identity to anonymous
+  // callers. Do not reintroduce that fallback under any flag — callers
+  // without a session must receive 401.
+  const token = extractBearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
     return;
   }
 
-  res.json(user);
-});
-
-router.get("/auth/me", async (req, res) => {
-  const token = extractBearerToken(req);
-  let userId: number | null = null;
-
-  if (token) {
-    userId = await findSessionUserId(token);
+  const userId = await findSessionUserId(token);
+  if (!userId) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
   }
-
-  const whereClause = userId
-    ? eq(usersTable.id, userId)
-    : eq(usersTable.isActive, true);
 
   const users = await db
     .select({
@@ -133,21 +113,11 @@ router.get("/auth/me", async (req, res) => {
     })
     .from(usersTable)
     .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
-    .where(whereClause)
-    .orderBy(sql`
-      CASE ${usersTable.role}
-        WHEN 'superadmin' THEN 0
-        WHEN 'head_office_admin' THEN 1
-        WHEN 'editor' THEN 2
-        WHEN 'branch_head' THEN 3
-        WHEN 'hunter' THEN 4
-        ELSE 5
-      END
-    `, usersTable.id)
+    .where(eq(usersTable.id, userId))
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
+    res.status(401).json({ error: "unauthorized" });
     return;
   }
 

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedDatabase, seedCollateralReferenceData } from "./seed";
+import { seedCollateralReferenceData } from "./seed";
+import { seedDemoUsers } from "./seed-demo-users";
 import { seedExcelData } from "./seed-excel";
 import { seedPolicyParamsV1 } from "./seed/policy-params-v1";
 import { startBot, stopBot } from "./bot";
@@ -20,7 +21,9 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-if (process.env.NODE_ENV === "production" && !process.env.SIGNED_URL_SECRET) {
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction && !process.env.SIGNED_URL_SECRET) {
   throw new Error(
     "SIGNED_URL_SECRET must be set in production (used to sign object URLs).",
   );
@@ -28,49 +31,61 @@ if (process.env.NODE_ENV === "production" && !process.env.SIGNED_URL_SECRET) {
 
 function resolveMiniAppUrl() {
   const miniAppUrlEnv = process.env["MINI_APP_URL"]?.trim();
-  if (process.env.NODE_ENV === "production" && !miniAppUrlEnv) {
+  if (isProduction && !miniAppUrlEnv) {
     throw new Error("MINI_APP_URL must be set in production.");
   }
 
   return miniAppUrlEnv || "https://example.com/mini-app/";
 }
 
-function shouldSeedOnBoot() {
-  const raw = process.env["SEED_DATABASE_ON_BOOT"]?.trim().toLowerCase();
-  if (raw === "true") return true;
-  if (raw === "false") return false;
-  return process.env.NODE_ENV !== "production";
+/**
+ * SECURITY (PR-S1): Demo seeding installs accounts with the well-known
+ * password "password" and synthetic Telegram IDs. It must be disabled by
+ * default in production. Operators who explicitly want it (eg. a sandbox
+ * preview env) must set SEED_DEMO_USERS=true. The legacy
+ * SEED_DATABASE_ON_BOOT flag is honoured as a deprecated alias for backwards
+ * compatibility with existing dev/CI envs.
+ */
+function shouldSeedDemoUsers() {
+  if (isProduction) {
+    const explicit = process.env["SEED_DEMO_USERS"]?.trim().toLowerCase();
+    return explicit === "true";
+  }
+  const explicit = process.env["SEED_DEMO_USERS"]?.trim().toLowerCase();
+  if (explicit === "false") return false;
+  if (explicit === "true") return true;
+  const legacy = process.env["SEED_DATABASE_ON_BOOT"]?.trim().toLowerCase();
+  if (legacy === "false") return false;
+  return true;
 }
 
 const miniAppUrl = resolveMiniAppUrl();
-const seedDemoOnBoot = shouldSeedOnBoot();
+const seedDemoOnBoot = shouldSeedDemoUsers();
 
 // Reference data (5 collateral types + 3 default system settings) runs every
-// boot. Idempotent via ON CONFLICT DO NOTHING. NOT gated by
-// SEED_DATABASE_ON_BOOT — that flag is for demo/dummy data only.
+// boot. Idempotent via ON CONFLICT DO NOTHING.
 seedCollateralReferenceData().catch((err) => {
   logger.error({ err }, "Failed to seed collateral reference data");
 });
 
-// Versioned credit-policy parameters (v1 = 2026.05). Idempotent — only inserts
-// when the table is empty. Same boot rules as collateral reference data: runs
-// every boot, NOT gated by SEED_DATABASE_ON_BOOT.
+// Versioned credit-policy parameters (v1 = 2026.05). Idempotent -- only
+// inserts when the table is empty.
 seedPolicyParamsV1().catch((err) => {
   logger.error({ err }, "Failed to seed policy params v1");
 });
 
+// Credit products, SAP codes, and credit-line balances are reference data
+// (not demo). Always seed them (idempotent per-table).
+seedExcelData().catch((err) => {
+  logger.error({ err }, "Failed to seed Excel reference data");
+});
+
 if (seedDemoOnBoot) {
-  seedDatabase().catch((err) => {
-    logger.error({ err }, "Failed to seed database");
+  seedDemoUsers().catch((err) => {
+    logger.error({ err }, "Failed to seed demo users");
   });
 } else {
-  // Credit products, SAP codes, and credit-line balances are reference data,
-  // not demo users/clients. Keep them available even when dummy data seeding is
-  // disabled for production.
-  seedExcelData().catch((err) => {
-    logger.error({ err }, "Failed to seed Excel reference data");
-  });
-  logger.info("Skipping database seed on production boot");
+  logger.info("Skipping demo user seeding on boot");
 }
 
 app.listen(port, (err) => {
