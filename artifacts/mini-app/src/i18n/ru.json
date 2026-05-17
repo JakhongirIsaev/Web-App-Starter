@@ -472,7 +472,16 @@
     "download": "Скачать результаты",
     "downloadFormat": "Таблица",
     "effectiveRate": "Эффект. ставка",
-    "share": "Поделиться"
+    "share": "Поделиться",
+    "advancedToggle": "Комиссии и страховка",
+    "feeOnceLabel": "Разовая комиссия",
+    "feeOnceHint": "Сумма (например, при выдаче)",
+    "feeMonthlyLabel": "Ежемесячная комиссия",
+    "feeMonthlyHint": "% от остатка долга",
+    "insuranceMonthlyLabel": "Страховка",
+    "insuranceMonthlyHint": "% в месяц от суммы кредита",
+    "totalFees": "Комиссии и страховка",
+    "monthlyPaymentHintDifferentiated": "Первый месяц — далее снижается"
   },
   "knowledge": {
     "title": "База знаний",

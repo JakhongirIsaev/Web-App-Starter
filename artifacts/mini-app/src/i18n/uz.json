@@ -470,7 +470,16 @@
     "download": "Natijalarni yuklash",
     "downloadFormat": "Jadval",
     "effectiveRate": "Samarali stavka",
-    "share": "Ulashish"
+    "share": "Ulashish",
+    "advancedToggle": "Komissiya va sug'urta",
+    "feeOnceLabel": "Bir martalik komissiya",
+    "feeOnceHint": "Summa (masalan, kredit berishda)",
+    "feeMonthlyLabel": "Oylik komissiya",
+    "feeMonthlyHint": "Qoldiqning %",
+    "insuranceMonthlyLabel": "Sug'urta",
+    "insuranceMonthlyHint": "Kredit summasidan oyiga %",
+    "totalFees": "Komissiya va sug'urta",
+    "monthlyPaymentHintDifferentiated": "Birinchi oy — keyin kamayadi"
   },
   "knowledge": {
     "title": "Bilimlar bazasi",

@@ -21,6 +21,10 @@ export default function CalculatorPage() {
   const [repaymentType, setRepaymentType] = useState("annuity");
   const [gracePeriod, setGracePeriod] = useState("0");
   const [currency, setCurrency] = useState("UZS");
+  const [feeOnceAmount, setFeeOnceAmount] = useState("");
+  const [feeMonthlyPct, setFeeMonthlyPct] = useState("");
+  const [insuranceMonthlyPct, setInsuranceMonthlyPct] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [showFullSchedule, setShowFullSchedule] = useState(false);
 
@@ -46,6 +50,9 @@ export default function CalculatorPage() {
         currency,
         productCost: cost,
         downPaymentPct: dpPct,
+        feeOnceAmount: parseFloat(feeOnceAmount) || 0,
+        feeMonthlyPct: parseFloat(feeMonthlyPct) || 0,
+        insuranceMonthlyPct: parseFloat(insuranceMonthlyPct) || 0,
       });
     },
     onSuccess: (data) => setResult(data),
@@ -106,7 +113,7 @@ export default function CalculatorPage() {
 
   const handleShare = () => {
     if (!result) return;
-    const monthlyPayment = result.summary.totalPayment / parseInt(termMonths);
+    const monthlyPayment = result.summary.monthlyPayment ?? result.summary.totalPayment / parseInt(termMonths);
     const text = [
       `${t("calculator.title")}`,
       `${t("calculator.loanAmount")}: ${formatWithSpaces(loanAmount)} ${currency}`,
@@ -123,12 +130,15 @@ export default function CalculatorPage() {
     }
   };
 
-  const monthlyPayment = result
-    ? result.summary.totalPayment / parseInt(termMonths)
-    : 0;
+  const monthlyPayment = result?.summary?.monthlyPayment ?? 0;
+  // Prefer the server-computed effective rate (it accounts for fees/insurance).
+  // Fall back to a rough average if older API responses are missing the field.
   const effectiveRateDisplay = result
-    ? ((result.summary.totalInterest / loanAmount) * 100 / (parseInt(termMonths) / 12)).toFixed(1)
+    ? typeof result.summary.effectiveAnnualPct === "number"
+      ? result.summary.effectiveAnnualPct.toFixed(1)
+      : ((result.summary.totalInterest / loanAmount) * 100 / (parseInt(termMonths) / 12)).toFixed(1)
     : "0";
+  const totalFees = result?.summary?.totalFees ?? 0;
 
   return (
     <div className="min-h-screen" style={{ background: "#F4F4F5" }}>
@@ -316,6 +326,98 @@ export default function CalculatorPage() {
           </div>
         </div>
 
+        {/* Advanced — fees and insurance (collapsible) */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex w-full items-center justify-between text-[13px] font-semibold"
+            style={{ color: "#16A34A" }}
+          >
+            <span>{t("calculator.advancedToggle")}</span>
+            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="mn-label">{t("calculator.feeOnceLabel")}</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    value={feeOnceAmount}
+                    onChange={(e) => setFeeOnceAmount(e.target.value)}
+                    placeholder="0"
+                    className="mn-input"
+                    style={{ paddingRight: 56 }}
+                  />
+                  <span
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+                    style={{ color: "#64748B" }}
+                  >
+                    {currency}
+                  </span>
+                </div>
+                <p className="text-[12px] mt-1" style={{ color: "#94A3B8" }}>
+                  {t("calculator.feeOnceHint")}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mn-label">{t("calculator.feeMonthlyLabel")}</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={feeMonthlyPct}
+                      onChange={(e) => setFeeMonthlyPct(e.target.value)}
+                      placeholder="0"
+                      className="mn-input"
+                      style={{ paddingRight: 36 }}
+                    />
+                    <span
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+                      style={{ color: "#64748B" }}
+                    >
+                      %
+                    </span>
+                  </div>
+                  <p className="text-[12px] mt-1" style={{ color: "#94A3B8" }}>
+                    {t("calculator.feeMonthlyHint")}
+                  </p>
+                </div>
+                <div>
+                  <label className="mn-label">{t("calculator.insuranceMonthlyLabel")}</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={insuranceMonthlyPct}
+                      onChange={(e) => setInsuranceMonthlyPct(e.target.value)}
+                      placeholder="0"
+                      className="mn-input"
+                      style={{ paddingRight: 36 }}
+                    />
+                    <span
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold"
+                      style={{ color: "#64748B" }}
+                    >
+                      %
+                    </span>
+                  </div>
+                  <p className="text-[12px] mt-1" style={{ color: "#94A3B8" }}>
+                    {t("calculator.insuranceMonthlyHint")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Calculate button */}
         <Button
           className="w-full h-12 text-[15px] font-semibold rounded-xl"
@@ -345,6 +447,11 @@ export default function CalculatorPage() {
                   {formatWithSpaces(monthlyPayment)}
                 </p>
                 <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{currency}</p>
+                {repaymentType === "differentiated" && (
+                  <p className="text-[10px] mt-1 leading-tight" style={{ color: "#92400E" }}>
+                    {t("calculator.monthlyPaymentHintDifferentiated")}
+                  </p>
+                )}
               </div>
 
               {/* Total interest */}
@@ -391,6 +498,21 @@ export default function CalculatorPage() {
                 </p>
               </div>
             </div>
+
+            {/* Total fees row — only when there is something to show. */}
+            {totalFees > 0 && (
+              <div
+                className="mt-3 rounded-xl p-3 flex items-center justify-between"
+                style={{ background: "#FEF3C7" }}
+              >
+                <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "#92400E" }}>
+                  {t("calculator.totalFees")}
+                </p>
+                <p className="text-[16px] font-bold" style={{ color: "#92400E" }}>
+                  {formatWithSpaces(totalFees)} {currency}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Schedule table */}
