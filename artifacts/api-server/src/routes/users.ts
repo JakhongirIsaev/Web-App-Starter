@@ -11,6 +11,7 @@ import {
   DeleteUserParams, DeactivateUserParams, ActivateUserParams, ListUsersQueryParams
 } from "@workspace/api-zod";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import { deleteSessionsForUser } from "../lib/session-store";
@@ -198,7 +199,7 @@ router.get("/users/import-template", guestAuth, requireRole("superadmin", "head_
 
 router.post("/users", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateUserBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE, details: parsed.error }); return; }
+  if (!parsed.success) { badRequest(res, INVALID_BODY_MESSAGE, { details: parsed.error }); return; }
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   const [user] = await db.insert(usersTable).values({
     telegramId: parsed.data.telegramId,
@@ -218,17 +219,17 @@ router.post("/users", guestAuth, requireRole("superadmin", "head_office_admin"),
 
 router.get("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin", "branch_head"), async (req, res) => {
   const params = GetUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const user = await getUserWithBranch(params.data.id);
-  if (!user) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!user) { notFound(res, NOT_FOUND_MESSAGE); return; }
   res.json(user);
 });
 
 router.put("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const parsed = UpdateUserBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
+  if (!parsed.success) { badRequest(res, INVALID_BODY_MESSAGE); return; }
 
   const updateData: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -241,7 +242,7 @@ router.put("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin
   }
 
   const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!updated) { notFound(res, NOT_FOUND_MESSAGE); return; }
 
   await logActivity({ type: "user_updated", description: `Foydalanuvchi "${updated.name}" yangilandi`, entityId: updated.id, entityType: "user", user: req.user });
 
@@ -251,7 +252,7 @@ router.put("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin
 
 router.delete("/users/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
 
   await logActivity({ type: "user_deleted", description: "Пользователь удален / Foydalanuvchi o'chirildi", entityId: params.data.id, entityType: "user", user: req.user });
@@ -261,9 +262,9 @@ router.delete("/users/:id", guestAuth, requireRole("superadmin", "head_office_ad
 
 router.post("/users/:id/deactivate", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const [updated] = await db.update(usersTable).set({ isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!updated) { notFound(res, NOT_FOUND_MESSAGE); return; }
 
   await deleteSessionsForUser(updated.id);
   await logActivity({ type: "user_deactivated", description: `Foydalanuvchi "${updated.name}" faolsizlantirildi`, entityId: updated.id, entityType: "user", user: req.user });
@@ -274,7 +275,7 @@ router.post("/users/:id/deactivate", guestAuth, requireRole("superadmin", "head_
 
 router.post("/users/:id/revoke-sessions", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeactivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
 
   const [target] = await db
     .select({ id: usersTable.id, name: usersTable.name })
@@ -282,7 +283,7 @@ router.post("/users/:id/revoke-sessions", guestAuth, requireRole("superadmin", "
     .where(eq(usersTable.id, params.data.id))
     .limit(1);
 
-  if (!target) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!target) { notFound(res, NOT_FOUND_MESSAGE); return; }
 
   await deleteSessionsForUser(target.id);
   await logActivity({
@@ -298,9 +299,9 @@ router.post("/users/:id/revoke-sessions", guestAuth, requireRole("superadmin", "
 
 router.post("/users/:id/activate", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = ActivateUserParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const [updated] = await db.update(usersTable).set({ isActive: true, updatedAt: new Date() }).where(eq(usersTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!updated) { notFound(res, NOT_FOUND_MESSAGE); return; }
 
   await logActivity({ type: "user_activated", description: `Foydalanuvchi "${updated.name}" faollashtirildi`, entityId: updated.id, entityType: "user", user: req.user });
 
@@ -427,7 +428,7 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        badRequest(res, "Файл не загружен / Fayl yuklanmagan");
         return;
       }
       const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
@@ -586,7 +587,7 @@ router.post(
         created,
       });
     } catch {
-      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+      badRequest(res, "Импорт не выполнен / Import bajarilmadi");
     }
   },
 );

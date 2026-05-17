@@ -8,6 +8,7 @@ import {
   CreateProductCategoryBody
 } from "@workspace/api-zod";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, BILINGUAL_INVALID_BODY, BILINGUAL_NOT_FOUND } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
@@ -39,7 +40,7 @@ router.get("/product-categories", guestAuth, async (_req, res) => {
 
 router.post("/product-categories", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductCategoryBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
   const [cat] = await db.insert(productCategoriesTable).values({
     name: parsed.data.name,
     description: parsed.data.description,
@@ -92,7 +93,7 @@ router.get("/products", guestAuth, async (req, res) => {
 
 router.post("/products", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateProductBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
   const [product] = await db.insert(productsTable).values({
     name: parsed.data.name,
     type: parsed.data.type,
@@ -113,7 +114,7 @@ router.post("/products", guestAuth, requireRole("superadmin", "head_office_admin
 
 router.get("/products/:id", guestAuth, async (req, res) => {
   const params = GetProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const rows = await db
     .select({
       id: productsTable.id,
@@ -138,16 +139,16 @@ router.get("/products/:id", guestAuth, async (req, res) => {
     .leftJoin(productCategoriesTable, eq(productsTable.categoryId, productCategoriesTable.id))
     .where(eq(productsTable.id, params.data.id))
     .limit(1);
-  if (!rows.length) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!rows.length) { notFound(res, BILINGUAL_NOT_FOUND); return; }
   const p = rows[0];
   res.json(buildProductResponse(p, p.catId ? { id: p.catId, name: p.catName, description: p.catDescription ?? null, createdAt: p.catCreatedAt } : null));
 });
 
 router.put("/products/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const parsed = UpdateProductBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
 
   const updateData: any = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -162,7 +163,7 @@ router.put("/products/:id", guestAuth, requireRole("superadmin", "head_office_ad
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
 
   const [updated] = await db.update(productsTable).set(updateData).where(eq(productsTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!updated) { notFound(res, BILINGUAL_NOT_FOUND); return; }
 
   await logActivity({ type: "product_updated", description: `Mahsulot "${updated.name}" yangilandi`, entityId: updated.id, entityType: "product", user: req.user });
 
@@ -171,7 +172,7 @@ router.put("/products/:id", guestAuth, requireRole("superadmin", "head_office_ad
 
 router.delete("/products/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteProductParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
 
   await logActivity({ type: "product_deleted", description: "Продукт удален / Mahsulot o'chirildi", entityId: params.data.id, entityType: "product", user: req.user });
@@ -181,7 +182,7 @@ router.delete("/products/:id", guestAuth, requireRole("superadmin", "head_office
 
 router.post("/products/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    if (!req.file) { badRequest(res, "Файл не загружен / Fayl yuklanmagan"); return; }
     const rows = parseCsvBuffer(req.file.buffer);
     const skipped: number[] = [];
     let imported = 0;
@@ -206,7 +207,7 @@ router.post("/products/import", guestAuth, requireRole("superadmin", "head_offic
     await logActivity({ type: "products_imported", description: `Импортировано продуктов: ${imported} / Import qilingan mahsulotlar: ${imported}`, entityType: "product", user: req.user });
     res.json({ imported, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    badRequest(res, "Импорт не выполнен / Import bajarilmadi");
   }
 });
 

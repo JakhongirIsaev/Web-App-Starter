@@ -8,6 +8,7 @@ import { LoginBody } from "@workspace/api-zod";
 import { validateTelegramInitData } from "../lib/telegram";
 import { createSession, deleteSession, findSessionUserId, deleteSessionsForUser } from "../lib/session-store";
 import { extractBearerToken } from "../middleware/auth";
+import { badRequest, unauthorized, forbidden, internalServerError, BILINGUAL_INVALID_BODY } from "../lib/errors";
 import crypto from "crypto";
 import { z } from "zod";
 import { sendMessage } from "../bot";
@@ -87,13 +88,13 @@ router.get("/auth/me", async (req, res) => {
   // without a session must receive 401.
   const token = extractBearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "unauthorized" });
+    unauthorized(res);
     return;
   }
 
   const userId = await findSessionUserId(token);
   if (!userId) {
-    res.status(401).json({ error: "unauthorized" });
+    unauthorized(res);
     return;
   }
 
@@ -117,7 +118,7 @@ router.get("/auth/me", async (req, res) => {
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "unauthorized" });
+    unauthorized(res);
     return;
   }
 
@@ -147,7 +148,7 @@ router.get("/auth/me", async (req, res) => {
 router.post("/auth/login", loginLimiter, async (req, res) => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
+    badRequest(res, BILINGUAL_INVALID_BODY);
     return;
   }
 
@@ -161,14 +162,14 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     .limit(1);
 
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri" });
+    unauthorized(res, "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri");
     return;
   }
 
   const user = users[0];
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    res.status(401).json({ error: "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri" });
+    unauthorized(res, "Неверные данные для входа / Kirish ma'lumotlari noto'g'ri");
     return;
   }
 
@@ -204,9 +205,7 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
 // Keeping the route registered (instead of deleting it) so any stale client
 // still in the field gets a clear 403 instead of a hard 404.
 router.post("/auth/telegram", telegramLoginLimiter, async (_req, res) => {
-  res.status(403).json({
-    error: "Telegram orqali avtomatik kirish o'chirilgan. Parol bilan kiring.",
-  });
+  forbidden(res, "Telegram orqali avtomatik kirish o'chirilgan. Parol bilan kiring.");
 });
 
 // Kept temporarily as a no-op to avoid unused-import warnings for helpers
@@ -224,32 +223,32 @@ router.post("/auth/logout", async (req, res) => {
 router.post("/auth/change-password", changePasswordLimiter, async (req, res) => {
   const token = extractBearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
+    unauthorized(res, "Ruxsat yo'q");
     return;
   }
 
   const userId = await findSessionUserId(token);
   if (!userId) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
+    unauthorized(res, "Ruxsat yo'q");
     return;
   }
 
   const parsed = ChangePasswordBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
+    badRequest(res, BILINGUAL_INVALID_BODY);
     return;
   }
 
   const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!users.length || !users[0].isActive) {
-    res.status(401).json({ error: "Ruxsat yo'q" });
+    unauthorized(res, "Ruxsat yo'q");
     return;
   }
 
   const user = users[0];
   const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
   if (!valid) {
-    res.status(400).json({ error: "Текущий пароль неверный / Joriy parol noto'g'ri" });
+    badRequest(res, "Текущий пароль неверный / Joriy parol noto'g'ri");
     return;
   }
 
@@ -267,7 +266,7 @@ router.post("/auth/change-password", changePasswordLimiter, async (req, res) => 
 router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res) => {
   const parsed = ResetRequestBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" });
+    badRequest(res, BILINGUAL_INVALID_BODY);
     return;
   }
 
@@ -310,7 +309,7 @@ router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res
     await sendMessage(telegramId, `🔑 <b>Minerva parolni tiklash</b>\n\nTiklash kodi: <code>${otp}</code>\n\nKod 15 daqiqa amal qiladi. Agar bu so'rovni siz yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`);
   } catch {
     await db.update(passwordResetTokensTable).set({ used: true }).where(eq(passwordResetTokensTable.id, inserted.id));
-    res.status(500).json({ error: "Tiklash kodini yuborib bo'lmadi. Qayta urinib ko'ring." });
+    internalServerError(res, "Tiklash kodini yuborib bo'lmadi. Qayta urinib ko'ring.");
     return;
   }
 
@@ -320,7 +319,7 @@ router.post("/auth/reset-password-request", resetRequestLimiter, async (req, res
 router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res) => {
   const parsed = ResetConfirmBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
+    badRequest(res, BILINGUAL_INVALID_BODY, { details: parsed.error.issues });
     return;
   }
 
@@ -338,7 +337,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
     .limit(1);
 
   if (!userRes.length) {
-    res.status(400).json(INVALID);
+    badRequest(res, INVALID.error);
     return;
   }
 
@@ -358,7 +357,7 @@ router.post("/auth/reset-password-confirm", resetConfirmLimiter, async (req, res
     .limit(1);
 
   if (!tokenRecord.length || tokenRecord[0].expiresAt.getTime() < Date.now()) {
-    res.status(400).json(INVALID);
+    badRequest(res, INVALID.error);
     return;
   }
 

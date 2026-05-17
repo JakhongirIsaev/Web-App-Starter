@@ -4,6 +4,7 @@ import { creditLinesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, BILINGUAL_NOT_FOUND } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import {
@@ -87,6 +88,7 @@ router.get("/credit-lines", guestAuth, async (req, res) => {
 router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = createCreditLineSchema.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
@@ -108,10 +110,11 @@ router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_a
 
 router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikатор" }); return; }
+  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikатор"); return; }
 
   const parsed = updateCreditLineSchema.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
@@ -133,7 +136,7 @@ router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_offic
   }
 
   const [updated] = await db.update(creditLinesTable).set(updateData).where(eq(creditLinesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!updated) { notFound(res, BILINGUAL_NOT_FOUND); return; }
 
   await logActivity({ type: "credit_line_updated", description: `Kredit liniyasi "${updated.name}" yangilandi`, entityId: updated.id, entityType: "credit_line", user: req.user });
   res.json(updated);
@@ -141,7 +144,7 @@ router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_offic
 
 router.delete("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(creditLinesTable).where(eq(creditLinesTable.id, id));
   await logActivity({ type: "credit_line_deleted", description: "Кредитная линия удалена / Kredit liniyasi o'chirildi", entityId: id, entityType: "credit_line", user: req.user });
   res.status(204).send();
@@ -149,7 +152,7 @@ router.delete("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_of
 
 router.post("/credit-lines/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    if (!req.file) { badRequest(res, "Файл не загружен / Fayl yuklanmagan"); return; }
     const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";
     const rows = isExcelUpload(req.file)
       ? parseCreditLinesWorkbook(req.file.buffer)
@@ -203,7 +206,7 @@ router.post("/credit-lines/import", guestAuth, requireRole("superadmin", "head_o
     });
     res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    badRequest(res, "Импорт не выполнен / Import bajarilmadi");
   }
 });
 

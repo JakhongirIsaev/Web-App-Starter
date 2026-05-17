@@ -4,6 +4,7 @@ import { branchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { CreateBranchBody, UpdateBranchBody, GetBranchParams, UpdateBranchParams, DeleteBranchParams } from "@workspace/api-zod";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, BILINGUAL_INVALID_BODY, BILINGUAL_NOT_FOUND } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 
@@ -16,7 +17,7 @@ router.get("/branches", guestAuth, async (_req, res) => {
 
 router.post("/branches", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const parsed = CreateBranchBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
   const [branch] = await db.insert(branchesTable).values({
     name: parsed.data.name,
     city: parsed.data.city,
@@ -30,17 +31,17 @@ router.post("/branches", guestAuth, requireRole("superadmin", "head_office_admin
 
 router.get("/branches/:id", guestAuth, async (req, res) => {
   const params = GetBranchParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, params.data.id)).limit(1);
-  if (!branch) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!branch) { notFound(res, BILINGUAL_NOT_FOUND); return; }
   res.json(branch);
 });
 
 router.put("/branches/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = UpdateBranchParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const parsed = UpdateBranchBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
 
   const updateData: Partial<typeof branchesTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
@@ -48,7 +49,7 @@ router.put("/branches/:id", guestAuth, requireRole("superadmin", "head_office_ad
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
 
   const [updated] = await db.update(branchesTable).set(updateData).where(eq(branchesTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!updated) { notFound(res, BILINGUAL_NOT_FOUND); return; }
 
   await logActivity({ type: "branch_updated", description: `Filial "${updated.name}" yangilandi`, entityId: updated.id, entityType: "branch", user: req.user });
 
@@ -57,7 +58,7 @@ router.put("/branches/:id", guestAuth, requireRole("superadmin", "head_office_ad
 
 router.delete("/branches/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteBranchParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(branchesTable).where(eq(branchesTable.id, params.data.id));
 
   await logActivity({ type: "branch_deleted", description: "Филиал удален / Filial o'chirildi", entityId: params.data.id, entityType: "branch", user: req.user });
@@ -75,7 +76,7 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        badRequest(res, "Файл не загружен / Fayl yuklanmagan");
         return;
       }
       const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
@@ -148,7 +149,7 @@ router.post(
         skipped: skipped.map((r) => r.rowNumber),
       });
     } catch {
-      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+      badRequest(res, "Импорт не выполнен / Import bajarilmadi");
     }
   },
 );

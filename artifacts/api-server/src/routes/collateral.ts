@@ -19,6 +19,7 @@ import {
   UpdateCollateralTypeBody,
 } from "@workspace/api-zod";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, internalServerError } from "../lib/errors";
 import {
   requireClientAccess,
   requireCollateralEstimateAccess,
@@ -112,12 +113,12 @@ router.patch(
   async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: ERR.invalidId });
+      badRequest(res, ERR.invalidId);
       return;
     }
     const parsed = UpdateCollateralTypeBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
+      badRequest(res, ERR.invalidData, { details: parsed.error.issues });
       return;
     }
 
@@ -127,7 +128,7 @@ router.patch(
       .where(eq(collateralTypesTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: ERR.typeNotFound });
+      notFound(res, ERR.typeNotFound);
       return;
     }
 
@@ -178,7 +179,7 @@ router.put(
   async (req, res) => {
     const parsed = UpdateCollateralSettingsBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
+      badRequest(res, ERR.invalidData, { details: parsed.error.issues });
       return;
     }
     const before = await getCollateralSettings();
@@ -229,29 +230,29 @@ router.post(
     const clientId = Number(req.params.id);
     const parsed = CreateCollateralItemBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
+      badRequest(res, ERR.invalidData, { details: parsed.error.issues });
       return;
     }
 
     const title = normalizeText(parsed.data.title);
     if (!title) {
-      res.status(400).json({ error: ERR.nameRequired });
+      badRequest(res, ERR.nameRequired);
       return;
     }
     const moneyError = validatePositiveMoney(parsed.data.marketValue, "Рыночная стоимость");
     if (moneyError) {
-      res.status(400).json({ error: moneyError });
+      badRequest(res, moneyError);
       return;
     }
     const currency = parseCollateralCurrency(parsed.data.currency);
     if (!currency) {
-      res.status(400).json({ error: ERR.uzsOnly });
+      badRequest(res, ERR.uzsOnly);
       return;
     }
     const isThirdParty = parsed.data.isThirdParty ?? false;
     const thirdPartyOwnerName = normalizeText(parsed.data.thirdPartyOwnerName);
     if (isThirdParty && !thirdPartyOwnerName) {
-      res.status(400).json({ error: ERR.thirdPartyOwner });
+      badRequest(res, ERR.thirdPartyOwner);
       return;
     }
 
@@ -266,7 +267,7 @@ router.post(
       )
       .limit(1);
     if (!type) {
-      res.status(400).json({ error: ERR.typeDisabled });
+      badRequest(res, ERR.typeDisabled);
       return;
     }
 
@@ -325,7 +326,7 @@ router.patch(
     const id = Number(req.params.id);
     const parsed = UpdateCollateralItemBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
+      badRequest(res, ERR.invalidData, { details: parsed.error.issues });
       return;
     }
 
@@ -335,7 +336,7 @@ router.patch(
       .where(eq(collateralItemsTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: ERR.itemNotFound });
+      notFound(res, ERR.itemNotFound);
       return;
     }
 
@@ -346,7 +347,7 @@ router.patch(
       .where(eq(collateralTypesTable.id, typeId))
       .limit(1);
     if (!type) {
-      res.status(400).json({ error: "Тип залога не найден" });
+      badRequest(res, "Тип залога не найден");
       return;
     }
 
@@ -354,7 +355,7 @@ router.patch(
     const nextMarketValue = parsed.data.marketValue ?? Number(existing.marketValue);
     const moneyError = validatePositiveMoney(nextMarketValue, "Рыночная стоимость");
     if (moneyError) {
-      res.status(400).json({ error: moneyError });
+      badRequest(res, moneyError);
       return;
     }
     const nextMetadata =
@@ -362,7 +363,7 @@ router.patch(
     const nextTitle =
       parsed.data.title === undefined ? existing.title : normalizeText(parsed.data.title);
     if (!nextTitle) {
-      res.status(400).json({ error: ERR.nameRequired });
+      badRequest(res, ERR.nameRequired);
       return;
     }
     const nextIsThirdParty = parsed.data.isThirdParty ?? existing.isThirdParty;
@@ -371,7 +372,7 @@ router.patch(
         ? normalizeText(existing.thirdPartyOwnerName)
         : normalizeText(parsed.data.thirdPartyOwnerName);
     if (nextIsThirdParty && !nextThirdPartyOwnerName) {
-      res.status(400).json({ error: ERR.thirdPartyOwner });
+      badRequest(res, ERR.thirdPartyOwner);
       return;
     }
     const accepted = calculateAcceptedValue({
@@ -426,7 +427,7 @@ router.delete(
       .where(eq(collateralItemsTable.id, id))
       .returning();
     if (!archived) {
-      res.status(404).json({ error: ERR.itemNotFound });
+      notFound(res, ERR.itemNotFound);
       return;
     }
 
@@ -532,7 +533,7 @@ router.post(
     const clientId = Number(req.params.id);
     const parsed = CreateCollateralEstimateBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: ERR.invalidData, details: parsed.error.issues });
+      badRequest(res, ERR.invalidData, { details: parsed.error.issues });
       return;
     }
     const moneyError = validatePositiveMoney(
@@ -540,17 +541,17 @@ router.post(
       "Запрошенная сумма",
     );
     if (moneyError) {
-      res.status(400).json({ error: moneyError });
+      badRequest(res, moneyError);
       return;
     }
     const idsError = validateCollateralItemIds(parsed.data.collateralItemIds);
     if (idsError) {
-      res.status(400).json({ error: idsError });
+      badRequest(res, idsError);
       return;
     }
     const currency = parseCollateralCurrency(parsed.data.currency);
     if (!currency) {
-      res.status(400).json({ error: ERR.uzsOnly });
+      badRequest(res, ERR.uzsOnly);
       return;
     }
 
@@ -560,7 +561,7 @@ router.post(
       .where(eq(creditProductsTable.id, parsed.data.creditProductId))
       .limit(1);
     if (!product) {
-      res.status(400).json({ error: ERR.productNotFound });
+      badRequest(res, ERR.productNotFound);
       return;
     }
 
@@ -583,19 +584,19 @@ router.post(
       .where(inArray(collateralItemsTable.id, parsed.data.collateralItemIds));
 
     if (items.length !== parsed.data.collateralItemIds.length) {
-      res.status(400).json({ error: ERR.itemsMissing });
+      badRequest(res, ERR.itemsMissing);
       return;
     }
     if (items.some((it) => it.clientId !== clientId)) {
-      res.status(400).json({ error: ERR.itemsWrongClient });
+      badRequest(res, ERR.itemsWrongClient);
       return;
     }
     if (items.some((it) => !it.isActive)) {
-      res.status(400).json({ error: ERR.itemsArchived });
+      badRequest(res, ERR.itemsArchived);
       return;
     }
     if (items.some((it) => it.currency !== currency)) {
-      res.status(400).json({ error: ERR.itemsNotUzs });
+      badRequest(res, ERR.itemsNotUzs);
       return;
     }
 
@@ -699,7 +700,7 @@ router.get(
       .where(eq(collateralEstimatesTable.id, id))
       .limit(1);
     if (!estimate) {
-      res.status(404).json({ error: ERR.estimateNotFound });
+      notFound(res, ERR.estimateNotFound);
       return;
     }
 
@@ -727,7 +728,7 @@ router.get(
 
 router.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   logger.error({ err }, "Collateral route error");
-  res.status(500).json({ error: ERR.internalError });
+  internalServerError(res, ERR.internalError);
 });
 
 // Stateless calculator preview: takes raw collateral inputs and a loan
@@ -744,12 +745,12 @@ router.post("/collateral/preview", guestAuth, async (req, res) => {
 
   const loanAmount = Number(body?.loanAmount);
   if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
-    res.status(400).json({ error: "loanAmount must be > 0" });
+    badRequest(res, "loanAmount must be > 0");
     return;
   }
   const rawItems = Array.isArray(body?.items) ? body.items : [];
   if (rawItems.length === 0) {
-    res.status(400).json({ error: "at least one item required" });
+    badRequest(res, "at least one item required");
     return;
   }
 
@@ -773,11 +774,11 @@ router.post("/collateral/preview", guestAuth, async (req, res) => {
     const typeCode = String(it?.typeCode ?? "");
     const marketValue = Number(it?.marketValue);
     if (!validCodes.has(typeCode)) {
-      res.status(400).json({ error: `item[${i}]: unknown typeCode '${typeCode}'` });
+      badRequest(res, `item[${i}]: unknown typeCode '${typeCode}'`);
       return;
     }
     if (!Number.isFinite(marketValue) || marketValue <= 0) {
-      res.status(400).json({ error: `item[${i}]: marketValue must be > 0` });
+      badRequest(res, `item[${i}]: marketValue must be > 0`);
       return;
     }
     const year = typeof it?.year === "number" && Number.isFinite(it.year) ? it.year : null;

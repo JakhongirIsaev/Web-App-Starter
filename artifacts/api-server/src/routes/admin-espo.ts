@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { badRequest } from "../lib/errors";
 import { db, espoSyncJobsTable, espoReconciliationRunsTable, pool, clientsTable } from "@workspace/db";
 import { eq, desc, count, inArray } from "drizzle-orm";
 import { quickAddJob } from "graphile-worker";
@@ -112,6 +113,7 @@ router.post(
       res.json({ enqueued: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      // SKIP(PR-E1): bespoke envelope ({error, message} top-level, no `details` field)
       res.status(500).json({ error: "enqueue_failed", message });
     }
   },
@@ -124,7 +126,7 @@ router.post(
   async (req, res) => {
     const jobId = Number(req.params.id);
     if (!Number.isFinite(jobId)) {
-      res.status(400).json({ error: "invalid_id" });
+      badRequest(res, "invalid_id");
       return;
     }
     try {
@@ -143,6 +145,7 @@ router.post(
       res.json({ enqueued: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      // SKIP(PR-E1): bespoke envelope ({error, message} top-level, no `details` field)
       res.status(500).json({ error: "enqueue_failed", message });
     }
   },

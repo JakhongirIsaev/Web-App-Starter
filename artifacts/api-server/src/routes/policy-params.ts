@@ -7,6 +7,7 @@ import {
   getActivePolicyParams,
   _resetPolicyParamsCacheForTests,
 } from "../lib/policy-params";
+import { badRequest } from "../lib/errors";
 
 const router: IRouter = Router();
 
@@ -96,9 +97,7 @@ router.post(
       })
       .safeParse(req.body);
     if (!body.success) {
-      res
-        .status(400)
-        .json({ error: "invalid_body", details: body.error.flatten() });
+      badRequest(res, "invalid_body", { details: body.error.flatten() });
       return;
     }
     const [row] = await db

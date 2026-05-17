@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, clientsTable } from "@workspace/db";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { guestAuth, requirePermission } from "../middleware/auth";
+import { badRequest } from "../lib/errors";
 
 const router: IRouter = Router();
 
@@ -21,7 +22,7 @@ router.get(
   async (req, res) => {
     const params = FunnelQuery.safeParse(req.query);
     if (!params.success) {
-      res.status(400).json({ error: "invalid_query" });
+      badRequest(res, "invalid_query");
       return;
     }
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { forbidden, internalServerError } from "../lib/errors";
 import { webhookCallback } from "grammy";
 import { getBot } from "../bot";
 import { logger } from "../lib/logger";
@@ -53,6 +54,7 @@ function sanitizeWebhookError(error: unknown) {
 router.post("/telegram/webhook", async (req, res) => {
   const bot = getBot();
   if (!bot) {
+    // SKIP(PR-E1): bespoke status 503 (not in helper set)
     res.status(503).json({ error: "Telegram xizmati ishga tushmagan / Сервис Telegram не запущен" });
     return;
   }
@@ -63,7 +65,7 @@ router.post("/telegram/webhook", async (req, res) => {
   );
 
   if (decision.action === "reject") {
-    res.status(403).json({ error: "Telegram ulanishi sozlanmagan / Настройка Telegram не завершена" });
+    forbidden(res, "Telegram ulanishi sozlanmagan / Настройка Telegram не завершена");
     return;
   }
 
@@ -76,7 +78,7 @@ router.post("/telegram/webhook", async (req, res) => {
   } catch (err) {
     logger.error({ err: sanitizeWebhookError(err) }, "Telegram webhook error");
     if (!res.headersSent) {
-      res.status(500).json({ error: "Telegram webhook processing failed" });
+      internalServerError(res, "Telegram webhook processing failed");
     }
   }
 });

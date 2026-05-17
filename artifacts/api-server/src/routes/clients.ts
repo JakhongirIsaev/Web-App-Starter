@@ -9,6 +9,7 @@ import {
   UpdateClientParams, ListClientsQueryParams
 } from "@workspace/api-zod";
 import { guestAuth, requireRole, requirePermission } from "../middleware/auth";
+import { badRequest, notFound } from "../lib/errors";
 import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
@@ -157,7 +158,7 @@ router.get("/clients", guestAuth, async (req, res) => {
 
 router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin", "editor", "hunter"), async (req, res) => {
   const parsed = CreateClientBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
+  if (!parsed.success) { badRequest(res, INVALID_BODY_MESSAGE); return; }
   const [client] = await db.insert(clientsTable).values({
     sessionId: randomUUID(),
     fullName: parsed.data.fullName,
@@ -191,13 +192,13 @@ router.post("/clients", guestAuth, requireRole("superadmin", "head_office_admin"
 router.get("/clients/:id", guestAuth, async (req, res) => {
   const user = req.user!;
   const params = GetClientParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
 
   const conditions: any[] = [eq(clientsTable.id, params.data.id)];
   // data-scope filter — not authorization
   if (user.role === "branch_head") {
     if (!user.branchId) {
-      res.status(404).json({ error: NOT_FOUND_MESSAGE });
+      notFound(res, NOT_FOUND_MESSAGE);
       return;
     }
     conditions.push(eq(clientsTable.branchId, user.branchId));
@@ -232,7 +233,7 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
     .where(and(...conditions))
     .limit(1);
 
-  if (!rows.length) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!rows.length) { notFound(res, NOT_FOUND_MESSAGE); return; }
   const c = rows[0];
   const base = buildClientResponse(
     c,
@@ -264,9 +265,9 @@ router.get("/clients/:id", guestAuth, async (req, res) => {
 router.put("/clients/:id", guestAuth, requireClientAccess, requirePermission("client.update"), async (req, res) => {
   const user = req.user!;
   const params = UpdateClientParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const parsed = UpdateClientBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
+  if (!parsed.success) { badRequest(res, INVALID_BODY_MESSAGE); return; }
 
   // Wrap snapshot + validation + write in a single transaction so the
   // assigned-user check and the actual UPDATE see a consistent view of the
@@ -323,15 +324,15 @@ router.put("/clients/:id", guestAuth, requireClientAccess, requirePermission("cl
 
   if (validationError) {
     const err = validationError as ValidationFailure;
-    if (err.kind === "not_found") { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+    if (err.kind === "not_found") { notFound(res, NOT_FOUND_MESSAGE); return; }
     if (err.kind === "bad_transition") {
-      res.status(400).json({ error: `Holatni o'zgartirish ruxsat etilmagan / Переход статуса не разрешён: ${err.from} → ${err.to}` });
+      badRequest(res, `Holatni o'zgartirish ruxsat etilmagan / Переход статуса не разрешён: ${err.from} → ${err.to}`);
       return;
     }
-    res.status(400).json({ error: err.message, code: err.code });
+    badRequest(res, err.message, { code: err.code });
     return;
   }
-  if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+  if (!updated) { notFound(res, NOT_FOUND_MESSAGE); return; }
 
   if (parsed.data.status) {
     const statusLabel = parsed.data.status === "completed" ? "client_completed" : parsed.data.status === "rejected" ? "client_rejected" : "client_updated";
@@ -368,7 +369,7 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        badRequest(res, "Файл не загружен / Fayl yuklanmagan");
         return;
       }
       const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
@@ -475,7 +476,7 @@ router.post(
         skippedDetail: skipped,
       });
     } catch (err) {
-      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+      badRequest(res, "Импорт не выполнен / Import bajarilmadi");
     }
   },
 );

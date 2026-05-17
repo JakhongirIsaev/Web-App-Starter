@@ -10,6 +10,7 @@ import { guestAuth, requireRole } from "../middleware/auth";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import { escapeLike } from "../lib/db-helpers";
+import { badRequest, notFound, BILINGUAL_INVALID_BODY, BILINGUAL_NOT_FOUND } from "../lib/errors";
 
 const router: IRouter = Router();
 
@@ -118,7 +119,7 @@ router.get("/articles", guestAuth, async (req, res) => {
 
 router.post("/articles", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const parsed = CreateArticleBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
 
   const [article] = await db.insert(articlesTable).values({
     title: parsed.data.title,
@@ -143,17 +144,17 @@ router.post("/articles", guestAuth, requireRole("superadmin", "head_office_admin
 
 router.get("/articles/:id", guestAuth, async (req, res) => {
   const params = GetArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const article = await getArticleWithBranchIds(params.data.id);
-  if (!article) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!article) { notFound(res, BILINGUAL_NOT_FOUND); return; }
   res.json(article);
 });
 
 router.put("/articles/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const params = UpdateArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   const parsed = UpdateArticleBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot" }); return; }
+  if (!parsed.success) { badRequest(res, BILINGUAL_INVALID_BODY); return; }
 
   const updateData: Partial<typeof articlesTable.$inferInsert> = { updatedAt: new Date() };
   if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
@@ -163,7 +164,7 @@ router.put("/articles/:id", guestAuth, requireRole("superadmin", "head_office_ad
   if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
 
   const [updated] = await db.update(articlesTable).set(updateData).where(eq(articlesTable.id, params.data.id)).returning();
-  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!updated) { notFound(res, BILINGUAL_NOT_FOUND); return; }
 
   if (parsed.data.branchIds !== undefined) {
     await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
@@ -182,7 +183,7 @@ router.put("/articles/:id", guestAuth, requireRole("superadmin", "head_office_ad
 
 router.delete("/articles/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const params = DeleteArticleParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (!params.success) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(articleVisibilityTable).where(eq(articleVisibilityTable.articleId, params.data.id));
   await db.delete(articlesTable).where(eq(articlesTable.id, params.data.id));
 
@@ -199,7 +200,7 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" });
+        badRequest(res, "Файл не загружен / Fayl yuklanmagan");
         return;
       }
       const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
@@ -278,7 +279,7 @@ router.post(
         skipped: skipped.map((r) => r.rowNumber),
       });
     } catch {
-      res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+      badRequest(res, "Импорт не выполнен / Import bajarilmadi");
     }
   },
 );

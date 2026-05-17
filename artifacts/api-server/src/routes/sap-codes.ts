@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sapCodesTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, BILINGUAL_NOT_FOUND } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import {
@@ -37,7 +38,7 @@ router.get("/sap-codes", guestAuth, async (req, res) => {
 
 router.post("/sap-codes", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const { status, productId, name, productType, categoryId, categoryName } = req.body;
-  if (!name || !status) { res.status(400).json({ error: "Название и статус обязательны / Nomi va holati majburiy" }); return; }
+  if (!name || !status) { badRequest(res, "Название и статус обязательны / Nomi va holati majburiy"); return; }
 
   const [created] = await db.insert(sapCodesTable).values({
     status, productId: productId || null, name,
@@ -51,7 +52,7 @@ router.post("/sap-codes", guestAuth, requireRole("superadmin", "head_office_admi
 
 router.put("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
 
   const updateData: any = { updatedAt: new Date() };
   const fields = ["status", "productId", "name", "productType", "categoryId", "categoryName"];
@@ -60,7 +61,7 @@ router.put("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_a
   }
 
   const [updated] = await db.update(sapCodesTable).set(updateData).where(eq(sapCodesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Не найдено / Topilmadi" }); return; }
+  if (!updated) { notFound(res, BILINGUAL_NOT_FOUND); return; }
 
   await logActivity({ type: "sap_code_updated", description: `SAP shifri "${updated.productId || updated.name}" yangilandi`, entityId: updated.id, entityType: "sap_code", user: req.user });
   res.json(updated);
@@ -68,7 +69,7 @@ router.put("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_a
 
 router.delete("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_office_admin"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" }); return; }
+  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
   await db.delete(sapCodesTable).where(eq(sapCodesTable.id, id));
   await logActivity({ type: "sap_code_deleted", description: "Шифр продукта удален / Mahsulot shifri o'chirildi", entityId: id, entityType: "sap_code", user: req.user });
   res.status(204).send();
@@ -76,7 +77,7 @@ router.delete("/sap-codes/:id", guestAuth, requireRole("superadmin", "head_offic
 
 router.post("/sap-codes/import", guestAuth, requireRole("superadmin", "head_office_admin"), upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) { res.status(400).json({ error: "Файл не загружен / Fayl yuklanmagan" }); return; }
+    if (!req.file) { badRequest(res, "Файл не загружен / Fayl yuklanmagan"); return; }
     const sourceLabel = isExcelUpload(req.file) ? "таблица / jadval" : "текстовый файл / matnli fayl";
     const rows = isExcelUpload(req.file)
       ? parseSapCodesWorkbook(req.file.buffer)
@@ -122,7 +123,7 @@ router.post("/sap-codes/import", guestAuth, requireRole("superadmin", "head_offi
     });
     res.json({ imported, cleared, replaced: true, skipped });
   } catch (err: any) {
-    res.status(400).json({ error: "Импорт не выполнен / Import bajarilmadi" });
+    badRequest(res, "Импорт не выполнен / Import bajarilmadi");
   }
 });
 

@@ -4,6 +4,7 @@ import { recommendationDocumentsTable } from "@workspace/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { guestAuth, requireRole } from "../middleware/auth";
+import { badRequest, notFound, BILINGUAL_INVALID_BODY } from "../lib/errors";
 import { logActivity } from "../middleware/activity";
 
 const router: IRouter = Router();
@@ -57,7 +58,7 @@ router.post(
   async (req: Request, res: Response) => {
     const parsed = CreateDocumentBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
+      badRequest(res, BILINGUAL_INVALID_BODY, { details: parsed.error.issues });
       return;
     }
 
@@ -89,12 +90,12 @@ router.patch(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
+      badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator");
       return;
     }
     const parsed = UpdateDocumentBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", details: parsed.error.issues });
+      badRequest(res, BILINGUAL_INVALID_BODY, { details: parsed.error.issues });
       return;
     }
 
@@ -104,7 +105,7 @@ router.patch(
       .where(eq(recommendationDocumentsTable.id, id))
       .limit(1);
     if (!existing) {
-      res.status(404).json({ error: "Документ не найден / Hujjat topilmadi" });
+      notFound(res, "Документ не найден / Hujjat topilmadi");
       return;
     }
 
@@ -134,7 +135,7 @@ router.delete(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ error: "Некорректный идентификатор / Noto'g'ri identifikator" });
+      badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator");
       return;
     }
     const [archived] = await db
@@ -143,7 +144,7 @@ router.delete(
       .where(eq(recommendationDocumentsTable.id, id))
       .returning();
     if (!archived) {
-      res.status(404).json({ error: "Документ не найден / Hujjat topilmadi" });
+      notFound(res, "Документ не найден / Hujjat topilmadi");
       return;
     }
 
