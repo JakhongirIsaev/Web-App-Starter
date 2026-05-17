@@ -7,10 +7,10 @@ import {
   isEquipmentOnly,
   REAL_ESTATE_DISCOUNT,
   roundCoveragePercent,
-  roundMoney,
   type CollateralSettings,
   type EstimateInputItem,
 } from "../lib/collateral-calc";
+import { roundMoney } from "../lib/money";
 
 const DEFAULT_SETTINGS: CollateralSettings = {
   coverageRatio: 1.25,

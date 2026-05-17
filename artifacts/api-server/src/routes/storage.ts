@@ -152,7 +152,7 @@ function contentTypeForFile(filePath: string): string {
 }
 
 function getOcrScriptPath(): string {
-  return path.resolve(process.cwd(), "src/ocr/paddle_ocr.py");
+  return path.resolve(process.cwd(), "src/ocr/tesseract_ocr.py");
 }
 
 function getOcrTimeoutMs(): number {
@@ -270,7 +270,6 @@ router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
       const proc = spawn("python3", [scriptPath, "--health"], {
         env: {
           ...process.env,
-          PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",
         },
       });
 
@@ -292,7 +291,7 @@ router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
         }
 
         if (stderr.trim()) {
-          logger.warn({ stderr }, "PaddleOCR health check stderr (exit 0)");
+          logger.warn({ stderr }, "OCR health check stderr (exit 0)");
         }
 
         try {
@@ -454,7 +453,7 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
       // On Nixpacks images the gcc lib lives under a content-addressed /nix/store
       // hash that changes between base-image rebuilds, so hardcoding it rots.
       // Set OCR_GCC_LIB_PATH in Railway variables only if the OS can't find
-      // libgcc_s on its own (PaddleOCR throws "libgcc_s.so.1 must be installed").
+      // libgcc_s on its own (Tesseract throws "libgcc_s.so.1 must be installed").
       const extraLibPath = process.env["OCR_GCC_LIB_PATH"] || "";
       const existingLdPath = process.env["LD_LIBRARY_PATH"] || "";
       const ldLibraryPath = [extraLibPath, existingLdPath]
@@ -463,7 +462,6 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
       const proc = spawn("python3", [scriptPath], {
         env: {
           ...process.env,
-          PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",
           ...(ldLibraryPath ? { LD_LIBRARY_PATH: ldLibraryPath } : {}),
         },
       });
@@ -493,11 +491,11 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
 
       proc.on("close", (code: number) => {
         if (code !== 0) {
-          logger.error({ stderr, exitCode: code }, "PaddleOCR stderr");
+          logger.error({ stderr, exitCode: code }, "OCR stderr");
           finish(new Error(`${getOcrErrorMessage(req, "ocrProcess")}: ${code}`));
         } else {
           if (stderr.trim()) {
-            logger.warn({ stderr }, "PaddleOCR stderr (exit 0)");
+            logger.warn({ stderr }, "OCR stderr (exit 0)");
           }
           try {
             finish(undefined, JSON.parse(stdout));

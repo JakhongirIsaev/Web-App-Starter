@@ -1,4 +1,4 @@
-export const APP_TIME_ZONE = "Asia/Tashkent";
+const APP_TIME_ZONE = "Asia/Tashkent";
 
 // Uzbekistan is UTC+5 year-round, so fixed-offset boundaries stay stable.
 const APP_TIME_ZONE_OFFSET_MS = 5 * 60 * 60 * 1000;
@@ -68,6 +68,6 @@ export function formatFileDate(value: DateInput = new Date()) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function getAppYear(value: DateInput = new Date()) {
+function getAppYear(value: DateInput = new Date()) {
   return getAppClockParts(value).year;
 }

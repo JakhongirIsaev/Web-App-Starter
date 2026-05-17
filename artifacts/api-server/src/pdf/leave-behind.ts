@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { resolveBundledFonts } from "./generate";
+import { formatUzs } from "../lib/money";
 
 const STRINGS = {
   ru: {
@@ -73,7 +74,7 @@ export interface LeaveBehindInput {
 
 const fmtMoney = (value?: number | null, currency = "UZS") => {
   if (!Number.isFinite(value ?? NaN)) return "-";
-  return `${new Intl.NumberFormat("ru-RU").format(Math.round(value!))} ${currency}`;
+  return `${formatUzs(Math.round(value!))} ${currency}`;
 };
 
 const fmtPercent = (value?: number | null) => {
@@ -173,11 +174,16 @@ export async function generateLeaveBehindPdf(
     labelValue(t.collateralValue, fmtMoney(input.collateral.acceptedValueUzs), pageX + 16, y + 42, 150);
     labelValue(t.collateralCoverage, fmtPercent(input.collateral.coveragePercent), pageX + 186, y + 42, 120);
     labelValue(t.collateralMaxLoan, fmtMoney(input.collateral.maxLoanAmountUzs), pageX + 326, y + 42, 180);
-    const status =
-      input.collateral.resultStatus === "enough" ? t.collateralEnough : t.collateralNotEnough;
-    doc.font("bold").fontSize(10.5).fillColor(dark).text(status, pageX + 16, y + 88, {
-      width: 170,
-    });
+    // Only render a status pill when the source actually classified the
+    // estimate. Previously an undefined resultStatus silently fell through
+    // to "not_enough", showing the wrong verdict on incomplete records.
+    if (input.collateral.resultStatus === "enough" || input.collateral.resultStatus === "not_enough") {
+      const status =
+        input.collateral.resultStatus === "enough" ? t.collateralEnough : t.collateralNotEnough;
+      doc.font("bold").fontSize(10.5).fillColor(dark).text(status, pageX + 16, y + 88, {
+        width: 170,
+      });
+    }
     const items = input.collateral.items?.filter(Boolean).slice(0, 3).join(", ");
     if (items) {
       doc.font("body").fontSize(9).fillColor(muted).text(items, pageX + 206, y + 88, {

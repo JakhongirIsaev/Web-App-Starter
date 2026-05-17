@@ -1,11 +1,9 @@
-"""OCR runner — Tesseract only.
+"""OCR runner -- Tesseract only.
 
 Invoked by the API server as a Python subprocess. Two modes:
-  python3 paddle_ocr.py --health        → JSON status, used by /api/ocr/health
-  python3 paddle_ocr.py < {image: "b64"} → JSON OCR result, used by /api/ocr/recognize
+  python3 tesseract_ocr.py --health        → JSON status, used by /api/ocr/health
+  python3 tesseract_ocr.py < {image: "b64"} → JSON OCR result, used by /api/ocr/recognize
 
-PaddleOCR support was removed for image-size and attack-surface reasons; the
-filename is kept to avoid churning the api-server build path.
 """
 import sys
 import json

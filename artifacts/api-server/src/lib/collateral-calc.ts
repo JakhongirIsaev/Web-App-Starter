@@ -1,4 +1,5 @@
 import type { CollateralResultStatus, CollateralTypeCode } from "@workspace/db";
+import { roundMoney } from "./money";
 
 // Pure, side-effect-free helpers for the collateral feature. No DB, no IO,
 // no globals. Routes load the inputs (settings, items) and pass them in.
@@ -48,11 +49,7 @@ function toNumber(value: number | string | null | undefined): number {
   return 0;
 }
 
-export function roundMoney(value: number): number {
-  return Number(value.toFixed(2));
-}
-
-export function roundDiscount(value: number): number {
+function roundDiscount(value: number): number {
   return Number(value.toFixed(4));
 }
 
@@ -60,7 +57,7 @@ export function roundCoveragePercent(value: number): number {
   return Number(value.toFixed(2));
 }
 
-export function roundRate(value: number): number {
+function roundRate(value: number): number {
   return Number(value.toFixed(3));
 }
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { buildPaymentSchedule } from "../lib/calculations";
 import { formatDateInAppTimeZone } from "../lib/timezone";
+import { formatUzs } from "../lib/money";
 
 interface PreferenceItem {
   label: string;
@@ -695,7 +696,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       );
       y = drawRow(
         copy.collateralCoverage,
-        `${Number(est.coveragePercent).toFixed(0)}%`,
+        `${formatUzs(Number(est.coveragePercent))}%`,
         y,
       );
       y = drawRow(
