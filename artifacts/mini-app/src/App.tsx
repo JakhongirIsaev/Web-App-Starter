@@ -43,7 +43,9 @@ const KnowledgePage = lazyWithChunkRecovery(() => import("@/pages/knowledge"));
 const BasketPage = lazyWithChunkRecovery(() => import("@/pages/basket"));
 const PdfSharePage = lazyWithChunkRecovery(() => import("@/pages/pdf-share"));
 const ProfilePage = lazyWithChunkRecovery(() => import("@/pages/profile"));
-const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
+// Products page hidden 2026-05-09 — to restore: uncomment this lazy import
+// and the matching <Route path="/products"> below.
+// const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
 const ScanDocumentPage = lazyWithChunkRecovery(() => import("@/pages/scan-document"));
 const CollateralPage = lazyWithChunkRecovery(() => import("@/pages/collateral"));
 const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
@@ -186,13 +188,14 @@ function AuthGate() {
               </PageSuspense>
             )}
           </Route>
-          <Route path="/products">
+          {/* Products page hidden 2026-05-09 — kept on disk; restore by uncommenting. */}
+          {/* <Route path="/products">
             {() => (
               <PageSuspense>
                 <ProductsPage />
               </PageSuspense>
             )}
-          </Route>
+          </Route> */}
           <Route path="/credit-lines">
             {() => (
               <PageSuspense>

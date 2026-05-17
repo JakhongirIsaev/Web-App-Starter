@@ -6,7 +6,6 @@ import {
   Home,
   Users,
   UserPlus,
-  Package,
   BookOpen,
   Building2,
   LogOut,
@@ -48,7 +47,9 @@ interface LayoutProps {
 const navItems = [
   { href: "/", labelKey: "nav.dashboard", icon: Home, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
   { href: "/clients", labelKey: "nav.clients", icon: Users, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },
-  { href: "/credit-products", labelKey: "nav.creditProducts", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
+  // Credit Products page hidden 2026-05-09 — kept on disk; not exposed in UI
+  // until the lead-onboarding flow is replaced with a product-driven flow.
+  // { href: "/credit-products", labelKey: "nav.creditProducts", icon: Package, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/credit-lines", labelKey: "nav.creditLines", icon: Calculator, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/sap-codes", labelKey: "nav.sapCodes", icon: Hash, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },

@@ -15,7 +15,6 @@ import {
 import {
   UserPlus,
   Calculator,
-  Package,
   Landmark,
   Users,
   TrendingUp,
@@ -140,10 +139,10 @@ export default function HomePage() {
   const todoPendingCount =
     (todo?.pendingActions?.length || 0) + (todo?.incompleteClients?.length || 0);
 
+  // Products quick action hidden 2026-05-09 (lead-onboarding flow is product-agnostic for now).
   const quickActions = [
     { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
-    { icon: Package, label: t("nav.products"), path: "/products", iconBg: "#A855F7", iconColor: "#FFFFFF" },
     { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#3B82F6", iconColor: "#FFFFFF" },
   ];
 

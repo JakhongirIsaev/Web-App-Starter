@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Landmark,
   Calculator,
-  Package,
 } from "lucide-react";
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "2.3.1";
@@ -263,14 +262,7 @@ export default function ProfilePage() {
       subtitle: t("creditLines.subtitle"),
       onClick: () => navigate("/credit-lines"),
     },
-    {
-      icon: Package,
-      iconBg: "#ECFDF3",
-      iconColor: "#16A34A",
-      label: t("nav.products"),
-      subtitle: t("profile.productsHint"),
-      onClick: () => navigate("/products"),
-    },
+    // Products tools row hidden 2026-05-09 along with the /products route.
     {
       icon: Calculator,
       iconBg: "#FEF3C7",

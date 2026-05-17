@@ -15,7 +15,9 @@ const ClientDetail = lazy(() => import("@/pages/client-detail"));
 const Articles = lazy(() => import("@/pages/articles"));
 const Users = lazy(() => import("@/pages/users"));
 const Branches = lazy(() => import("@/pages/branches"));
-const CreditProducts = lazy(() => import("@/pages/credit-products"));
+// Credit Products page hidden 2026-05-09 — to restore: uncomment this lazy
+// import and the matching <Route path="/credit-products"> below.
+// const CreditProducts = lazy(() => import("@/pages/credit-products"));
 const SapCodes = lazy(() => import("@/pages/sap-codes"));
 const CollateralAdmin = lazy(() => import("@/pages/collateral"));
 const RecommendationsAdmin = lazy(() => import("@/pages/recommendations"));
@@ -140,9 +142,10 @@ function Router() {
       <Route path="/accesses">
         {() => <Redirect to="/users" />}
       </Route>
-      <Route path="/credit-products">
+      {/* Credit Products page hidden 2026-05-09; route kept for direct access only by clearing the comment. */}
+      {/* <Route path="/credit-products">
         {() => <ProtectedRoute component={CreditProducts} />}
-      </Route>
+      </Route> */}
       <Route path="/sap-codes">
         {() => <ProtectedRoute component={SapCodes} />}
       </Route>
