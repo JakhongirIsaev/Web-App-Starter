@@ -51,6 +51,13 @@ import {
 } from "../lib/recommendation";
 import { buildCalculationSummary, buildPaymentSchedule } from "../lib/calculations";
 import {
+  isAllowedStatusTransition,
+  isApplicationFrozen,
+  transitionClientStatus,
+  StatusTransitionError,
+} from "../lib/client-status-machine";
+import { validateExtractedData } from "../lib/uz-doc-validation";
+import {
   requireClientAccess,
   requireClientAccessFromBody,
   requireDocumentAccess,
@@ -1476,6 +1483,45 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     preferredCurrency,
   } = parsed.data;
 
+  // Snapshot current state for transition + frozen-fields validation
+  const [currentClient] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId))
+    .limit(1);
+  if (!currentClient) {
+    res.status(404).json({ error: "Mijoz topilmadi / Клиент не найден" });
+    return;
+  }
+
+  // Status transition guard
+  if (status !== undefined && status !== currentClient.status) {
+    if (!isAllowedStatusTransition(currentClient.status as ClientStatus, status as ClientStatus)) {
+      res.status(400).json({
+        error: `Holatni o'zgartirish ruxsat etilmagan / Переход статуса не разрешён: ${currentClient.status} → ${status}`,
+      });
+      return;
+    }
+  }
+
+  // Freeze credit-application fields once a PDF was already generated.
+  // Re-quoting after the offer has been sent should require an explicit
+  // status rollback first (which itself goes through the transition graph).
+  if (isApplicationFrozen(currentClient.status as ClientStatus)) {
+    const triesEditApplication =
+      purpose !== undefined ||
+      desiredAmountUzs !== undefined ||
+      desiredTermMonths !== undefined ||
+      preferredCurrency !== undefined;
+    if (triesEditApplication) {
+      res.status(409).json({
+        error:
+          "Taklif allaqachon yuborilgan, kredit arizasini o'zgartirib bo'lmaydi / Заявка зафиксирована, изменение полей кредитной заявки запрещено",
+      });
+      return;
+    }
+  }
+
   const updates: any = { updatedAt: new Date() };
   if (fullName !== undefined) updates.fullName = fullName;
   if (phone !== undefined) updates.phone = phone;
@@ -1513,32 +1559,25 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     desiredTermMonths !== undefined ||
     preferredCurrency !== undefined
   ) {
-    const [current] = await db
-      .select()
-      .from(clientsTable)
-      .where(eq(clientsTable.id, clientId))
-      .limit(1);
-    if (current) {
-      const nextPurpose = purpose !== undefined ? (purpose || null) : current.purpose;
-      const nextAmount =
-        desiredAmountUzs !== undefined
-          ? (desiredAmountUzs !== null ? String(desiredAmountUzs) : null)
-          : current.desiredAmountUzs;
-      const nextTerm =
-        desiredTermMonths !== undefined ? (desiredTermMonths ?? null) : current.desiredTermMonths;
-      const nextCurrency =
-        preferredCurrency !== undefined
-          ? (preferredCurrency || null)
-          : current.preferredCurrency;
-      const allCreditFieldsSet =
-        !!nextPurpose && !!nextAmount && !!nextTerm && !!nextCurrency;
-      if (
-        allCreditFieldsSet &&
-        (current.status === "draft" || current.status === "lead") &&
-        status === undefined
-      ) {
-        updates.status = "recommendation";
-      }
+    const nextPurpose = purpose !== undefined ? (purpose || null) : currentClient.purpose;
+    const nextAmount =
+      desiredAmountUzs !== undefined
+        ? (desiredAmountUzs !== null ? String(desiredAmountUzs) : null)
+        : currentClient.desiredAmountUzs;
+    const nextTerm =
+      desiredTermMonths !== undefined ? (desiredTermMonths ?? null) : currentClient.desiredTermMonths;
+    const nextCurrency =
+      preferredCurrency !== undefined
+        ? (preferredCurrency || null)
+        : currentClient.preferredCurrency;
+    const allCreditFieldsSet =
+      !!nextPurpose && !!nextAmount && !!nextTerm && !!nextCurrency;
+    if (
+      allCreditFieldsSet &&
+      (currentClient.status === "draft" || currentClient.status === "lead") &&
+      status === undefined
+    ) {
+      updates.status = "recommendation";
     }
   }
 
@@ -1763,6 +1802,9 @@ router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clien
     initialPayment = 0,
     gracePeriodMonths = 0,
     currency = "UZS",
+    feeOnceAmount = 0,
+    feeMonthlyPct = 0,
+    insuranceMonthlyPct = 0,
   } = parsed.data;
 
   const principal = loanAmount - initialPayment;
@@ -1777,6 +1819,9 @@ router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clien
     termMonths,
     repaymentType,
     gracePeriodMonths,
+    feeOnceAmount,
+    feeMonthlyPct,
+    insuranceMonthlyPct,
   };
   const summary = buildCalculationSummary(calculationInput);
   if (!summary) {
@@ -1928,6 +1973,13 @@ router.post("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
     return;
   }
   const { docType, fileName, storagePath, ocrText, extractedData } = parsed.data;
+  // Format-validate the OCR-extracted fields (STIR, passport, phone) so the
+  // UI can flag suspicious values for human review without dropping the raw
+  // OCR output. The sanitized blob preserves originals when invalid.
+  const validation = validateExtractedData(extractedData ?? null);
+  const finalExtractedData = extractedData
+    ? { ...validation.sanitized, _invalidFields: validation.invalidFields }
+    : null;
   const [doc] = await db.insert(clientDocumentsTable).values({
     clientId,
     userId: req.user!.id,
@@ -1935,7 +1987,7 @@ router.post("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
     fileName,
     storagePath,
     ocrText: ocrText ?? null,
-    extractedData: extractedData ?? null,
+    extractedData: finalExtractedData,
   }).returning();
   res.status(201).json(doc);
 });
@@ -1962,11 +2014,15 @@ router.put("/mini-app/documents/:id/ocr", guestAuth, requireDocumentAccess, asyn
     return;
   }
   const { ocrText, extractedData } = parsed.data;
+  const validation = validateExtractedData(extractedData ?? null);
+  const finalExtractedData = extractedData
+    ? { ...validation.sanitized, _invalidFields: validation.invalidFields }
+    : null;
   const [updated] = await db
     .update(clientDocumentsTable)
     .set({
       ocrText: ocrText ?? null,
-      extractedData: extractedData ?? null,
+      extractedData: finalExtractedData,
     })
     .where(eq(clientDocumentsTable.id, docId))
     .returning();
@@ -2054,6 +2110,23 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
 
   const leaveBehindDetails = await buildLeaveBehindDetails(clientId, client, language);
 
+  // Refuse to mint a PDF that would be useless to the lead. Require at least
+  // one of: client identity (fullName / legalName), a populated offer block,
+  // or collateral data. Without any of those the document is just header +
+  // disclaimer and embarrasses the expert when handed over.
+  const hasIdentity = !!(client.fullName?.trim() || client.legalName?.trim());
+  const hasOfferContent = leaveBehindDetails.offer !== null;
+  const hasCollateralContent = leaveBehindDetails.collateral !== null;
+  if (!hasIdentity && !hasOfferContent && !hasCollateralContent) {
+    res.status(400).json({
+      error: "insufficient_data",
+      message: language === "ru"
+        ? "Недостаточно данных для PDF: заполните ФИО, заявку или залог."
+        : "PDF uchun yetarli ma'lumot yo'q: F.I.Sh, ariza yoki garovni to'ldiring.",
+    });
+    return;
+  }
+
   try {
     const pdfBuffer = await generateLeaveBehindPdf({
       client: {
@@ -2102,10 +2175,24 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
       telegramSent = await sendDocument(targetTelegramId, pdfBuffer, filename, caption);
     }
 
-    await db
-      .update(clientsTable)
-      .set({ status: "pdf_generated", updatedAt: new Date() })
-      .where(eq(clientsTable.id, clientId));
+    // Route the status change through the state machine so PDF generation
+    // can't silently push the client past `recommendation`/`basket` from a
+    // disallowed source state. If the client somehow sits at e.g. `approved`,
+    // the transition is rejected and we surface a clean 409 instead of a
+    // silent overwrite.
+    try {
+      await transitionClientStatus(clientId, "pdf_generated");
+    } catch (err) {
+      if (err instanceof StatusTransitionError) {
+        res.status(409).json({
+          error: language === "ru"
+            ? `Переход статуса не разрешён: ${err.from} → ${err.to}`
+            : `Holat o'zgarishi ruxsat etilmagan: ${err.from} → ${err.to}`,
+        });
+        return;
+      }
+      throw err;
+    }
 
     res.json({
       success: true,

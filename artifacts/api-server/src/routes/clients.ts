@@ -13,13 +13,30 @@ import { requireClientAccess } from "../lib/client-access";
 import { logActivity } from "../middleware/activity";
 import { upload, parseCsvBuffer } from "../lib/csv";
 import { escapeLike } from "../lib/db-helpers";
+import { isAllowedStatusTransition } from "../lib/client-status-machine";
+import { validateReassignmentInTx } from "../lib/reassignment";
+import type { ClientStatus } from "@workspace/db";
 
 const router: IRouter = Router();
 
 const INVALID_BODY_MESSAGE = "Некорректные данные / Noto'g'ri ma'lumot";
 const NOT_FOUND_MESSAGE = "Не найдено / Topilmadi";
 const CLIENT_FALLBACK_NAME = "Ismsiz mijoz";
-const STATUS_LABELS: Record<string, string> = {
+// Bilingual labels: keep both languages in the activity log line so the same
+// string renders correctly regardless of which UI is reading it. This avoids
+// the prior bug where logs were always Uzbek even for Russian-speaking admins.
+const STATUS_LABELS_RU: Record<string, string> = {
+  draft: "черновик",
+  lead: "лид",
+  recommendation: "заявка готова",
+  basket: "выбранные продукты",
+  pdf_generated: "КП готово",
+  under_review: "на рассмотрении",
+  approved: "одобрен",
+  completed: "завершён",
+  rejected: "отклонён",
+};
+const STATUS_LABELS_UZ: Record<string, string> = {
   draft: "qoralama",
   lead: "lid",
   recommendation: "tavsiya",
@@ -32,7 +49,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function getStatusLabel(status: string) {
-  return STATUS_LABELS[status] || "noma'lum holat";
+  const ru = STATUS_LABELS_RU[status] ?? "неизвестный статус";
+  const uz = STATUS_LABELS_UZ[status] ?? "noma'lum holat";
+  return `${ru} / ${uz}`;
 }
 
 function toNullableNumber(value: unknown): number | null {
@@ -249,26 +268,76 @@ router.put("/clients/:id", guestAuth, requireClientAccess, requirePermission("cl
   const parsed = UpdateClientBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: INVALID_BODY_MESSAGE }); return; }
 
-  const updateData: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };
-  if (parsed.data.fullName !== undefined) updateData.fullName = parsed.data.fullName;
-  if (parsed.data.phone !== undefined) updateData.phone = parsed.data.phone;
-  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
-  if (parsed.data.assignedToId !== undefined) updateData.assignedToId = parsed.data.assignedToId;
-  if (parsed.data.clientType !== undefined) updateData.clientType = parsed.data.clientType;
-  if (parsed.data.clientSegment !== undefined) updateData.clientSegment = parsed.data.clientSegment;
-  if (parsed.data.gender !== undefined) updateData.gender = parsed.data.gender;
-  if (parsed.data.latitude !== undefined) updateData.latitude = String(parsed.data.latitude);
-  if (parsed.data.longitude !== undefined) updateData.longitude = String(parsed.data.longitude);
-  if (parsed.data.rejectionReason !== undefined) updateData.rejectionReason = parsed.data.rejectionReason;
+  // Wrap snapshot + validation + write in a single transaction so the
+  // assigned-user check and the actual UPDATE see a consistent view of the
+  // database (closes the race window where a target user is deactivated
+  // between our SELECT and the UPDATE).
+  type ValidationFailure = { kind: "not_found" } | { kind: "bad_transition"; from: string; to: string } | { kind: "bad_assignee"; message: string; code?: string };
+  let validationError: ValidationFailure | null = null;
+  let updated: typeof clientsTable.$inferSelect | undefined;
 
-  const [updated] = await db.update(clientsTable).set(updateData).where(eq(clientsTable.id, params.data.id)).returning();
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(clientsTable)
+      .where(eq(clientsTable.id, params.data.id))
+      .limit(1);
+    if (!current) {
+      validationError = { kind: "not_found" };
+      return;
+    }
+
+    if (parsed.data.status !== undefined && parsed.data.status !== current.status) {
+      if (!isAllowedStatusTransition(current.status as ClientStatus, parsed.data.status as ClientStatus)) {
+        validationError = { kind: "bad_transition", from: current.status, to: parsed.data.status };
+        return;
+      }
+    }
+
+    if (parsed.data.assignedToId !== undefined && parsed.data.assignedToId !== null) {
+      const result = await validateReassignmentInTx(tx, parsed.data.assignedToId, current.branchId);
+      if (!result.ok) {
+        validationError = { kind: "bad_assignee", message: result.message ?? "validation_failed", code: result.error };
+        return;
+      }
+    }
+
+    const updateData: Partial<typeof clientsTable.$inferInsert> = { updatedAt: new Date() };
+    if (parsed.data.fullName !== undefined) updateData.fullName = parsed.data.fullName;
+    if (parsed.data.phone !== undefined) updateData.phone = parsed.data.phone;
+    if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+    if (parsed.data.assignedToId !== undefined) updateData.assignedToId = parsed.data.assignedToId;
+    if (parsed.data.clientType !== undefined) updateData.clientType = parsed.data.clientType;
+    if (parsed.data.clientSegment !== undefined) updateData.clientSegment = parsed.data.clientSegment;
+    if (parsed.data.gender !== undefined) updateData.gender = parsed.data.gender;
+    if (parsed.data.latitude !== undefined) updateData.latitude = String(parsed.data.latitude);
+    if (parsed.data.longitude !== undefined) updateData.longitude = String(parsed.data.longitude);
+    if (parsed.data.rejectionReason !== undefined) updateData.rejectionReason = parsed.data.rejectionReason;
+
+    [updated] = await tx
+      .update(clientsTable)
+      .set(updateData)
+      .where(eq(clientsTable.id, params.data.id))
+      .returning();
+  });
+
+  if (validationError) {
+    const err = validationError as ValidationFailure;
+    if (err.kind === "not_found") { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
+    if (err.kind === "bad_transition") {
+      res.status(400).json({ error: `Holatni o'zgartirish ruxsat etilmagan / Переход статуса не разрешён: ${err.from} → ${err.to}` });
+      return;
+    }
+    res.status(400).json({ error: err.message, code: err.code });
+    return;
+  }
   if (!updated) { res.status(404).json({ error: NOT_FOUND_MESSAGE }); return; }
 
   if (parsed.data.status) {
     const statusLabel = parsed.data.status === "completed" ? "client_completed" : parsed.data.status === "rejected" ? "client_rejected" : "client_updated";
     await logActivity({
       type: statusLabel,
-      description: `Mijoz ${updated.fullName || CLIENT_FALLBACK_NAME} holati ${getStatusLabel(parsed.data.status)} ga o'zgartirildi`,
+      description: `Клиент / Mijoz ${updated.fullName || CLIENT_FALLBACK_NAME}: статус → ${getStatusLabel(parsed.data.status)}`,
       entityId: updated.id,
       entityType: "client",
       user: req.user,
