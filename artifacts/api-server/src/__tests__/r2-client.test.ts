@@ -2,11 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@aws-sdk/client-s3", () => {
   const send = vi.fn().mockResolvedValue({});
+  // vitest 4 stricter `new` semantics: hand-rolled class instead of
+  // vi.fn().mockImplementation. The fake S3Client returned here is enough
+  // for the call sites in storage/r2-client.ts (constructor + .send()).
+  class FakeS3Client {
+    send = send;
+  }
+  class FakeCommand {
+    constructor(public input: unknown) {}
+  }
   return {
-    S3Client: vi.fn().mockImplementation(() => ({ send })),
-    PutObjectCommand: vi.fn(),
-    GetObjectCommand: vi.fn(),
-    DeleteObjectCommand: vi.fn(),
+    S3Client: FakeS3Client,
+    PutObjectCommand: FakeCommand,
+    GetObjectCommand: FakeCommand,
+    DeleteObjectCommand: FakeCommand,
   };
 });
 
