@@ -39,6 +39,13 @@ export const MiniAppCalculateBody = z.object({
   currency: z.string().optional(),
   productCost: z.coerce.number().positive().optional(),
   downPaymentPct: z.coerce.number().min(0).max(100).optional(),
+  // 2026-05-09: optional fees/insurance for indicative TCC calculations.
+  // feeOnceAmount — absolute UZS one-off fee at disbursement.
+  // feeMonthlyPct — monthly commission as % of remaining balance.
+  // insuranceMonthlyPct — monthly insurance premium as % of original principal.
+  feeOnceAmount: z.coerce.number().min(0).optional(),
+  feeMonthlyPct: z.coerce.number().min(0).max(100).optional(),
+  insuranceMonthlyPct: z.coerce.number().min(0).max(100).optional(),
 });
 
 // Phase B3a: MiniAppQuestionnaireBody removed alongside the legacy

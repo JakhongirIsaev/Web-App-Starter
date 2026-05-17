@@ -103,6 +103,81 @@ describe("buildCalculationSummary", () => {
   });
 });
 
+describe("buildCalculationSummary with fees and insurance (2026-05-09)", () => {
+  it("zero fees produce identical totals to base annuity", () => {
+    const baseline = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+    });
+    const withZeroFees = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+      feeOnceAmount: 0,
+      feeMonthlyPct: 0,
+      insuranceMonthlyPct: 0,
+    });
+    expect(baseline!.totalPayment).toBe(withZeroFees!.totalPayment);
+    expect(baseline!.totalInterest).toBe(withZeroFees!.totalInterest);
+    expect(withZeroFees!.totalFees).toBe(0);
+  });
+
+  it("one-off fee adds to total payment but not to totalInterest", () => {
+    const result = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+      feeOnceAmount: 100000,
+    });
+    expect(result!.totalFees).toBe(100000);
+    const baseline = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+    });
+    expect(result!.totalInterest).toBe(baseline!.totalInterest);
+    expect(result!.totalPayment).toBeCloseTo(baseline!.totalPayment + 100000, 2);
+  });
+
+  it("monthly insurance is constant across months (% of original principal)", () => {
+    const schedule = buildPaymentSchedule({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+      insuranceMonthlyPct: 0.5, // 0.5% of 10_000_000 = 50_000
+    });
+    expect(schedule).toHaveLength(12);
+    for (const row of schedule) {
+      expect(row.insurance).toBe(50000);
+    }
+  });
+
+  it("effectiveAnnualPct is greater when fees added", () => {
+    const baseline = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+    });
+    const loaded = buildCalculationSummary({
+      loanAmount: 10000000,
+      interestRate: 18,
+      termMonths: 12,
+      repaymentType: "annuity",
+      feeMonthlyPct: 0.5,
+      insuranceMonthlyPct: 0.3,
+      feeOnceAmount: 50000,
+    });
+    expect(loaded!.effectiveAnnualPct).toBeGreaterThan(baseline!.effectiveAnnualPct);
+  });
+});
+
 describe("buildPaymentSchedule", () => {
   it("produces correct number of rows", () => {
     const schedule = buildPaymentSchedule({
