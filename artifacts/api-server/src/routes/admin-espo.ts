@@ -76,7 +76,10 @@ router.get(
       .from(espoReconciliationRunsTable)
       .orderBy(desc(espoReconciliationRunsTable.ranAt))
       .limit(1);
-    if (!latest) return res.json(null);
+    if (!latest) {
+      res.json(null);
+      return;
+    }
     res.json(latest);
   },
 );
@@ -121,7 +124,8 @@ router.post(
   async (req, res) => {
     const jobId = Number(req.params.id);
     if (!Number.isFinite(jobId)) {
-      return res.status(400).json({ error: "invalid_id" });
+      res.status(400).json({ error: "invalid_id" });
+      return;
     }
     try {
       // Reset job state so the worker picks it up cleanly on retry.
@@ -155,7 +159,10 @@ router.post(
       .from(espoSyncJobsTable)
       .where(eq(espoSyncJobsTable.status, "failed"))
       .limit(200);
-    if (failed.length === 0) return res.json({ enqueued: 0 });
+    if (failed.length === 0) {
+      res.json({ enqueued: 0 });
+      return;
+    }
 
     const ids = failed.map((r) => r.id);
     await db

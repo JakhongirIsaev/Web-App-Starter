@@ -21,7 +21,8 @@ router.get(
   async (req, res) => {
     const params = FunnelQuery.safeParse(req.query);
     if (!params.success) {
-      return res.status(400).json({ error: "invalid_query" });
+      res.status(400).json({ error: "invalid_query" });
+      return;
     }
 
     const { branch, from, to, expert, source } = params.data;

@@ -96,9 +96,10 @@ router.post(
       })
       .safeParse(req.body);
     if (!body.success) {
-      return res
+      res
         .status(400)
         .json({ error: "invalid_body", details: body.error.flatten() });
+      return;
     }
     const [row] = await db
       .insert(policyParamVersionsTable)
