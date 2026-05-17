@@ -145,7 +145,8 @@ export default function RecommendationPage() {
   // the rest of the page expects; we leave it `undefined` so `data?.recommended`
   // returns `undefined` and the UI falls back to `allProducts` (knowledge
   // base mode). `isLoading` mirrors the all-products query.
-  const data: undefined = undefined;
+  // Cast widens the const-narrowed `undefined` so optional chains compile cleanly.
+  const data = undefined as { recommended?: ProductRecord[] } | undefined;
 
   const { data: allProducts = [], isLoading } = useQuery({
     queryKey: ["mini-all-products", needType ?? "credit"],
