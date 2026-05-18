@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { spawn } from "child_process";
+import { OcrFailureError, runOcrHealthcheck, runOcrRecognize, getOcrScriptPath } from "../lib/ocr/runner";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
@@ -151,17 +151,6 @@ function contentTypeForFile(filePath: string): string {
   }
 }
 
-function getOcrScriptPath(): string {
-  return path.resolve(process.cwd(), "src/ocr/tesseract_ocr.py");
-}
-
-function getOcrTimeoutMs(): number {
-  const configuredTimeout = Number(process.env.OCR_TIMEOUT_MS);
-  return Number.isFinite(configuredTimeout) && configuredTimeout > 0
-    ? configuredTimeout
-    : 90_000;
-}
-
 function resolveOcrLanguage(req: Request): "ru" | "uz" {
   const query = req.query as { language?: string };
   if (query.language === "ru") return "ru";
@@ -266,50 +255,19 @@ router.get("/ocr/health", requireAuth, async (req: Request, res: Response) => {
   const scriptPath = getOcrScriptPath();
 
   try {
-    const result = await new Promise<any>((resolve, reject) => {
-      const proc = spawn("python3", [scriptPath, "--health"], {
-        env: {
-          ...process.env,
-        },
-      });
-
-      let stdout = "";
-      let stderr = "";
-      const timeout = setTimeout(() => {
-        proc.kill("SIGKILL");
-        reject(new Error(getOcrErrorMessage(req, "healthTimeout")));
-      }, 10_000);
-
-      proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
-      proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
-
-      proc.on("close", (code: number) => {
-        clearTimeout(timeout);
-        if (code !== 0) {
-          reject(new Error(`${getOcrErrorMessage(req, "healthFailed")}: ${code}`));
-          return;
-        }
-
-        if (stderr.trim()) {
-          logger.warn({ stderr }, "OCR health check stderr (exit 0)");
-        }
-
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          reject(new Error(getOcrErrorMessage(req, "healthParse")));
-        }
-      });
-
-      proc.on("error", (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-    });
-
-    res.json({ ...result, scriptPath });
-  } catch (error: any) {
+    const result = await runOcrHealthcheck();
+    res.json({ ...(result as object), scriptPath });
+  } catch (error: unknown) {
     logger.error({ err: error, scriptPath }, "OCR health check error");
+    if (error instanceof OcrFailureError) {
+      const msgKey = error.kind === "timeout"
+        ? "healthTimeout"
+        : error.kind === "parse_error"
+        ? "healthParse"
+        : "healthFailed";
+      res.status(500).json({ status: "error", error: getOcrErrorMessage(req, msgKey) });
+      return;
+    }
     res.status(500).json({ status: "error", error: getOcrErrorMessage(req, "healthFailed") });
   }
 });
@@ -445,70 +403,13 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
   const base64Data = image.includes(",") ? image.split(",")[1] : image;
 
   try {
-    const scriptPath = getOcrScriptPath();
-    const timeoutMs = getOcrTimeoutMs();
-
-    const result = await new Promise<any>((resolve, reject) => {
-      // Optional extra LD path for environments that need a specific libgcc_s.
-      // On Nixpacks images the gcc lib lives under a content-addressed /nix/store
-      // hash that changes between base-image rebuilds, so hardcoding it rots.
-      // Set OCR_GCC_LIB_PATH in Railway variables only if the OS can't find
-      // libgcc_s on its own (Tesseract throws "libgcc_s.so.1 must be installed").
-      const extraLibPath = process.env["OCR_GCC_LIB_PATH"] || "";
-      const existingLdPath = process.env["LD_LIBRARY_PATH"] || "";
-      const ldLibraryPath = [extraLibPath, existingLdPath]
-        .filter((segment) => segment && segment.length > 0)
-        .join(":");
-      const proc = spawn("python3", [scriptPath], {
-        env: {
-          ...process.env,
-          ...(ldLibraryPath ? { LD_LIBRARY_PATH: ldLibraryPath } : {}),
-        },
-      });
-
-      let stdout = "";
-      let stderr = "";
-      let settled = false;
-
-      const finish = (error?: Error, value?: any) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(value);
-      };
-
-      const timeout = setTimeout(() => {
-        proc.kill("SIGKILL");
-        finish(new Error(`${getOcrErrorMessage(req, "ocrTimeout")}: ${timeoutMs}ms`));
-      }, timeoutMs);
-
-      proc.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
-      proc.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
-
-      proc.on("close", (code: number) => {
-        if (code !== 0) {
-          logger.error({ stderr, exitCode: code }, "OCR stderr");
-          finish(new Error(`${getOcrErrorMessage(req, "ocrProcess")}: ${code}`));
-        } else {
-          if (stderr.trim()) {
-            logger.warn({ stderr }, "OCR stderr (exit 0)");
-          }
-          try {
-            finish(undefined, JSON.parse(stdout));
-          } catch {
-            finish(new Error(getOcrErrorMessage(req, "ocrParse")));
-          }
-        }
-      });
-
-      proc.on("error", (error) => finish(error));
-      proc.stdin.write(JSON.stringify({ image: base64Data }));
-      proc.stdin.end();
-    });
+    const result = (await runOcrRecognize(base64Data)) as {
+      success?: boolean;
+      text?: string;
+      boxes?: unknown;
+      engine?: unknown;
+      error?: string;
+    };
 
     if (result.success) {
       res.json({ text: result.text, boxes: result.boxes, engine: result.engine });
@@ -516,14 +417,23 @@ router.post("/ocr/recognize", guestAuth, async (req: Request, res: Response) => 
       logger.error({ error: result.error }, "OCR script returned failure");
       res.status(500).json({ error: getOcrErrorMessage(req, "ocrGeneric") });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "OCR error");
-    const exitCodeMatch = error?.message?.match(/:\s*(\d+)$/);
-    const exitCode = exitCodeMatch ? Number(exitCodeMatch[1]) : undefined;
-    res.status(500).json({
-      error: getOcrErrorMessage(req, "ocrGeneric"),
-      ...(exitCode !== undefined && { exitCode }),
-    });
+    if (error instanceof OcrFailureError) {
+      const msgKey = error.kind === "timeout"
+        ? "ocrTimeout"
+        : error.kind === "parse_error"
+        ? "ocrParse"
+        : error.kind === "process_exit"
+        ? "ocrProcess"
+        : "ocrGeneric";
+      res.status(500).json({
+        error: getOcrErrorMessage(req, msgKey),
+        ...(error.exitCode !== undefined && { exitCode: error.exitCode }),
+      });
+      return;
+    }
+    res.status(500).json({ error: getOcrErrorMessage(req, "ocrGeneric") });
   }
 });
 
