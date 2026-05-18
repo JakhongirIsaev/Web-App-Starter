@@ -48,7 +48,9 @@ const ProfilePage = lazyWithChunkRecovery(() => import("@/pages/profile"));
 // const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
 const ScanDocumentPage = lazyWithChunkRecovery(() => import("@/pages/scan-document"));
 const CollateralPage = lazyWithChunkRecovery(() => import("@/pages/collateral"));
-const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
+// Credit Lines page hidden 2026-05-18 - to restore: uncomment this lazy import
+// and the matching <Route path="/credit-lines"> below.
+// const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
 const NotFound = lazyWithChunkRecovery(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -196,13 +198,14 @@ function AuthGate() {
               </PageSuspense>
             )}
           </Route> */}
-          <Route path="/credit-lines">
+          {/* Credit Lines page hidden 2026-05-18 - kept on disk; restore by uncommenting. */}
+          {/* <Route path="/credit-lines">
             {() => (
               <PageSuspense>
                 <CreditLinesPage />
               </PageSuspense>
             )}
-          </Route>
+          </Route> */}
           <Route path="/scan/:clientId">
             {() => (
               <PageSuspense>

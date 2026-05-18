@@ -15,7 +15,6 @@ import {
 import {
   UserPlus,
   Calculator,
-  Landmark,
   Users,
   TrendingUp,
   Phone,
@@ -143,7 +142,7 @@ export default function HomePage() {
   const quickActions = [
     { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
-    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#3B82F6", iconColor: "#FFFFFF" },
+    // Credit Lines quick action hidden 2026-05-18 (credit catalog surfaces are not exposed for now).
   ];
 
   const inlineStats = [

@@ -22,7 +22,9 @@ const SapCodes = lazy(() => import("@/pages/sap-codes"));
 const CollateralAdmin = lazy(() => import("@/pages/collateral"));
 const RecommendationsAdmin = lazy(() => import("@/pages/recommendations"));
 const ActivityLog = lazy(() => import("@/pages/activity-log"));
-const CreditLines = lazy(() => import("@/pages/credit-lines"));
+// Credit Lines page hidden 2026-05-18 - to restore: uncomment this lazy
+// import and the matching <Route path="/credit-lines"> below.
+// const CreditLines = lazy(() => import("@/pages/credit-lines"));
 const EspoSync = lazy(() => import("@/pages/espo-sync"));
 const CreditPolicy = lazy(() => import("@/pages/credit-policy"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -149,9 +151,10 @@ function Router() {
       <Route path="/sap-codes">
         {() => <ProtectedRoute component={SapCodes} />}
       </Route>
-      <Route path="/credit-lines">
+      {/* Credit Lines page hidden 2026-05-18; route kept on disk only. */}
+      {/* <Route path="/credit-lines">
         {() => <ProtectedRoute component={CreditLines} />}
-      </Route>
+      </Route> */}
       <Route path="/collateral">
         {() => <ProtectedRoute component={CollateralAdmin} requiredRoles={adminRoles} />}
       </Route>

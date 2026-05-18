@@ -12,7 +12,6 @@ import {
   Bell,
   Globe,
   ChevronRight,
-  Landmark,
   Calculator,
 } from "lucide-react";
 
@@ -254,14 +253,7 @@ export default function ProfilePage() {
       : "";
 
   const toolsRows: SettingsRow[] = [
-    {
-      icon: Landmark,
-      iconBg: "#E0F2FE",
-      iconColor: "#0369A1",
-      label: t("nav.creditLines"),
-      subtitle: t("creditLines.subtitle"),
-      onClick: () => navigate("/credit-lines"),
-    },
+    // Credit Lines tools row hidden 2026-05-18 along with the /credit-lines route.
     // Products tools row hidden 2026-05-09 along with the /products route.
     {
       icon: Calculator,
