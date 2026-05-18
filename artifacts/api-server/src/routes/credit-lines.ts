@@ -110,7 +110,7 @@ router.post("/credit-lines", guestAuth, requireRole("superadmin", "head_office_a
 
 router.put("/credit-lines/:id", guestAuth, requireRole("superadmin", "head_office_admin", "editor"), async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikатор"); return; }
+  if (isNaN(id)) { badRequest(res, "Некорректный идентификатор / Noto'g'ri identifikator"); return; }
 
   const parsed = updateCreditLineSchema.safeParse(req.body);
   if (!parsed.success) {
