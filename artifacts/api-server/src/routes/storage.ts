@@ -11,6 +11,7 @@ import { db } from "@workspace/db";
 import { clientDocumentsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyClientAccess } from "../lib/client-access";
+import { badRequest, unauthorized, forbidden, notFound, internalServerError } from "../lib/errors";
 import { logger } from "../lib/logger";
 
 // Storage backend selector. Default = local-fs (current safe behaviour).
@@ -241,7 +242,7 @@ router.post(
       });
     } catch (error) {
       if (error instanceof UploadValidationError) {
-        res.status(400).json({ error: error.message });
+        badRequest(res, error.message);
         return;
       }
 
@@ -279,7 +280,7 @@ router.post(
   async (req: Request, res: Response) => {
     const { path: objectPath } = req.body || {};
     if (typeof objectPath !== "string" || !objectPath) {
-      res.status(400).json({ error: "path majburiy" });
+      badRequest(res, "path majburiy");
       return;
     }
 
@@ -295,7 +296,7 @@ router.post(
     // Same opaque "not found" for missing docs and access-denied to avoid
     // leaking which paths exist for clients the requester can't see.
     if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
-      res.status(404).json({ error: "Hujjat topilmadi" });
+      notFound(res, "Hujjat topilmadi");
       return;
     }
 
@@ -316,7 +317,7 @@ router.post(
         res.json({ url, expiresIn: 900 });
       } catch (error) {
         logger.error({ err: error, objectPath }, "Failed to mint R2 signed URL");
-        res.status(500).json({ error: "Signed URL yaratilmadi" });
+        internalServerError(res, "Signed URL yaratilmadi");
       }
       return;
     }
@@ -334,7 +335,7 @@ router.post(
 router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Response) => {
   const objectPath = req.query.path;
   if (typeof objectPath !== "string" || !objectPath) {
-    res.status(400).json({ error: "Fayl yo'li ko'rsatilmagan" });
+    badRequest(res, "Fayl yo'li ko'rsatilmagan");
     return;
   }
 
@@ -351,7 +352,7 @@ router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Re
       .limit(1);
 
     if (!doc || !req.user || !(await verifyClientAccess(doc.clientId, req.user))) {
-      res.status(404).json({ error: "Fayl topilmadi" });
+      notFound(res, "Fayl topilmadi");
       return;
     }
   }
@@ -385,11 +386,11 @@ router.get("/storage/file", requireAuthOrSignedUrl, async (req: Request, res: Re
     throw new ObjectNotFoundError();
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
-      res.status(404).json({ error: "Fayl topilmadi" });
+      notFound(res, "Fayl topilmadi");
       return;
     }
     logger.error({ err: error, objectPath }, "Error serving object");
-    res.status(500).json({ error: "Faylni ochib bo'lmadi" });
+    internalServerError(res, "Faylni ochib bo'lmadi");
   }
 });
 
@@ -449,7 +450,7 @@ router.post(
   documentUpload.single("file"),
   async (req: Request, res: Response) => {
     if (!req.file) {
-      res.status(400).json({ error: "no_file" });
+      badRequest(res, "no_file");
       return;
     }
 
@@ -460,17 +461,17 @@ router.post(
       : "other";
 
     if (!clientId || !Number.isFinite(clientId)) {
-      res.status(400).json({ error: "missing_clientId" });
+      badRequest(res, "missing_clientId");
       return;
     }
 
     if (!req.user) {
-      res.status(401).json({ error: "unauthenticated" });
+      unauthorized(res, "unauthenticated");
       return;
     }
 
     if (!(await verifyClientAccess(clientId, req.user))) {
-      res.status(403).json({ error: "Ruxsat yo'q" });
+      forbidden(res, "Ruxsat yo'q");
       return;
     }
 
@@ -514,7 +515,7 @@ router.post(
       });
     } catch (error) {
       logger.error({ err: error, clientId, storagePath }, "Failed to upload document to R2");
-      res.status(500).json({ error: "Yuklashda xato" });
+      internalServerError(res, "Yuklashda xato");
     }
   },
 );

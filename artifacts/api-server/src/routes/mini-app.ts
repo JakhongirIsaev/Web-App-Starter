@@ -79,6 +79,7 @@ import {
   MiniAppRecommendBody,
   MiniAppUpdateClientBody,
 } from "@workspace/api-zod";
+import { badRequest, forbidden, notFound, conflict, internalServerError } from "../lib/errors";
 
 const router: IRouter = Router();
 const adminRoles = ["superadmin", "head_office_admin"];
@@ -1187,6 +1188,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
 
   const parsed = MiniAppCreateClientBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1222,7 +1224,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
   if (!assignedBranchId) {
     const [firstBranch] = await db.select().from(branchesTable).limit(1);
     if (!firstBranch) {
-      res.status(400).json({ error: "Tizimda filiallar topilmadi" });
+      badRequest(res, "Tizimda filiallar topilmadi");
       return;
     }
     assignedBranchId = firstBranch.id;
@@ -1291,7 +1293,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       // Without an explicit externalUuid the DB default would have produced a
       // fresh UUID and no conflict was possible — reaching here would be a
       // genuine bug, not a replay.
-      res.status(500).json({ error: "insert_failed_unexpectedly" });
+      internalServerError(res, "insert_failed_unexpectedly");
       return;
     }
     const [existing] = await db
@@ -1300,7 +1302,7 @@ router.post("/mini-app/clients", guestAuth, async (req, res) => {
       .where(eq(clientsTable.externalUuid, externalUuid))
       .limit(1);
     if (!existing) {
-      res.status(500).json({ error: "insert_returned_no_rows_no_existing" });
+      internalServerError(res, "insert_returned_no_rows_no_existing");
       return;
     }
     client = existing;
@@ -1412,7 +1414,7 @@ router.get("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     .limit(1);
 
   if (!client) {
-    res.status(404).json({ error: "Mijoz topilmadi" });
+    notFound(res, "Mijoz topilmadi");
     return;
   }
 
@@ -1463,6 +1465,7 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
   const clientId = Number(req.params.id);
   const parsed = MiniAppUpdateClientBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1490,7 +1493,7 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
     .where(eq(clientsTable.id, clientId))
     .limit(1);
   if (!currentClient) {
-    res.status(404).json({ error: "Mijoz topilmadi / Клиент не найден" });
+    notFound(res, "Mijoz topilmadi / Клиент не найден");
     return;
   }
 
@@ -1514,10 +1517,7 @@ router.put("/mini-app/clients/:id", guestAuth, requireClientAccess, async (req, 
       desiredTermMonths !== undefined ||
       preferredCurrency !== undefined;
     if (triesEditApplication) {
-      res.status(409).json({
-        error:
-          "Taklif allaqachon yuborilgan, kredit arizasini o'zgartirib bo'lmaydi / Заявка зафиксирована, изменение полей кредитной заявки запрещено",
-      });
+      conflict(res, "Taklif allaqachon yuborilgan, kredit arizasini o'zgartirib bo'lmaydi / Заявка зафиксирована, изменение полей кредитной заявки запрещено");
       return;
     }
   }
@@ -1594,6 +1594,7 @@ router.post("/mini-app/clients/:id/notes", guestAuth, requireClientAccess, async
   const clientId = Number(req.params.id);
   const parsed = MiniAppNoteBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1611,13 +1612,14 @@ router.post("/mini-app/clients/:id/next-action", guestAuth, requireClientAccess,
   const clientId = Number(req.params.id);
   const parsed = MiniAppNextActionBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
   const { actionType, actionDate, priority, description } = parsed.data;
   const parsedActionDate = new Date(actionDate);
   if (Number.isNaN(parsedActionDate.getTime())) {
-    res.status(400).json({ error: INVALID_BODY_ERROR });
+    badRequest(res, INVALID_BODY_ERROR);
     return;
   }
 
@@ -1655,6 +1657,7 @@ router.put("/mini-app/next-actions/:id/complete", guestAuth, requireNextActionAc
 router.post("/mini-app/recommend", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppRecommendBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1740,6 +1743,7 @@ router.post("/mini-app/recommend", guestAuth, requireClientAccessFromBody("clien
 router.post("/mini-app/basket", guestAuth, requireClientAccessFromBody("clientId"), async (req, res) => {
   const parsed = MiniAppBasketBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1789,6 +1793,7 @@ router.post("/mini-app/basket", guestAuth, requireClientAccessFromBody("clientId
 router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clientId", { optional: true }), async (req, res) => {
   const parsed = MiniAppCalculateBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -1809,7 +1814,7 @@ router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clien
 
   const principal = loanAmount - initialPayment;
   if (principal <= 0 || gracePeriodMonths >= termMonths) {
-    res.status(400).json({ error: INVALID_BODY_ERROR });
+    badRequest(res, INVALID_BODY_ERROR);
     return;
   }
 
@@ -1825,7 +1830,7 @@ router.post("/mini-app/calculate", guestAuth, requireClientAccessFromBody("clien
   };
   const summary = buildCalculationSummary(calculationInput);
   if (!summary) {
-    res.status(400).json({ error: INVALID_BODY_ERROR });
+    badRequest(res, INVALID_BODY_ERROR);
     return;
   }
   const schedule = buildPaymentSchedule(calculationInput);
@@ -1917,7 +1922,7 @@ router.get("/mini-app/articles", guestAuth, async (req, res) => {
 router.get("/mini-app/branch-summary", guestAuth, async (req, res) => {
   const branchId = req.user!.branchId;
   if (!branchId || req.user!.role !== "branch_head") {
-    res.status(403).json({ error: "Faqat filial rahbari uchun" });
+    forbidden(res, "Faqat filial rahbari uchun");
     return;
   }
 
@@ -1964,11 +1969,12 @@ router.get("/mini-app/branch-summary", guestAuth, async (req, res) => {
 router.post("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Ruxsat yo'q" });
+    forbidden(res, "Ruxsat yo'q");
     return;
   }
   const parsed = MiniAppDocumentBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
@@ -1995,7 +2001,7 @@ router.post("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
 router.get("/mini-app/clients/:id/documents", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Ruxsat yo'q" });
+    forbidden(res, "Ruxsat yo'q");
     return;
   }
   const docs = await db
@@ -2010,6 +2016,7 @@ router.put("/mini-app/documents/:id/ocr", guestAuth, requireDocumentAccess, asyn
   const docId = Number(req.params.id);
   const parsed = MiniAppOcrUpdateBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
@@ -2026,7 +2033,7 @@ router.put("/mini-app/documents/:id/ocr", guestAuth, requireDocumentAccess, asyn
     })
     .where(eq(clientDocumentsTable.id, docId))
     .returning();
-  if (!updated) { res.status(404).json({ error: "Hujjat topilmadi" }); return; }
+  if (!updated) { notFound(res, "Hujjat topilmadi"); return; }
   res.json(updated);
 });
 
@@ -2036,7 +2043,7 @@ router.delete("/mini-app/documents/:id", guestAuth, requireDocumentAccess, async
     .delete(clientDocumentsTable)
     .where(eq(clientDocumentsTable.id, docId))
     .returning();
-  if (!deleted) { res.status(404).json({ error: "Hujjat topilmadi" }); return; }
+  if (!deleted) { notFound(res, "Hujjat topilmadi"); return; }
   res.json({ success: true });
 });
 
@@ -2045,6 +2052,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
   const user = req.user!;
   const parsed = MiniAppGeneratePdfBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: INVALID_BODY_ERROR, issues: parsed.error.flatten() });
     return;
   }
@@ -2063,7 +2071,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
   if (!client) {
     // Use a request-only language hint for the 404 since we have no client row.
     const fallbackLang = resolvePdfLanguage(parsed.data.language);
-    res.status(404).json({ error: fallbackLang === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+    notFound(res, fallbackLang === "ru" ? "Клиент не найден" : "Mijoz topilmadi");
     return;
   }
   // Phase D2: prefer the client's saved preferredLanguage when no explicit
@@ -2087,6 +2095,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     .limit(1);
 
   if (!expertRow?.name || !expertRow?.phone) {
+    // SKIP(PR-E1.5): bespoke envelope ({error, message} top-level, no `details` field)
     res.status(400).json({
       error: "expert_missing_contact",
       message:
@@ -2118,6 +2127,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
   const hasOfferContent = leaveBehindDetails.offer !== null;
   const hasCollateralContent = leaveBehindDetails.collateral !== null;
   if (!hasIdentity && !hasOfferContent && !hasCollateralContent) {
+    // SKIP(PR-E1.5): bespoke envelope ({error, message} top-level, no `details` field)
     res.status(400).json({
       error: "insufficient_data",
       message: language === "ru"
@@ -2184,11 +2194,12 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
       await transitionClientStatus(clientId, "pdf_generated");
     } catch (err) {
       if (err instanceof StatusTransitionError) {
-        res.status(409).json({
-          error: language === "ru"
+        conflict(
+          res,
+          language === "ru"
             ? `Переход статуса не разрешён: ${err.from} → ${err.to}`
             : `Holat o'zgarishi ruxsat etilmagan: ${err.from} → ${err.to}`,
-        });
+        );
         return;
       }
       throw err;
@@ -2202,7 +2213,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     });
   } catch (err: any) {
     logger.error({ err }, "PDF generation error");
-    res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
+    internalServerError(res, language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi");
   }
 });
 
@@ -2222,12 +2233,12 @@ router.post(
     const requestLanguage = resolvePdfLanguage(req.body?.language);
 
     if (!Number.isFinite(clientId) || clientId <= 0) {
-      res.status(400).json({ error: requestLanguage === "ru" ? "Неверный ID клиента" : "Noto'g'ri mijoz ID" });
+      badRequest(res, requestLanguage === "ru" ? "Неверный ID клиента" : "Noto'g'ri mijoz ID");
       return;
     }
 
     if (!(await verifyClientAccess(clientId, req.user!))) {
-      res.status(403).json({ error: requestLanguage === "ru" ? "Доступ запрещён" : "Ruxsat yo'q" });
+      forbidden(res, requestLanguage === "ru" ? "Доступ запрещён" : "Ruxsat yo'q");
       return;
     }
 
@@ -2237,7 +2248,7 @@ router.post(
       .where(eq(clientsTable.id, clientId))
       .limit(1);
     if (!client) {
-      res.status(404).json({ error: requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+      notFound(res, requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi");
       return;
     }
     const language = resolvePdfLanguageForClient(req.body?.language, client.preferredLanguage);
@@ -2251,6 +2262,7 @@ router.post(
       .where(eq(usersTable.id, expertUserId))
       .limit(1);
     if (!expertRow?.name || !expertRow?.phone) {
+      // SKIP(PR-E1.5): bespoke envelope ({error, message} top-level, no `details` field)
       res.status(400).json({
         error: "expert_missing_contact",
         message:
@@ -2344,6 +2356,7 @@ router.post(
       }
     }
 
+    // SKIP(PR-E1.5): bespoke envelope ({error, message} top-level, no `details` field)
     res.status(400).json({
       error: "no_delivery_channel",
       message:
@@ -2357,6 +2370,7 @@ router.post(
 router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
   const parsed = MiniAppAutoExcelBody.safeParse(req.body);
   if (!parsed.success) {
+    // SKIP(PR-E1.5): bespoke envelope uses `issues:` field (not `details:`)
     res.status(400).json({ error: "Некорректные данные / Noto'g'ri ma'lumot", issues: parsed.error.flatten() });
     return;
   }
@@ -2375,7 +2389,7 @@ router.post("/mini-app/exports/auto-excel", guestAuth, async (req, res) => {
 
   if (typeof clientId === "number") {
     if (!(await verifyClientAccess(clientId, req.user!))) {
-      res.status(403).json({ error: language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
+      forbidden(res, language === "ru" ? "Доступ запрещен" : "Ruxsat yo'q");
       return;
     }
     const [client] = await db
@@ -2548,7 +2562,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
   const requestLanguage = resolvePdfLanguage(req.query.language);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: requestLanguage === "ru" ? "Доступ запрещен" : "Ruxsat yo'q" });
+    forbidden(res, requestLanguage === "ru" ? "Доступ запрещен" : "Ruxsat yo'q");
     return;
   }
 
@@ -2558,7 +2572,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     .where(eq(clientsTable.id, clientId))
     .limit(1);
   if (!client) {
-    res.status(404).json({ error: requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi" });
+    notFound(res, requestLanguage === "ru" ? "Клиент не найден" : "Mijoz topilmadi");
     return;
   }
   const language = resolvePdfLanguageForClient(req.query.language, client.preferredLanguage);
@@ -2571,6 +2585,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     .limit(1);
 
   if (!expertRow?.name || !expertRow?.phone) {
+    // SKIP(PR-E1.5): bespoke envelope ({error, message} top-level, no `details` field)
     res.status(400).json({
       error: "expert_missing_contact",
       message:
@@ -2622,7 +2637,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     res.send(pdfBuffer);
   } catch (err: any) {
     logger.error({ err }, "PDF download error");
-    res.status(500).json({ error: language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi" });
+    internalServerError(res, language === "ru" ? "Не удалось сформировать файл" : "Faylni shakllantirib bo'lmadi");
   }
 });
 
@@ -2630,7 +2645,7 @@ router.get("/mini-app/clients/:id/export", guestAuth, async (req, res) => {
   const clientId = Number(req.params.id);
 
   if (!(await verifyClientAccess(clientId, req.user!))) {
-    res.status(403).json({ error: "Ruxsat yo'q" });
+    forbidden(res, "Ruxsat yo'q");
     return;
   }
 
@@ -2641,7 +2656,7 @@ router.get("/mini-app/clients/:id/export", guestAuth, async (req, res) => {
     .limit(1);
 
   if (!client) {
-    res.status(404).json({ error: "Mijoz topilmadi" });
+    notFound(res, "Mijoz topilmadi");
     return;
   }
 
