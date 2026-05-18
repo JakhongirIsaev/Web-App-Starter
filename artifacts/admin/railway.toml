@@ -15,7 +15,7 @@ watchPatterns = [
 # No startCommand — runtime uses the Dockerfile's CMD
 # (`node scripts/serve-spa.mjs dist/public`). The runtime image doesn't
 # install pnpm, so overriding to a pnpm command would fail to start.
-healthcheckPath = "/"
+healthcheckPath = "/healthz"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

@@ -144,17 +144,15 @@ function Router() {
       <Route path="/accesses">
         {() => <Redirect to="/users" />}
       </Route>
-      {/* Credit Products page hidden 2026-05-09; route kept for direct access only by clearing the comment. */}
-      {/* <Route path="/credit-products">
-        {() => <ProtectedRoute component={CreditProducts} />}
-      </Route> */}
+      <Route path="/credit-products">
+        {() => <Redirect to="/" />}
+      </Route>
       <Route path="/sap-codes">
         {() => <ProtectedRoute component={SapCodes} />}
       </Route>
-      {/* Credit Lines page hidden 2026-05-18; route kept on disk only. */}
-      {/* <Route path="/credit-lines">
-        {() => <ProtectedRoute component={CreditLines} />}
-      </Route> */}
+      <Route path="/credit-lines">
+        {() => <Redirect to="/" />}
+      </Route>
       <Route path="/collateral">
         {() => <ProtectedRoute component={CollateralAdmin} requiredRoles={adminRoles} />}
       </Route>

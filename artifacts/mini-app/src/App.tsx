@@ -190,22 +190,12 @@ function AuthGate() {
               </PageSuspense>
             )}
           </Route>
-          {/* Products page hidden 2026-05-09 — kept on disk; restore by uncommenting. */}
-          {/* <Route path="/products">
-            {() => (
-              <PageSuspense>
-                <ProductsPage />
-              </PageSuspense>
-            )}
-          </Route> */}
-          {/* Credit Lines page hidden 2026-05-18 - kept on disk; restore by uncommenting. */}
-          {/* <Route path="/credit-lines">
-            {() => (
-              <PageSuspense>
-                <CreditLinesPage />
-              </PageSuspense>
-            )}
-          </Route> */}
+          <Route path="/products">
+            {() => <Redirect to="/" />}
+          </Route>
+          <Route path="/credit-lines">
+            {() => <Redirect to="/" />}
+          </Route>
           <Route path="/scan/:clientId">
             {() => (
               <PageSuspense>

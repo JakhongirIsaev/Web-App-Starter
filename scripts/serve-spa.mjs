@@ -30,6 +30,19 @@ const apiProxyTarget = apiProxyTargetRaw ? new URL(apiProxyTargetRaw) : null;
 await access(distDir);
 
 const server = http.createServer(async (req, res) => {
+  if (isHealthcheck(req.url)) {
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store, max-age=0",
+    });
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
   if (apiProxyTarget && shouldProxy(req.url)) {
     proxyApiRequest(req, res, apiProxyTarget);
     return;
@@ -100,6 +113,12 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   server.close(() => process.exit(0));
 });
+
+function isHealthcheck(url) {
+  if (!url) return false;
+  const pathname = new URL(url, "http://127.0.0.1").pathname;
+  return pathname === "/healthz" || pathname === "/health" || pathname === "/api/healthz";
+}
 
 function shouldProxy(url) {
   if (!url) return false;
