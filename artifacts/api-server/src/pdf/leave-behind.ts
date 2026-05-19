@@ -305,20 +305,43 @@ export async function generateLeaveBehindPdf(
   y += 146;
 
   // ── Expert card ─────────────────────────────────────────────────────────
-  doc.roundedRect(pageX, y, pageW, 92, 10).fillAndStroke(greenSoft, green);
-  doc.font("bold").fontSize(11).fillColor(greenAccent).text(t.expert, pageX + 18, y + 14);
-  doc.font("bold").fontSize(15).fillColor(dark).text(input.expert.name, pageX + 18, y + 34, {
-    width: 280,
+  // Two columns: left = label + name (identity); right = phone CTA stacked
+  // (icon → number → micro-label). No overlap, generous spacing.
+  const expertCardH = 104;
+  doc.roundedRect(pageX, y, pageW, expertCardH, 10).fillAndStroke(greenSoft, green);
+
+  // Left column — who.
+  const leftX = pageX + 20;
+  const leftW = 270;
+  doc.font("bold").fontSize(10.5).fillColor(greenAccent).text(t.expert, leftX, y + 18, {
+    width: leftW,
+    characterSpacing: 0.5,
+  });
+  doc.font("bold").fontSize(17).fillColor(dark).text(input.expert.name, leftX, y + 40, {
+    width: leftW,
+    lineGap: 0,
   });
 
-  const phoneX = pageX + 310;
-  doc.font("bold").fontSize(18).fillColor(green).text(`☎  ${input.expert.phone}`, phoneX, y + 30, {
-    width: 200,
+  // Right column — call me. Phone is the visual hero.
+  const rightX = pageX + 300;
+  const rightW = pageW - (rightX - pageX) - 20;
+  // Small phone glyph as its own line, then the number large, then a quiet
+  // micro-label. Each on its own y so wrapping never crashes them together.
+  doc.font("bold").fontSize(13).fillColor(greenAccent).text("☎", rightX, y + 18, {
+    width: rightW,
+    align: "right",
   });
-  doc.font("body").fontSize(9).fillColor(muted).text(t.callMe, phoneX, y + 58, {
-    width: 200,
+  doc.font("bold").fontSize(20).fillColor(green).text(input.expert.phone, rightX, y + 40, {
+    width: rightW,
+    align: "right",
+    lineGap: 0,
   });
-  y += 92 + 24;
+  doc.font("body").fontSize(8.5).fillColor(muted).text(t.callMe, rightX, y + 72, {
+    width: rightW,
+    align: "right",
+  });
+
+  y += expertCardH + 22;
 
   // ── Disclaimer (flows from card end, not pinned) ────────────────────────
   doc.font("body").fontSize(8.5).fillColor(mutedLight).text(t.disclaimer, pageX, y, {
