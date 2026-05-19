@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed:sales-demo": "tsx src/seed-sales-demo.ts",
+    "seed:demo-enrichment": "tsx src/seed-demo-enrichment.ts",
     "render:permissions-doc": "tsx scripts/render-permissions-doc.ts"
   },
   "dependencies": {
