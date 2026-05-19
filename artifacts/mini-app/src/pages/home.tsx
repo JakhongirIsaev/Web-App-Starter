@@ -59,20 +59,11 @@ const STATUS_SURFACES: Record<string, string> = {
  * directly to the step the user needs to continue; for closed statuses we fall
  * back to the detail page.
  */
-function nextStepPath(clientId: number, status?: string): string {
-  switch (status) {
-    case "lead":
-      return `/recommendation/${clientId}`;
-    case "recommendation":
-      return `/recommendation/${clientId}`;
-    case "basket":
-      return `/basket/${clientId}`;
-    case "pdf_generated":
-      return `/pdf-share/${clientId}`;
-    case "draft":
-    default:
-      return `/clients/${clientId}`;
-  }
+function nextStepPath(clientId: number, _status?: string): string {
+  // Demo mode: every status routes to the client detail page. The legacy
+  // /recommendation and /basket screens expose the real Ipak Yuli product
+  // catalog (rates, limits) and are intentionally not surfaced.
+  return `/clients/${clientId}`;
 }
 
 export default function HomePage() {

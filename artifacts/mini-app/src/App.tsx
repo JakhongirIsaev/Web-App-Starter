@@ -38,7 +38,8 @@ const ClientDetailPage = lazyWithChunkRecovery(() => import("@/pages/client-deta
 // QuestionnairePage was removed in B3.3 — the /questionnaire/:clientId route
 // now redirects to the client detail page (the new fixed form lives at the
 // new-client URL).
-const RecommendationPage = lazyWithChunkRecovery(() => import("@/pages/recommendation"));
+// Recommendation page hidden — surfaced the real credit-product catalog.
+// Route is kept as an empty-state placeholder for any deep-link clicks.
 const CalculatorPage = lazyWithChunkRecovery(() => import("@/pages/calculator"));
 const KnowledgePage = lazyWithChunkRecovery(() => import("@/pages/knowledge"));
 const BasketPage = lazyWithChunkRecovery(() => import("@/pages/basket"));
@@ -158,10 +159,8 @@ function AuthGate() {
             )}
           </Route>
           <Route path="/recommendation/:clientId">
-            {() => (
-              <PageSuspense>
-                <RecommendationPage />
-              </PageSuspense>
+            {(params: { clientId: string }) => (
+              <Redirect to={`/clients/${params.clientId}`} />
             )}
           </Route>
           <Route path="/calculator">
