@@ -252,9 +252,31 @@ export default function ClientDetailPage() {
       return api.post(`/mini-app/clients/${params.id}/generate-pdf`, body);
     },
     onMutate: () => setPdfError(null),
-    onSuccess: (result: PdfGenerationResult) => {
+    onSuccess: async (result: PdfGenerationResult) => {
       queryClient.invalidateQueries({ queryKey: ["mini-client", params.id] });
       setPdfResult(result);
+      // When the user is in a regular browser (no Telegram), the API has
+      // saved the PDF server-side but nothing reached the user. Pull the
+      // freshly-generated file and trigger a browser download so the
+      // experience matches the in-Telegram one.
+      if (!result.telegramSent) {
+        try {
+          const lang = i18n.language === "ru" ? "ru" : "uz";
+          const blob = await api.getBlob(
+            `/mini-app/clients/${params.id}/download-pdf?language=${lang}`,
+          );
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${lang === "ru" ? "predlozhenie" : "taklif"}_${params.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } catch (err) {
+          setPdfError(err instanceof Error ? err.message : String(err));
+        }
+      }
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
