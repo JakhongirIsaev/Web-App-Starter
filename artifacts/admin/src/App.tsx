@@ -16,16 +16,12 @@ const ClientDetail = lazy(() => import("@/pages/client-detail"));
 const Articles = lazy(() => import("@/pages/articles"));
 const Users = lazy(() => import("@/pages/users"));
 const Branches = lazy(() => import("@/pages/branches"));
-// Credit Products page hidden 2026-05-09 — to restore: uncomment this lazy
-// import and the matching <Route path="/credit-products"> below.
-// const CreditProducts = lazy(() => import("@/pages/credit-products"));
-const SapCodes = lazy(() => import("@/pages/sap-codes"));
+// Credit Products, Credit Lines, and SAP Codes pages render an empty
+// placeholder for demos — real catalog UI is kept on disk but not exposed.
+const EmptySection = lazy(() => import("@/pages/empty-section"));
 const CollateralAdmin = lazy(() => import("@/pages/collateral"));
 const RecommendationsAdmin = lazy(() => import("@/pages/recommendations"));
 const ActivityLog = lazy(() => import("@/pages/activity-log"));
-// Credit Lines page hidden 2026-05-18 - to restore: uncomment this lazy
-// import and the matching <Route path="/credit-lines"> below.
-// const CreditLines = lazy(() => import("@/pages/credit-lines"));
 const EspoSync = lazy(() => import("@/pages/espo-sync"));
 const CreditPolicy = lazy(() => import("@/pages/credit-policy"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -73,6 +69,7 @@ interface ProtectedRouteProps {
   component: ComponentType<any>;
   params?: Record<string, string | undefined>;
   requiredRoles?: string[];
+  [key: string]: unknown;
 }
 
 function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: ProtectedRouteProps) {
@@ -146,13 +143,13 @@ function Router() {
         {() => <Redirect to="/users" />}
       </Route>
       <Route path="/credit-products">
-        {() => <Redirect to="/" />}
+        {() => <ProtectedRoute component={EmptySection} titleKey="nav.creditProducts" />}
       </Route>
       <Route path="/sap-codes">
-        {() => <ProtectedRoute component={SapCodes} />}
+        {() => <ProtectedRoute component={EmptySection} titleKey="nav.sapCodes" />}
       </Route>
       <Route path="/credit-lines">
-        {() => <Redirect to="/" />}
+        {() => <ProtectedRoute component={EmptySection} titleKey="nav.creditLines" />}
       </Route>
       <Route path="/collateral">
         {() => <ProtectedRoute component={CollateralAdmin} requiredRoles={adminRoles} />}

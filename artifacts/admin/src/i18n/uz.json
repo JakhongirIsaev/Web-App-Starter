@@ -1,4 +1,9 @@
 {
+  "emptySection": {
+    "subtitle": "Bo'lim umumiy ko'rinishi",
+    "title": "Hozircha ma'lumot yo'q",
+    "body": "Birinchi yuklashdan so'ng bu yerda yozuvlar paydo bo'ladi."
+  },
   "common": {
     "save": "Saqlash",
     "cancel": "Bekor qilish",
