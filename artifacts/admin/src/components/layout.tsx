@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/logo";
+import { APP_VERSION } from "@/lib/build-info";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +135,9 @@ function SidebarBody({ user, filteredNavItems, location, t, onNavigate }: Sideba
           <span className="text-[12px] font-semibold text-sidebar-foreground truncate">{user.name}</span>
           <span className="text-[10px] text-sidebar-foreground/60 truncate">{t(`roles.${user.role}`)}</span>
         </div>
+      </div>
+      <div className="px-2.5 pt-2 text-[10px] font-mono text-sidebar-foreground/40">
+        v{APP_VERSION}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@
     "start:api-server": "sh ./artifacts/api-server/start.sh",
     "start:admin": "pnpm --filter @workspace/admin run start",
     "start:mini-app": "pnpm --filter @workspace/mini-app run start",
+    "audit:production": "node scripts/audit-production.mjs",
     "reseed:api-server-demo": "pnpm exec tsx artifacts/api-server/src/reseed-demo.ts",
     "seed:sales-demo": "pnpm --filter @workspace/api-server run seed:sales-demo",
     "typecheck:libs": "tsc --build",

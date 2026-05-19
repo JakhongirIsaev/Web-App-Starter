@@ -17,9 +17,17 @@ const apiProxyTarget =
   process.env.RAILWAY_SERVICE__WORKSPACE_API_SERVER_URL ??
   process.env.VITE_API_ORIGIN ??
   "http://127.0.0.1:8001";
+const appVersion =
+  process.env.VITE_APP_VERSION ??
+  process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ??
+  process.env.GIT_COMMIT_SHA?.slice(0, 8) ??
+  "local";
 
 export default defineConfig({
   base: basePath,
+  define: {
+    __MINERVA_APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

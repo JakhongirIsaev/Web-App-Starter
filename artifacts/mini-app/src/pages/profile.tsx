@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { APP_VERSION } from "@/lib/build-info";
 import { getInitials } from "@/components/ui-primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
@@ -15,7 +16,6 @@ import {
   Calculator,
 } from "lucide-react";
 
-const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "2.3.1";
 const NOTIF_STORAGE_KEY = "minerva_notif_prefs";
 
 interface NotifPrefs {

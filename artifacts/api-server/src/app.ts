@@ -159,7 +159,52 @@ app.use("/api", (err: any, _req: express.Request, res: express.Response, _next: 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../../..");
 
+function resolvePublicUrl(value: string | undefined) {
+  const trimmed = value?.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  try {
+    return new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    logger.warn({ value }, "Invalid public URL env value");
+    return null;
+  }
+}
+
+function canonicalSpaUrl(mount: string) {
+  if (!isProduction) return null;
+  if (mount === "/admin") {
+    return resolvePublicUrl(process.env.ADMIN_URL ?? process.env.RAILWAY_SERVICE__WORKSPACE_ADMIN_URL);
+  }
+  if (mount === "/mini-app") {
+    return resolvePublicUrl(process.env.MINI_APP_URL ?? process.env.RAILWAY_SERVICE__WORKSPACE_MINI_APP_URL);
+  }
+  return null;
+}
+
+function redirectToCanonicalSpa(req: express.Request, res: express.Response, canonical: URL) {
+  const requestHost = req.get("host");
+  if (requestHost === canonical.host) return false;
+
+  const target = new URL(canonical.toString());
+  const basePath = target.pathname.replace(/\/$/, "");
+  const restPath = req.path === "/" ? "/" : req.path;
+  target.pathname = `${basePath}${restPath}`.replace(/\/{2,}/g, "/");
+
+  const queryIndex = req.url.indexOf("?");
+  target.search = queryIndex >= 0 ? req.url.slice(queryIndex) : "";
+  res.redirect(308, target.toString());
+  return true;
+}
+
 function mountSpa(mount: string, distRelative: string) {
+  const canonical = canonicalSpaUrl(mount);
+  if (canonical) {
+    app.use(mount, (req, res, next) => {
+      if (redirectToCanonicalSpa(req, res, canonical)) return;
+      next();
+    });
+  }
+
   const distDir = path.join(projectRoot, distRelative);
   if (!existsSync(distDir)) {
     logger.warn({ mount, distDir }, "SPA dist not found — skipping");
