@@ -244,8 +244,11 @@ export default function ClientDetailPage() {
   const generatePdfMutation = useMutation({
     mutationFn: () => {
       const initData = getTelegramInitData();
+      // Always ask the server to deliver via bot; it falls back gracefully
+      // when no usable chat ID exists, and the browser-download path below
+      // still kicks in.
       const body: Record<string, unknown> = {
-        sendViaTelegram: Boolean(initData),
+        sendViaTelegram: true,
         language: i18n.language === "ru" ? "ru" : "uz",
       };
       if (initData) body.telegramInitData = initData;

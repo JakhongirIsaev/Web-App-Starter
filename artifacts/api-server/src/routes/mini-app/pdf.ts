@@ -149,7 +149,16 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
     });
 
     let telegramSent = false;
-    let targetTelegramId = expertRow.telegramId || null;
+    // Prefer the expert's stored telegramId; fall back to the demo chat ID
+    // (a real numeric chat) when the stored value isn't a usable Telegram
+    // user identifier (the demo expert has telegramId="demo", a login
+    // handle, not a chat). This lets buyer-demo runs actually push the
+    // generated PDF to a real Telegram chat instead of going silent.
+    const isUsableChatId = (s: string | null | undefined): s is string =>
+      !!s && /^\d{5,}$/.test(s);
+    let targetTelegramId: string | null = isUsableChatId(expertRow.telegramId)
+      ? expertRow.telegramId
+      : (process.env.DEMO_PDF_TELEGRAM_CHAT_ID || null);
 
     if (sendViaTelegram && telegramInitData && process.env.TELEGRAM_BOT_TOKEN) {
       const validatedTelegram = validateTelegramInitData(
