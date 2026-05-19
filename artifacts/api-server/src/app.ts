@@ -185,6 +185,10 @@ function mountSpa(mount: string, distRelative: string) {
   }));
   app.use(mount, (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
+    if (path.extname(req.path)) {
+      res.status(404).send("Not found");
+      return;
+    }
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");

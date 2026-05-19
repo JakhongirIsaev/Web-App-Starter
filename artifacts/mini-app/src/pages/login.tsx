@@ -38,6 +38,18 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await login("demo", "demo");
+    } catch {
+      setError(t("login.invalidCredentials", { defaultValue: t("common.error") }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleLang = () => {
     const next = i18n.language === "ru" ? "uz" : "ru";
     i18n.changeLanguage(next);
@@ -237,6 +249,31 @@ export default function LoginPage() {
             <p className="text-[12px] leading-relaxed" style={{ color: "#1E40AF" }}>
               {t("login.subtitle")}
             </p>
+          </div>
+
+          <div
+            className="rounded-xl p-3.5 mb-5"
+            style={{ background: "#ECFDF3", border: "1px solid rgba(22,163,74,0.18)" }}
+          >
+            <p className="text-[13px] font-semibold mb-1" style={{ color: "#14532D" }}>
+              {t("login.demoTitle", { defaultValue: "Гостевой доступ" })}
+            </p>
+            <p className="text-[12px] mb-3" style={{ color: "#166534", opacity: 0.78 }}>
+              {t("login.demoSubtitle", { defaultValue: "Откройте демонстрационный режим без личного аккаунта." })}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 rounded-xl text-[14px] font-semibold bg-white"
+              onClick={handleDemoLogin}
+              disabled={loading || authLoading}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                t("login.demoAction", { defaultValue: "Войти как гость" })
+              )}
+            </Button>
           </div>
 
           {/* Login form */}

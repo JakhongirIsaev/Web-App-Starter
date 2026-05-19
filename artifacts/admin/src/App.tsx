@@ -129,6 +129,9 @@ function Router() {
       <Route path="/clients">
         {() => <ProtectedRoute component={Clients} />}
       </Route>
+      <Route path="/clients/new">
+        {() => <Redirect to="/clients" />}
+      </Route>
       <Route path="/clients/:id">
         {(params) => <ProtectedRoute component={ClientDetail} params={params} />}
       </Route>

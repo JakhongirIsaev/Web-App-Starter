@@ -23,6 +23,7 @@ const basePath = normalizeBasePath(process.env["BASE_PATH"] ?? "/");
 const apiProxyTargetRaw = (
   process.env["API_PROXY_TARGET"] ??
   process.env["API_ORIGIN"] ??
+  process.env["VITE_API_ORIGIN"] ??
   ""
 ).trim().replace(/\/+$/, "");
 const apiProxyTarget = apiProxyTargetRaw ? new URL(apiProxyTargetRaw) : null;

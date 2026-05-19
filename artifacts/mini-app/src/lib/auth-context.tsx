@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { getMe, getGuestUser, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
+import { getMe, login as apiLogin, loginWithTelegram, logout as apiLogout, clearToken } from "./api";
 import { getDetectedTelegramId, getTelegramInitData, isTelegramWebApp } from "./telegram";
 
 interface Branch {
@@ -76,13 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           clearToken();
         }
-      }
-
-      try {
-        const guest = await getGuestUser();
-        setUser(guest.user || guest);
-      } catch {
-        // no users in system — app will show login page
       }
 
       setLoading(false);
