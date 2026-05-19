@@ -30,6 +30,7 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const queryClient = new QueryClient();
 
 const adminRoles = ["superadmin", "head_office_admin"];
+const accessReadRoles = ["superadmin", "head_office_admin", "branch_head"];
 
 function FullScreenLoader() {
   const { t } = useTranslation();
@@ -141,7 +142,7 @@ function Router() {
         {() => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/accesses">
-        {() => <ProtectedRoute component={Accesses} requiredRoles={adminRoles} />}
+        {() => <ProtectedRoute component={Accesses} requiredRoles={accessReadRoles} />}
       </Route>
       <Route path="/credit-products">
         {() => <ProtectedRoute component={EmptySection} titleKey="nav.creditProducts" />}
