@@ -15,6 +15,7 @@ import { db, pool, branchesTable, clientsTable, usersTable } from "@workspace/db
 const TELEGRAM_ID = "demo";
 const PASSWORD = "demo";
 const DISPLAY_NAME = "Minerva Guest Viewer";
+const DEMO_PHONE = "+998901234567";
 const DEMO_BRANCH = { name: "Minerva Demo Branch", city: "Tashkent" };
 
 const EXAMPLE_CLIENTS = [
@@ -75,6 +76,7 @@ async function findOrCreateDemoUser(branchId: number) {
       .update(usersTable)
       .set({
         name: DISPLAY_NAME,
+        phone: DEMO_PHONE,
         passwordHash,
         role: "head_office_admin",
         branchId,
@@ -93,6 +95,7 @@ async function findOrCreateDemoUser(branchId: number) {
     .values({
       telegramId: TELEGRAM_ID,
       name: DISPLAY_NAME,
+      phone: DEMO_PHONE,
       role: "head_office_admin",
       branchId,
       passwordHash,
