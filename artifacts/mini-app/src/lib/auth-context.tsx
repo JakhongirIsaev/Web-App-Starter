@@ -78,6 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Demo auto-login: when opened outside Telegram (browser preview for
+      // buyer demos), silently log in as the shared demo account so the
+      // login gate never blocks the walkthrough.
+      if (!isTelegram) {
+        try {
+          const data = await apiLogin("demo", "demo");
+          setUser(data.user);
+          setLoading(false);
+          return;
+        } catch {
+          // Fall through to manual login.
+        }
+      }
+
       setLoading(false);
     };
 

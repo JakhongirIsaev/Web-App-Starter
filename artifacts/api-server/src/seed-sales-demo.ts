@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * Create a scoped shared "demo" account plus two example clients for sales
- * walkthroughs. The account is a branch_head tied to a demo branch, so it can
- * see the Accesses section without receiving global admin privileges.
+ * Create a shared "demo" account plus two example clients for sales
+ * walkthroughs. The account is head_office_admin so buyer demos see the full
+ * admin surface area (Collateral, Users, Branches, Activity). Scoping to a
+ * single demo branch is kept for the example client data only.
  *
  * Usage:
  *   DATABASE_URL=postgresql://... pnpm --filter @workspace/api-server exec tsx src/seed-sales-demo.ts
@@ -75,7 +76,7 @@ async function findOrCreateDemoUser(branchId: number) {
       .set({
         name: DISPLAY_NAME,
         passwordHash,
-        role: "branch_head",
+        role: "head_office_admin",
         branchId,
         isActive: true,
         updatedAt: new Date(),
@@ -92,7 +93,7 @@ async function findOrCreateDemoUser(branchId: number) {
     .values({
       telegramId: TELEGRAM_ID,
       name: DISPLAY_NAME,
-      role: "branch_head",
+      role: "head_office_admin",
       branchId,
       passwordHash,
       isActive: true,

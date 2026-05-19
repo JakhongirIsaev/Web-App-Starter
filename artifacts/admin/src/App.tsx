@@ -5,11 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import "@/lib/api";
+import { DemoAutoLoginGate } from "@/lib/demo-auto-login";
 import Layout from "@/components/layout";
 import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
-const Login = lazy(() => import("@/pages/login"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Clients = lazy(() => import("@/pages/clients"));
 const ClientDetail = lazy(() => import("@/pages/client-detail"));
@@ -88,7 +88,11 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
   }
 
   if (!data) {
-    return <Redirect to="/login" />;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      window.location.reload();
+    }
+    return <FullScreenLoader />;
   }
 
   const user = data;
@@ -117,11 +121,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login">
-        {() => (
-          <PageSuspense>
-            <Login />
-          </PageSuspense>
-        )}
+        {() => <Redirect to="/" />}
       </Route>
       <Route path="/">
         {() => <ProtectedRoute component={Dashboard} />}
@@ -189,9 +189,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        <DemoAutoLoginGate>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+        </DemoAutoLoginGate>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
