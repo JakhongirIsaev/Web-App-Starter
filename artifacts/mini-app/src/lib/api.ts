@@ -249,10 +249,6 @@ export async function getMe() {
   return api.get("/auth/me");
 }
 
-export async function getGuestUser() {
-  return api.get("/auth/guest");
-}
-
 export async function changePassword(currentPassword: string, newPassword: string) {
   return api.post("/auth/change-password", { currentPassword, newPassword });
 }

@@ -30,6 +30,7 @@ function lazyWithChunkRecovery<T extends ComponentType<Record<string, never>>>(
 }
 
 const HomePage = lazyWithChunkRecovery(() => import("@/pages/home"));
+const LoginPage = lazyWithChunkRecovery(() => import("@/pages/login"));
 const ClientsPage = lazyWithChunkRecovery(() => import("@/pages/clients"));
 const NewClientPage = lazyWithChunkRecovery(() => import("@/pages/new-client"));
 const QuickLeadPage = lazyWithChunkRecovery(() => import("@/pages/quick-lead"));
@@ -91,10 +92,18 @@ function PageSuspense({ children }: { children: ReactNode }) {
 }
 
 function AuthGate() {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
 
   if (loading) {
     return <FullScreenLoader />;
+  }
+
+  if (!user) {
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   return (

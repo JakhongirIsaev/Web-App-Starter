@@ -33,15 +33,33 @@ async function assetContains(origin, html, needles) {
     return { asset: null, checks: Object.fromEntries(needles.map((needle) => [needle, false])) };
   }
 
-  const js = await request(new URL(asset, origin).toString());
+  const assetUrls = [new URL(asset, origin).toString()];
+  const entry = await request(assetUrls[0]);
+  for (const match of entry.text.matchAll(/"(assets\/[^"]+\.js)"/g)) {
+    assetUrls.push(new URL(match[1], origin).toString());
+  }
+
+  let joined = entry.text;
+  for (const assetUrl of [...new Set(assetUrls.slice(1))]) {
+    joined += "\n" + (await request(assetUrl)).text;
+  }
+
   return {
     asset,
-    checks: Object.fromEntries(needles.map((needle) => [needle, js.text.includes(needle)])),
+    checks: Object.fromEntries(needles.map((needle) => [needle, joined.includes(needle)])),
   };
 }
 
 function print(name, value) {
   console.log(`${name.padEnd(34)} ${value}`);
+}
+
+function collectionLength(value) {
+  if (Array.isArray(value)) return value.length;
+  if (Array.isArray(value?.data)) return value.data.length;
+  if (Array.isArray(value?.users)) return value.users.length;
+  if (Array.isArray(value?.items)) return value.items.length;
+  return null;
 }
 
 const failures = [];
@@ -82,8 +100,8 @@ print("Admin has /clients/new redirect", adminAsset.checks["/clients/new"]);
 print("Mini-app has demo login", miniAsset.checks.demo);
 print("Mini-app still calls /auth/guest", miniAsset.checks["auth/guest"]);
 print("Demo login", `${demoLogin.status} ${demoLogin.json?.user?.role ?? "no user"}`);
-print("Demo /api/users access", `${demoUsers?.status ?? "skipped"} ${Array.isArray(demoUsers?.json) ? `${demoUsers.json.length} users` : ""}`);
-print("Demo mini-app clients", `${demoClients?.status ?? "skipped"} ${Array.isArray(demoClients?.json) ? `${demoClients.json.length} clients` : ""}`);
+print("Demo /api/users access", `${demoUsers?.status ?? "skipped"} ${collectionLength(demoUsers?.json) ?? "unknown"} users`);
+print("Demo mini-app clients", `${demoClients?.status ?? "skipped"} ${collectionLength(demoClients?.json) ?? "unknown"} clients`);
 
 expect("API /healthz", apiHealth.status === 200, `${apiHealth.status}`);
 expect("API /version", apiVersion.status === 200, `${apiVersion.status}`);
@@ -99,8 +117,8 @@ expect("mini-app bundle removed /auth/guest", !miniAsset.checks["auth/guest"]);
 expect("demo login works", demoLogin.status === 200, `${demoLogin.status}`);
 expect("demo is branch_head", demoLogin.json?.user?.role === "branch_head", demoLogin.json?.user?.role ?? "missing");
 expect("demo has branch scope", Number.isInteger(demoLogin.json?.user?.branchId), String(demoLogin.json?.user?.branchId ?? "missing"));
-expect("demo can read Access users", demoUsers?.status === 200 && Array.isArray(demoUsers.json), `${demoUsers?.status ?? "skipped"}`);
-expect("demo can read mini-app clients", demoClients?.status === 200 && Array.isArray(demoClients.json) && demoClients.json.length >= 2, `${demoClients?.status ?? "skipped"}`);
+expect("demo can read Access users", demoUsers?.status === 200 && collectionLength(demoUsers.json) !== null, `${demoUsers?.status ?? "skipped"}`);
+expect("demo can read mini-app clients", demoClients?.status === 200 && (collectionLength(demoClients.json) ?? 0) >= 2, `${demoClients?.status ?? "skipped"}`);
 
 if (failures.length) {
   console.error("\nProduction audit failed:");
