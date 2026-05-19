@@ -115,7 +115,7 @@ expect("admin bundle contains clients/new redirect", adminAsset.checks["/clients
 expect("mini-app bundle contains demo login", miniAsset.checks.demo);
 expect("mini-app bundle removed /auth/guest", !miniAsset.checks["auth/guest"]);
 expect("demo login works", demoLogin.status === 200, `${demoLogin.status}`);
-expect("demo is branch_head", demoLogin.json?.user?.role === "branch_head", demoLogin.json?.user?.role ?? "missing");
+expect("demo is head_office_admin", demoLogin.json?.user?.role === "head_office_admin", demoLogin.json?.user?.role ?? "missing");
 expect("demo has branch scope", Number.isInteger(demoLogin.json?.user?.branchId), String(demoLogin.json?.user?.branchId ?? "missing"));
 expect("demo can read Access users", demoUsers?.status === 200 && collectionLength(demoUsers.json) !== null, `${demoUsers?.status ?? "skipped"}`);
 expect("demo can read mini-app clients", demoClients?.status === 200 && (collectionLength(demoClients.json) ?? 0) >= 2, `${demoClients?.status ?? "skipped"}`);
