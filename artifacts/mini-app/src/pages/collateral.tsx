@@ -20,7 +20,7 @@ import {
 import { api } from "@/lib/api";
 import { fmtNum } from "@/lib/format";
 
-type View = "list" | "add" | "estimate" | "result";
+type View = "deal" | "add";
 
 interface CollateralType {
   id: number;
@@ -218,8 +218,7 @@ export default function CollateralPage() {
   const qc = useQueryClient();
   const clientId = Number(params.id);
 
-  const [view, setView] = useState<View>("list");
-  const [estimate, setEstimate] = useState<EstimateResult | null>(null);
+  const [view, setView] = useState<View>("deal");
 
   const typesQuery = useQuery<CollateralType[]>({
     queryKey: ["collateral-types"],
@@ -240,10 +239,6 @@ export default function CollateralPage() {
   });
   const coverageRatio = settingsQuery.data?.coverageRatio ?? 1.25;
 
-  // Phase F: pull the credit info the expert already saved on the client
-  // page so we can auto-fill the requested loan amount and stop asking
-  // for a credit-product pick. The collateral estimate just needs to know
-  // "is the collateral enough for the credit they asked for?".
   const clientQuery = useQuery<{ client?: { desiredAmountUzs?: string | number | null } }>({
     queryKey: ["mini-client", String(clientId)],
     queryFn: () => api.get(`/mini-app/clients/${clientId}`),
@@ -262,10 +257,10 @@ export default function CollateralPage() {
   );
 
   return (
-    <div className="min-h-screen pb-8" style={{ background: TG_BG }}>
+    <div className="min-h-screen pb-28" style={{ background: TG_BG }}>
       <div className="px-4 pt-3 pb-2">
         <button
-          onClick={() => (view === "list" ? navigate(`/clients/${clientId}`) : setView("list"))}
+          onClick={() => (view === "deal" ? navigate(`/clients/${clientId}`) : setView("deal"))}
           className="flex items-center gap-1 text-[13px] font-semibold text-[#64748B]"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -273,18 +268,22 @@ export default function CollateralPage() {
         </button>
       </div>
 
-      {view === "list" && (
-        <ListView
+      {view === "deal" && (
+        <DealSheetView
           clientId={clientId}
           items={itemsQuery.data ?? []}
           types={typeById}
+          products={productsQuery.data ?? []}
           coverageRatio={coverageRatio}
+          clientDesiredAmount={clientDesiredAmount}
           loading={itemsQuery.isLoading}
           onAdd={() => setView("add")}
-          onEstimate={() => setView("estimate")}
           onArchive={async (id) => {
             await api.delete(`/collateral-items/${id}`);
             qc.invalidateQueries({ queryKey: ["collateral-items", clientId] });
+          }}
+          onEstimateSaved={() => {
+            qc.invalidateQueries({ queryKey: ["collateral-estimates", clientId] });
           }}
         />
       )}
@@ -292,37 +291,12 @@ export default function CollateralPage() {
       {view === "add" && (
         <AddItemView
           types={typesQuery.data ?? []}
-          onCancel={() => setView("list")}
+          onCancel={() => setView("deal")}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["collateral-items", clientId] });
-            setView("list");
+            setView("deal");
           }}
           clientId={clientId}
-        />
-      )}
-
-      {view === "estimate" && (
-        <EstimateView
-          items={itemsQuery.data ?? []}
-          types={typeById}
-          products={productsQuery.data ?? []}
-          coverageRatio={coverageRatio}
-          clientId={clientId}
-          clientDesiredAmount={clientDesiredAmount}
-          onCancel={() => setView("list")}
-          onCreated={(result) => {
-            setEstimate(result);
-            setView("result");
-          }}
-        />
-      )}
-
-      {view === "result" && estimate && (
-        <ResultView
-          estimate={estimate}
-          types={typeById}
-          items={itemsQuery.data ?? []}
-          onClose={() => setView("list")}
         />
       )}
     </div>
@@ -331,77 +305,237 @@ export default function CollateralPage() {
 
 // ─── List view ────────────────────────────────────────────────────────────
 
-function ListView({
+function CoverageGauge({ percent }: { percent: number }) {
+  const clamped = Math.max(0, Math.min(percent, 200));
+  // Gauge maxes visually at 200% so a healthy 150% still feels comfortable
+  // and a barely-covered 95% still reads as nearly-full.
+  const ratio = clamped / 200;
+  const radius = 64;
+  const circumference = 2 * Math.PI * radius;
+  const dash = circumference * ratio;
+  const tone =
+    percent >= 125 ? { stroke: "#16A34A", fg: "#15803D" }
+      : percent >= 100 ? { stroke: "#22C55E", fg: "#15803D" }
+        : percent >= 80 ? { stroke: "#F59E0B", fg: "#B45309" }
+          : { stroke: "#EF4444", fg: "#B91C1C" };
+
+  return (
+    <div className="relative w-[170px] h-[170px] mx-auto">
+      <svg width="170" height="170" viewBox="0 0 170 170">
+        <circle cx="85" cy="85" r={radius} stroke="#E2E8F0" strokeWidth="14" fill="none" />
+        <circle
+          cx="85"
+          cy="85"
+          r={radius}
+          stroke={tone.stroke}
+          strokeWidth="14"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circumference}`}
+          transform="rotate(-90 85 85)"
+          style={{ transition: "stroke-dasharray 350ms ease, stroke 250ms ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="text-[32px] font-black leading-none tracking-[-0.02em]" style={{ color: tone.fg }}>
+          {Math.round(percent)}%
+        </div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#64748B] mt-1">
+          покрытие
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DealSheetView({
   clientId,
   items,
   types,
+  products,
   coverageRatio,
+  clientDesiredAmount,
   loading,
   onAdd,
-  onEstimate,
   onArchive,
+  onEstimateSaved,
 }: {
   clientId: number;
   items: CollateralItem[];
   types: Map<number, CollateralType>;
+  products: CreditProduct[];
   coverageRatio: number;
+  clientDesiredAmount: number;
   loading: boolean;
   onAdd: () => void;
-  onEstimate: () => void;
   onArchive: (id: number) => void;
+  onEstimateSaved: () => void;
 }) {
   const { t } = useTranslation();
-  const totals = useMemo(() => {
-    let market = 0;
-    let accepted = 0;
-    for (const it of items) {
-      market += Number.parseFloat(it.marketValue) || 0;
-      accepted += Number.parseFloat(it.acceptedValue) || 0;
+  const creditProductId: number | "" = products[0]?.id ?? "";
+
+  const [requestedLoanAmount, setRequestedLoanAmount] = useState(
+    clientDesiredAmount > 0 ? formatAmountInput(String(clientDesiredAmount)) : "",
+  );
+  const [excludedIds, setExcludedIds] = useState<Set<number>>(new Set());
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  // Auto-fill once the client query resolves and we still have no draft.
+  if (requestedLoanAmount === "" && clientDesiredAmount > 0) {
+    // safe: parent re-renders carry the prefill into the input on next mount
+  }
+
+  const requestedLoanAmountValue = parseAmountInput(requestedLoanAmount);
+  const includedItems = useMemo(
+    () => items.filter((it) => !excludedIds.has(it.id)),
+    [items, excludedIds],
+  );
+
+  const live = useMemo(() => {
+    const market = includedItems.reduce((s, it) => s + (Number.parseFloat(it.marketValue) || 0), 0);
+    const accepted = includedItems.reduce((s, it) => s + (Number.parseFloat(it.acceptedValue) || 0), 0);
+    const required = requestedLoanAmountValue * coverageRatio;
+    const coverage = requestedLoanAmountValue > 0 ? (accepted / requestedLoanAmountValue) * 100 : 0;
+    const shortfall = Math.max(0, required - accepted);
+    const surplus = Math.max(0, accepted - required);
+    const maxLoan = accepted / coverageRatio;
+    return { market, accepted, required, coverage, shortfall, surplus, maxLoan };
+  }, [includedItems, requestedLoanAmountValue, coverageRatio]);
+
+  const equipmentOnly =
+    includedItems.length > 0 &&
+    includedItems.every((it) => types.get(it.collateralTypeId)?.code === "equipment");
+
+  const saveEstimate = useMutation({
+    mutationFn: () =>
+      api.post(`/clients/${clientId}/collateral-estimates`, {
+        creditProductId,
+        requestedLoanAmount: requestedLoanAmountValue,
+        collateralItemIds: includedItems.map((it) => it.id),
+      }),
+    onSuccess: () => {
+      setSavedFlash(true);
+      onEstimateSaved();
+      window.setTimeout(() => setSavedFlash(false), 2400);
+    },
+  });
+
+  const canSave =
+    typeof creditProductId === "number" &&
+    requestedLoanAmountValue > 0 &&
+    includedItems.length > 0 &&
+    !saveEstimate.isPending;
+
+  const verdict = (() => {
+    if (requestedLoanAmountValue <= 0) {
+      return { label: t("collateral.enterAmount", { defaultValue: "Укажите сумму" }), tone: "neutral" as const };
     }
-    return { market, accepted, maxLoan: accepted / coverageRatio };
-  }, [items, coverageRatio]);
+    if (includedItems.length === 0) {
+      return { label: t("collateral.selectSomething", { defaultValue: "Выберите залог" }), tone: "neutral" as const };
+    }
+    if (live.coverage >= 100) return { label: t("collateral.enough", { defaultValue: "Хватает" }), tone: "good" as const };
+    return { label: t("collateral.notEnough", { defaultValue: "Не хватает" }), tone: "bad" as const };
+  })();
 
   return (
     <div className="px-4 space-y-4">
       <div className="mn-card p-5">
         <h1 className="text-[18px] font-bold text-[#0F172A]">{t("collateral.title")}</h1>
-        <p className="text-[13px] text-[#64748B] mt-1">{t("collateral.estimateTitle")}</p>
+        <p className="text-[13px] text-[#64748B] mt-1">
+          {t("collateral.dealSheetHint", {
+            defaultValue: "Покрытие пересчитывается в реальном времени по мере правки",
+          })}
+        </p>
       </div>
 
-      {items.length > 0 && (
-        <div className="mn-card p-4 space-y-3">
-          <SummaryRow
-            label={t("collateral.totalMarket")}
-            value={fmtMoney(totals.market)}
-          />
-          <SummaryRow
-            label={t("collateral.totalAccepted")}
-            value={fmtMoney(totals.accepted)}
-            highlight={totals.accepted < totals.market}
-          />
-          <div className="border-t border-[#E2E8F0] pt-2">
-            <SummaryRow
-              label={t("collateral.maxLoan")}
-              value={fmtMoney(totals.maxLoan)}
-              bold
-            />
+      <div className="mn-card p-5 space-y-4">
+        <CoverageGauge percent={live.coverage} />
+
+        <div className="flex items-center justify-center gap-2">
+          {verdict.tone === "good" && <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />}
+          {verdict.tone === "bad" && <AlertTriangle className="w-4 h-4 text-[#D97706]" />}
+          <span
+            className="text-[14px] font-bold"
+            style={{
+              color:
+                verdict.tone === "good" ? "#15803D" : verdict.tone === "bad" ? "#B45309" : "#475569",
+            }}
+          >
+            {verdict.label}
+            {verdict.tone === "good" && live.surplus > 0
+              ? ` · +${fmtMoney(live.surplus)}`
+              : verdict.tone === "bad" && live.shortfall > 0
+                ? ` · −${fmtMoney(live.shortfall)}`
+                : ""}
+          </span>
+        </div>
+
+        <div>
+          <div className="text-[11px] font-semibold text-[#64748B] uppercase mb-1.5">
+            {t("collateral.requestedLoanAmount")}
           </div>
+          <input
+            type="text"
+            value={requestedLoanAmount}
+            onChange={(e) => setRequestedLoanAmount(formatAmountInput(e.target.value))}
+            placeholder="100 000 000"
+            className="w-full h-11 rounded-xl border border-[#E2E8F0] px-3 text-[15px] font-semibold focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 outline-none"
+            inputMode="numeric"
+            autoComplete="off"
+          />
+          {clientDesiredAmount > 0 && (
+            <p className="mt-1 text-[11px] text-[#64748B]">
+              {t("collateral.amountFromClient", {
+                defaultValue: "Сумма взята из кредитной заявки клиента — можно изменить",
+              })}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+            <div className="text-[10px] uppercase tracking-wide text-[#64748B] font-semibold">
+              {t("collateral.totalAccepted")}
+            </div>
+            <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
+              {fmtMoney(live.accepted)}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+            <div className="text-[10px] uppercase tracking-wide text-[#64748B] font-semibold">
+              {t("collateral.maxLoan")}
+            </div>
+            <div className="text-[15px] font-bold text-[#0F172A] mt-0.5">
+              {fmtMoney(live.maxLoan)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {equipmentOnly && (
+        <div className="mn-card p-3 bg-[#FEF3C7] border-[#F59E0B] flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-[#D97706] mt-0.5 flex-shrink-0" />
+          <p className="text-[12px] text-[#78350F]">{t("collateral.equipmentOnlyWarning")}</p>
         </div>
       )}
 
       <div className="mn-card p-3 space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide">
+            {t("collateral.items", { defaultValue: "Залог" })}
+          </div>
+          <div className="text-[10px] text-[#94A3B8]">
+            {includedItems.length}/{items.length}
+          </div>
+        </div>
         {loading && <div className="text-[13px] text-[#64748B] py-4 text-center">…</div>}
         {!loading && items.length === 0 && (
           <div className="text-center py-8">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#F1F5F9] flex items-center justify-center">
               <Building2 className="w-6 h-6 text-[#94A3B8]" />
             </div>
-            <p className="text-[14px] font-semibold text-[#64748B]">
-              {t("collateral.empty")}
-            </p>
-            <p className="text-[12px] text-[#94A3B8] mt-1">
-              {t("collateral.emptyHint")}
-            </p>
+            <p className="text-[14px] font-semibold text-[#64748B]">{t("collateral.empty")}</p>
+            <p className="text-[12px] text-[#94A3B8] mt-1">{t("collateral.emptyHint")}</p>
           </div>
         )}
         {items.map((item) => {
@@ -409,10 +543,38 @@ function ListView({
           const typeCode = type?.code ?? "equipment";
           const Icon = TYPE_ICONS[typeCode] ?? Wrench;
           const colors = TYPE_COLORS[typeCode] ?? TYPE_COLORS.equipment;
-          const photos = getMetadataPhotos(item.metadata);
+          const included = !excludedIds.has(item.id);
+          const discountPct = item.discountApplied
+            ? Math.round(Number(item.discountApplied) * 100)
+            : null;
 
           return (
-            <div key={item.id} className="flex items-center gap-3 py-2.5 px-3 rounded-xl border border-[#E2E8F0]">
+            <div
+              key={item.id}
+              className={`flex items-center gap-3 py-2.5 px-3 rounded-xl border-2 transition-all ${
+                included ? "border-[#BFDBFE] bg-[#F0F9FF]" : "border-[#E2E8F0] bg-white opacity-60"
+              }`}
+            >
+              <button
+                onClick={() => {
+                  setExcludedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(item.id)) next.delete(item.id);
+                    else next.add(item.id);
+                    return next;
+                  });
+                }}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                  included ? "bg-[#3B82F6] border-[#3B82F6]" : "border-[#CBD5E1] bg-white"
+                }`}
+                aria-label={t("collateral.toggleInclude", { defaultValue: "Включить в расчёт" })}
+              >
+                {included && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: colors.bg }}
@@ -421,24 +583,14 @@ function ListView({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-[#0F172A] truncate">{item.title}</div>
-                <div className="text-[11px] text-[#64748B] mt-0.5">
-                  {fmtMoney(item.marketValue)} → {fmtMoney(item.acceptedValue)}
-                  {item.discountApplied ? ` (${Math.round(Number(item.discountApplied) * 100)}%)` : ""}
+                <div className="text-[11px] text-[#64748B] mt-0.5 flex items-baseline gap-1 flex-wrap">
+                  <span>{fmtMoney(item.marketValue)}</span>
+                  <span className="text-[#94A3B8]">→</span>
+                  <span className="font-semibold text-[#0F172A]">{fmtMoney(item.acceptedValue)}</span>
+                  {discountPct !== null && (
+                    <span className="text-[#94A3B8]">· ×{discountPct}%</span>
+                  )}
                 </div>
-                {photos.length > 0 && (
-                  <div className="flex gap-1 mt-1">
-                    {photos.slice(0, 3).map((_, idx) => (
-                      <div key={idx} className="w-6 h-6 rounded bg-[#E2E8F0] flex items-center justify-center">
-                        <Camera className="w-3 h-3 text-[#94A3B8]" />
-                      </div>
-                    ))}
-                    {photos.length > 3 && (
-                      <div className="w-6 h-6 rounded bg-[#E2E8F0] flex items-center justify-center text-[9px] font-bold text-[#64748B]">
-                        +{photos.length - 3}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
               {item.isThirdParty && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] flex-shrink-0">
@@ -455,6 +607,20 @@ function ListView({
 
       <SavedEstimatesPanel clientId={clientId} />
 
+      {saveEstimate.error && (
+        <div className="mn-card p-3 bg-[#FEE2E2] border-[#EF4444]">
+          <p className="text-[12px] text-[#991B1B]">{(saveEstimate.error as Error).message}</p>
+        </div>
+      )}
+      {savedFlash && (
+        <div className="mn-card p-3 bg-[#ECFDF5] border-[#16A34A] flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-[#16A34A] flex-shrink-0" />
+          <p className="text-[12px] font-semibold text-[#065F46]">
+            {t("collateral.savedToast", { defaultValue: "Расчёт сохранён" })}
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <button
           onClick={onAdd}
@@ -464,12 +630,14 @@ function ListView({
           {t("collateral.addItem")}
         </button>
         <button
-          onClick={onEstimate}
-          disabled={items.length === 0}
+          onClick={() => canSave && saveEstimate.mutate()}
+          disabled={!canSave}
           className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
           style={{ background: "#16A34A" }}
         >
-          {t("collateral.createEstimate")}
+          {saveEstimate.isPending
+            ? t("common.saving")
+            : t("collateral.saveEstimate", { defaultValue: "Сохранить расчёт" })}
         </button>
       </div>
     </div>
@@ -871,319 +1039,6 @@ function AddItemView({
   );
 }
 
-// ─── Estimate view ────────────────────────────────────────────────────────
-
-function EstimateView({
-  items,
-  types,
-  products,
-  coverageRatio,
-  clientId,
-  clientDesiredAmount,
-  onCancel,
-  onCreated,
-}: {
-  items: CollateralItem[];
-  types: Map<number, CollateralType>;
-  products: CreditProduct[];
-  coverageRatio: number;
-  clientId: number;
-  clientDesiredAmount: number;
-  onCancel: () => void;
-  onCreated: (estimate: EstimateResult) => void;
-}) {
-  const { t } = useTranslation();
-  // Phase F: product picker is gone. We auto-attach the first available
-  // credit product purely to satisfy the FK on the persisted estimate —
-  // the user-facing math (coverage %) doesn't depend on it. Down the road
-  // the server should make creditProductId nullable.
-  const creditProductId: number | "" = products[0]?.id ?? "";
-  const [requestedLoanAmount, setRequestedLoanAmount] = useState(
-    clientDesiredAmount > 0 ? formatAmountInput(String(clientDesiredAmount)) : "",
-  );
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [notes, setNotes] = useState("");
-  const requestedLoanAmountValue = parseAmountInput(requestedLoanAmount);
-
-  const create = useMutation({
-    mutationFn: (body: unknown) => api.post(`/clients/${clientId}/collateral-estimates`, body),
-    onSuccess: (data: any) => onCreated(data),
-  });
-
-  const selectedItems = items.filter((it) => selectedIds.has(it.id));
-  const live = useMemo(() => {
-    const accepted = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.acceptedValue) || 0), 0);
-    const market = selectedItems.reduce((s, it) => s + (Number.parseFloat(it.marketValue) || 0), 0);
-    const requested = requestedLoanAmountValue;
-    const required = requested * coverageRatio;
-    const coverage = requested > 0 ? (accepted / requested) * 100 : 0;
-    const maxLoan = accepted / coverageRatio;
-    return { accepted, market, requested, required, coverage, maxLoan };
-  }, [selectedItems, requestedLoanAmountValue, coverageRatio]);
-
-  const equipmentOnly =
-    selectedItems.length > 0 &&
-    selectedItems.every((it) => types.get(it.collateralTypeId)?.code === "equipment");
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof creditProductId !== "number" || requestedLoanAmountValue <= 0 || selectedIds.size === 0) return;
-    create.mutate({
-      creditProductId,
-      requestedLoanAmount: requestedLoanAmountValue,
-      collateralItemIds: Array.from(selectedIds),
-      notes: notes || undefined,
-    });
-  };
-
-  return (
-    <form onSubmit={onSubmit} className="px-4 space-y-3">
-      <div className="mn-card p-5">
-        <h2 className="text-[16px] font-bold text-[#0F172A]">{t("collateral.createEstimate")}</h2>
-      </div>
-
-      <div className="mn-card p-4 space-y-3">
-        {/* Phase F: credit-product dropdown removed. The estimate is
-            computed against the credit amount the customer asked for
-            (saved on the client page). Expert can override the amount
-            here if needed. */}
-        <Field label={t("collateral.requestedLoanAmount")}>
-          <input
-            type="text"
-            value={requestedLoanAmount}
-            onChange={(e) => setRequestedLoanAmount(formatAmountInput(e.target.value))}
-            placeholder="100 000 000"
-            className="w-full h-10 rounded-lg border border-[#E2E8F0] px-3 text-[14px] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] outline-none"
-            inputMode="numeric"
-            autoComplete="off"
-            required
-          />
-          <AmountReadout value={requestedLoanAmountValue} />
-          {clientDesiredAmount > 0 && (
-            <p className="mt-1 text-[11px] text-[#64748B]">
-              {t("collateral.amountFromClient", {
-                defaultValue: "Сумма взята из кредитной заявки клиента — можно изменить",
-              })}
-            </p>
-          )}
-        </Field>
-      </div>
-
-      <div className="mn-card p-3 space-y-2">
-        <div className="text-[12px] font-semibold text-[#64748B] uppercase">
-          {t("collateral.selectItems")}
-        </div>
-        {items.map((item) => {
-          const type = types.get(item.collateralTypeId);
-          const tCode = type?.code ?? "equipment";
-          const Icon = TYPE_ICONS[tCode] ?? Wrench;
-          const colors = TYPE_COLORS[tCode] ?? TYPE_COLORS.equipment;
-          const checked = selectedIds.has(item.id);
-          return (
-            <label
-              key={item.id}
-              className={`flex items-center gap-3 py-2.5 px-3 cursor-pointer rounded-xl border-2 transition-all ${
-                checked ? "border-[#3B82F6] bg-[#EFF6FF]" : "border-[#E2E8F0]"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  setSelectedIds((prev) => {
-                    const next = new Set(prev);
-                    if (e.target.checked) next.add(item.id);
-                    else next.delete(item.id);
-                    return next;
-                  });
-                }}
-                className="sr-only"
-              />
-              <div
-                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                  checked ? "bg-[#3B82F6] border-[#3B82F6]" : "border-[#CBD5E1]"
-                }`}
-              >
-                {checked && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: colors.bg }}
-              >
-                <Icon className="w-4 h-4" style={{ color: colors.text }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-[#0F172A] truncate">{item.title}</div>
-                <div className="text-[11px] text-[#64748B]">
-                  {fmtMoney(item.acceptedValue)}
-                  {item.discountApplied ? ` (${Math.round(Number(item.discountApplied) * 100)}%)` : ""}
-                </div>
-              </div>
-            </label>
-          );
-        })}
-      </div>
-
-      {selectedIds.size > 0 && (
-        <div className="mn-card p-4 space-y-2">
-          <SummaryRow label={t("collateral.totalMarket")} value={fmtMoney(live.market)} />
-          <SummaryRow label={t("collateral.totalAccepted")} value={fmtMoney(live.accepted)} highlight={live.accepted < live.market} />
-          <div className="border-t border-[#E2E8F0] pt-2 space-y-2">
-            <SummaryRow label={t("collateral.requiredCoverage")} value={fmtMoney(live.required)} />
-            <SummaryRow
-              label={t("collateral.coverage")}
-              value={`${live.coverage.toFixed(0)}%`}
-              highlight={live.coverage < coverageRatio * 100}
-            />
-            <SummaryRow label={t("collateral.maxLoan")} value={fmtMoney(live.maxLoan)} bold />
-          </div>
-        </div>
-      )}
-
-      {equipmentOnly && (
-        <div className="mn-card p-3 bg-[#FEF3C7] border-[#F59E0B] flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-[#D97706] mt-0.5 flex-shrink-0" />
-          <p className="text-[12px] text-[#78350F]">{t("collateral.equipmentOnlyWarning")}</p>
-        </div>
-      )}
-
-      <div className="mn-card p-3">
-        <Field label={t("collateral.notes")}>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-[13px] focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] outline-none"
-            rows={2}
-          />
-        </Field>
-      </div>
-
-      {create.error && (
-        <div className="mn-card p-3 bg-[#FEE2E2] border-[#EF4444]">
-          <p className="text-[12px] text-[#991B1B]">{(create.error as Error).message}</p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <button
-          type="submit"
-          disabled={create.isPending || selectedIds.size === 0 || !creditProductId || requestedLoanAmountValue <= 0}
-          className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
-          style={{ background: "#16A34A" }}
-        >
-          {create.isPending ? t("common.saving") : t("collateral.calculate")}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full h-12 rounded-xl border border-[#E2E8F0] text-[14px] font-semibold text-[#64748B]"
-        >
-          {t("common.cancel")}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// ─── Result view ──────────────────────────────────────────────────────────
-
-function ResultView({
-  estimate,
-  types,
-  items,
-  onClose,
-}: {
-  estimate: EstimateResult;
-  types: Map<number, CollateralType>;
-  items: CollateralItem[];
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const enough = estimate.resultStatus === "enough";
-  const ratePct = estimate.annualRateApplied
-    ? `${Number(estimate.annualRateApplied).toFixed(1)}%`
-    : (estimate.annualRateAppliedRaw ?? "—");
-
-  return (
-    <div className="px-4 space-y-3">
-      <div
-        className="mn-card p-5 flex items-start gap-3"
-        style={{ background: enough ? "#ECFDF5" : "#FEF3C7", borderColor: enough ? "#16A34A" : "#F59E0B" }}
-      >
-        {enough ? (
-          <CheckCircle2 className="w-7 h-7 text-[#16A34A] mt-0.5 flex-shrink-0" />
-        ) : (
-          <AlertTriangle className="w-7 h-7 text-[#D97706] mt-0.5 flex-shrink-0" />
-        )}
-        <div>
-          <div className="text-[16px] font-bold text-[#0F172A]">
-            {enough ? t("collateral.enough") : t("collateral.notEnough")}
-          </div>
-          <div className="text-[12px] mt-1" style={{ color: enough ? "#166534" : "#92400E" }}>
-            {t("collateral.coverage")}: {Number(estimate.coveragePercent).toFixed(0)}%
-          </div>
-        </div>
-      </div>
-
-      <div className="mn-card p-4 space-y-2">
-        <SummaryRow label={t("collateral.totalMarket")} value={fmtMoney(estimate.totalMarketValue)} />
-        <SummaryRow label={t("collateral.totalAccepted")} value={fmtMoney(estimate.totalAcceptedValue)} />
-        <SummaryRow
-          label={t("collateral.requiredCoverage")}
-          value={fmtMoney(estimate.requiredCollateralValue)}
-        />
-        <div className="border-t border-[#E2E8F0] pt-2 space-y-2">
-          <SummaryRow label={t("collateral.maxLoan")} value={fmtMoney(estimate.maxLoanAmount)} bold />
-          <SummaryRow label={t("collateral.rate")} value={ratePct} />
-        </div>
-      </div>
-
-      <div className="mn-card p-3 space-y-2">
-        <div className="text-[12px] font-semibold text-[#64748B] uppercase">
-          {t("collateral.itemsTitle")}
-        </div>
-        {items.slice(0, 20).map((item) => {
-          const type = types.get(item.collateralTypeId);
-          const tCode = type?.code ?? "equipment";
-          const Icon = TYPE_ICONS[tCode] ?? Wrench;
-          const colors = TYPE_COLORS[tCode] ?? TYPE_COLORS.equipment;
-          return (
-            <div key={item.id} className="flex items-center gap-2.5 py-1.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: colors.bg }}
-              >
-                <Icon className="w-3.5 h-3.5" style={{ color: colors.text }} />
-              </div>
-              <div className="text-[13px] text-[#0F172A] truncate flex-1">{item.title}</div>
-              <div className="text-[12px] text-[#64748B] ml-2 flex-shrink-0">
-                {fmtMoney(item.acceptedValue)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {estimate.disclaimer && (
-        <div className="mn-card p-3 bg-[#F1F5F9]">
-          <p className="text-[11px] text-[#64748B] leading-relaxed">{estimate.disclaimer}</p>
-        </div>
-      )}
-
-      <button
-        onClick={onClose}
-        className="w-full h-12 rounded-xl text-[14px] font-bold text-white active:opacity-80"
-        style={{ background: "#16A34A" }}
-      >
-        {t("common.done")}
-      </button>
-    </div>
-  );
-}
 
 // ─── Shared components ─────────────────────────────────────────────────────
 
