@@ -25,8 +25,6 @@ import {
   Check,
   ChevronRight,
   Zap,
-  Package,
-  Landmark,
 } from "lucide-react";
 
 interface MyDayData {
@@ -143,8 +141,6 @@ export default function HomePage() {
   const quickActions = [
     { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
-    { icon: Package, label: t("nav.products"), path: "/products", iconBg: "#7C3AED", iconColor: "#FFFFFF" },
-    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#0EA5E9", iconColor: "#FFFFFF" },
   ];
 
   const inlineStats = [

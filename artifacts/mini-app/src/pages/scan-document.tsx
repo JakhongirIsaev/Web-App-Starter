@@ -327,7 +327,7 @@ export default function ScanDocumentPage() {
   };
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-28">
       <button
         onClick={() => navigate(`/clients/${params.clientId}`)}
         className="flex items-center gap-1 text-sm text-muted-foreground"
@@ -483,22 +483,22 @@ export default function ScanDocumentPage() {
 
       {state === "review" && (
         <>
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex gap-2 overflow-x-auto p-3 snap-x">
                 {photos.map((photo, index) => (
                   <img
                     key={photo.id}
                     src={photo.dataUrl}
                     alt={t("scanDoc.photoAlt", { index: index + 1 })}
-                    className="h-20 rounded-lg border flex-shrink-0 object-cover"
+                    className="h-44 rounded-xl border flex-shrink-0 object-cover snap-start"
                   />
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {Object.keys(extractedFields).length > 0 && (
+          {Object.keys(extractedFields).length > 0 ? (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
@@ -510,12 +510,37 @@ export default function ScanDocumentPage() {
                 {Object.entries(extractedFields).map(([key, value]) => (
                   <div
                     key={key}
-                    className="flex items-center justify-between py-1 border-b border-border/50 last:border-0"
+                    className="flex items-center justify-between gap-3 py-1.5 border-b border-border/50 last:border-0"
                   >
-                    <span className="text-xs text-muted-foreground">{t(`scanDoc.fields.${key}`, key)}</span>
-                    <span className="text-sm font-medium text-right max-w-[60%] truncate">{value}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {t(`scanDoc.fields.${key}`, key)}
+                    </span>
+                    <span className="text-sm font-medium text-right break-words">{value}</span>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("scanDoc.noFieldsTitle", {
+                        defaultValue: "Не удалось распознать поля",
+                      })}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      {t("scanDoc.noFieldsHint", {
+                        defaultValue:
+                          "Проверьте качество фото — текст должен быть чётким, без бликов и обрезанных краёв. Попробуйте переснять документ.",
+                      })}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -531,25 +556,39 @@ export default function ScanDocumentPage() {
               <textarea
                 value={ocrText}
                 onChange={(event) => setOcrText(event.target.value)}
-                rows={6}
-                className="w-full text-xs font-mono bg-muted/50 rounded-lg p-2 border resize-none"
+                rows={8}
+                placeholder={t("scanDoc.rawPlaceholder", {
+                  defaultValue: "Здесь появится распознанный текст…",
+                })}
+                className="w-full text-sm leading-relaxed bg-muted/40 rounded-xl p-3 border resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </CardContent>
           </Card>
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="flex-1 gap-1 min-w-[120px]" onClick={reset}>
-              <RotateCcw className="w-4 h-4" />
-              {t("scanDoc.retake")}
+          <div className="space-y-2">
+            <Button
+              className="w-full gap-2 h-12"
+              onClick={() => uploadMutation.mutate()}
+              disabled={uploadMutation.isPending}
+            >
+              <Upload className="w-5 h-5" />
+              {t("scanDoc.save")}
             </Button>
-            {(Object.keys(extractedFields).length > 0 || ocrText) && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="gap-1 h-11" onClick={reset}>
+                <RotateCcw className="w-4 h-4" />
+                {t("scanDoc.retake")}
+              </Button>
               <Button
                 variant="outline"
-                className="flex-1 gap-1 min-w-[140px]"
+                className="gap-1 h-11"
                 onClick={() => exportAutoMutation.mutate()}
-                disabled={exportAutoMutation.isPending}
+                disabled={
+                  exportAutoMutation.isPending ||
+                  (!ocrText && Object.keys(extractedFields).length === 0)
+                }
               >
                 {exportAutoMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -558,11 +597,7 @@ export default function ScanDocumentPage() {
                 )}
                 {t("scanDoc.excelExport")}
               </Button>
-            )}
-            <Button className="flex-1 gap-1 min-w-[120px]" onClick={() => uploadMutation.mutate()}>
-              <Upload className="w-4 h-4" />
-              {t("scanDoc.save")}
-            </Button>
+            </div>
           </div>
         </>
       )}

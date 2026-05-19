@@ -12,8 +12,8 @@ import MiniAppLayout from "@/components/mini-app-layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { clearChunkReloadAttempt, reloadForFreshChunks } from "@/lib/chunk-reload";
 
-function lazyWithChunkRecovery<T extends ComponentType<Record<string, never>>>(
-  importer: () => Promise<{ default: T }>,
+function lazyWithChunkRecovery<P extends Record<string, unknown> = Record<string, never>>(
+  importer: () => Promise<{ default: ComponentType<P> }>,
 ) {
   return lazy(async () => {
     try {
@@ -44,10 +44,14 @@ const KnowledgePage = lazyWithChunkRecovery(() => import("@/pages/knowledge"));
 const BasketPage = lazyWithChunkRecovery(() => import("@/pages/basket"));
 const PdfSharePage = lazyWithChunkRecovery(() => import("@/pages/pdf-share"));
 const ProfilePage = lazyWithChunkRecovery(() => import("@/pages/profile"));
-const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
+// Credit catalog (products + lines) is intentionally surfaced as empty
+// placeholders for buyer demos — real catalog UI is kept on disk but not
+// exposed via routes or navigation.
+const EmptySectionPage = lazyWithChunkRecovery<{ titleKey: string; subtitleKey?: string }>(
+  () => import("@/pages/empty-section"),
+);
 const ScanDocumentPage = lazyWithChunkRecovery(() => import("@/pages/scan-document"));
 const CollateralPage = lazyWithChunkRecovery(() => import("@/pages/collateral"));
-const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
 const NotFound = lazyWithChunkRecovery(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -198,14 +202,14 @@ function AuthGate() {
           <Route path="/products">
             {() => (
               <PageSuspense>
-                <ProductsPage />
+                <EmptySectionPage titleKey="nav.products" />
               </PageSuspense>
             )}
           </Route>
           <Route path="/credit-lines">
             {() => (
               <PageSuspense>
-                <CreditLinesPage />
+                <EmptySectionPage titleKey="nav.creditLines" />
               </PageSuspense>
             )}
           </Route>
