@@ -144,11 +144,6 @@ export default function Login() {
           </div>
 
           <div className="space-y-5">
-            <img
-              src={`${import.meta.env.BASE_URL}ipak-yuli-transparent.png`}
-              alt="Ipak Yo'li Bank"
-              className="h-10 w-auto"
-            />
             <div className="flex items-center gap-2 text-white/40 text-sm font-medium">
               <ShieldCheck className="w-4 h-4" />
               {t("login.encryption")}

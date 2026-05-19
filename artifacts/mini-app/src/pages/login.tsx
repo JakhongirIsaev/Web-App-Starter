@@ -122,14 +122,8 @@ export default function LoginPage() {
 
         {/* Wordmark */}
         <div className="relative z-10 flex flex-col items-center text-center">
-          <p
-            className="text-[11px] font-semibold uppercase tracking-[0.2em]"
-            style={{ color: "rgba(255,255,255,0.5)" }}
-          >
-            Ipak Yo'li Bank
-          </p>
           <h1
-            className="text-[34px] font-extrabold mt-1 leading-none"
+            className="text-[34px] font-extrabold leading-none"
             style={{ color: "#fff" }}
           >
             Minerva

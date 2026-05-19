@@ -275,7 +275,7 @@ function getPdfCopy(language: PdfLanguage) {
       collateralItemsTitle: "Залог",
       collateralDisclaimer:
         "Предварительный расчёт. Официальную оценку даёт банк.",
-      footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank`,
+      footerCopyright: `© ${new Date().getFullYear()} Minerva`,
     } as const;
   }
 
@@ -342,7 +342,7 @@ function getPdfCopy(language: PdfLanguage) {
     collateralItemsTitle: "Garov ro'yxati",
     collateralDisclaimer:
       "Dastlabki hisob. Bank rasmiy bahosini alohida beradi.",
-    footerCopyright: `© ${new Date().getFullYear()} Ipak Yo'li Bank`,
+    footerCopyright: `© ${new Date().getFullYear()} Minerva`,
   } as const;
 }
 
@@ -355,7 +355,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
       margin: 50,
       info: {
         Title: `${copy.title} - ${data.client.fullName || copy.clientFallbackName}`,
-        Author: "Ipak Yo'li Bank - Minerva",
+        Author: "Minerva",
       },
     });
 
@@ -499,7 +499,7 @@ export function generateClientPdf(data: PdfData): Promise<Buffer> {
     doc.restore();
 
     useFont("bold");
-    doc.fontSize(24).fillColor("#FFFFFF").text("IPAK YO'LI BANK", 50, 32);
+    doc.fontSize(24).fillColor("#FFFFFF").text("MINERVA", 50, 32);
     useFont("body");
     doc.fontSize(11).fillColor("#D1FAE5").text(copy.subtitle, 50, 66);
     useFont("bold");

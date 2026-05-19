@@ -5,8 +5,8 @@ import { formatUzs } from "../lib/money";
 const STRINGS = {
   ru: {
     title: "Коммерческое предложение",
-    headerBrand: "IPAK YO'LI BANK",
-    headerTagline: "Банк для вашего бизнеса",
+    headerBrand: "MINERVA",
+    headerTagline: "Платформа кредитования SME",
     metaDate: "Дата",
     metaBranch: "Филиал",
     client: "Клиент",
@@ -28,12 +28,12 @@ const STRINGS = {
     callMe: "Звоните напрямую",
     disclaimer:
       "Документ носит предварительный характер. Финальные условия определяются после проверки документов и решения кредитного комитета банка.",
-    footer: "© 2026 IPAK YO'LI Bank",
+    footer: "© 2026 Minerva",
   },
   uz: {
     title: "Tijorat taklifi",
-    headerBrand: "IPAK YO'LI BANK",
-    headerTagline: "Biznesingiz uchun bank",
+    headerBrand: "MINERVA",
+    headerTagline: "SME kreditlash platformasi",
     metaDate: "Sana",
     metaBranch: "Filial",
     client: "Mijoz",
@@ -55,7 +55,7 @@ const STRINGS = {
     callMe: "To'g'ridan-to'g'ri qo'ng'iroq qiling",
     disclaimer:
       "Ushbu hujjat taxminiy xarakterga ega. Yakuniy shartlar hujjatlar tekshiruvi va bank kredit qo'mitasi qaroridan keyin belgilanadi.",
-    footer: "© 2026 IPAK YO'LI Bank",
+    footer: "© 2026 Minerva",
   },
 } as const;
 

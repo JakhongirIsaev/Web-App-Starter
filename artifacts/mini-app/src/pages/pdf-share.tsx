@@ -192,14 +192,14 @@ export default function PdfSharePage() {
         {/* ── PDF preview mockup ── */}
         <div className="mn-card overflow-hidden">
           <div className="aspect-[210/297] relative bg-white p-5 flex flex-col">
-            {/* Fake Ipak Yuli header */}
+            {/* PDF mockup header — neutral branding */}
             <div className="flex items-center gap-3 pb-3 border-b border-[#E2E8F0]">
-              <div className="w-10 h-10 rounded-lg bg-[#16A34A] flex items-center justify-center">
-                <span className="text-white font-bold text-[14px]">IY</span>
+              <div className="w-10 h-10 rounded-lg bg-[#136A2A] flex items-center justify-center">
+                <span className="text-white font-bold text-[14px]">M</span>
               </div>
               <div>
                 <div className="text-[13px] font-bold text-[#0F172A]">
-                  Ipak Yo'li Bank
+                  Minerva
                 </div>
                 <div className="text-[9px] text-[#64748B]">
                   Коммерческое предложение
@@ -264,7 +264,7 @@ export default function PdfSharePage() {
             {/* Footer */}
             <div className="border-t border-[#E2E8F0] pt-2 mt-3 flex items-center justify-between">
               <div className="text-[7px] text-[#94A3B8]">
-                ipak-yuli.uz
+                minerva
               </div>
               <div className="text-[7px] text-[#94A3B8]">
                 Стр. 1 из {pagesCount}

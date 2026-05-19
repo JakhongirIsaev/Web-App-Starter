@@ -91,7 +91,7 @@ router.post("/mini-app/clients/:id/generate-pdf", guestAuth, requireClientAccess
   }
 
   // Resolve branch name (display only — falls back to a sensible default).
-  let branchName = "IPAK YO'LI";
+  let branchName = "—";
   if (client.branchId) {
     const [branch] = await db
       .select({ name: branchesTable.name })
@@ -268,7 +268,7 @@ router.post(
       return;
     }
 
-    let branchName = "IPAK YO'LI";
+    let branchName = "—";
     if (client.branchId) {
       const [b] = await db
         .select({ name: branchesTable.name })
@@ -414,7 +414,7 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
     return;
   }
 
-  let branchName = "IPAK YO'LI";
+  let branchName = "—";
   if (client.branchId) {
     const [branch] = await db
       .select({ name: branchesTable.name })
