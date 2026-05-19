@@ -9,6 +9,7 @@ import Layout from "@/components/layout";
 import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
+const Login = lazy(() => import("@/pages/login"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Clients = lazy(() => import("@/pages/clients"));
 const ClientDetail = lazy(() => import("@/pages/client-detail"));
@@ -74,23 +75,12 @@ interface ProtectedRouteProps {
   requiredRoles?: string[];
 }
 
-const GUEST_USER = {
-  id: 0,
-  telegramId: "",
-  name: "Guest",
-  role: "branch_head",
-  branchId: null,
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-} as const;
-
 function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }: ProtectedRouteProps) {
   const { t } = useTranslation();
   const { data, isLoading } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
-      retry: 2,
+      retry: false,
     },
   });
 
@@ -98,7 +88,11 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
     return <FullScreenLoader />;
   }
 
-  const user = data ?? GUEST_USER;
+  if (!data) {
+    return <Redirect to="/login" />;
+  }
+
+  const user = data;
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
     return (
@@ -123,6 +117,13 @@ function ProtectedRoute({ component: Component, params, requiredRoles, ...rest }
 function Router() {
   return (
     <Switch>
+      <Route path="/login">
+        {() => (
+          <PageSuspense>
+            <Login />
+          </PageSuspense>
+        )}
+      </Route>
       <Route path="/">
         {() => <ProtectedRoute component={Dashboard} />}
       </Route>
