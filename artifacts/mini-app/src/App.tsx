@@ -44,14 +44,10 @@ const KnowledgePage = lazyWithChunkRecovery(() => import("@/pages/knowledge"));
 const BasketPage = lazyWithChunkRecovery(() => import("@/pages/basket"));
 const PdfSharePage = lazyWithChunkRecovery(() => import("@/pages/pdf-share"));
 const ProfilePage = lazyWithChunkRecovery(() => import("@/pages/profile"));
-// Products page hidden 2026-05-09 — to restore: uncomment this lazy import
-// and the matching <Route path="/products"> below.
-// const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
+const ProductsPage = lazyWithChunkRecovery(() => import("@/pages/products"));
 const ScanDocumentPage = lazyWithChunkRecovery(() => import("@/pages/scan-document"));
 const CollateralPage = lazyWithChunkRecovery(() => import("@/pages/collateral"));
-// Credit Lines page hidden 2026-05-18 - to restore: uncomment this lazy import
-// and the matching <Route path="/credit-lines"> below.
-// const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
+const CreditLinesPage = lazyWithChunkRecovery(() => import("@/pages/credit-lines"));
 const NotFound = lazyWithChunkRecovery(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient();
@@ -200,10 +196,18 @@ function AuthGate() {
             )}
           </Route>
           <Route path="/products">
-            {() => <Redirect to="/" />}
+            {() => (
+              <PageSuspense>
+                <ProductsPage />
+              </PageSuspense>
+            )}
           </Route>
           <Route path="/credit-lines">
-            {() => <Redirect to="/" />}
+            {() => (
+              <PageSuspense>
+                <CreditLinesPage />
+              </PageSuspense>
+            )}
           </Route>
           <Route path="/scan/:clientId">
             {() => (

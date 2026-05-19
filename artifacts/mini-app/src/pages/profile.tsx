@@ -14,6 +14,8 @@ import {
   Globe,
   ChevronRight,
   Calculator,
+  Package,
+  Landmark,
 } from "lucide-react";
 
 const NOTIF_STORAGE_KEY = "minerva_notif_prefs";
@@ -253,8 +255,22 @@ export default function ProfilePage() {
       : "";
 
   const toolsRows: SettingsRow[] = [
-    // Credit Lines tools row hidden 2026-05-18 along with the /credit-lines route.
-    // Products tools row hidden 2026-05-09 along with the /products route.
+    {
+      icon: Package,
+      iconBg: "#EDE9FE",
+      iconColor: "#7C3AED",
+      label: t("nav.products"),
+      subtitle: t("profile.productsHint", { defaultValue: "Каталог кредитных продуктов" }),
+      onClick: () => navigate("/products"),
+    },
+    {
+      icon: Landmark,
+      iconBg: "#E0F2FE",
+      iconColor: "#0284C7",
+      label: t("nav.creditLines"),
+      subtitle: t("profile.creditLinesHint", { defaultValue: "Кредитные линии и лимиты" }),
+      onClick: () => navigate("/credit-lines"),
+    },
     {
       icon: Calculator,
       iconBg: "#FEF3C7",

@@ -13,11 +13,11 @@ export default function CalculatorPage() {
   const clientName = urlParams.get("clientName") || "";
 
   const [creditType, setCreditType] = useState("consumer");
-  const [productCost, setProductCost] = useState("");
+  const [productCost, setProductCost] = useState("50000000");
   const [downPaymentPct, setDownPaymentPct] = useState("0");
-  const [interestRate, setInterestRate] = useState("");
+  const [interestRate, setInterestRate] = useState("24");
   const [rateType, setRateType] = useState("annual");
-  const [termMonths, setTermMonths] = useState("");
+  const [termMonths, setTermMonths] = useState("24");
   const [repaymentType, setRepaymentType] = useState("annuity");
   const [gracePeriod, setGracePeriod] = useState("0");
   const [currency, setCurrency] = useState("UZS");

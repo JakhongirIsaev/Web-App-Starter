@@ -25,6 +25,8 @@ import {
   Check,
   ChevronRight,
   Zap,
+  Package,
+  Landmark,
 } from "lucide-react";
 
 interface MyDayData {
@@ -138,11 +140,11 @@ export default function HomePage() {
   const todoPendingCount =
     (todo?.pendingActions?.length || 0) + (todo?.incompleteClients?.length || 0);
 
-  // Products quick action hidden 2026-05-09 (lead-onboarding flow is product-agnostic for now).
   const quickActions = [
     { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
-    // Credit Lines quick action hidden 2026-05-18 (credit catalog surfaces are not exposed for now).
+    { icon: Package, label: t("nav.products"), path: "/products", iconBg: "#7C3AED", iconColor: "#FFFFFF" },
+    { icon: Landmark, label: t("nav.creditLines"), path: "/credit-lines", iconBg: "#0EA5E9", iconColor: "#FFFFFF" },
   ];
 
   const inlineStats = [
