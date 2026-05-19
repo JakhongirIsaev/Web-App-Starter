@@ -292,8 +292,15 @@ export default function ClientDetailPage() {
     }
     const amt = c.desiredAmountUzs;
     if (amt !== null && amt !== undefined && amt !== "") {
-      const digits = String(amt).replace(/\D/g, "");
-      setCreditAmount(digits ? Number(digits).toLocaleString().replace(/,/g, " ") : "");
+      // Postgres numeric(18,2) comes back as "900000.00" — parse as a real
+      // number (don't strip the dot, that would turn 900000.00 into
+      // 90000000 and each save→read cycle would silently ×100 the value).
+      const parsed = Math.round(parseFloat(String(amt)));
+      setCreditAmount(
+        Number.isFinite(parsed) && parsed > 0
+          ? parsed.toLocaleString().replace(/,/g, " ")
+          : "",
+      );
     } else {
       setCreditAmount("");
     }
