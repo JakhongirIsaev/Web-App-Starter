@@ -13,7 +13,7 @@ set -euo pipefail
 
 PROJECT_ID="4277e453-47fa-461f-99b0-aa956ac1a87e"
 ENVIRONMENT="production"
-API_ORIGIN="https://workspaceapi-server-production-fce2.up.railway.app"
+API_ORIGIN="https://minerva-api.up.railway.app"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${CONFIRM_PROD:-}" != "yes" ]; then
@@ -88,6 +88,6 @@ else
 fi
 
 printf 'Current live endpoints:\n'
-printf '  admin: %s\n' 'https://workspaceadmin-production-7e8d.up.railway.app/'
-printf '  mini-app: %s\n' 'https://workspacemini-app-production.up.railway.app/'
-printf '  api: %s\n' 'https://workspaceapi-server-production-fce2.up.railway.app/api/healthz'
+printf '  admin: %s\n' 'https://minerva-admin.up.railway.app/'
+printf '  mini-app: %s\n' 'https://minerva-app.up.railway.app/'
+printf '  api: %s\n' 'https://minerva-api.up.railway.app/api/healthz'

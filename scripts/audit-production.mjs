@@ -1,7 +1,7 @@
 const ENDPOINTS = {
-  api: "https://workspaceapi-server-production-fce2.up.railway.app",
-  admin: "https://workspaceadmin-production-7e8d.up.railway.app",
-  miniApp: "https://workspacemini-app-production.up.railway.app",
+  api: "https://minerva-api.up.railway.app",
+  admin: "https://minerva-admin.up.railway.app",
+  miniApp: "https://minerva-app.up.railway.app",
 };
 
 async function request(url, options = {}) {
