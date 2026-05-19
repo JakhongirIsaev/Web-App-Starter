@@ -10,13 +10,13 @@ const STRINGS = {
     metaDate: "Дата",
     metaBranch: "Филиал",
     client: "Клиент",
-    creditInterest: "Параметры кредита",
-    purpose: "Цель",
-    product: "Кредитный продукт",
-    amount: "Сумма",
-    termRate: "Срок / ставка",
-    monthlyPayment: "Платёж / мес",
-    noOffer: "Расчёт кредита ещё не сохранён. Уточните сумму, срок и продукт.",
+    phone: "Телефон",
+    creditInterest: "Запрос клиента",
+    purpose: "Цель кредита",
+    amount: "Запрашиваемая сумма",
+    term: "Срок",
+    months: "мес",
+    noOffer: "Клиент пока не указал желаемые параметры кредита.",
     collateral: "Залог",
     collateralValue: "Принятая стоимость",
     collateralCoverage: "Покрытие",
@@ -37,13 +37,13 @@ const STRINGS = {
     metaDate: "Sana",
     metaBranch: "Filial",
     client: "Mijoz",
-    creditInterest: "Kredit shartlari",
-    purpose: "Maqsad",
-    product: "Kredit mahsuloti",
-    amount: "Summa",
-    termRate: "Muddat / stavka",
-    monthlyPayment: "Oylik to'lov",
-    noOffer: "Kredit hisobi hali saqlanmagan. Summa, muddat va mahsulotni aniqlang.",
+    phone: "Telefon",
+    creditInterest: "Mijoz so'rovi",
+    purpose: "Kredit maqsadi",
+    amount: "So'ralgan summa",
+    term: "Muddat",
+    months: "oy",
+    noOffer: "Mijoz hali kerakli kredit parametrlarini ko'rsatmagan.",
     collateral: "Garov",
     collateralValue: "Qabul qilingan qiymat",
     collateralCoverage: "Qoplama",
@@ -60,9 +60,21 @@ const STRINGS = {
 } as const;
 
 export interface LeaveBehindInput {
-  client: { fullName?: string | null; businessName?: string | null };
+  client: {
+    fullName?: string | null;
+    legalName?: string | null;
+    businessName?: string | null;
+    phone?: string | null;
+    purpose?: string | null;
+    desiredAmountUzs?: number | string | null;
+    desiredTermMonths?: number | null;
+    preferredCurrency?: string | null;
+  };
   expert: { name: string; phone: string };
-  offer: {
+  /** Legacy — ignored by the renderer; the credit-desire block now comes
+   *  straight from the client row so the PDF reflects what the customer
+   *  asked for, not the (possibly stale) calculator-derived offer. */
+  offer?: {
     productName?: string | null;
     purpose?: string | null;
     amountUzs?: number | null;
@@ -111,8 +123,16 @@ export async function generateLeaveBehindPdf(
 ): Promise<Buffer> {
   const fonts = resolveBundledFonts();
   const t = STRINGS[input.language];
-  const currency = input.offer?.currency || "UZS";
-  const monthUnit = input.language === "ru" ? "мес" : "oy";
+  const currency = input.client.preferredCurrency || "UZS";
+  const desiredAmount =
+    input.client.desiredAmountUzs == null
+      ? null
+      : Number(input.client.desiredAmountUzs);
+  const hasCreditDesire = Boolean(
+    (input.client.purpose && input.client.purpose.trim()) ||
+      (Number.isFinite(desiredAmount) && (desiredAmount as number) > 0) ||
+      (input.client.desiredTermMonths && input.client.desiredTermMonths > 0),
+  );
 
   const doc = new PDFDocument({
     size: "A4",
@@ -182,7 +202,7 @@ export async function generateLeaveBehindPdf(
 
   doc.font("bold").fontSize(17).fillColor(white).text(t.title, pageX, 80);
 
-  // ── Client ───────────────────────────────────────────────────────────────
+  // ── Client info ──────────────────────────────────────────────────────────
   let y = 132;
   doc.font("body").fontSize(10.5).fillColor(muted).text(t.client, pageX, y);
   doc
@@ -190,31 +210,61 @@ export async function generateLeaveBehindPdf(
     .fontSize(16)
     .fillColor(dark)
     .text((input.client.fullName || "—").toUpperCase(), pageX, y + 15, { width: pageW });
-  y += 56;
+  y += 36;
 
-  // ── Credit interest card ────────────────────────────────────────────────
-  doc.roundedRect(pageX, y, pageW, 150, 10).fillAndStroke(white, border);
+  const subParts: string[] = [];
+  if (input.client.legalName?.trim()) subParts.push(input.client.legalName.trim());
+  if (input.client.businessName?.trim()) subParts.push(input.client.businessName.trim());
+  if (subParts.length > 0) {
+    doc.font("body").fontSize(10).fillColor(muted).text(subParts.join(" · "), pageX, y, {
+      width: pageW,
+    });
+    y += 14;
+  }
+  if (input.client.phone?.trim()) {
+    doc
+      .font("body")
+      .fontSize(10)
+      .fillColor(muted)
+      .text(`${t.phone}: `, pageX, y, { continued: true })
+      .font("bold")
+      .fillColor(dark)
+      .text(input.client.phone.trim());
+    y += 14;
+  }
+  y += 16;
+
+  // ── Credit desire card (only what the client asked for) ────────────────
+  doc.roundedRect(pageX, y, pageW, 116, 10).fillAndStroke(white, border);
   doc.font("bold").fontSize(12).fillColor(green).text(t.creditInterest, pageX + 16, y + 14);
 
-  if (input.offer) {
-    labelValue(t.purpose, textOrDash(input.offer.purpose), pageX + 16, y + 42, 235);
-    labelValue(t.product, textOrDash(input.offer.productName), pageX + 272, y + 42, 235);
-    labelValue(t.amount, fmtMoney(input.offer.amountUzs, currency), pageX + 16, y + 92, 170);
+  if (hasCreditDesire) {
+    labelValue(t.purpose, textOrDash(input.client.purpose), pageX + 16, y + 42, pageW - 32);
     labelValue(
-      t.termRate,
-      `${input.offer.termMonths ? `${input.offer.termMonths} ${monthUnit}` : "—"} / ${fmtPercent(input.offer.interestRate)}`,
-      pageX + 196,
-      y + 92,
-      170,
+      t.amount,
+      Number.isFinite(desiredAmount) && (desiredAmount as number) > 0
+        ? fmtMoney(desiredAmount as number, currency)
+        : "—",
+      pageX + 16,
+      y + 78,
+      260,
     );
-    labelValue(t.monthlyPayment, fmtMoney(input.offer.monthlyPaymentUzs, currency), pageX + 376, y + 92, 145);
+    labelValue(
+      t.term,
+      input.client.desiredTermMonths
+        ? `${input.client.desiredTermMonths} ${t.months}`
+        : "—",
+      pageX + 296,
+      y + 78,
+      225,
+    );
   } else {
     doc.font("body").fontSize(11).fillColor(muted).text(t.noOffer, pageX + 16, y + 48, {
       width: pageW - 32,
       lineGap: 2,
     });
   }
-  y += 172;
+  y += 138;
 
   // ── Collateral card ─────────────────────────────────────────────────────
   doc.roundedRect(pageX, y, pageW, 124, 10).fillAndStroke(white, border);

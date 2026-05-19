@@ -283,7 +283,16 @@ router.post(
     let pdfBuffer: Buffer;
     try {
       pdfBuffer = await generateLeaveBehindPdf({
-        client: { fullName: client.fullName, businessName: null },
+        client: {
+          fullName: client.fullName,
+          legalName: client.legalName ?? null,
+          businessName: null,
+          phone: client.phone ?? null,
+          purpose: client.purpose ?? null,
+          desiredAmountUzs: client.desiredAmountUzs ?? null,
+          desiredTermMonths: client.desiredTermMonths ?? null,
+          preferredCurrency: client.preferredCurrency ?? null,
+        },
         expert: { name: expertRow.name, phone: expertRow.phone },
         ...leaveBehindDetails,
         branchName,
@@ -419,7 +428,16 @@ router.get("/mini-app/clients/:id/download-pdf", guestAuth, async (req, res) => 
 
   try {
     const pdfBuffer = await generateLeaveBehindPdf({
-      client: { fullName: client.fullName, businessName: null },
+      client: {
+        fullName: client.fullName,
+        legalName: client.legalName ?? null,
+        businessName: null,
+        phone: client.phone ?? null,
+        purpose: client.purpose ?? null,
+        desiredAmountUzs: client.desiredAmountUzs ?? null,
+        desiredTermMonths: client.desiredTermMonths ?? null,
+        preferredCurrency: client.preferredCurrency ?? null,
+      },
       expert: { name: expertRow.name, phone: expertRow.phone },
       ...leaveBehindDetails,
       branchName,
