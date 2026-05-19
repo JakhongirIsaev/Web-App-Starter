@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   Package,
   Calculator,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ const navItems = [
   { href: "/articles", labelKey: "nav.articles", icon: BookOpen, roles: ["superadmin", "head_office_admin", "editor", "branch_head", "hunter"], badge: false },
   { href: "/collateral", labelKey: "nav.collateral", icon: Coins, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/users", labelKey: "nav.users", icon: UserPlus, roles: ["superadmin", "head_office_admin"], badge: false },
+  { href: "/accesses", labelKey: "nav.accesses", icon: ShieldCheck, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/branches", labelKey: "nav.branches", icon: Building2, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/activity", labelKey: "nav.activityLog", icon: Activity, roles: ["superadmin", "head_office_admin"], badge: false },
   { href: "/espo-sync", labelKey: "nav.espoSync", icon: Repeat, roles: ["superadmin", "head_office_admin", "editor", "branch_head"], badge: false },

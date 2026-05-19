@@ -26,6 +26,16 @@ describe("MiniAppCreateClientBody", () => {
     const r = MiniAppCreateClientBody.safeParse({ fullName: "" });
     expect(r.success).toBe(false);
   });
+
+  it("accepts nullable optional identity fields from lead forms", () => {
+    const r = MiniAppCreateClientBody.safeParse({
+      fullName: null,
+      phone: null,
+      telegramUsername: null,
+      legalName: null,
+    });
+    expect(r.success).toBe(true);
+  });
 });
 
 describe("MiniAppUpdateClientBody", () => {

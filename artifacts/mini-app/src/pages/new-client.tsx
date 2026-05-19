@@ -128,6 +128,16 @@ function ConsentCheckbox({
   );
 }
 
+function optionalTrimmed(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function optionalTelegramUsername(value: string) {
+  const trimmed = value.trim().replace(/^@+/, "");
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export default function NewClientPage() {
   const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
@@ -183,11 +193,11 @@ export default function NewClientPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const result = await postOrQueue<{ id: number }>("/mini-app/clients", {
-        fullName: fullName.trim() || null,
-        phone: phone.trim() || null,
-        telegramUsername: telegramUsername.trim().replace(/^@+/, "") || undefined,
+        fullName: optionalTrimmed(fullName),
+        phone: optionalTrimmed(phone),
+        telegramUsername: optionalTelegramUsername(telegramUsername),
         gender: gender || undefined,
-        legalName: legalName.trim() || undefined,
+        legalName: optionalTrimmed(legalName),
         businessType: businessType || undefined,
         preferredLanguage,
       });
@@ -224,6 +234,10 @@ export default function NewClientPage() {
         return;
       }
       navigate(`/clients/${data.id}`);
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`${t("newClient.saveFailed", { defaultValue: "Не удалось сохранить клиента" })}: ${message}`);
     },
   });
 

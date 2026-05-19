@@ -16,6 +16,7 @@ const ClientDetail = lazy(() => import("@/pages/client-detail"));
 const Articles = lazy(() => import("@/pages/articles"));
 const Users = lazy(() => import("@/pages/users"));
 const Branches = lazy(() => import("@/pages/branches"));
+const Accesses = lazy(() => import("@/pages/accesses"));
 // Credit Products, Credit Lines, and SAP Codes pages render an empty
 // placeholder for demos — real catalog UI is kept on disk but not exposed.
 const EmptySection = lazy(() => import("@/pages/empty-section"));
@@ -140,7 +141,7 @@ function Router() {
         {() => <ProtectedRoute component={Branches} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/accesses">
-        {() => <Redirect to="/users" />}
+        {() => <ProtectedRoute component={Accesses} requiredRoles={adminRoles} />}
       </Route>
       <Route path="/credit-products">
         {() => <ProtectedRoute component={EmptySection} titleKey="nav.creditProducts" />}

@@ -177,6 +177,7 @@
     "create": "Mijozni saqlash",
     "creating": "Saqlanmoqda...",
     "created": "Mijoz yaratildi",
+    "saveFailed": "Mijozni saqlab bo'lmadi",
     "progress": "To'ldirildi: {{completed}}/{{total}}",
     "step": "Mijoz anketasi",
     "saveDraft": "Qoralama saqlash",

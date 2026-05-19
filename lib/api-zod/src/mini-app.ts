@@ -90,17 +90,20 @@ export const preferredCurrencySchema = z.enum(["UZS", "USD", "EUR", "RUB"]).opti
 // so the leave-behind PDF defaults to the language the client actually reads.
 export const preferredLanguageSchema = z.enum(["ru", "uz"]).optional();
 
+const optionalNonEmptyText = z.string().min(1).nullish();
+const optionalText = z.string().nullish();
+
 export const MiniAppCreateClientBody = z.object({
-  fullName: z.string().min(1).optional(),
-  phone: z.string().optional(),
+  fullName: optionalNonEmptyText,
+  phone: optionalText,
   // Optional Telegram @username for the lead. Captured during the visit so
   // the leave-behind PDF can ship to the client's Telegram in Phase C4.
-  telegramUsername: z.string().optional(),
+  telegramUsername: optionalText,
   gender: z.enum(["male", "female"]).optional(),
   // Phase E — yuridik nomi (registered legal entity name). Captured at lead
   // time so the credit expert can look up the company in external registries
   // / Google Earth.
-  legalName: z.string().optional(),
+  legalName: optionalText,
   businessType: z.string().optional(),
   businessSize: z.string().optional(),
   needType: z.string().optional(),
