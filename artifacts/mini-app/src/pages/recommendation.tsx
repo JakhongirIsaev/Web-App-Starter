@@ -291,7 +291,7 @@ export default function RecommendationPage() {
           </button>
         </div>
         <div className="flex items-center justify-center gap-2 p-12">
-          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#16A34A" }} />
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#272424" }} />
           <span className="text-[14px]" style={{ color: "#64748B" }}>
             {t("common.loading")}
           </span>
@@ -319,8 +319,8 @@ export default function RecommendationPage() {
           </p>
           <button
             onClick={() => navigate(`/clients/${params.clientId}`)}
-            className="mt-4 px-5 py-3 rounded-xl text-[14px] font-semibold text-white"
-            style={{ background: "#16A34A" }}
+            className="mt-4 px-5 py-3 rounded-xl text-[14px] font-semibold text-[#272424]"
+            style={{ background: "#FFD531" }}
           >
             {t("recommendation.backToQuestionnaire")}
           </button>
@@ -347,13 +347,13 @@ export default function RecommendationPage() {
         <div className="flex items-center gap-2.5 mb-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: "#ECFDF3", color: "#16A34A" }}
+            style={{ background: "#FFF7D6", color: "#6B5C00" }}
           >
             <ListChecks className="w-5 h-5" />
           </div>
           <span
             className="text-[11px] font-bold tracking-[0.08em] uppercase"
-            style={{ color: "#16A34A" }}
+            style={{ color: "#6B5C00" }}
           >
             {t("recommendation.aiSelection")}
           </span>
@@ -434,16 +434,16 @@ export default function RecommendationPage() {
                 style={{
                   background: "#fff",
                   boxShadow: isSelected
-                    ? "0 0 0 2px #16A34A, 0 2px 8px rgba(22,163,74,0.12)"
+                    ? "0 0 0 2px #FFD531, 0 2px 8px rgba(255,213,49,0.18)"
                     : "0 1px 3px rgba(15,23,42,0.06)",
                 }}
               >
                 {/* Best match badge */}
                 {isBest && (
                   <div
-                    className="absolute top-0 right-0 px-3 py-1.5 text-[11px] font-bold text-white"
+                    className="absolute top-0 right-0 px-3 py-1.5 text-[11px] font-bold text-[#272424]"
                     style={{
-                      background: "#16A34A",
+                      background: "#FFD531",
                       borderRadius: "0 16px 0 12px",
                     }}
                   >
@@ -533,7 +533,7 @@ export default function RecommendationPage() {
                         <span
                           key={i}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium"
-                          style={{ background: "#ECFDF3", color: "#15803D" }}
+                          style={{ background: "#FFF7D6", color: "#6B5C00" }}
                         >
                           <Check className="w-3 h-3" />
                           <span className="truncate max-w-[160px]">{reason}</span>
@@ -576,8 +576,8 @@ export default function RecommendationPage() {
                       }}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-semibold transition-colors"
                       style={{
-                        background: isSelected ? "#15803D" : "#16A34A",
-                        color: "#fff",
+                        background: isSelected ? "#272424" : "#FFD531",
+                        color: isSelected ? "#FFD531" : "#272424",
                       }}
                     >
                       {isSelected ? (

@@ -62,7 +62,7 @@ function FullScreenLoader() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--tg-bg,#F4F4F5)] px-6">
       <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-[28px] border border-white/80 bg-white/90 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#15803D_0%,#16A34A_58%,#22C55E_100%)] text-xl font-bold text-white shadow-[0_18px_40px_rgba(22,163,74,0.28)]">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#FFD531_0%,#FFD531_58%,#FFE066_100%)] text-xl font-bold text-[#272424] shadow-[0_18px_40px_rgba(255,213,49,0.32)]">
           M
         </div>
         <div className="space-y-1">

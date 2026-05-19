@@ -26,7 +26,7 @@ import {
 
 /* ── product-type visual mapping ── */
 const TYPE_THEME: Record<string, { bg: string; fg: string; Icon: typeof Briefcase }> = {
-  business: { bg: "#ECFDF3", fg: "#15803D", Icon: Briefcase },
+  business: { bg: "#FFF7D6", fg: "#6B5C00", Icon: Briefcase },
   mortgage: { bg: "#EFF6FF", fg: "#1D4ED8", Icon: Home },
   micro:    { bg: "#FFFBEB", fg: "#B45309", Icon: Landmark },
   auto:     { bg: "#FAF5FF", fg: "#7E22CE", Icon: Car },
@@ -179,7 +179,7 @@ export default function BasketPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F4F4F5] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#16A34A]" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#272424]" />
       </div>
     );
   }
@@ -262,7 +262,7 @@ export default function BasketPage() {
           </div>
           <button
             onClick={() => navigate(`/recommendation/${params.clientId}`)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#ECFDF3] text-[#15803D] text-[13px] font-semibold active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FFF7D6] text-[#6B5C00] text-[13px] font-semibold active:scale-95 transition-transform"
           >
             <Plus className="w-3.5 h-3.5" />
             {t("basket.more", { defaultValue: "Ещё" })}
@@ -281,7 +281,7 @@ export default function BasketPage() {
             </p>
             <button
               onClick={() => navigate(`/recommendation/${params.clientId}`)}
-              className="mt-1 px-5 py-2.5 rounded-xl bg-[#16A34A] text-white text-[14px] font-semibold active:scale-95 transition-transform"
+              className="mt-1 px-5 py-2.5 rounded-xl bg-[#FFD531] text-[#272424] text-[14px] font-semibold active:scale-95 transition-transform"
             >
               {t("recommendation.title")}
             </button>
@@ -364,7 +364,7 @@ export default function BasketPage() {
               <button
                 type="button"
                 onClick={() => navigate(`/calculator?clientId=${params.clientId}&clientName=${encodeURIComponent(client.fullName || "")}`)}
-                className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#16A34A] border-t border-[#F1F5F9] active:bg-[#F8FAFC] transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#272424] border-t border-[#F1F5F9] active:bg-[#F8FAFC] transition-colors"
               >
                 {t("basket.changeParams", { defaultValue: "Изменить параметры" })}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -404,16 +404,16 @@ export default function BasketPage() {
             {/* ── Hint card ── */}
             <div
               className="rounded-[14px] p-4 flex items-start gap-3"
-              style={{ background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)" }}
+              style={{ background: "linear-gradient(135deg, #FFF7D6 0%, #FCE588 100%)" }}
             >
-              <div className="w-9 h-9 rounded-xl bg-[#16A34A]/10 flex items-center justify-center shrink-0">
-                <Lightbulb className="w-[18px] h-[18px] text-[#16A34A]" />
+              <div className="w-9 h-9 rounded-xl bg-[#FFD531]/25 flex items-center justify-center shrink-0">
+                <Lightbulb className="w-[18px] h-[18px] text-[#6B5C00]" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-[#15803D] leading-snug">
+                <div className="text-[13px] font-semibold text-[#272424] leading-snug">
                   {t("basket.nextStep")}
                 </div>
-                <div className="text-[12px] text-[#16A34A]/80 mt-1 leading-relaxed">
+                <div className="text-[12px] text-[#6B5C00]/90 mt-1 leading-relaxed">
                   {t("basket.nextStepHint")}
                 </div>
               </div>
@@ -428,7 +428,7 @@ export default function BasketPage() {
           <button
             onClick={() => generatePdfMutation.mutate()}
             disabled={pdfLoading}
-            className="w-full flex items-center justify-center gap-2.5 h-[52px] rounded-[14px] bg-[#16A34A] text-white text-[15px] font-bold shadow-[0_4px_12px_rgba(22,163,74,0.3)] active:scale-[0.98] transition-transform disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2.5 h-[52px] rounded-[14px] bg-[#FFD531] text-[#272424] text-[15px] font-bold shadow-[0_4px_12px_rgba(255,213,49,0.4)] active:scale-[0.98] transition-transform disabled:opacity-60"
           >
             {pdfLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

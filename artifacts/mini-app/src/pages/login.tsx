@@ -61,7 +61,7 @@ export default function LoginPage() {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center px-4"
-        style={{ background: "linear-gradient(180deg, #0D3D1A 0%, #14532D 45%, #16A34A 100%)" }}
+        style={{ background: "linear-gradient(180deg, #272424 0%, #3A3636 45%, #4A4444 100%)" }}
       >
         <Loader2 className="w-8 h-8 animate-spin text-white/80 mb-3" />
         <p className="text-[14px] text-white/60">{t("login.authenticating")}</p>
@@ -75,7 +75,7 @@ export default function LoginPage() {
     const factor = 0.5 + Math.sin((i / (barCount - 1)) * Math.PI) * 0.5;
     return {
       height: 24 + factor * 48,
-      color: i < barCount / 2 ? "#4ADE80" : "#22C55E",
+      color: i < barCount / 2 ? "#FFD531" : "#FFE066",
       opacity: 0.6 + (i / barCount) * 0.4,
     };
   });
@@ -86,7 +86,7 @@ export default function LoginPage() {
       <div
         className="relative flex flex-col items-center justify-center shrink-0"
         style={{
-          background: "linear-gradient(180deg, #0D3D1A 0%, #14532D 45%, #16A34A 100%)",
+          background: "linear-gradient(180deg, #272424 0%, #3A3636 45%, #4A4444 100%)",
           minHeight: "46vh",
           paddingTop: 48,
           paddingBottom: 56,
@@ -151,7 +151,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center text-center mb-6">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
-              style={{ background: "#ECFDF3", color: "#16A34A" }}
+              style={{ background: "#FFF7D6", color: "#6B5C00" }}
             >
               <Shield className="w-6 h-6" />
             </div>
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#94A3B8" }}>
                   {t("login.status")}
                 </p>
-                <p className="text-[14px] font-bold mt-0.5" style={{ color: "#16A34A" }}>
+                <p className="text-[14px] font-bold mt-0.5" style={{ color: "#272424" }}>
                   {t("login.detected")}
                 </p>
               </div>
@@ -247,12 +247,12 @@ export default function LoginPage() {
 
           <div
             className="rounded-xl p-3.5 mb-5"
-            style={{ background: "#ECFDF3", border: "1px solid rgba(22,163,74,0.18)" }}
+            style={{ background: "#FFF7D6", border: "1px solid rgba(255,213,49,0.45)" }}
           >
-            <p className="text-[13px] font-semibold mb-1" style={{ color: "#14532D" }}>
+            <p className="text-[13px] font-semibold mb-1" style={{ color: "#272424" }}>
               {t("login.demoTitle", { defaultValue: "Гостевой доступ" })}
             </p>
-            <p className="text-[12px] mb-3" style={{ color: "#166534", opacity: 0.78 }}>
+            <p className="text-[12px] mb-3" style={{ color: "#6B5C00", opacity: 0.78 }}>
               {t("login.demoSubtitle", { defaultValue: "Откройте демонстрационный режим без личного аккаунта." })}
             </p>
             <Button
@@ -304,9 +304,9 @@ export default function LoginPage() {
               type="submit"
               className="w-full h-12 rounded-xl text-[15px] font-semibold"
               style={{
-                background: "#16A34A",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(22,163,74,0.3)",
+                background: "#FFD531",
+                color: "#272424",
+                boxShadow: "0 2px 8px rgba(255,213,49,0.4)",
               }}
               disabled={loading}
             >

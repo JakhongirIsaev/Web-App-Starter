@@ -75,7 +75,7 @@ export default function MiniAppLayout({ children }: Props) {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className="flex flex-1 flex-col items-center justify-center gap-[3px] py-[6px] transition-colors"
-                style={{ color: active ? "hsl(142 71% 40%)" : "hsl(150 10% 45%)" }}
+                style={{ color: active ? "#272424" : "hsl(150 10% 45%)" }}
               >
                 <item.icon size={22} strokeWidth={active ? 2.2 : 1.8} />
                 <span

@@ -106,8 +106,8 @@ function AmountReadout({ value, currency = "UZS" }: { value: number; currency?: 
   if (!Number.isFinite(value) || value <= 0) return null;
 
   return (
-    <div className="mt-2 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#15803D]">
+    <div className="mt-2 rounded-xl border border-[#FCE588] bg-[#FFF7D6] px-3 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B5C00]">
         {currency}
       </div>
       <div className="mt-0.5 text-[22px] font-black leading-none tracking-[-0.03em] text-[#0F172A]">
@@ -127,7 +127,7 @@ const TYPE_ICONS: Record<string, typeof Building2> = {
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   real_estate: { bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
-  transport: { bg: "#F0FDF4", text: "#16A34A", border: "#BBF7D0" },
+  transport: { bg: "#FFF7D6", text: "#6B5C00", border: "#FCE588" },
   jewelry: { bg: "#FFFBEB", text: "#D97706", border: "#FDE68A" },
   land_plot: { bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
   equipment: { bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" },
@@ -632,8 +632,8 @@ function DealSheetView({
         <button
           onClick={() => canSave && saveEstimate.mutate()}
           disabled={!canSave}
-          className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
-          style={{ background: "#16A34A" }}
+          className="w-full h-12 rounded-xl text-[14px] font-bold text-[#272424] disabled:opacity-40 active:opacity-80"
+          style={{ background: "#FFD531" }}
         >
           {saveEstimate.isPending
             ? t("common.saving")
@@ -1022,8 +1022,8 @@ function AddItemView({
         <button
           type="submit"
           disabled={create.isPending || !collateralTypeId || !title || marketValueAmount <= 0}
-          className="w-full h-12 rounded-xl text-[14px] font-bold text-white disabled:opacity-40 active:opacity-80"
-          style={{ background: "#16A34A" }}
+          className="w-full h-12 rounded-xl text-[14px] font-bold text-[#272424] disabled:opacity-40 active:opacity-80"
+          style={{ background: "#FFD531" }}
         >
           {create.isPending ? t("common.saving") : t("common.save")}
         </button>

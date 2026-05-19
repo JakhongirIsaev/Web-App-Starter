@@ -130,7 +130,7 @@ export default function HomePage() {
     (todo?.pendingActions?.length || 0) + (todo?.incompleteClients?.length || 0);
 
   const quickActions = [
-    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "hsl(142 71% 40%)", iconColor: "#FFFFFF" },
+    { icon: UserPlus, label: t("home.newClient"), path: "/new-client", iconBg: "#FFD531", iconColor: "#272424" },
     { icon: Calculator, label: t("home.calc"), path: "/calculator", iconBg: "#F59E0B", iconColor: "#FFFFFF" },
   ];
 
@@ -149,7 +149,7 @@ export default function HomePage() {
         className="relative overflow-hidden px-5 text-white"
         style={{
           padding: "18px 20px 22px",
-          background: "linear-gradient(180deg, #0D3D1A 0%, #155D27 60%, #1A7A32 100%)",
+          background: "linear-gradient(180deg, #272424 0%, #3A3636 60%, #4A4444 100%)",
         }}
       >
         <svg width="100%" height="100%" className="pointer-events-none absolute inset-0" style={{ opacity: 0.08 }}>
@@ -165,8 +165,8 @@ export default function HomePage() {
             <div
               className="flex h-11 w-11 items-center justify-center rounded-full text-[16px] font-bold"
               style={{
-                background: "hsl(142 71% 55%)",
-                color: "hsl(145 55% 14%)",
+                background: "#FFD531",
+                color: "#272424",
                 border: "2px solid rgba(255,255,255,0.2)",
               }}
             >
@@ -296,8 +296,8 @@ export default function HomePage() {
                   <div
                     className="flex h-10 w-10 items-center justify-center rounded-[14px] shrink-0"
                     style={{
-                      background: isOverdue ? "rgba(239,68,68,0.1)" : "rgba(22,163,74,0.1)",
-                      color: isOverdue ? "#EF4444" : "#16A34A",
+                      background: isOverdue ? "rgba(239,68,68,0.1)" : "rgba(255,213,49,0.2)",
+                      color: isOverdue ? "#EF4444" : "#6B5C00",
                     }}
                   >
                     <Icon className="h-4 w-4" />
@@ -415,12 +415,12 @@ export default function HomePage() {
         onClick={() => navigate("/quick-lead")}
         className="fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full flex items-center justify-center active:scale-90 transition-transform"
         style={{
-          background: "#16A34A",
-          boxShadow: "0 6px 18px rgba(22,163,74,0.4)",
+          background: "#FFD531",
+          boxShadow: "0 6px 18px rgba(255,213,49,0.45)",
         }}
         aria-label={t("quickLead.title", { defaultValue: "Быстрый лид" })}
       >
-        <Zap className="w-6 h-6 text-white" />
+        <Zap className="w-6 h-6 text-[#272424]" />
       </button>
 
       {user?.role === "branch_head" && branchData && (
@@ -436,7 +436,7 @@ export default function HomePage() {
                   {branchData.totalBranchClients}
                 </div>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ECFDF3] text-[#16A34A]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF7D6] text-[#6B5C00]">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>
@@ -456,7 +456,7 @@ export default function HomePage() {
                     {worker.totalClients} / {branchData.totalBranchClients}
                   </div>
                 </div>
-                <div className="rounded-full bg-[#ECFDF3] px-3 py-1 text-[12px] font-semibold text-[#16A34A]">
+                <div className="rounded-full bg-[#FFF7D6] px-3 py-1 text-[12px] font-semibold text-[#6B5C00]">
                   {worker.completedClients}
                 </div>
               </div>

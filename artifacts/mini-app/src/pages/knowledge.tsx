@@ -11,16 +11,16 @@ const CATEGORY_CONFIG: Record<string, {
   bg: string;
   fg: string;
 }> = {
-  onboarding:     { icon: GraduationCap, bg: "#ECFDF3", fg: "#16A34A" },   // green
+  onboarding:     { icon: GraduationCap, bg: "#FFF7D6", fg: "#6B5C00" },   // brand yellow
   credit_process: { icon: Landmark,      bg: "#FFFBEB", fg: "#D97706" },   // amber
   sap:            { icon: Monitor,        bg: "#F5F3FF", fg: "#7C3AED" },   // violet
   documents:      { icon: FileText,       bg: "#EFF6FF", fg: "#2563EB" },   // blue
-  faq:            { icon: HelpCircle,     bg: "#ECFDF3", fg: "#16A34A" },   // green
+  faq:            { icon: HelpCircle,     bg: "#FFF7D6", fg: "#6B5C00" },   // brand yellow
   general:        { icon: Layers,         bg: "#F8FAFC", fg: "#64748B" },   // gray
 };
 
 const TILE_COLORS = [
-  { bg: "#ECFDF3", fg: "#16A34A" },  // green
+  { bg: "#FFF7D6", fg: "#6B5C00" },  // brand yellow
   { bg: "#FFFBEB", fg: "#D97706" },  // amber
   { bg: "#F5F3FF", fg: "#7C3AED" },  // violet
   { bg: "#EFF6FF", fg: "#2563EB" },  // blue
@@ -142,7 +142,7 @@ export default function KnowledgePage() {
           <button
             onClick={() => setActiveCategory("all")}
             className="text-[12px] font-semibold"
-            style={{ color: "#16A34A" }}
+            style={{ color: "#272424" }}
           >
             {t("knowledge.allCategories")}
           </button>
@@ -204,7 +204,7 @@ export default function KnowledgePage() {
                         {articleIsNew && (
                           <span
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: "#ECFDF3", color: "#16A34A" }}
+                            style={{ background: "#FFF7D6", color: "#6B5C00" }}
                           >
                             {t("knowledge.newBadge")}
                           </span>

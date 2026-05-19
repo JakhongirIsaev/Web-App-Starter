@@ -75,7 +75,7 @@ export function StatusChip({ status, children }: { status: string; children?: Re
 
 /* ── Color-coded monogram avatar ── */
 const PALETTES = [
-  { bg: "#ECFDF3", fg: "#15803D" },
+  { bg: "#FFF7D6", fg: "#6B5C00" },
   { bg: "#EFF6FF", fg: "#1d4ed8" },
   { bg: "#FAF5FF", fg: "#7e22ce" },
   { bg: "#FEF3C7", fg: "#b45309" },
@@ -125,7 +125,7 @@ export function SectionHeader({
       {onAction && (
         <button
           onClick={onAction}
-          className="flex items-center gap-0.5 text-[13px] font-semibold text-[#16A34A]"
+          className="flex items-center gap-0.5 text-[13px] font-semibold text-[#272424]"
         >
           {actionLabel || "Все"}
           <ChevronRight className="w-4 h-4" />
@@ -196,8 +196,8 @@ export function KpiCard({
   value,
   hint,
   icon: Icon,
-  tint = "#16A34A",
-  bg = "#ECFDF3",
+  tint = "#6B5C00",
+  bg = "#FFF7D6",
 }: {
   label: string;
   value: string | number;

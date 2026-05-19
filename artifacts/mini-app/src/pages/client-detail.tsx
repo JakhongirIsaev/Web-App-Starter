@@ -461,7 +461,7 @@ export default function ClientDetailPage() {
   /* ── timeline events from notes ── */
   const timelineColors: Record<string, { bg: string; fg: string }> = {
     note: { bg: "#DBEAFE", fg: "#2563EB" },
-    status_change: { bg: "#ECFDF3", fg: "#16A34A" },
+    status_change: { bg: "#FFF7D6", fg: "#6B5C00" },
     action: { bg: "#FEF3C7", fg: "#D97706" },
     system: { bg: "#F1F5F9", fg: "#64748B" },
   };
@@ -511,7 +511,7 @@ export default function ClientDetailPage() {
               key={s}
               className="h-1.5 flex-1 rounded-full"
               style={{
-                background: i <= currentIdx ? "#16A34A" : "#E2E8F0",
+                background: i <= currentIdx ? "#FFD531" : "#E2E8F0",
               }}
             />
           ))}
@@ -523,8 +523,8 @@ export default function ClientDetailPage() {
         <div className="mx-4 mt-3">
           <button
             onClick={() => navigate(nextStep.path)}
-            className="w-full h-11 rounded-xl text-[14px] font-bold text-white active:scale-[0.98] transition-transform"
-            style={{ background: "#16A34A" }}
+            className="w-full h-11 rounded-xl text-[14px] font-bold text-[#272424] active:scale-[0.98] transition-transform"
+            style={{ background: "#FFD531" }}
           >
             {nextStep.label}
           </button>
@@ -535,8 +535,8 @@ export default function ClientDetailPage() {
       <div className="mx-4 mt-3">
         <button
           onClick={() => navigate(`/clients/${client.id}/collateral`)}
-          className="w-full rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-[0_10px_24px_rgba(13,61,26,0.16)]"
-          style={{ background: "linear-gradient(135deg, #0D3D1A 0%, #16A34A 100%)" }}
+          className="w-full rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-[0_10px_24px_rgba(39,36,36,0.22)]"
+          style={{ background: "linear-gradient(135deg, #272424 0%, #4A4444 100%)" }}
         >
           <div className="flex items-center gap-3 text-white">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/16">
@@ -667,7 +667,7 @@ export default function ClientDetailPage() {
               onClick={() => window.open(mapUrl, "_blank", "noopener,noreferrer")}
               className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
             >
-              <MapPin className="w-4 h-4 text-[#16A34A] shrink-0" />
+              <MapPin className="w-4 h-4 text-[#272424] shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] text-[#64748B]">
                   {t("clientDetail.businessLocation")}
@@ -833,8 +833,8 @@ export default function ClientDetailPage() {
               style={{
                 height: 44,
                 borderRadius: 10,
-                background: "#16A34A",
-                color: "#fff",
+                background: "#FFD531",
+                color: "#272424",
                 fontSize: 14,
                 fontWeight: 600,
                 opacity: saveCreditMutation.isPending ? 0.6 : 1,
@@ -895,7 +895,7 @@ export default function ClientDetailPage() {
       <div className="mx-4 mt-2">
         <button
           onClick={() => navigate(`/scan/${client.id}`)}
-          className="w-full mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#16A34A] active:scale-[0.97] transition-transform"
+          className="w-full mn-card flex items-center justify-center gap-2 py-3 text-[13px] font-semibold text-[#272424] active:scale-[0.97] transition-transform"
         >
           <Scan className="w-4 h-4" />
           {t("scanDoc.scanDocument")}
@@ -909,14 +909,14 @@ export default function ClientDetailPage() {
             value={noteContent}
             onChange={(e) => setNoteContent(e.target.value)}
             placeholder={t("clientDetail.notePlaceholder")}
-            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#16A34A]/30"
+            className="w-full h-10 px-3 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#FFD531]/40"
           />
           <div className="flex gap-2">
             <button
               onClick={() => addNoteMutation.mutate()}
               disabled={!noteContent || addNoteMutation.isPending}
-              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50"
-              style={{ background: "#16A34A" }}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-[#272424] disabled:opacity-50"
+              style={{ background: "#FFD531" }}
             >
               {t("common.save")}
             </button>
@@ -941,7 +941,7 @@ export default function ClientDetailPage() {
                 onClick={() => setActionType(option)}
                 className={`min-h-11 rounded-xl px-3 text-left text-[13px] font-semibold border transition-colors ${
                   actionType === option
-                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    ? "bg-[#FFF7D6] border-[#FFD531] text-[#6B5C00]"
                     : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
                 }`}
               >
@@ -957,7 +957,7 @@ export default function ClientDetailPage() {
                 onClick={() => setActionDate(option.value)}
                 className={`h-10 rounded-xl px-2 text-[12px] font-semibold border transition-colors ${
                   actionDate === option.value
-                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    ? "bg-[#FFF7D6] border-[#FFD531] text-[#6B5C00]"
                     : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
                 }`}
               >
@@ -979,7 +979,7 @@ export default function ClientDetailPage() {
                 onClick={() => setActionPriority(option)}
                 className={`h-10 rounded-xl px-2 text-[12px] font-semibold border transition-colors ${
                   actionPriority === option
-                    ? "bg-[#ECFDF3] border-[#16A34A] text-[#15803D]"
+                    ? "bg-[#FFF7D6] border-[#FFD531] text-[#6B5C00]"
                     : "bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A]"
                 }`}
               >
@@ -992,14 +992,14 @@ export default function ClientDetailPage() {
             onChange={(e) => setActionDescription(e.target.value)}
             placeholder={t("clientDetail.actionDescriptionPlaceholder")}
             rows={2}
-            className="w-full px-3 py-2 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#16A34A]/30 resize-none"
+            className="w-full px-3 py-2 bg-[#F4F4F5] rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#FFD531]/40 resize-none"
           />
           <div className="flex gap-2">
             <button
               onClick={() => addActionMutation.mutate()}
               disabled={!actionDate || addActionMutation.isPending}
-              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50"
-              style={{ background: "#16A34A" }}
+              className="h-9 px-4 rounded-lg text-[13px] font-semibold text-[#272424] disabled:opacity-50"
+              style={{ background: "#FFD531" }}
             >
               {t("common.save")}
             </button>
@@ -1027,9 +1027,9 @@ export default function ClientDetailPage() {
               >
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "#ECFDF3" }}
+                  style={{ background: "#FFF7D6" }}
                 >
-                  <Calendar className="w-4 h-4 text-[#16A34A]" />
+                  <Calendar className="w-4 h-4 text-[#6B5C00]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold text-[#0F172A]">
@@ -1042,9 +1042,9 @@ export default function ClientDetailPage() {
                 <button
                   onClick={() => completeActionMutation.mutate(a.id)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "#ECFDF3" }}
+                  style={{ background: "#FFF7D6" }}
                 >
-                  <Check className="w-4 h-4 text-[#16A34A]" />
+                  <Check className="w-4 h-4 text-[#6B5C00]" />
                 </button>
               </div>
             ))}
@@ -1148,23 +1148,23 @@ export default function ClientDetailPage() {
           <button
             onClick={() => generatePdfMutation.mutate()}
             disabled={generatePdfMutation.isPending}
-            className="w-full h-12 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+            className="w-full h-12 rounded-xl text-[14px] font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
             style={{
               background:
                 client.status === "basket" || basketItems?.length > 0
-                  ? "#16A34A"
+                  ? "#FFD531"
                   : "#FFFFFF",
               color:
                 client.status === "basket" || basketItems?.length > 0
-                  ? "#FFFFFF"
-                  : "#16A34A",
+                  ? "#272424"
+                  : "#272424",
               border:
                 client.status === "basket" || basketItems?.length > 0
                   ? "none"
-                  : "1px solid rgba(22,163,74,0.3)",
+                  : "1px solid rgba(255,213,49,0.5)",
               boxShadow:
                 client.status === "basket" || basketItems?.length > 0
-                  ? "0 2px 8px rgba(22,163,74,0.25)"
+                  ? "0 2px 8px rgba(255,213,49,0.35)"
                   : "none",
             }}
           >
@@ -1207,7 +1207,7 @@ export default function ClientDetailPage() {
                 </span>
                 <span>{c.interestRate}%</span>
               </div>
-              <div className="mt-2 text-[15px] font-bold text-[#16A34A]">
+              <div className="mt-2 text-[15px] font-bold text-[#272424]">
                 {t("calculator.monthlyPayment")}: {fmtNum(c.monthlyPayment)}{" "}
                 {c.currency}
               </div>

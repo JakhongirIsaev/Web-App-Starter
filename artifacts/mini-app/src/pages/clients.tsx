@@ -133,17 +133,17 @@ export default function ClientsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("clients.searchPlaceholder")}
-              className="w-full h-10 pl-10 pr-4 bg-white rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#16A34A]/30"
+              className="w-full h-10 pl-10 pr-4 bg-white rounded-xl text-[14px] text-[#0F172A] placeholder:text-[#94A3B8] border-0 outline-none focus:ring-2 focus:ring-[#FFD531]/40"
               style={{ boxShadow: "var(--shadow-xs)" }}
             />
           </div>
           <button
             onClick={() => setFilterOpen(true)}
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
-            style={{ background: "#16A34A" }}
+            style={{ background: "#FFD531" }}
             aria-label={t("clients.filterAndSort")}
           >
-            <SlidersHorizontal className="w-[18px] h-[18px] text-white" />
+            <SlidersHorizontal className="w-[18px] h-[18px] text-[#272424]" />
           </button>
         </div>
       </div>
@@ -232,11 +232,11 @@ export default function ClientsPage() {
         onClick={() => navigate("/new-client")}
         className="fixed bottom-24 right-5 z-30 w-14 h-14 rounded-full flex items-center justify-center active:scale-90 transition-transform"
         style={{
-          background: "#16A34A",
-          boxShadow: "0 6px 20px rgba(22,163,74,0.35)",
+          background: "#FFD531",
+          boxShadow: "0 6px 20px rgba(255,213,49,0.45)",
         }}
       >
-        <Plus className="w-6 h-6 text-white" />
+        <Plus className="w-6 h-6 text-[#272424]" />
       </button>
 
       {/* ═══════════════ FILTER / SORT SHEET ═══════════════ */}
@@ -268,7 +268,7 @@ export default function ClientsPage() {
                     <span className="flex-1 text-[14px] font-medium" style={{ color: "#0F172A" }}>
                       {opt.label}
                     </span>
-                    {active && <Check className="w-4 h-4 text-[#16A34A] shrink-0" />}
+                    {active && <Check className="w-4 h-4 text-[#272424] shrink-0" />}
                   </button>
                 );
               })}
@@ -327,8 +327,8 @@ export default function ClientsPage() {
 
           <button
             onClick={() => setFilterOpen(false)}
-            className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white"
-            style={{ background: "#16A34A" }}
+            className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold text-[#272424]"
+            style={{ background: "#FFD531" }}
           >
             {t("clients.applyFilters")}
           </button>

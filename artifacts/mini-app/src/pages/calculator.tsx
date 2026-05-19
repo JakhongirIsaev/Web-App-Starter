@@ -332,7 +332,7 @@ export default function CalculatorPage() {
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
             className="flex w-full items-center justify-between text-[13px] font-semibold"
-            style={{ color: "#16A34A" }}
+            style={{ color: "#272424" }}
           >
             <span>{t("calculator.advancedToggle")}</span>
             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -421,7 +421,7 @@ export default function CalculatorPage() {
         {/* Calculate button */}
         <Button
           className="w-full h-12 text-[15px] font-semibold rounded-xl"
-          style={{ background: "#16A34A", color: "#fff" }}
+          style={{ background: "#FFD531", color: "#272424" }}
           onClick={() => calcMutation.mutate()}
           disabled={!canCalc || calcMutation.isPending}
         >
@@ -438,12 +438,12 @@ export default function CalculatorPage() {
               {/* Monthly payment — accent green */}
               <div
                 className="rounded-xl p-3"
-                style={{ background: "#ECFDF5" }}
+                style={{ background: "#FFF7D6" }}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#64748B" }}>
                   {t("calculator.monthlyPayment")}
                 </p>
-                <p className="text-[20px] font-bold mt-1 leading-tight" style={{ color: "#16A34A" }}>
+                <p className="text-[20px] font-bold mt-1 leading-tight" style={{ color: "#6B5C00" }}>
                   {formatWithSpaces(monthlyPayment)}
                 </p>
                 <p className="text-[11px] mt-0.5" style={{ color: "#64748B" }}>{currency}</p>
@@ -558,7 +558,7 @@ export default function CalculatorPage() {
               <button
                 onClick={() => setShowFullSchedule(!showFullSchedule)}
                 className="w-full py-3 flex items-center justify-center gap-1 text-[13px] font-semibold"
-                style={{ color: "#16A34A", borderTop: "1px solid #F1F5F9" }}
+                style={{ color: "#272424", borderTop: "1px solid #F1F5F9" }}
               >
                 {showFullSchedule ? (
                   <>

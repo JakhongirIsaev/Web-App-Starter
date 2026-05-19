@@ -3,31 +3,20 @@ interface MinervaIconProps {
   className?: string;
 }
 
+// Kapitalbank mark — four diagonal stripes inline SVG.
 export function MinervaIcon({ size = 32, className = "" }: MinervaIconProps) {
-  const barCount = 9;
-  const gap = 1.5;
-  const barWidth = (size - gap * (barCount - 1)) / barCount;
-
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={className}>
-      {Array.from({ length: barCount }).map((_, i) => {
-        const x = i * (barWidth + gap);
-        const heightFactor = 0.6 + Math.sin((i / (barCount - 1)) * Math.PI) * 0.4;
-        const barHeight = size * heightFactor;
-        const y = (size - barHeight) / 2;
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={barWidth}
-            height={barHeight}
-            rx={barWidth * 0.15}
-            fill={i < barCount / 2 ? "#4ADE80" : "#22C55E"}
-            opacity={0.7 + (i / barCount) * 0.3}
-          />
-        );
-      })}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 196.97 196.97"
+      className={className}
+      aria-hidden
+    >
+      <polygon fill="#FFD531" points="148.59,0 67.18,196.97 114.9,196.97 196.31,0 " />
+      <polygon fill="#FFD531" points="82.07,0 0.65,196.97 48.37,196.97 129.78,0 " />
+      <polygon fill="#FFD531" points="63.24,0 0,0 0,153.02 " />
+      <polygon fill="#FFD531" points="133.71,196.97 196.97,196.97 196.97,43.94 " />
     </svg>
   );
 }
@@ -43,7 +32,7 @@ export default function MinervaLogo({ size = 32, className = "", showText = true
     <div className={`flex items-center gap-2 ${className}`}>
       <MinervaIcon size={size} />
       {showText && (
-        <span className="font-semibold tracking-tight" style={{ fontSize: size * 0.55 }}>
+        <span className="font-bold tracking-tight" style={{ fontSize: size * 0.55 }}>
           Minerva
         </span>
       )}

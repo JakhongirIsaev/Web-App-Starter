@@ -73,47 +73,49 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Ipak Yuli Green Theme - Light Mode */
-  --background: 140 20% 97%;
-  --foreground: 150 40% 8%;
-  
-  --border: 140 15% 89%;
-  --input: 140 15% 89%;
-  --ring: 142 71% 45%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 150 40% 8%;
-  --card-border: 140 15% 89%;
-  
-  --popover: 0 0% 100%;
-  --popover-foreground: 150 40% 8%;
-  --popover-border: 140 15% 89%;
+  /* Kapitalbank Yellow Theme - Light Mode (#FFD531 + #272424) */
+  --background: 45 30% 98%;
+  --foreground: 0 4% 14%;
 
-  --primary: 142 71% 40%;
-  --primary-foreground: 0 0% 100%;
-  
-  --secondary: 140 20% 95%;
-  --secondary-foreground: 150 40% 8%;
-  
-  --muted: 140 15% 95%;
-  --muted-foreground: 150 10% 45%;
-  
-  --accent: 140 20% 95%;
-  --accent-foreground: 150 40% 8%;
-  
+  --border: 45 15% 89%;
+  --input: 45 15% 89%;
+  --ring: 48 100% 50%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 4% 14%;
+  --card-border: 45 15% 89%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 4% 14%;
+  --popover-border: 45 15% 89%;
+
+  /* Primary action: brand yellow background with dark text */
+  --primary: 48 100% 60%;
+  --primary-foreground: 0 4% 14%;
+
+  --secondary: 45 30% 95%;
+  --secondary-foreground: 0 4% 14%;
+
+  --muted: 45 15% 95%;
+  --muted-foreground: 0 5% 45%;
+
+  --accent: 45 30% 95%;
+  --accent-foreground: 0 4% 14%;
+
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 145 55% 14%;
-  --sidebar-foreground: 140 20% 95%;
-  --sidebar-border: 145 45% 19%;
-  --sidebar-primary: 142 71% 55%;
-  --sidebar-primary-foreground: 145 55% 14%;
-  --sidebar-accent: 145 45% 20%;
-  --sidebar-accent-foreground: 140 20% 95%;
-  --sidebar-ring: 142 71% 55%;
+  /* Sidebar: deep near-black with yellow active state */
+  --sidebar: 0 4% 14%;
+  --sidebar-foreground: 45 30% 95%;
+  --sidebar-border: 0 4% 22%;
+  --sidebar-primary: 48 100% 60%;
+  --sidebar-primary-foreground: 0 4% 14%;
+  --sidebar-accent: 0 4% 22%;
+  --sidebar-accent-foreground: 45 30% 95%;
+  --sidebar-ring: 48 100% 60%;
 
-  --chart-1: 142 71% 45%;
+  --chart-1: 48 100% 50%;
   --chart-2: 217 91% 60%;
   --chart-3: 38 95% 52%;
   --chart-4: 180 50% 45%;
@@ -151,47 +153,47 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Ipak Yuli Green Theme - Dark Mode */
-  --background: 145 40% 7%;
-  --foreground: 140 20% 95%;
-  
-  --border: 145 30% 16%;
-  --input: 145 30% 16%;
-  --ring: 142 71% 55%;
-  
-  --card: 145 35% 10%;
-  --card-foreground: 140 20% 95%;
-  --card-border: 145 30% 16%;
-  
-  --popover: 145 35% 10%;
-  --popover-foreground: 140 20% 95%;
-  --popover-border: 145 30% 16%;
+  /* Kapitalbank Yellow Theme - Dark Mode */
+  --background: 0 4% 8%;
+  --foreground: 45 20% 95%;
 
-  --primary: 142 71% 50%;
-  --primary-foreground: 145 55% 8%;
-  
-  --secondary: 145 30% 16%;
-  --secondary-foreground: 140 20% 95%;
-  
-  --muted: 145 30% 16%;
-  --muted-foreground: 140 15% 60%;
-  
-  --accent: 145 30% 16%;
-  --accent-foreground: 140 20% 95%;
-  
+  --border: 0 4% 18%;
+  --input: 0 4% 18%;
+  --ring: 48 100% 60%;
+
+  --card: 0 4% 12%;
+  --card-foreground: 45 20% 95%;
+  --card-border: 0 4% 18%;
+
+  --popover: 0 4% 12%;
+  --popover-foreground: 45 20% 95%;
+  --popover-border: 0 4% 18%;
+
+  --primary: 48 100% 60%;
+  --primary-foreground: 0 4% 14%;
+
+  --secondary: 0 4% 18%;
+  --secondary-foreground: 45 20% 95%;
+
+  --muted: 0 4% 18%;
+  --muted-foreground: 45 10% 60%;
+
+  --accent: 0 4% 18%;
+  --accent-foreground: 45 20% 95%;
+
   --destructive: 0 62.8% 50.6%;
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 145 55% 8%;
-  --sidebar-foreground: 140 20% 95%;
-  --sidebar-border: 145 45% 14%;
-  --sidebar-primary: 142 71% 55%;
-  --sidebar-primary-foreground: 145 55% 8%;
-  --sidebar-accent: 145 45% 14%;
-  --sidebar-accent-foreground: 140 20% 95%;
-  --sidebar-ring: 142 71% 55%;
+  --sidebar: 0 4% 8%;
+  --sidebar-foreground: 45 20% 95%;
+  --sidebar-border: 0 4% 16%;
+  --sidebar-primary: 48 100% 60%;
+  --sidebar-primary-foreground: 0 4% 14%;
+  --sidebar-accent: 0 4% 16%;
+  --sidebar-accent-foreground: 45 20% 95%;
+  --sidebar-ring: 48 100% 60%;
 
-  --chart-1: 142 71% 55%;
+  --chart-1: 48 100% 60%;
   --chart-2: 217 91% 65%;
   --chart-3: 38 95% 58%;
   --chart-4: 180 50% 55%;

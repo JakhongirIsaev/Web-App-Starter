@@ -81,9 +81,9 @@ function ChipGroup<T extends string>({
             className="rounded-full text-[13px] font-semibold transition-colors active:scale-[0.97]"
             style={{
               padding: "8px 14px",
-              border: active ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
-              background: active ? "#ECFDF3" : "#FFFFFF",
-              color: active ? "#15803D" : "#334155",
+              border: active ? "1.5px solid #FFD531" : "1.5px solid #E2E8F0",
+              background: active ? "#FFF7D6" : "#FFFFFF",
+              color: active ? "#6B5C00" : "#334155",
             }}
           >
             {getLabel(option)}
@@ -110,18 +110,18 @@ function ConsentCheckbox({
       className="flex w-full items-start gap-3 rounded-xl text-left transition-colors active:scale-[0.99]"
       style={{
         padding: "12px",
-        border: checked ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
-        background: checked ? "#ECFDF3" : "#FFFFFF",
+        border: checked ? "1.5px solid #FFD531" : "1.5px solid #E2E8F0",
+        background: checked ? "#FFF7D6" : "#FFFFFF",
       }}
     >
       <span
         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md mt-0.5"
         style={{
-          background: checked ? "#16A34A" : "#FFFFFF",
-          border: checked ? "1.5px solid #16A34A" : "1.5px solid #CBD5E1",
+          background: checked ? "#FFD531" : "#FFFFFF",
+          border: checked ? "1.5px solid #FFD531" : "1.5px solid #CBD5E1",
         }}
       >
-        {checked && <Check className="h-3.5 w-3.5 text-white" />}
+        {checked && <Check className="h-3.5 w-3.5 text-[#272424]" />}
       </span>
       <span className="text-[13px] leading-relaxed text-[#0F172A]">{label}</span>
     </button>
@@ -266,7 +266,7 @@ export default function NewClientPage() {
         <div className="flex items-center gap-3 mt-1">
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "#ECFDF3", color: "#16A34A" }}
+            style={{ background: "#FFF7D6", color: "#6B5C00" }}
           >
             <UserPlus className="w-5 h-5" />
           </div>
@@ -296,7 +296,7 @@ export default function NewClientPage() {
               placeholder={t("newClient.fullNamePlaceholder")}
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onFocus={(e) => (e.target.style.borderColor = "#FFD531")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
@@ -310,7 +310,7 @@ export default function NewClientPage() {
               inputMode="tel"
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onFocus={(e) => (e.target.style.borderColor = "#FFD531")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
@@ -326,7 +326,7 @@ export default function NewClientPage() {
               spellCheck={false}
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onFocus={(e) => (e.target.style.borderColor = "#FFD531")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
@@ -386,7 +386,7 @@ export default function NewClientPage() {
               })}
               className="w-full outline-none transition-colors"
               style={inputBaseStyle}
-              onFocus={(e) => (e.target.style.borderColor = "#16A34A")}
+              onFocus={(e) => (e.target.style.borderColor = "#FFD531")}
               onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
             />
           </div>
@@ -412,9 +412,9 @@ export default function NewClientPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold transition-colors active:scale-[0.99]"
               style={{
                 padding: "12px",
-                border: coords ? "1.5px solid #16A34A" : "1.5px solid #E2E8F0",
-                background: coords ? "#ECFDF3" : "#FFFFFF",
-                color: coords ? "#15803D" : "#334155",
+                border: coords ? "1.5px solid #FFD531" : "1.5px solid #E2E8F0",
+                background: coords ? "#FFF7D6" : "#FFFFFF",
+                color: coords ? "#6B5C00" : "#334155",
                 opacity: gpsLoading ? 0.6 : 1,
               }}
             >
@@ -466,16 +466,16 @@ export default function NewClientPage() {
             style={{
               height: 52,
               borderRadius: 12,
-              background: canSubmit && !createMutation.isPending ? "#16A34A" : "#A7F3D0",
-              color: "#fff",
+              background: canSubmit && !createMutation.isPending ? "#FFD531" : "#FCE588",
+              color: "#272424",
               fontSize: 16,
               fontWeight: 600,
-              boxShadow: canSubmit ? "0 10px 24px rgba(22,163,74,0.24)" : "none",
+              boxShadow: canSubmit ? "0 10px 24px rgba(255,213,49,0.35)" : "none",
             }}
           >
             {createMutation.isPending ? (
               <div
-                className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                className="w-5 h-5 border-2 border-[#272424]/30 border-t-[#272424] rounded-full animate-spin"
               />
             ) : (
               <Save className="w-4 h-4" />

@@ -156,9 +156,12 @@ export async function generateLeaveBehindPdf(
 
   const pageX = 36;
   const pageW = 523;
-  const green = "#136A2A";
-  const greenAccent = "#15803D";
-  const greenSoft = "#E8F5E9";
+  // Kapitalbank brand: yellow #FFD531 + dark #272424.
+  // Yellow as hero background needs DARK text for contrast; the legacy
+  // variable names are retained to minimise churn elsewhere in the file.
+  const green = "#FFD531";
+  const greenAccent = "#272424";
+  const greenSoft = "#FFF7D6";
   const amber = "#B45309";
   const dark = "#0F172A";
   const muted = "#64748B";
@@ -175,32 +178,33 @@ export async function generateLeaveBehindPdf(
   };
 
   // ── Hero band ────────────────────────────────────────────────────────────
+  // Yellow hero with dark text for Kapitalbank brand contrast.
   doc.rect(0, 0, 595, 110).fill(green);
 
-  doc.font("bold").fontSize(20).fillColor(white).text(t.headerBrand, pageX, 22);
-  doc.font("body").fontSize(10).fillColor("#D9F2DE").text(t.headerTagline, pageX, 48);
+  doc.font("bold").fontSize(20).fillColor(dark).text(t.headerBrand, pageX, 22);
+  doc.font("body").fontSize(10).fillColor("#6B5C00").text(t.headerTagline, pageX, 48);
 
   // Right-aligned meta block (date + branch)
   const metaX = 360;
   const metaW = 199;
-  doc.font("body").fontSize(8.5).fillColor("#D9F2DE").text(t.metaDate, metaX, 22, {
+  doc.font("body").fontSize(8.5).fillColor("#6B5C00").text(t.metaDate, metaX, 22, {
     width: metaW,
     align: "right",
   });
-  doc.font("bold").fontSize(10).fillColor(white).text(formatToday(input.language), metaX, 33, {
+  doc.font("bold").fontSize(10).fillColor(dark).text(formatToday(input.language), metaX, 33, {
     width: metaW,
     align: "right",
   });
-  doc.font("body").fontSize(8.5).fillColor("#D9F2DE").text(t.metaBranch, metaX, 52, {
+  doc.font("body").fontSize(8.5).fillColor("#6B5C00").text(t.metaBranch, metaX, 52, {
     width: metaW,
     align: "right",
   });
-  doc.font("bold").fontSize(10).fillColor(white).text(input.branchName, metaX, 63, {
+  doc.font("bold").fontSize(10).fillColor(dark).text(input.branchName, metaX, 63, {
     width: metaW,
     align: "right",
   });
 
-  doc.font("bold").fontSize(17).fillColor(white).text(t.title, pageX, 80);
+  doc.font("bold").fontSize(17).fillColor(dark).text(t.title, pageX, 80);
 
   // ── Client info ──────────────────────────────────────────────────────────
   let y = 132;
@@ -236,7 +240,7 @@ export async function generateLeaveBehindPdf(
 
   // ── Credit desire card (only what the client asked for) ────────────────
   doc.roundedRect(pageX, y, pageW, 116, 10).fillAndStroke(white, border);
-  doc.font("bold").fontSize(12).fillColor(green).text(t.creditInterest, pageX + 16, y + 14);
+  doc.font("bold").fontSize(12).fillColor(dark).text(t.creditInterest, pageX + 16, y + 14);
 
   if (hasCreditDesire) {
     labelValue(t.purpose, textOrDash(input.client.purpose), pageX + 16, y + 42, pageW - 32);
@@ -268,7 +272,7 @@ export async function generateLeaveBehindPdf(
 
   // ── Collateral card ─────────────────────────────────────────────────────
   doc.roundedRect(pageX, y, pageW, 124, 10).fillAndStroke(white, border);
-  doc.font("bold").fontSize(12).fillColor(green).text(t.collateral, pageX + 16, y + 14);
+  doc.font("bold").fontSize(12).fillColor(dark).text(t.collateral, pageX + 16, y + 14);
 
   if (input.collateral) {
     labelValue(t.collateralValue, fmtMoney(input.collateral.acceptedValueUzs), pageX + 16, y + 42, 170);
@@ -279,12 +283,14 @@ export async function generateLeaveBehindPdf(
     if (input.collateral.resultStatus === "enough" || input.collateral.resultStatus === "not_enough") {
       const enough = input.collateral.resultStatus === "enough";
       const pillFill = enough ? green : amber;
+      // Yellow pill needs dark text; amber pill keeps white for contrast.
+      const pillTextColor = enough ? dark : white;
       const status = enough ? t.collateralEnough : t.collateralNotEnough;
       const pillX = pageX + 16;
       const pillY = y + 92;
       const pillW = 180;
       doc.roundedRect(pillX, pillY, pillW, 22, 11).fill(pillFill);
-      doc.font("bold").fontSize(9.5).fillColor(white).text(status, pillX, pillY + 6, {
+      doc.font("bold").fontSize(9.5).fillColor(pillTextColor).text(status, pillX, pillY + 6, {
         width: pillW,
         align: "center",
       });
@@ -331,7 +337,7 @@ export async function generateLeaveBehindPdf(
     width: rightW,
     align: "right",
   });
-  doc.font("bold").fontSize(20).fillColor(green).text(input.expert.phone, rightX, y + 40, {
+  doc.font("bold").fontSize(20).fillColor(dark).text(input.expert.phone, rightX, y + 40, {
     width: rightW,
     align: "right",
     lineGap: 0,

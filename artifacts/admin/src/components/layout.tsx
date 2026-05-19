@@ -215,6 +215,11 @@ export default function Layout({ children, user }: LayoutProps) {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+              <img
+                src={`${import.meta.env.BASE_URL}kapitalbank-logo.svg`}
+                alt="Kapitalbank"
+                className="hidden sm:block h-6 w-auto"
+              />
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground px-2 md:px-3" onClick={toggleLanguage}>
                 <Languages className="h-4 w-4" />
                 <span className="hidden sm:inline">{i18n.language === "ru" ? "O'z" : "Ру"}</span>

@@ -31,8 +31,8 @@ export default function NotFound() {
 
         <button
           onClick={() => navigate("/")}
-          className="mt-6 w-full h-11 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-          style={{ background: "#16A34A" }}
+          className="mt-6 w-full h-11 rounded-xl text-[14px] font-bold text-[#272424] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          style={{ background: "#FFD531" }}
         >
           <Home className="w-4 h-4" />
           {t("common.goHome")}
