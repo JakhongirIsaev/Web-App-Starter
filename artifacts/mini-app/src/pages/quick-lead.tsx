@@ -193,7 +193,7 @@ export default function QuickLeadPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("quickLead.namePlaceholder", { defaultValue: "Aziz Karimov" })}
-            className="w-full h-11 rounded-lg bg-white px-3 text-[15px] mt-1 border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#16A34A]/30"
+            className="w-full h-11 rounded-lg bg-white px-3 text-[15px] mt-1 border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#FFD531]/40"
           />
         </div>
 
@@ -206,7 +206,7 @@ export default function QuickLeadPage() {
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full h-11 rounded-lg bg-white px-3 text-[15px] mt-1 border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#16A34A]/30"
+            className="w-full h-11 rounded-lg bg-white px-3 text-[15px] mt-1 border border-[#E2E8F0] outline-none focus:ring-2 focus:ring-[#FFD531]/40"
           />
         </div>
 
@@ -248,7 +248,7 @@ export default function QuickLeadPage() {
             {gpsLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : coords ? (
-              <Check className="w-4 h-4 text-[#16A34A]" />
+              <Check className="w-4 h-4 text-[#272424]" />
             ) : (
               <MapPin className="w-4 h-4 text-[#64748B]" />
             )}
@@ -269,11 +269,11 @@ export default function QuickLeadPage() {
             type="button"
             onClick={() => save.mutate()}
             disabled={!canSave || save.isPending}
-            className="w-full h-14 rounded-2xl text-[16px] font-bold text-white flex items-center justify-center gap-2 transition-opacity"
+            className="w-full h-14 rounded-2xl text-[16px] font-bold text-[#272424] flex items-center justify-center gap-2 transition-opacity"
             style={{
-              background: "#16A34A",
+              background: "#FFD531",
               opacity: !canSave || save.isPending ? 0.5 : 1,
-              boxShadow: "0 6px 20px rgba(22,163,74,0.35)",
+              boxShadow: "0 6px 20px rgba(255,213,49,0.45)",
             }}
           >
             {save.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : null}

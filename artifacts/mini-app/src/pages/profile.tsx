@@ -282,8 +282,8 @@ export default function ProfilePage() {
     },
     {
       icon: Globe,
-      iconBg: "#ECFDF3",
-      iconColor: "#16A34A",
+      iconBg: "#FFF7D6",
+      iconColor: "#6B5C00",
       label: t("profile.language"),
       subtitle: t("profile.languageHint"),
       value: currentLang,
@@ -297,7 +297,7 @@ export default function ProfilePage() {
       <div
         className="relative overflow-hidden"
         style={{
-          background: "linear-gradient(180deg, #14532D 0%, #16A34A 100%)",
+          background: "linear-gradient(180deg, #272424 0%, #4A4444 100%)",
           padding: "24px 20px 20px",
         }}
       >

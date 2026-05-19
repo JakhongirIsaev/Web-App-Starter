@@ -27,9 +27,9 @@ const STRIPES = Array.from({ length: 40 }).map((_, i) => {
     width: `${2 + r * 3}%`,
     marginRight: `${0.5 + (Math.sin(i * 127 + 311) * 0.5 + 0.5)}%`,
     background: `linear-gradient(180deg,
-      hsl(142 71% ${35 + Math.sin(i * 0.5) * 20}%) 0%,
-      hsl(145 55% ${25 + Math.cos(i * 0.3) * 15}%) 50%,
-      hsl(140 60% ${30 + Math.sin(i * 0.7) * 15}%) 100%)`,
+      hsl(48 100% ${55 + Math.sin(i * 0.5) * 15}%) 0%,
+      hsl(45 90% ${50 + Math.cos(i * 0.3) * 12}%) 50%,
+      hsl(48 95% ${55 + Math.sin(i * 0.7) * 12}%) 100%)`,
   };
 });
 
@@ -127,7 +127,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-background">
-      <div className="hidden md:flex flex-col flex-1 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0d3d1a 0%, #155d27 40%, #1a7a32 100%)" }}>
+      <div className="hidden md:flex flex-col flex-1 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #1a1818 0%, #272424 40%, #3A3636 100%)" }}>
         <StripeBackground />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 

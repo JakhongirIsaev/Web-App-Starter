@@ -42,8 +42,8 @@ const STATUS_CHIP_STYLES: Record<string, { bg: string; text: string }> = {
 /* ── KPI tone configs ── */
 const TONE_CONFIG = {
   primary: {
-    iconBg: "bg-[hsl(142_71%_40%/0.12)]",
-    iconColor: "text-[hsl(142_71%_40%)]",
+    iconBg: "bg-[#FFD531]/15",
+    iconColor: "text-[#6B5C00]",
   },
   blue: {
     iconBg: "bg-[hsl(217_91%_60%/0.12)]",
@@ -445,7 +445,7 @@ export default function Dashboard() {
                       fontSize: 12,
                     }}
                   />
-                  <Bar dataKey="totalClients" name={t("dashboard.totalClients")} fill="hsl(142 71% 40%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="totalClients" name={t("dashboard.totalClients")} fill="#FFD531" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="completedClients" name={t("dashboard.completed")} fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

@@ -40,7 +40,7 @@ export default function PdfSharePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F4F4F5] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#16A34A]" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#272424]" />
       </div>
     );
   }
@@ -173,15 +173,15 @@ export default function PdfSharePage() {
         <div
           className="rounded-[16px] p-5 flex flex-col items-center text-center"
           style={{
-            background: "linear-gradient(135deg, #15803D 0%, #16A34A 50%, #22C55E 100%)",
-            boxShadow: "0 4px 20px rgba(22,163,74,0.25)",
+            background: "linear-gradient(135deg, #FFD531 0%, #FFE066 50%, #FFD531 100%)",
+            boxShadow: "0 4px 20px rgba(255,213,49,0.35)",
           }}
         >
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-3">
-            <CheckCircle className="w-8 h-8 text-white" />
+          <div className="w-14 h-14 rounded-full bg-[#272424]/15 flex items-center justify-center mb-3">
+            <CheckCircle className="w-8 h-8 text-[#272424]" />
           </div>
-          <div className="text-[18px] font-bold text-white">{t("pdf.generated")}</div>
-          <div className="flex items-center gap-2 mt-2 text-[12px] text-white/80">
+          <div className="text-[18px] font-bold text-[#272424]">{t("pdf.generated")}</div>
+          <div className="flex items-center gap-2 mt-2 text-[12px] text-[#272424]/75">
             <FileText className="w-3.5 h-3.5" />
             <span>{fileName}</span>
             <span className="w-[3px] h-[3px] rounded-full bg-white/50" />
@@ -194,8 +194,8 @@ export default function PdfSharePage() {
           <div className="aspect-[210/297] relative bg-white p-5 flex flex-col">
             {/* PDF mockup header — neutral branding */}
             <div className="flex items-center gap-3 pb-3 border-b border-[#E2E8F0]">
-              <div className="w-10 h-10 rounded-lg bg-[#136A2A] flex items-center justify-center">
-                <span className="text-white font-bold text-[14px]">M</span>
+              <div className="w-10 h-10 rounded-lg bg-[#FFD531] flex items-center justify-center">
+                <span className="text-[#272424] font-bold text-[14px]">M</span>
               </div>
               <div>
                 <div className="text-[13px] font-bold text-[#0F172A]">
@@ -224,11 +224,11 @@ export default function PdfSharePage() {
 
             {/* Product blocks */}
             <div className="mt-4 space-y-2 flex-1">
-              <div className="h-12 rounded-lg bg-[#ECFDF3] border border-[#D1FAE5] flex items-center px-3 gap-2">
-                <div className="w-6 h-6 rounded bg-[#16A34A]/20" />
+              <div className="h-12 rounded-lg bg-[#FFF7D6] border border-[#FCE588] flex items-center px-3 gap-2">
+                <div className="w-6 h-6 rounded bg-[#FFD531]/40" />
                 <div className="flex-1 space-y-1">
-                  <div className="h-[5px] w-[60%] bg-[#16A34A]/20 rounded-sm" />
-                  <div className="h-[4px] w-[40%] bg-[#16A34A]/10 rounded-sm" />
+                  <div className="h-[5px] w-[60%] bg-[#FFD531]/50 rounded-sm" />
+                  <div className="h-[4px] w-[40%] bg-[#FFD531]/30 rounded-sm" />
                 </div>
               </div>
               <div className="h-12 rounded-lg bg-[#EFF6FF] border border-[#DBEAFE] flex items-center px-3 gap-2">
@@ -251,7 +251,7 @@ export default function PdfSharePage() {
                         height: `${30 + Math.sin(i * 0.5) * 15 + Math.random() * 10}%`,
                         background:
                           i < 6
-                            ? "linear-gradient(180deg, #16A34A 0%, #22C55E 100%)"
+                            ? "linear-gradient(180deg, #FFD531 0%, #FFE066 100%)"
                             : "linear-gradient(180deg, #3B82F6 0%, #60A5FA 100%)",
                         opacity: 0.7,
                       }}
@@ -280,7 +280,7 @@ export default function PdfSharePage() {
               key={i}
               className={`rounded-full transition-all ${
                 i === 0
-                  ? "w-6 h-2 bg-[#16A34A]"
+                  ? "w-6 h-2 bg-[#FFD531]"
                   : "w-2 h-2 bg-[#CBD5E1]"
               }`}
             />
@@ -298,7 +298,7 @@ export default function PdfSharePage() {
                 disabled={action.disabled}
                 className={`flex flex-col items-center justify-center gap-2 py-5 rounded-[14px] text-[13px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60 ${
                   action.primary
-                    ? "bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.3)]"
+                    ? "bg-[#FFD531] text-[#272424] shadow-[0_4px_12px_rgba(255,213,49,0.4)]"
                     : "bg-white text-[#0F172A] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
                 }`}
               >

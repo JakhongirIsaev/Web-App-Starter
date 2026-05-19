@@ -692,7 +692,7 @@ export default function ClientDetailPage() {
             {client.status === "recommendation" || client.status === "basket" || client.status === "pdf_generated" ? (
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "#ECFDF3", color: "#15803D" }}
+                style={{ background: "#FFF7D6", color: "#6B5C00" }}
               >
                 {t("clientDetail.credit.ready", { defaultValue: "Готово" })}
               </span>
@@ -1135,11 +1135,11 @@ export default function ClientDetailPage() {
       {/* ═══════════════ PDF GENERATION ═══════════════ */}
       <div className="mx-4 mt-4">
         {pdfResult ? (
-          <div className="mn-card p-5 text-center" style={{ background: "#F0FDF4" }}>
-            <CheckCircle className="w-10 h-10 text-[#16A34A] mx-auto mb-2" />
+          <div className="mn-card p-5 text-center" style={{ background: "#FFF7D6" }}>
+            <CheckCircle className="w-10 h-10 text-[#B45309] mx-auto mb-2" />
             <button
               onClick={() => setPdfResult(null)}
-              className="mt-3 h-9 px-4 rounded-lg text-[13px] font-semibold text-[#16A34A] border border-[#16A34A]/30"
+              className="mt-3 h-9 px-4 rounded-lg text-[13px] font-semibold text-[#272424] border border-[#272424]/30"
             >
               {t("pdf.generateAgain")}
             </button>
